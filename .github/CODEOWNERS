@@ -1,0 +1,21 @@
+# One feature, one owner. GitHub requests the right reviewer automatically,
+# and two engineers working in different features never queue behind each other.
+
+/src/features/auth/            @ajala/mobile-unassigned
+/src/features/onboarding/      @ajala/mobile-unassigned
+/src/features/home/            @ajala/mobile-unassigned
+/src/features/explore/         @ajala/mobile-unassigned
+/src/features/create-post/     @ajala/mobile-unassigned
+/src/features/map/             @ajala/mobile-unassigned
+/src/features/post-detail/     @ajala/mobile-unassigned
+/src/features/chat/            @ajala/mobile-unassigned
+/src/features/profile/         @ajala/mobile-unassigned
+/src/features/payment/         @ajala/mobile-unassigned
+/src/features/notifications/   @ajala/mobile-unassigned
+/src/features/settings/        @ajala/mobile-unassigned
+
+# Shared surface changes affect every feature — they need the lead's review.
+/src/shared/                   @ajala/mobile-leads
+/src/core/                     @ajala/mobile-leads
+/src/app/                      @ajala/mobile-leads
+/contracts/                    @ajala/mobile-leads @ajala/backend-leads

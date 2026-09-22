@@ -1,0 +1,25 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+
+      # Architecture is a build gate, not a review convention.
+      - name: Layer & feature boundaries
+        run: npm run check:boundaries
+
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test -- --coverage
