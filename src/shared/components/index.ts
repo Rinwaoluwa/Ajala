@@ -13,3 +13,6 @@ export { Text, type TextProps, type TextVariant, type TextTone } from './ui/Text
 export { ImageCarousel, type ImageCarouselProps, type CarouselImage } from './media/ImageCarousel';
 export { PaginationDots, type PaginationDotsProps } from './ui/PaginationDots';
 export { Screen, type ScreenProps, type ScreenEdge } from './layout/Screen';
+
+// Reanimated
+export { Reveal, type RevealProps } from './motion/Reveal';
