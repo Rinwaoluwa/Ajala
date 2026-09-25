@@ -6,7 +6,6 @@
     "version": "0.1.0",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.ajala.app"
@@ -15,10 +14,19 @@
       "package": "com.ajala.app"
     },
     "plugins": [
-      "expo-router"
+      "expo-router",
+      "expo-status-bar",
+      "expo-image",
+      "expo-font",
+      ["expo-build-properties", { "ios": { "enableSceneSupport": true } }]
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {
+        "root": "app"
+      }
     }
   }
 }

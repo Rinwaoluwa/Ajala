@@ -1,0 +1,8 @@
+{
+  // Use the TypeScript installed in this repo (6.0.3), not the editor's bundled copy.
+  // The bundled one is usually older and can fail to read expo/tsconfig.base, which drops
+  // the `jsx` option and produces a spurious TS17004 "Cannot use JSX unless the '--jsx'
+  // flag is provided" on every .tsx file.
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "typescript.enablePromptUseWorkspaceTsdk": true
+}
