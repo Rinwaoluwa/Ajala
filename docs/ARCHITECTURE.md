@@ -34,7 +34,7 @@ Domain depends on nothing.
 | `domain` | entities, repository **interfaces**, use cases, TTLs, validation rules | nothing — pure TypeScript, no React, Expo, HTTP or SDK imports |
 | `data` | REST services, socket subscriptions, local caches, DTOs, mappers, repository **implementations** | its own `domain`, `@core`, `@shared/domain` |
 
-`.eslintrc.js` encodes each row as a `no-restricted-imports` override, and
+`eslint.config.js` encodes each row as a `no-restricted-imports` rule, and
 `scripts/check-boundaries.js` re-checks the whole tree in CI.
 
 ## 2. One request, end to end

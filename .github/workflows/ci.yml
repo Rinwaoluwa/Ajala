@@ -12,7 +12,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # Node 20 reached end-of-life in April 2026. React Native 0.86 accepts
+          # ^22.13.0, so this tracks the current LTS line.
+          node-version: 22
           cache: npm
       - run: npm ci
 

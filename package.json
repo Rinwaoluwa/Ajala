@@ -37,7 +37,25 @@
     "tailwindcss": "^3.4.19"
   },
   "devDependencies": {
+    "@jest/globals": "^29.7.0",
     "@types/react": "~19.2.18",
+    "eslint": "^9.39.5",
+    "eslint-config-expo": "~57.0.2",
+    "jest": "~29.7.0",
+    "jest-expo": "~57.0.5",
     "typescript": "~6.0.3"
+  },
+  "jest": {
+    "preset": "jest-expo",
+    "moduleNameMapper": {
+      "^@bootstrap/(.*)$": "<rootDir>/src/bootstrap/$1",
+      "^@core/(.*)$": "<rootDir>/src/core/$1",
+      "^@shared/(.*)$": "<rootDir>/src/shared/$1",
+      "^@features/(.*)$": "<rootDir>/src/features/$1"
+    },
+    "collectCoverageFrom": [
+      "src/**/*.{ts,tsx}",
+      "!src/**/index.ts"
+    ]
   }
 }
