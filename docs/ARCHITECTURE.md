@@ -108,7 +108,7 @@ half the app.
 
 ## 5. Dependency injection
 
-`src/app/di` is the composition root: it builds repositories, injects them into use cases, and
+`src/bootstrap/di` is the composition root: it builds repositories, injects them into use cases, and
 exposes use cases through a typed context that presentation hooks consume. Constructor
 injection, no service locators, no singletons in feature code — logging, crash reporting and
 analytics are the only exceptions.

@@ -13,7 +13,7 @@ the contract honest. No implementation yet.
 Ajala/
 ├── app/                    Expo Router routes — thin, they just render feature screens
 ├── src/
-│   ├── app/                composition root: bootstrap, providers, DI container, navigation
+│   ├── bootstrap/                composition root: bootstrap, providers, DI container, navigation
 │   ├── core/               infrastructure: HTTP, sockets, push, cache, storage, maps, analytics
 │   ├── shared/             the global object: shared components, global stores, shared domain
 │   └── features/           one folder per feature — the unit of ownership

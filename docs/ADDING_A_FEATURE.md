@@ -19,7 +19,7 @@ mkdir -p src/features/$FEATURE/{data/{datasources/{remote,local},dto,mappers,rep
    to entities in `mappers/` — an entity never carries a wire field name.
 4. **Presentation.** State type, hook (view model), screen, components. The hook owns state
    and calls use cases; the screen renders state and forwards callbacks.
-5. **Register.** Add the repository and use cases to `src/app/di`, add a route file under
+5. **Register.** Add the repository and use cases to `src/bootstrap/di`, add a route file under
    `app/`, export the screen from the feature's `index.ts`.
 6. **Own it.** Add yourself to `.github/CODEOWNERS`.
 
