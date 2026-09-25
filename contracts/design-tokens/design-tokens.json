@@ -1,0 +1,369 @@
+{
+  "$meta": {
+    "name": "Ajala Design Tokens",
+    "source": "Figma — AJALA (j2V2WSfXYkgW9dcPg4anIi), Mobile page, node 1-3 'IOS SCREENS'",
+    "brandSource": "AJALA_Brand_Asset_FTripleT.pdf — 'AJALA Brand Brief', September 2026, pages 1-3",
+    "extractedOn": "2026-09-24",
+    "method": "Values read from Figma's Properties panel per node (exact hexes, exact type metrics, exact layout numbers). Where a token carries a Figma variable name it is recorded in `figmaVar`.",
+    "singleSourceOfTruth": "This file. src/shared/theme/tokens/*.ts and tailwind.config.js both read it — do not hand-edit values in either."
+  },
+  "color": {
+    "brand": {
+      "teal": {
+        "value": "#0E6F69",
+        "figmaVar": "Primary/Teal/100",
+        "name": "Ajala Teal",
+        "on": "#FFFFFF",
+        "contrast": 6,
+        "use": "Primary buttons, headings, active tabs, links, verified badges"
+      },
+      "marigold": {
+        "value": "#F5B83D",
+        "figmaVar": "Primary/Yellow/100",
+        "name": "Marigold",
+        "on": "#1B2624",
+        "contrast": 8.8,
+        "use": "Highlights, card accents, badges, validation-met ticks. Never body text."
+      },
+      "coral": {
+        "value": "#CC4A30",
+        "figmaVar": "Primary/Red/100",
+        "name": "Sunset Coral",
+        "on": "#FFFFFF",
+        "contrast": 4.6,
+        "use": "The single most important action per screen"
+      }
+    },
+    "status": {
+      "success": {
+        "value": "#15803D",
+        "on": "#FFFFFF",
+        "contrast": 5,
+        "use": "Confirmations, completed states"
+      },
+      "error": {
+        "value": "#A61B29",
+        "on": "#FFFFFF",
+        "contrast": 7.5,
+        "use": "Errors and validation. Always with an icon so it never reads as the CTA."
+      }
+    },
+    "light": {
+      "background": {
+        "value": "#FAF8F5",
+        "name": "Paper"
+      },
+      "surface": {
+        "value": "#FFFFFF",
+        "figmaVar": "Text/White",
+        "name": "Card"
+      },
+      "text": {
+        "value": "#1B2624",
+        "figmaVar": "Light Mode/Text",
+        "name": "Ink",
+        "contrastOnBackground": 14.7
+      },
+      "textSecondary": {
+        "value": "#5B6B68",
+        "contrastOnBackground": 5.3
+      },
+      "border": {
+        "value": "#D8E3E1",
+        "use": "Card borders, dividers, input outlines"
+      }
+    },
+    "dark": {
+      "background": {
+        "value": "#0D1715",
+        "name": "Night"
+      },
+      "surface": {
+        "value": "#17231F",
+        "name": "Deep",
+        "contrastWithText": 14.5
+      },
+      "text": {
+        "value": "#EEF3F2",
+        "name": "Mist",
+        "contrastOnBackground": 16.3
+      },
+      "textSecondary": {
+        "value": "#9AABA7",
+        "contrastOnBackground": 7.6
+      },
+      "border": {
+        "value": "#2A3A35",
+        "derived": true,
+        "use": "No dark border exists in the brief; derived one step above Deep so dividers stay visible. Confirm with design."
+      },
+      "primary": {
+        "value": "#2BB3A3",
+        "name": "Teal Light",
+        "on": "#0D1715",
+        "contrast": 7
+      },
+      "accent": {
+        "value": "#FF7A5C",
+        "name": "Coral Light",
+        "on": "#0D1715",
+        "contrast": 7.1
+      },
+      "error": {
+        "value": "#F87171",
+        "on": "#0D1715",
+        "contrast": 6.6
+      },
+      "success": {
+        "value": "#4ADE80",
+        "on": "#0D1715",
+        "contrast": 10.5
+      }
+    },
+    "kitLeftovers": {
+      "$note": "Present in the Figma file but NOT part of the brand system. Recorded so they are recognised and rejected in review, not copied into code.",
+      "Text/Normal [500]": "#666D80",
+      "Accent/Aqua": "kit default ramp",
+      "Secondary/Purple": "kit default ramp"
+    },
+    "usageRules": [
+      "Roughly 60% neutrals, 30% Teal, 10% Coral and Marigold. Coral loses its pull if it is everywhere.",
+      "One coral CTA per screen where possible.",
+      "Never use Coral for errors, and never use Crimson for buttons."
+    ]
+  },
+  "typography": {
+    "families": {
+      "heading": {
+        "family": "Plus Jakarta Sans",
+        "weights": [
+          600,
+          700,
+          800
+        ]
+      },
+      "body": {
+        "family": "Inter",
+        "weights": [
+          400,
+          500,
+          600
+        ]
+      },
+      "display": {
+        "family": "Fraunces",
+        "weights": [
+          600
+        ],
+        "italic": true
+      }
+    },
+    "licence": "All three are Google Fonts under the SIL OFL. latin + latin-ext subsets shipped, for accented traveller and destination names.",
+    "scale": {
+      "display": {
+        "family": "display",
+        "weight": 600,
+        "size": 40,
+        "lineHeight": 48,
+        "source": "brand-brief"
+      },
+      "headingXxl": {
+        "family": "heading",
+        "weight": 600,
+        "size": 32,
+        "lineHeight": 40,
+        "source": "measured",
+        "figmaStyle": "Heading/XXL_SemiBold",
+        "example": "'Sign up to meet travellers'"
+      },
+      "headingXl": {
+        "family": "heading",
+        "weight": 600,
+        "size": 28,
+        "lineHeight": 36,
+        "source": "derived"
+      },
+      "headingLg": {
+        "family": "heading",
+        "weight": 600,
+        "size": 24,
+        "lineHeight": 32,
+        "source": "derived"
+      },
+      "headingMd": {
+        "family": "heading",
+        "weight": 600,
+        "size": 20,
+        "lineHeight": 28,
+        "source": "derived"
+      },
+      "headingSm": {
+        "family": "heading",
+        "weight": 600,
+        "size": 18,
+        "lineHeight": 24,
+        "source": "derived"
+      },
+      "bodyLg": {
+        "family": "body",
+        "weight": 400,
+        "size": 18,
+        "lineHeight": 28,
+        "source": "derived"
+      },
+      "bodyMd": {
+        "family": "body",
+        "weight": 400,
+        "size": 16,
+        "lineHeight": 24,
+        "source": "measured",
+        "figmaStyle": "Body/Medium"
+      },
+      "bodySm": {
+        "family": "body",
+        "weight": 400,
+        "size": 14,
+        "lineHeight": 20,
+        "source": "derived"
+      },
+      "labelMd": {
+        "family": "body",
+        "weight": 500,
+        "size": 16,
+        "lineHeight": 24,
+        "source": "derived"
+      },
+      "labelSm": {
+        "family": "body",
+        "weight": 500,
+        "size": 14,
+        "lineHeight": 20,
+        "source": "measured",
+        "figmaStyle": "Label/Small",
+        "example": "button labels"
+      },
+      "labelXs": {
+        "family": "body",
+        "weight": 500,
+        "size": 12,
+        "lineHeight": 16,
+        "source": "measured-normalised",
+        "figmaStyle": "Label/XSmall",
+        "note": "Figma has this as DM Sans 500 with kit grey #666D80. Normalised to Inter + brand secondary text. See docs/DESIGN_TOKENS.md."
+      }
+    }
+  },
+  "spacing": {
+    "unit": "px",
+    "scale": [
+      0,
+      2,
+      4,
+      6,
+      8,
+      10,
+      12,
+      16,
+      20,
+      24,
+      28,
+      32,
+      40,
+      48,
+      56,
+      64,
+      72,
+      80,
+      96,
+      128,
+      160,
+      256
+    ]
+  },
+  "radius": {
+    "unit": "px",
+    "scale": [
+      0,
+      2,
+      4,
+      6,
+      8,
+      12,
+      16,
+      20,
+      24,
+      28,
+      32,
+      40,
+      48,
+      56,
+      64,
+      72,
+      80
+    ],
+    "full": 9999
+  },
+  "borderWidth": {
+    "unit": "px",
+    "scale": [
+      0.5,
+      1,
+      2,
+      4
+    ]
+  },
+  "layout": {
+    "$note": "Measured from the Properties panel on Onboarding Screen_Variant 2 (node 167-7636) and the Create Account screen (iPhone 14 & 15 Pro, 393pt).",
+    "screenGutter": 20,
+    "contentWidth": 353,
+    "fieldGroupGap": 10,
+    "button": {
+      "$note": "Measured on the Onboarding Next button (Figma Button component, Size=Large). Radius 80 on a 44pt button renders as a full pill — the tooltip on the Corner_Radius chip reads 80px.",
+      "height": {
+        "sm": 36,
+        "md": 44,
+        "lg": 50
+      },
+      "radius": 80,
+      "figmaVar": "Corner_Radius/80",
+      "borderWidth": 1,
+      "paddingX": 20,
+      "paddingY": 6,
+      "gap": 6,
+      "labelStyle": "labelSm"
+    },
+    "input": {
+      "height": 56,
+      "labelGap": 4
+    }
+  },
+  "logo": {
+    "files": [
+      {
+        "asset": "Primary logo (icon + wordmark)",
+        "spec": "SVG + PNG, transparent, min 1024px wide",
+        "fileName": "ajala-logo-full.svg"
+      },
+      {
+        "asset": "Icon mark / app mark",
+        "spec": "SVG + PNG 1024x1024, no rounded corners",
+        "fileName": "ajala-icon-1024.svg"
+      },
+      {
+        "asset": "Logo, light version",
+        "spec": "Off-white (#FAF8F5) for dark backgrounds",
+        "fileName": "ajala-logo-light.svg"
+      },
+      {
+        "asset": "Logo, dark version",
+        "spec": "Teal/ink for light backgrounds",
+        "fileName": "ajala-logo-dark.svg"
+      },
+      {
+        "asset": "Wordmark only",
+        "spec": "SVG + PNG",
+        "fileName": "ajala-wordmark.svg"
+      }
+    ]
+  }
+}

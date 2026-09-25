@@ -1,0 +1,46 @@
+/**
+ * GENERATED FILE — do not edit.
+ * Source: contracts/design-tokens/design-tokens.json
+ * Regenerate: npm run tokens:css
+ *
+ * Semantic colour roles as RGB triplets, so Tailwind's `rgb(var(--x) / <alpha-value>)`
+ * can apply opacity. One class name per role, correct in light and dark.
+ */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-background: 250 248 245;
+    --color-surface: 255 255 255;
+    --color-foreground: 27 38 36;
+    --color-muted: 91 107 104;
+    --color-border: 216 227 225;
+    --color-primary: 14 111 105;
+    --color-primary-foreground: 255 255 255;
+    --color-cta: 204 74 48;
+    --color-cta-foreground: 255 255 255;
+    --color-accent: 245 184 61;
+    --color-accent-foreground: 27 38 36;
+    --color-success: 21 128 61;
+    --color-destructive: 166 27 41;
+  }
+
+  .dark:root {
+    --color-background: 13 23 21;
+    --color-surface: 23 35 31;
+    --color-foreground: 238 243 242;
+    --color-muted: 154 171 167;
+    --color-border: 42 58 53;
+    --color-primary: 43 179 163;
+    --color-primary-foreground: 13 23 21;
+    --color-cta: 255 122 92;
+    --color-cta-foreground: 13 23 21;
+    --color-accent: 245 184 61;
+    --color-accent-foreground: 27 38 36;
+    --color-success: 74 222 128;
+    --color-destructive: 248 113 113;
+  }
+}
