@@ -42,6 +42,12 @@ function check(file) {
   }
 }
 
+// Expo Router resolves 'src/app' BEFORE 'app'. If this directory ever comes
+// back, routing silently moves to it and the app bundles with no routes.
+if (fs.existsSync(path.join(SRC, 'app'))) {
+  violations.push("src/app/ exists — it shadows Expo Router's route directory. The composition root is src/bootstrap/.");
+}
+
 walk(SRC);
 if (violations.length) {
   console.error('Architecture boundary violations:\n' + violations.map((v) => '  - ' + v).join('\n'));
