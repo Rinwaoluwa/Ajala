@@ -72,7 +72,9 @@ export function ImageCarousel({
   const onScroll = useAnimatedScrollHandler({
     onScroll: (event) => {
       if (!progress || width === 0) return;
-      progress.value = event.contentOffset.x / width;
+      // `.set()` rather than `.value =`: same write, but it does not read as
+      // mutating a prop, which the React Compiler rule rejects.
+      progress.set(event.contentOffset.x / width);
     },
   });
 

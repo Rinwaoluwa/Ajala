@@ -1,9 +1,7 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useSharedValue } from 'react-native-reanimated';
 
-import { createOnboardingRepository } from '../../data/repositories/OnboardingRepositoryImpl';
-import { makeCompleteOnboarding } from '../../domain/usecases/CompleteOnboardingUseCase';
-import { makeGetOnboardingSlides } from '../../domain/usecases/GetOnboardingSlidesUseCase';
+import { createOnboardingUseCases } from '../../onboardingModule';
 import type { OnboardingExit, OnboardingState } from '../state/OnboardingState';
 
 /**
@@ -12,9 +10,8 @@ import type { OnboardingExit, OnboardingState } from '../state/OnboardingState';
  * Owns the state, calls one use case per intent, and reports how the user left via
  * `onExit` rather than navigating itself — the screen does not know what comes next.
  *
- * Wiring note: the repository is constructed here for now. When `src/bootstrap/di`
- * lands, these use cases move into the container and arrive as arguments; the rest
- * of this hook is unaffected.
+ * Use cases come from the feature module rather than being built here, so this
+ * hook never sees a repository.
  */
 
 export type UseOnboardingOptions = {
@@ -22,13 +19,7 @@ export type UseOnboardingOptions = {
 };
 
 export function useOnboarding({ onExit }: UseOnboardingOptions) {
-  const useCases = useMemo(() => {
-    const repo = createOnboardingRepository();
-    return {
-      getSlides: makeGetOnboardingSlides(repo),
-      complete: makeCompleteOnboarding(repo),
-    };
-  }, []);
+  const useCases = useMemo(() => createOnboardingUseCases(), []);
 
   const [state, setState] = useState<OnboardingState>(() => ({
     slides: useCases.getSlides(),

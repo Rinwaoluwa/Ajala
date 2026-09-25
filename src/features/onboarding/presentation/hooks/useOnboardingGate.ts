@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 
-import { createOnboardingRepository } from '../../data/repositories/OnboardingRepositoryImpl';
-import { makeHasCompletedOnboarding } from '../../domain/usecases/HasCompletedOnboardingUseCase';
+import { createOnboardingUseCases } from '../../onboardingModule';
 
 /**
  * Whether the tour has already been seen.
@@ -21,7 +20,7 @@ export function useOnboardingGate(): OnboardingGate {
     // Guards against setting state after the screen has gone away.
     let active = true;
 
-    const hasCompleted = makeHasCompletedOnboarding(createOnboardingRepository());
+    const { hasCompleted } = createOnboardingUseCases();
 
     hasCompleted()
       .then((completed) => {
