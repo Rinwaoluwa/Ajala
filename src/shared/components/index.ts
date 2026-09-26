@@ -37,6 +37,6 @@ export { Screen, type ScreenProps, type ScreenEdge } from './layout/Screen';
 export { StepProgress, type StepProgressProps } from './feedback/StepProgress';
 
 // Reanimated
-export { Reveal, type RevealProps } from './motion/Reveal';
+export { ProgressReveal, type ProgressRevealProps } from './motion/ProgressReveal';
 export { ProgressBar, type ProgressBarProps } from './feedback/ProgressBar';
 export { Logo, type LogoProps } from './brand/Logo';

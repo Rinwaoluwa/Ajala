@@ -15,15 +15,16 @@ import type { OnboardingExit } from '../state/OnboardingState';
  *
  * Only the photo moves. Tapping Next scrolls the pager, swiping drives the same
  * index, and the dots read the pager's live scroll offset so they track the image
- * rather than catching up afterwards. The copy below swaps in place; the action row
- * is fixed, except on the last slide where it becomes Sign Up / Sign In.
+ * rather than catching up afterwards. The copy below swaps in place. The action
+ * row follows the same scroll offset: Skip / Next give way to Sign Up / Sign In as
+ * the last photo slides in, and come back as it slides out.
  *
  * LAYOUT CONTRACT — every row states its own height strategy, because a flex:1
  * child inside a parent that hugs its content resolves to zero height and silently
  * disappears:
  *   - photo row:  fixed  (imageHeight)
  *   - copy row:   flex-1 (takes the remainder)
- *   - action row: hugs   (its own content + safe-area padding)
+ *   - action row: fixed  (the Sign Up / Sign In stack + safe-area padding)
  */
 
 /** The photo occupies this share of the screen height. Measured from the design. */
@@ -74,9 +75,11 @@ export function OnboardingScreen({ onExit }: OnboardingScreenProps) {
       {/* Takes the remaining height. */}
       <OnboardingCopy slide={activeSlide} />
 
-      {/* Hugs its content. */}
+      {/* Fixed height, set by OnboardingActions. */}
       <View className="px-20 pt-16" style={{ paddingBottom: Math.max(insets.bottom, 16) }}>
         <OnboardingActions
+          progress={progress}
+          lastIndex={state.slides.length - 1}
           isLast={isLast}
           busy={state.isFinishing}
           onSkip={skip}
