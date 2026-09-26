@@ -5,9 +5,8 @@ import type { OnboardingExit } from '../state/OnboardingState';
  * the intent and the route file decides the href, so no screen here knows the shape
  * of the auth stack.
  */
-export const onboardingExitRoutes: Record<OnboardingExit, '/(auth)/sign-in'> = {
-  // Sign-up is not built yet, so all three land on the auth entry for now.
+export const onboardingExitRoutes: Record<OnboardingExit, '/(auth)/sign-in' | '/(auth)/sign-up'> = {
   skip: '/(auth)/sign-in',
-  signUp: '/(auth)/sign-in',
+  signUp: '/(auth)/sign-up',
   signIn: '/(auth)/sign-in',
 };
