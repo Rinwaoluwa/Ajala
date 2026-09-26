@@ -13,7 +13,7 @@
 
 @layer base {
   :root {
-    --color-background: 250 248 245;
+    --color-background: 255 255 255;
     --color-surface: 255 255 255;
     --color-foreground: 27 38 36;
     --color-muted: 91 107 104;
@@ -26,6 +26,13 @@
     --color-accent-foreground: 27 38 36;
     --color-success: 21 128 61;
     --color-destructive: 166 27 41;
+    --color-heading: 14 111 105;
+    --color-link: 14 111 105;
+    --color-control-border: 219 221 227;
+    --color-surface-muted: 236 239 243;
+    --color-track: 210 213 218;
+    --color-placeholder: 165 172 184;
+    --color-success-soft: 225 242 239;
   }
 
   .dark:root {
@@ -42,5 +49,12 @@
     --color-accent-foreground: 27 38 36;
     --color-success: 74 222 128;
     --color-destructive: 248 113 113;
+    --color-heading: 14 111 105;
+    --color-link: 245 184 61;
+    --color-control-border: 197 199 204;
+    --color-surface-muted: 31 43 40;
+    --color-track: 52 68 63;
+    --color-placeholder: 110 124 121;
+    --color-success-soft: 23 58 43;
   }
 }

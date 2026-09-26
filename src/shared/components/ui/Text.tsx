@@ -22,11 +22,16 @@ export type TextVariant =
   | 'bodySm'
   | 'labelMd'
   | 'labelSm'
-  | 'labelXs';
+  | 'labelXs'
+  | 'bodyXs'
+  | 'code';
 
 export type TextTone =
   | 'default'
   | 'muted'
+  | 'heading'
+  | 'link'
+  | 'placeholder'
   | 'primary'
   | 'onPrimary'
   | 'onCta'
@@ -51,11 +56,16 @@ const variantClass: Record<TextVariant, string> = {
   labelMd: 'font-body-medium text-labelMd',
   labelSm: 'font-body-medium text-labelSm',
   labelXs: 'font-body-medium text-labelXs',
+  bodyXs: 'font-body text-bodyXs',
+  code: 'font-body text-code',
 };
 
 const toneClass: Record<TextTone, string> = {
   default: 'text-foreground',
   muted: 'text-muted',
+  heading: 'text-heading',
+  link: 'text-link',
+  placeholder: 'text-placeholder',
   primary: 'text-primary',
   onPrimary: 'text-primary-foreground',
   onCta: 'text-cta-foreground',

@@ -50,8 +50,14 @@
     },
     "light": {
       "background": {
+        "value": "#FFFFFF",
+        "name": "White",
+        "note": "Every light screen in the design file (onboarding, splash, sign-up) sits on pure white. The brand brief's Paper #FAF8F5 is kept as `paper` below for warm surfaces, but it is not the screen background. Confirm with design."
+      },
+      "paper": {
         "value": "#FAF8F5",
-        "name": "Paper"
+        "name": "Paper",
+        "source": "brand-brief"
       },
       "surface": {
         "value": "#FFFFFF",
@@ -62,15 +68,50 @@
         "value": "#1B2624",
         "figmaVar": "Light Mode/Text",
         "name": "Ink",
-        "contrastOnBackground": 14.7
+        "contrastOnBackground": 15.6
       },
       "textSecondary": {
         "value": "#5B6B68",
-        "contrastOnBackground": 5.3
+        "contrastOnBackground": 5.6
       },
       "border": {
         "value": "#D8E3E1",
-        "use": "Card borders, dividers, input outlines"
+        "use": "Card borders, dividers"
+      },
+      "heading": {
+        "value": "#0E6F69",
+        "use": "Screen headings ('Sign up', 'Verification', 'Email verified!')",
+        "source": "measured"
+      },
+      "link": {
+        "value": "#0E6F69",
+        "use": "Inline text links ('CREATE ONE')",
+        "source": "measured"
+      },
+      "controlBorder": {
+        "value": "#DBDDE3",
+        "use": "Outlines of text fields and social sign-up buttons",
+        "source": "measured"
+      },
+      "surfaceMuted": {
+        "value": "#ECEFF3",
+        "use": "Disabled button fill, OTP boxes",
+        "source": "measured"
+      },
+      "track": {
+        "value": "#D2D5DA",
+        "use": "Inactive step segments, unmet password-rule marks, OTP box outlines",
+        "source": "measured"
+      },
+      "placeholder": {
+        "value": "#A5ACB8",
+        "use": "Placeholder text in fields",
+        "source": "measured"
+      },
+      "successSoft": {
+        "value": "#E1F2EF",
+        "use": "Tinted badge behind a success mark",
+        "source": "measured"
       }
     },
     "dark": {
@@ -118,6 +159,36 @@
         "value": "#4ADE80",
         "on": "#0D1715",
         "contrast": 10.5
+      },
+      "heading": {
+        "value": "#0E6F69",
+        "source": "measured",
+        "note": "The dark sign-up mockup keeps brand teal for headings. That is 3.0:1 on Night: enough for the 32pt headings (WCAG large text), weak for smaller ones. Flagged to design; Teal Light #2BB3A3 is the accessible alternative."
+      },
+      "link": {
+        "value": "#F5B83D",
+        "source": "measured",
+        "note": "Marigold on Night, from the dark sign-up mockup."
+      },
+      "controlBorder": {
+        "value": "#C5C7CC",
+        "source": "measured"
+      },
+      "surfaceMuted": {
+        "value": "#1F2B28",
+        "derived": true
+      },
+      "track": {
+        "value": "#34443F",
+        "derived": true
+      },
+      "placeholder": {
+        "value": "#6E7C79",
+        "derived": true
+      },
+      "successSoft": {
+        "value": "#173A2B",
+        "derived": true
       }
     },
     "kitLeftovers": {
@@ -250,6 +321,22 @@
         "source": "measured-normalised",
         "figmaStyle": "Label/XSmall",
         "note": "Figma has this as DM Sans 500 with kit grey #666D80. Normalised to Inter + brand secondary text. See docs/DESIGN_TOKENS.md."
+      },
+      "bodyXs": {
+        "family": "body",
+        "weight": 400,
+        "size": 12,
+        "lineHeight": 16,
+        "source": "measured",
+        "example": "password rules"
+      },
+      "code": {
+        "family": "body",
+        "weight": 400,
+        "size": 24,
+        "lineHeight": 32,
+        "source": "measured",
+        "example": "OTP digits"
       }
     }
   },
@@ -333,8 +420,39 @@
       "labelStyle": "labelSm"
     },
     "input": {
-      "height": 56,
-      "labelGap": 4
+      "$note": "Measured on the Create Account screen. A field with a trailing icon is taller because the 20pt icon sets its height.",
+      "height": 38,
+      "heightWithIcon": 42,
+      "radius": 6,
+      "paddingX": 8,
+      "trailingPadding": 16,
+      "iconSize": 16,
+      "labelGap": 4,
+      "fieldGap": 18
+    },
+    "passwordRules": {
+      "rowHeight": 20,
+      "markSize": 12,
+      "markGap": 4,
+      "offsetTop": 4
+    },
+    "socialButton": {
+      "$note": "The 'Sign up with …' buttons are rounded rectangles, not pills.",
+      "radius": 12,
+      "gap": 8,
+      "iconSize": 18,
+      "iconGap": 12
+    },
+    "otp": {
+      "length": 6,
+      "cellWidth": 50,
+      "cellHeight": 56,
+      "radius": 8,
+      "gap": 8
+    },
+    "stepper": {
+      "height": 3,
+      "gap": 8
     }
   },
   "logo": {

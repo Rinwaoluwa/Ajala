@@ -10,18 +10,32 @@
  * place role assignment is documented.
  */
 
-import { palette } from './tokens/colors';
+import { palette, schemeRoles } from './tokens/colors';
 
 export type ColorScheme = 'light' | 'dark';
 
 export type SemanticColors = {
   background: string;
   surface: string;
-  /** Primary body text and headings. */
+  /** Primary body text. */
   foreground: string;
-  /** Captions, timestamps, helper text. */
+  /** Captions, timestamps, helper text, field labels. */
   muted: string;
   border: string;
+
+  /** Screen headings. Brand teal in both schemes, per the sign-up designs. */
+  heading: string;
+  /** Inline text links. Teal on light, Marigold on dark. */
+  link: string;
+  /** Outlines of text fields and social sign-up buttons. */
+  controlBorder: string;
+  /** Disabled button fill, OTP boxes. */
+  surfaceMuted: string;
+  /** Inactive step segments, unmet rule marks, OTP box outlines. */
+  track: string;
+  placeholder: string;
+  /** Tinted badge behind a success mark. */
+  successSoft: string;
 
   /** Buttons, headings, active tabs, links, verified badges. */
   primary: string;
@@ -38,7 +52,7 @@ export type SemanticColors = {
 };
 
 const light: SemanticColors = {
-  background: palette.paper,
+  ...schemeRoles.light,
   surface: palette.white,
   foreground: palette.ink,
   muted: palette.inkSecondary,
@@ -56,7 +70,7 @@ const light: SemanticColors = {
 };
 
 const dark: SemanticColors = {
-  background: palette.night,
+  ...schemeRoles.dark,
   surface: palette.deep,
   foreground: palette.mist,
   muted: palette.mistSecondary,

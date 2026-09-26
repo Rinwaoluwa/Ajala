@@ -96,15 +96,41 @@ The Figma variables are built on the brand brief exactly: `Primary/Teal/100` res
 not the light palette dimmed — teal, coral, error and success each have distinct dark hexes
 because the light values lose contrast on Night (`#0D1715`).
 
+### Roles added from the sign-up screens
+
+Measured on the Sign up, Create account, Verification and "Email verified!" designs, light and
+dark. The screenshots are colour-shifted (brand teal renders as `#326D69`), so these were read
+as relationships to known brand colours rather than trusted as raw pixels.
+
+| Role | Light | Dark | Used for |
+| --- | --- | --- | --- |
+| `heading` | `#0E6F69` | `#0E6F69` | Screen headings. The dark design keeps brand teal: 3.0:1 on Night, fine for 32pt headings, weak for 20pt. Teal Light `#2BB3A3` is the accessible alternative if design agrees. |
+| `link` | `#0E6F69` | `#F5B83D` | Inline links. Marigold on dark. |
+| `controlBorder` | `#DBDDE3` | `#C5C7CC` | Field and social-button outlines |
+| `surfaceMuted` | `#ECEFF3` | `#1F2B28` (derived) | Disabled button fill, OTP boxes |
+| `track` | `#D2D5DA` | `#34443F` (derived) | Inactive steps, unmet rule marks, OTP outlines |
+| `placeholder` | `#A5ACB8` | `#6E7C79` (derived) | Field placeholder text |
+| `successSoft` | `#E1F2EF` | `#173A2B` (derived) | Badge behind the success check |
+
+**The light background is now white (`#FFFFFF`).** Every light screen in the file — onboarding,
+splash, sign-up — sits on pure white. The brief's Paper `#FAF8F5` is kept as `paper` for warm
+surfaces. Confirm with design.
+
+New type steps: `bodyXs` (Inter 400 12/16, password rules) and `code` (Inter 400 24/32, OTP digits).
+
 Recorded but **rejected** under `color.kitLeftovers`: `Text/Normal [500]` `#666D80`,
 `Accent/Aqua`, `Secondary/Purple`. They exist in the file and are not part of the brand
 system; they are listed so they are recognised in review rather than copied into code.
 
 ## Known gaps
 
-- **Four of five logo files are missing.** Only `assets/icons/Ajala-Logo.svg` exists; the
-  brief also asks for the 1024×1024 icon mark (needed for the app icon), light and dark
-  variants, and a wordmark.
+- **Three of five logo files are missing.** `assets/icons/ajala-logo.svg` (lockup) and
+  `assets/icons/ajala-app-icon.svg` (mark) exist. The app icon PNGs in
+  `assets/images/app-icon/` are rendered from the mark: light, dark and tinted for iOS, adaptive
+  foreground and monochrome for Android. The light/dark logo variants and the wordmark are still
+  to come; the dark splash design uses the standard lockup on Night.
+- **The Google "G"** in `assets/icons/brands/` is drawn from the standard four-colour mark. Replace
+  it with the file from Google's official Sign-In branding kit before release.
 - **Dark-mode border** is derived (`#2A3A35`), not specified. Confirm with design.
 - **Icons.** `Icons_1` / `Icons_2` are large generic libraries (several hundred glyphs,
   including country flags). Use an icon package; export only genuinely custom marks. Flags

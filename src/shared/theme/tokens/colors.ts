@@ -22,7 +22,7 @@ export const palette = {
   success: c.status.success.value,
   error: c.status.error.value,
 
-  paper: c.light.background.value,
+  paper: c.light.paper.value,
   white: c.light.surface.value,
   ink: c.light.text.value,
   inkSecondary: c.light.textSecondary.value,
@@ -43,6 +43,26 @@ export const palette = {
 export type PaletteColor = keyof typeof palette;
 
 /**
+ * Roles measured on the sign-up screens. They are defined per scheme in the
+ * contract rather than as brand primitives, because their dark values are not
+ * a simple flip of a light one (the link, for one, changes hue).
+ */
+const controlRoles = (s: typeof c.light | typeof c.dark) => ({
+  heading: s.heading.value,
+  link: s.link.value,
+  controlBorder: s.controlBorder.value,
+  surfaceMuted: s.surfaceMuted.value,
+  track: s.track.value,
+  placeholder: s.placeholder.value,
+  successSoft: s.successSoft.value,
+});
+
+export const schemeRoles = {
+  light: { background: c.light.background.value, ...controlRoles(c.light) },
+  dark: { background: c.dark.background.value, ...controlRoles(c.dark) },
+} as const;
+
+/**
  * Contrast ratios measured in the brand brief. If a hex changes in the contract,
  * the ratio must be re-measured — carrying the old number forward hides a
  * regression that no test will catch.
@@ -53,8 +73,8 @@ export const contrast = {
   whiteOnCoral: c.brand.coral.contrast,
   whiteOnSuccess: c.status.success.contrast,
   whiteOnError: c.status.error.contrast,
-  inkOnPaper: c.light.text.contrastOnBackground,
-  inkSecondaryOnPaper: c.light.textSecondary.contrastOnBackground,
+  inkOnWhite: c.light.text.contrastOnBackground,
+  inkSecondaryOnWhite: c.light.textSecondary.contrastOnBackground,
   mistOnNight: c.dark.text.contrastOnBackground,
   mistSecondaryOnNight: c.dark.textSecondary.contrastOnBackground,
   nightOnTealLight: c.dark.primary.contrast,

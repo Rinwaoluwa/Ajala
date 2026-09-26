@@ -58,8 +58,23 @@ module.exports = {
           DEFAULT: 'rgb(var(--color-accent) / <alpha-value>)',
           foreground: 'rgb(var(--color-accent-foreground) / <alpha-value>)',
         },
-        success: 'rgb(var(--color-success) / <alpha-value>)',
+        success: {
+          DEFAULT: 'rgb(var(--color-success) / <alpha-value>)',
+          soft: 'rgb(var(--color-success-soft) / <alpha-value>)',
+        },
         destructive: 'rgb(var(--color-destructive) / <alpha-value>)',
+
+        /** Screen headings. Brand teal in both schemes, per the sign-up designs. */
+        heading: 'rgb(var(--color-heading) / <alpha-value>)',
+        /** Inline links. Teal on light, Marigold on dark. */
+        link: 'rgb(var(--color-link) / <alpha-value>)',
+        /** Outlines of fields and social buttons. */
+        'control-border': 'rgb(var(--color-control-border) / <alpha-value>)',
+        /** Disabled button fill, OTP boxes. */
+        'surface-muted': 'rgb(var(--color-surface-muted) / <alpha-value>)',
+        /** Inactive step segments, unmet rule marks. */
+        track: 'rgb(var(--color-track) / <alpha-value>)',
+        placeholder: 'rgb(var(--color-placeholder) / <alpha-value>)',
       },
 
       fontFamily: {

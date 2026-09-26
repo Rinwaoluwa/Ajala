@@ -48,6 +48,15 @@ const roles = (scheme) => {
 
     success: isDark ? s.success.value : c.status.success.value,
     destructive: isDark ? s.error.value : c.status.error.value,
+
+    // Measured from the sign-up screens. Each has its own dark value in the contract.
+    heading: s.heading.value,
+    link: s.link.value,
+    'control-border': s.controlBorder.value,
+    'surface-muted': s.surfaceMuted.value,
+    track: s.track.value,
+    placeholder: s.placeholder.value,
+    'success-soft': s.successSoft.value,
   };
 };
 
