@@ -3,11 +3,12 @@ import { Redirect } from 'expo-router';
 import { useOnboardingGate } from '@features/onboarding';
 
 /**
- * Entry point. Decides where to start; it is not a screen.
+ * Entry point. Decides where a cold start goes.
  *
- * Renders nothing until the persisted onboarding flag has hydrated — the splash is
- * still up at that point, and redirecting early is what sends cold starts to the
- * wrong place.
+ * It never routes before the persisted onboarding flag has hydrated — redirecting
+ * early is what sends cold starts to the wrong place. Until then it draws nothing;
+ * the launch splash (an overlay in the root layout) covers it, and only fades once
+ * this has redirected.
  */
 export default function Index() {
   const gate = useOnboardingGate();
