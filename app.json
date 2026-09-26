@@ -6,12 +6,23 @@
     "version": "0.1.0",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
+    "icon": "./assets/images/app-icon/icon.png",
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.ajala.app"
+      "bundleIdentifier": "com.ajala.app",
+      "icon": {
+        "light": "./assets/images/app-icon/icon.png",
+        "dark": "./assets/images/app-icon/icon-dark.png",
+        "tinted": "./assets/images/app-icon/icon-tinted.png"
+      }
     },
     "android": {
-      "package": "com.ajala.app"
+      "package": "com.ajala.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/app-icon/adaptive-foreground.png",
+        "monochromeImage": "./assets/images/app-icon/adaptive-monochrome.png",
+        "backgroundColor": "#FFFFFF"
+      }
     },
     "plugins": [
       "expo-router",
