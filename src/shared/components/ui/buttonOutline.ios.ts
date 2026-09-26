@@ -24,6 +24,8 @@ export function resolveButtonOutline(
   color: string | undefined,
   width: number,
   radius: number,
+  // A true stroke leaves the middle transparent, so the surface is not needed here.
+  _surface: string,
 ): ButtonOutline {
   if (!color) return { styleBorder: null };
 

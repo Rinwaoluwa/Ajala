@@ -6,8 +6,8 @@ web-build/
 .env
 .env.*
 !.env.example
-ios/
-android/
+/ios/
+/android/
 *.jks
 *.p8
 *.p12

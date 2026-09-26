@@ -14,10 +14,9 @@ grows its own near-duplicate of it and the design drifts within a sprint.
 
 | Layer | Built with | Why |
 | --- | --- | --- |
-| Controls whose look is the system's — `Switch`, `Picker`, `DateTimePicker`, `BottomSheet` | **Expo UI** (`@expo/ui`) | Real SwiftUI / Compose views: native press feedback, haptics, focus order and accessibility |
-| Controls — `Button`, `Switch`, `Picker`, `DateTimePicker`, `BottomSheet` | **Expo UI** (`@expo/ui`) | Real SwiftUI / Compose views: native press feedback, haptics, focus order and accessibility |
-
-| Layout, text, motion — `Screen`, `Text`, `PaginationDots`, `Crossfade` | **RN + NativeWind + Reanimated** | No native equivalent, and these need free composition |
+| Controls — `Button`, `TextField`, `PasswordField`, `SelectField`, `TextLink`, `ScreenHeader`'s back button, `DatePickerSheet`, `StatusSheet` | **Expo UI** (`@expo/ui`) | Real SwiftUI / Compose views: native press feedback, text editing, focus order and accessibility |
+| Layout, text, motion — `Screen`, `Text`, `PaginationDots`, `StepProgress`, `ProgressBar`, `ProgressReveal` | **RN + NativeWind + Reanimated** | No native equivalent, and these need free composition |
+| Mixed — `OtpInput`, `PasswordRules`, the field chrome (`FieldFrame`) | Expo UI input or icon inside React Native drawing | The native part does the input; React Native draws the boxes and outlines to the design |
 
 Both read `contracts/design-tokens/design-tokens.json`, so there is still exactly one source of
 truth for values. NativeWind consumes it through `tailwind.config.js`; Expo UI consumes it through
@@ -71,12 +70,44 @@ styling through `style`, content as children, explicit dimensions on the Host, a
 
 | Component | Built on | Notes |
 | --- | --- | --- |
-| `Button` | Expo UI | Variants `primary` / `cta` / `secondary` / `ghost`; heights `sm` 36 / `md` 44 / `lg` 50. **Fully pill-shaped** — the Figma radius variable is `Corner_Radius/80`, which on a 44pt control rounds completely. Label is `Label/Small` (Inter 500, 14/20). |
-| `Text` | RN + NativeWind | Variant per step of the type scale, `tone` per semantic colour. Nobody picks a font size by hand. |
-| `ImageCarousel` | RN + NativeWind | Controlled horizontal pager. Publishes live scroll position to a Reanimated shared value so indicators can track it. |
-| `PaginationDots` | RN + Reanimated | 8pt dots, 6pt gap, active dot widens to a 24pt marigold pill. Driven by the carousel's `progress`, so it moves *with* the image rather than animating after it settles. Dots over media stay white in both themes. |
-| `ImageCarousel` | RN + Reanimated | Controlled horizontal pager. Publishes live scroll offset so indicators track it. |
+| `Button` | Expo UI | Variants `primary` / `cta` / `secondary` / `neutral` / `ghost`; heights `sm` 36 / `md` 44 / `lg` 50. Pill-shaped (Figma `Corner_Radius/80`), except `neutral`, the social "Sign up with …" style, which is a 12pt-radius outline. Optional leading `icon`. Disabled is the design's muted fill and grey label, not an opacity. Label is `Label/Small` (Inter 500, 14/20). |
+| `ButtonCore` | Expo UI | The native button without its Host, for use inside Expo UI content such as a sheet. Give it a `width` to fill. |
+| `TextLink` | Expo UI | Short tappable phrase in the link colour (Teal on light, Marigold on dark). |
+| `NativeIcon` + `icons` | Expo UI | One glyph per platform: an SF Symbol on iOS, a vector drawable on Android (Material Symbols from `@expo/material-symbols`, scaled to match SF sizing). Brand marks (the Google "G") are a PNG on iOS and an untinted drawable on Android. Add new glyphs to `ui/icons.ts`; an inline SF Symbol name renders nothing on Android. |
+| `TextField` | Expo UI + RN chrome | Label, 38pt box (42pt with a trailing icon), 1pt outline, 6pt radius. Uncontrolled native input; primary outline while focused, destructive with an error. |
+| `PasswordField` | Expo UI | `TextField` with an eye toggle. Text survives the secure/plain swap. |
+| `SelectField` | Expo UI + RN chrome | Looks like a field; the box is one native button (value or placeholder, trailing icon). Used for date of birth. |
+| `PasswordRules` | Expo UI icon + RN | 20pt rows, 12pt mark (grey unmet, Marigold met), Inter 12/16 muted text. Each row announces "met" / "not met". |
+| `OtpInput` | Expo UI input + RN boxes | One invisible native input over six drawn 50×56 boxes, so the number pad, iOS code autofill and paste all work. 2pt primary ring on the next box. |
+| `StepProgress` | RN | 3pt segments, 8pt apart; only the current step is highlighted. |
+| `ScreenHeader` | Expo UI back button + RN title | Back arrow and a Plus Jakarta 20/28 title. |
+| `DatePickerSheet` | Expo UI | iOS: bottom sheet with a SwiftUI wheel and Done. Android: the system date dialog. Edits a draft; Done commits. |
+| `StatusSheet` | Expo UI | The "Email verified!" confirmation: tinted check badge, heading, message, one full-width action. SwiftUI end to end. |
+| `Text` | RN + NativeWind | Variant per step of the type scale, `tone` per semantic colour (`heading`, `link`, `muted`, …). Nobody picks a font size by hand. |
+| `ImageCarousel` | RN + Reanimated | Controlled horizontal pager. Publishes live scroll offset to a Reanimated shared value so indicators track it. |
+| `PaginationDots` | RN + Reanimated | 8pt dots, 6pt gap, active dot widens to a 24pt marigold pill. Driven by the carousel's `progress`. Dots over media stay white in both themes. |
+| `ProgressReveal` | RN + Reanimated | Shows or hides content in step with a live progress value (fade + 16pt rise). Scrubbed, not played: it reverses when the user swipes back. Touch and screen-reader focus follow settled state. |
+| `ProgressBar` | RN + Reanimated | Pill-shaped bar; the caller owns the timing. Themed track and fill by default. |
+| `Logo` | expo-image | The lockup SVG. Same artwork on light and dark, per the dark splash design. |
 | `Screen` | RN + NativeWind | Background, the measured 20pt gutter, safe-area insets via `useSafeAreaInsets()`. |
+
+### Inside an Expo UI sheet
+
+`BottomSheet` presents in its own view controller. Its content must be Expo UI (SwiftUI /
+Compose) — a React Native view there gets no touches without `RNHostView`. That is why
+`ButtonCore` exists, and why `DatePickerSheet` uses SwiftUI's `DatePicker` directly on iOS rather
+than the community `DateTimePicker`, which brings its own Host.
+
+### Running on Android
+
+- **Build with JDK 17.** React Native's Gradle plugin targets Java 17, and a Gradle daemon on a newer JDK (Android Studio ships 25) fails the CMake configure step of `react-native-worklets` and `react-native-screens` with "A restricted method in java.lang.System has been called". In Android Studio set *Settings → Build Tools → Gradle → Gradle JDK* to 17; on the command line export `JAVA_HOME` to a JDK 17 (Gradle provisions one into `~/.gradle/jdks`).
+- **The Apple mark has no Android glyph yet.** SF Symbols may only be used on Apple platforms; add Apple's own Sign in with Apple mark as a vector drawable.
+- **Emulators need memory.** On an 8 GB Mac with other apps open, the emulator swaps until Android's own system process stops responding. Close heavy apps, give the AVD less RAM, or use a physical device.
+
+### Every screen follows the theme
+
+Every Stack uses `useStackScreenOptions()`, which paints each screen's container with the themed
+background. React Navigation's default is white, which flashes during a push in dark mode.
 
 ## A trap that already cost us
 
@@ -115,8 +146,15 @@ Rules that came out of that regression:
   pager's live scroll offset (`progress`), so it tracks the photo frame-for-frame instead of
   animating on its own clock and drifting.
 - **Every row declares a height strategy.** In `OnboardingScreen`: photo row fixed, copy row
-  `flex-1`, action row hugs. A `flex-1` child inside a parent that hugs its content resolves to
+  `flex-1`, action row fixed at the height of the Sign Up / Sign In stack. A `flex-1` child inside a parent that hugs its content resolves to
   height 0 in Yoga and vanishes silently — that is exactly how the onboarding copy disappeared.
+
+### Sign Up / Sign In follow the swipe
+
+Both button sets are always mounted and read the pager's `progress`. In the first half of the swipe
+onto the last slide Skip and Next fade away; in the second half Sign Up, then Sign In, rise in.
+Swipe back and it runs in reverse. Because it is scrubbed from the same value as the photo, a Next
+tap drives it identically, and it can never disagree with what is on screen.
 
 ### Known rough edge
 
