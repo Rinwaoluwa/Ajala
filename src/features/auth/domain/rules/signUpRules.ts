@@ -1,53 +1,62 @@
 /**
- * Validation rules for email sign-up, as pure functions.
+ * Validation rules specific to the sign-up form, as pure functions.
  *
- * FRD MOB-001: "Password rules: minimum 8 chars, 1 uppercase, 1 digit." These are
- * the only source of those rules; the checklist on screen and the use case both
- * read them, so the two can never disagree.
+ * The email, password and verification-code rules are shared with sign-in and
+ * password reset, so they live in `credentialRules` and are re-exported here —
+ * the sign-up screens import from one module and there is still one definition.
  *
  * Everything here is synchronous and free of React and I/O, so it is tested
  * directly.
  */
 
 import type { SignUpDetails } from '../entities/SignUpDetails';
+import { isEmailValid, isPasswordValid } from './credentialRules';
+import { fieldLimits } from './fieldLimits';
 
-export const PASSWORD_MIN_LENGTH = 8;
-export const VERIFICATION_CODE_LENGTH = 6;
-
-export type PasswordRuleId = 'minLength' | 'uppercase' | 'digit';
-
-/** In the order the checklist shows them. */
-export const PASSWORD_RULE_IDS: readonly PasswordRuleId[] = ['minLength', 'uppercase', 'digit'];
-
-const passwordTests: Record<PasswordRuleId, (password: string) => boolean> = {
-  minLength: (p) => p.length >= PASSWORD_MIN_LENGTH,
-  uppercase: (p) => /\p{Lu}/u.test(p),
-  digit: (p) => /\d/.test(p),
-};
-
-export function checkPassword(password: string): Record<PasswordRuleId, boolean> {
-  return {
-    minLength: passwordTests.minLength(password),
-    uppercase: passwordTests.uppercase(password),
-    digit: passwordTests.digit(password),
-  };
-}
-
-export function isPasswordValid(password: string): boolean {
-  return PASSWORD_RULE_IDS.every((id) => passwordTests[id](password));
-}
-
-/**
- * A deliberately loose shape check: something@something.tld, no spaces. The
- * verification code is what proves the address is real.
- */
-export function isEmailValid(email: string): boolean {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim());
-}
+export {
+  PASSWORD_MIN_LENGTH,
+  PASSWORD_MAX_LENGTH,
+  isPasswordWithinLimit,
+  VERIFICATION_CODE_LENGTH,
+  PASSWORD_RULE_IDS,
+  checkPassword,
+  isPasswordValid,
+  isEmailValid,
+  isVerificationCodeValid,
+  type PasswordRuleId,
+} from './credentialRules';
 
 /** At least two letters. Names vary too much across cultures to check more. */
 export function isFullNameValid(name: string): boolean {
-  return (name.trim().match(/\p{L}/gu) ?? []).length >= 2;
+  return fullNameProblem(name) === null;
+}
+
+/**
+ * What is wrong with a full name, so the field can say which fix it needs:
+ *   - `incomplete`: fewer than two words, or a "word" with no letter in it;
+ *   - `tooLong`: the first name, or the rest, is over the API's 60 characters
+ *     (`SignupEmailDto.firstName` / `lastName`). Measured the way the mapper
+ *     splits it — first word, then everything after.
+ */
+export type FullNameProblem = 'incomplete' | 'tooLong';
+
+export function fullNameProblem(name: string): FullNameProblem | null {
+  const parts = splitName(name);
+  if (parts.length < 2 || !parts.every((part) => /\p{L}/u.test(part))) return 'incomplete';
+  const [first, ...rest] = parts;
+  if (first.length > fieldLimits.nameMax || rest.join(' ').length > fieldLimits.nameMax) return 'tooLong';
+  return null;
+}
+
+/**
+ * The words of a name, with runs of whitespace collapsed.
+ *
+ * The form asks for one "Full Name" but the API stores a first and a last name
+ * and rejects an empty one, so a single word cannot be sent. The screen asks for
+ * both rather than inventing a surname or letting the server refuse the form.
+ */
+export function splitName(name: string): string[] {
+  return name.trim().split(/\s+/).filter(Boolean);
 }
 
 /** A real `YYYY-MM-DD` date that is not after `today`. */
@@ -61,10 +70,6 @@ export function isDateOfBirthValid(dateOfBirth: string, today: Date): boolean {
     return false;
   }
   return dateOfBirth <= toCalendarDate(today);
-}
-
-export function isVerificationCodeValid(code: string): boolean {
-  return new RegExp(`^\\d{${VERIFICATION_CODE_LENGTH}}$`).test(code);
 }
 
 /** Whether every field is filled in well enough to send. */

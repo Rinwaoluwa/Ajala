@@ -1,16 +1,18 @@
 import { AuthError } from '../entities/AuthError';
+import type { AuthSession } from '../entities/AuthSession';
 import type { AuthRepository } from '../repositories/AuthRepository';
-import { isVerificationCodeValid } from '../rules/signUpRules';
+import { isVerificationCodeValid, normalizeEmail } from '../rules/credentialRules';
 
 /**
- * Confirms the emailed code. A code of the wrong shape is rejected here, without
- * a round trip.
+ * Confirms the emailed code, which signs the person in.
+ *
+ * A code of the wrong shape is rejected here, without a round trip.
  */
 export const makeVerifyEmail =
   (repo: AuthRepository) =>
-  async (verificationId: string, code: string): Promise<void> => {
+  async (email: string, code: string, password?: string): Promise<AuthSession> => {
     if (!isVerificationCodeValid(code)) throw new AuthError('invalidCode');
-    return repo.verifyEmail(verificationId, code);
+    return repo.verifyEmailCode(normalizeEmail(email), code, password || undefined);
   };
 
 export type VerifyEmailUseCase = ReturnType<typeof makeVerifyEmail>;

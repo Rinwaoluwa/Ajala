@@ -1,86 +1,91 @@
 import { useCallback, useRef, useState } from 'react';
 
-import type { OtpInputHandle } from '@shared/components';
-
-import { isAuthError } from '../../domain/entities/AuthError';
+import type { NextStep } from '../../domain/rules/accountRules';
 import { VERIFICATION_CODE_LENGTH } from '../../domain/rules/signUpRules';
-import { authErrorMessages, maskEmail } from '../copy';
+import { maskEmail } from '../copy';
 import { useSignUpFlow } from '../state/SignUpFlowContext';
+import { useCodeEntry } from './useCodeEntry';
+import { useFinishSignIn } from './useFinishSignIn';
 
 /**
  * View model for "Verification", step 2 of sign-up.
  *
- * Collects the code, checks it, and on success raises the "Email verified!" sheet.
- * Continuing from the sheet — or swiping it away, since there is nowhere else to
- * go — reports `onVerified` exactly once.
+ * A right code signs the person in (`POST /auth/otp/verify` returns a session)
+ * and raises the "Email verified!" sheet. While the sheet is up, `GET /me` is
+ * already being asked where they go next — so Continue can move straight on.
+ * Continuing, or swiping the sheet away, reports `onVerified` exactly once.
+ *
+ * A wrong code raises the "Email verification failed" sheet (modal-8, error)
+ * rather than a line under the boxes, as the design draws it. "Try again", or
+ * swiping it away, closes it and puts the cursor back in the emptied boxes. Other
+ * failures — an expired code, too many attempts, no connection — stay inline,
+ * because "check your code and try again" would be the wrong advice for them.
+ *
+ * "Resend code" asks the API for another (`POST /auth/otp/resend`, 3 an hour).
  */
 
 export type UseEmailVerificationOptions = {
-  onVerified: () => void;
+  onVerified: (next: NextStep) => void;
 };
 
 export function useEmailVerification({ onVerified }: UseEmailVerificationOptions) {
-  const { useCases, verification } = useSignUpFlow();
-  const otpRef = useRef<OtpInputHandle>(null);
+  // Set by the sign-up form, or by sign-in for an unverified account: the address
+  // and the password the verify call takes with the code.
+  const { useCases, verification, setVerification } = useSignUpFlow();
+  const finishSignIn = useFinishSignIn();
 
-  const [code, setCode] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [verified, setVerified] = useState(false);
-
-  const inFlight = useRef(false);
+  const [rejected, setRejected] = useState(false);
+  const [continuing, setContinuing] = useState(false);
+  const nextStep = useRef<Promise<NextStep> | null>(null);
   const continued = useRef(false);
 
-  const codeLength = verification?.codeLength ?? VERIFICATION_CODE_LENGTH;
-  const canSubmit = code.length === codeLength && !submitting && verification !== null;
-
-  const changeCode = useCallback((next: string) => {
-    setCode(next);
-    // Typing clears the last error. Emptying the boxes after a wrong code also reports
-    // a change, and that must not erase the message explaining why they were emptied.
-    if (next !== '') setError(null);
-  }, []);
-
-  const submit = useCallback(async () => {
-    if (inFlight.current || !verification) return;
-    inFlight.current = true;
-    setSubmitting(true);
-    setError(null);
-    // Put the keyboard away now: the success sheet would otherwise open beneath it.
-    otpRef.current?.blur();
-
-    try {
-      await useCases.verifyEmail(verification.verificationId, code);
+  const verify = useCallback(
+    async (code: string) => {
+      if (!verification) return;
+      const session = await useCases.verifyEmail(verification.email, code, verification.password);
+      // The password has done its job; keep the address (the sheet shows it) and drop it.
+      setVerification({ email: verification.email, codeLength: verification.codeLength });
+      // Started now, awaited on Continue: the sheet's display time hides the round trip.
+      nextStep.current = finishSignIn(session);
       setVerified(true);
-    } catch (e) {
-      const errorCode = isAuthError(e) ? e.code : 'unknown';
-      setError(authErrorMessages[errorCode]);
-      if (errorCode === 'invalidCode') {
-        otpRef.current?.clear();
-        otpRef.current?.focus();
-      }
-    } finally {
-      inFlight.current = false;
-      setSubmitting(false);
-    }
-  }, [useCases, verification, code]);
+    },
+    [useCases, verification, setVerification, finishSignIn],
+  );
 
-  const proceed = useCallback(() => {
+  const resend = useCallback(async () => {
+    if (verification) await useCases.resendEmailCode(verification.email);
+  }, [useCases, verification]);
+
+  const reportWrongCode = useCallback(() => setRejected(true), []);
+
+  const { otpRef, entry } = useCodeEntry({
+    verify,
+    resend,
+    onWrongCode: reportWrongCode,
+    length: verification?.codeLength ?? VERIFICATION_CODE_LENGTH,
+  });
+
+  const tryAgain = useCallback(() => {
+    setRejected(false);
+    otpRef.current?.focus();
+  }, [otpRef]);
+
+  const proceed = useCallback(async () => {
     if (continued.current) return;
     continued.current = true;
+    // Usually already answered while the sheet was up; the spinner covers the rest.
+    setContinuing(true);
+    const next = (await nextStep.current) ?? 'completeProfile';
     setVerified(false);
-    onVerified();
+    onVerified(next);
   }, [onVerified]);
 
   return {
     otpRef,
-    codeLength,
+    entry: { ...entry, canSubmit: entry.canSubmit && verification !== null },
     maskedEmail: verification ? maskEmail(verification.email) : null,
-    changeCode,
-    error,
-    canSubmit,
-    submitting,
-    submit: () => void submit(),
-    sheet: { isPresented: verified, onContinue: proceed },
+    sheet: { isPresented: verified, continuing, onContinue: () => void proceed() },
+    failedSheet: { isPresented: rejected, onTryAgain: tryAgain },
   };
 }

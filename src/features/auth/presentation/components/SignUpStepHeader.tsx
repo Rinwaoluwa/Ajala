@@ -1,10 +1,12 @@
-import { View } from 'react-native';
-
-import { ScreenHeader, StepProgress } from '@shared/components';
+import { signUpDetailsCopy } from '../copy';
+import { AuthStepHeader } from './AuthStepHeader';
 
 /**
- * "Create account" with a back arrow, and the three-step indicator 12pt below.
- * The same on every step of sign-up; only the highlighted segment moves.
+ * "Create account" with a back arrow and the three-step indicator. The same on
+ * every step of sign-up; only the highlighted segment moves.
+ *
+ * The active step is Marigold, as on the password reset: the current Create
+ * account frames (light and dark) moved it off teal, which ends that fork.
  */
 
 export const SIGN_UP_STEPS = 3;
@@ -17,11 +19,12 @@ export type SignUpStepHeaderProps = {
 
 export function SignUpStepHeader({ step, onBack }: SignUpStepHeaderProps) {
   return (
-    <View className="px-20">
-      <ScreenHeader title="Create account" onBack={onBack} />
-      <View className="mt-12">
-        <StepProgress count={SIGN_UP_STEPS} current={step} />
-      </View>
-    </View>
+    <AuthStepHeader
+      title={signUpDetailsCopy.header}
+      count={SIGN_UP_STEPS}
+      step={step}
+      tone="accent"
+      onBack={onBack}
+    />
   );
 }

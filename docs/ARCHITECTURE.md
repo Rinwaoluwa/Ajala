@@ -205,3 +205,104 @@ network success updates cache, 401 clears cache, offline queue drains.
 - No two ways to do the same thing. A migration either ships or is reverted.
 
 Architecture review at the end of weeks 2, 4 and 9, to catch pattern drift before it sets.
+
+## 11. The API layer (as built)
+
+The contract lives at `contracts/openapi/ajala-api.json` — the server's own OpenAPI document.
+Treat it as the source of truth for wire shapes; when it and this file disagree, the spec wins.
+
+```
+core/api/apiConfig.ts   base URL + timeout
+core/api/apiClient.ts   the ONLY place that calls fetch()
+core/api/ApiError.ts    every documented error code, as a union
+```
+
+`apiRequest<T>()` is the single HTTP entry point. It attaches the bearer token, aborts on a
+15s timeout, tolerates the 202/204 empty-body responses the auth endpoints return, and converts
+every failure — including a dropped connection — into an `ApiError` carrying the server's
+`code`, `fieldErrors` and `requestId`.
+
+**Branch on `code`, never on `message`.** The server says so in its own spec, and the messages
+are not stable.
+
+### Base URL
+
+`EXPO_PUBLIC_API_URL`, defaulting to `https://dev-api.ajalatrvl.com`. Point it at
+`http://localhost:3000` to run against a local server. It is read at module load, so changing it
+needs a reload, not just a refresh.
+
+### Where the wire meets the domain
+
+`ApiError` stops at the repository. `AuthRepositoryImpl` maps `ApiErrorCode → AuthErrorCode` and
+nothing above the data layer knows an HTTP status exists.
+
+The mapping is per endpoint, because **the same code means different things depending on where
+it came from**. A `UNAUTHORIZED` from `/auth/login` is a wrong password; from `/auth/otp/verify`
+it is a wrong code; from `/auth/password/reset` it is an expired link. Those overrides are
+declared at each call site in `AuthRepositoryImpl`, next to the request they qualify.
+
+### Swapping in fixtures
+
+`authModule.ts` is the seam. It wires `createAuthRepository()` (real HTTP) today;
+`FixtureAuthRepository` implements the same port for offline work and demos. Swap the one line —
+no screen, hook or use case changes.
+
+### Sessions
+
+Tokens live in the Keychain / Keystore via `core/storage/secure`, as one JSON blob under
+`ajala.auth.session.v1`. Every secure-store call is best-effort: a locked or unavailable keychain
+reads as "not signed in" rather than throwing, so the app always boots to a usable state.
+
+`AuthProvider` sits at the **root** layout, not inside `(auth)`, because `app/index.tsx` has to
+know whether a session exists before it can route a cold start. It waits for both the onboarding
+gate and the keychain read; until both land it renders nothing and the splash overlay stays up.
+
+### Divergence from §8
+
+Auth predates the `Result<T, DomainError>` convention above and **throws** `AuthError` instead.
+The boundary still holds — no HTTP detail escapes the data layer — but new features should
+follow §8 rather than copy auth.
+
+### Sign-in has two different 403s
+
+`/auth/login` answers 403 for two unrelated reasons, and telling them apart matters:
+
+| code | means | answered by |
+| --- | --- | --- |
+| `EMAIL_NOT_VERIFIED` | the address was never confirmed; a code has been re-sent | `/auth/otp/verify` — a different endpoint, on the verification screen |
+| `STEP_UP_REQUIRED` | the credentials were **right**; the server wants a second factor | **retrying `/auth/login`** with `otpCode` attached |
+
+They map to `emailNotVerified` and `stepUpRequired` respectively. Collapsing them sends a
+step-up into the sign-up verification screen, which calls the wrong endpoint.
+
+Step-up is handled in place on the sign-in screen rather than on a route of its own: the retry
+needs the same email and password, and keeping them in the hook avoids carrying a password
+through navigation params. Editing either field clears a pending code, since the code was
+issued against the pair that was submitted.
+
+### Password reset is link-based, not code-based
+
+`POST /auth/password/forgot` emails a link; there is **no endpoint to verify a 6-digit reset
+code**, so the designed "enter the code" step could not be built. The flow is:
+
+```
+forgot-password/index      ask for the email  → 202 (always, even for an unknown address)
+  ↓  user leaves the app and opens their email
+ajala://forgot-password/new-password?token=…  deep link back in
+forgot-password/new-password                  → 204, then back to sign in
+```
+
+The 202 is deliberate on the server's side: answering identically for a known and an unknown
+address is what stops the endpoint being used to discover who has an account. The screen says
+"if that address is registered" for the same reason — do not "improve" it into a confirmation.
+
+**This needs the backend to emit a link the app can open.** A plain `https://` link opens the
+browser instead, and the reset dead-ends. Either the email uses the `ajala://` scheme, or the
+`https://` host is configured as a universal link (iOS `associatedDomains` + AASA, Android
+App Links + assetlinks.json) — neither is set up yet.
+
+Until then the screen can be reached manually for testing:
+
+```
+xcrun simctl openurl booted "ajala://forgot-password/new-password?token=TEST"
+```

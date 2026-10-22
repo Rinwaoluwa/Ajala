@@ -15,6 +15,7 @@ import { layout } from '@shared/theme';
 
 import { fieldIcons } from '../assets';
 import { AuthIntro } from '../components/AuthIntro';
+import { fieldCopy, signUpDetailsCopy as copy } from '../copy';
 import { SignUpStepHeader } from '../components/SignUpStepHeader';
 import { useSignUpDetails } from '../hooks/useSignUpDetails';
 
@@ -23,8 +24,8 @@ import { useSignUpDetails } from '../hooks/useSignUpDetails';
  *
  * Measured: the heading block starts 28pt under the step indicator, the first
  * field 28pt under the paragraph, fields 18pt apart, the rules 4pt under the
- * password box, Proceed 20pt under the rules. Proceed stays disabled (muted fill,
- * grey label) until every field passes the MOB-001 rules.
+ * password box, Continue 20pt under the rules. Continue stays disabled (muted
+ * fill, grey label) until every field passes the MOB-001 rules.
  *
  * The header stays put and the form scrolls under it, so a small phone or an open
  * keyboard never hides the fields.
@@ -56,15 +57,12 @@ export function SignUpDetailsScreen({ onBack, onCodeSent }: SignUpDetailsScreenP
           paddingBottom: Math.max(insets.bottom, 16) + 16,
         }}
       >
-        <AuthIntro
-          title="Sign up to meet travellers"
-          body="Create your account and start connecting with travellers around the world."
-        />
+        <AuthIntro title={copy.title} body={copy.body} />
 
         <View style={{ marginTop: SECTION_GAP, gap: layout.input.fieldGap }}>
           <TextField
-            label="Email Address"
-            placeholder="Enter your email address"
+            label={fieldCopy.email.label}
+            placeholder={fieldCopy.email.placeholder}
             keyboardType="email-address"
             autoCapitalize="none"
             autoCorrect={false}
@@ -74,8 +72,8 @@ export function SignUpDetailsScreen({ onBack, onCodeSent }: SignUpDetailsScreenP
             {...fields.email}
           />
           <TextField
-            label="Full Name"
-            placeholder="Enter your full name"
+            label={fieldCopy.fullName.label}
+            placeholder={fieldCopy.fullName.placeholder}
             autoCapitalize="words"
             autoComplete="name"
             returnKeyType="next"
@@ -83,16 +81,16 @@ export function SignUpDetailsScreen({ onBack, onCodeSent }: SignUpDetailsScreenP
             {...fields.fullName}
           />
           <SelectField
-            label="Date of Birth"
-            placeholder="Select your date of birth"
+            label={fieldCopy.dateOfBirth.label}
+            placeholder={fieldCopy.dateOfBirth.placeholder}
             icon={fieldIcons.calendar}
             testID="sign-up-dob-field"
             {...fields.dateOfBirth}
           />
           <View>
             <PasswordField
-              label="Password"
-              placeholder="Create your password"
+              label={copy.password.label}
+              placeholder={copy.password.placeholder}
               returnKeyType="done"
               testID="sign-up-password-field"
               {...fields.password}
@@ -103,7 +101,7 @@ export function SignUpDetailsScreen({ onBack, onCodeSent }: SignUpDetailsScreenP
 
         <View className="mt-20">
           <Button
-            label="Proceed"
+            label={copy.submit}
             size="lg"
             fullWidth
             disabled={!canSubmit}
@@ -119,7 +117,7 @@ export function SignUpDetailsScreen({ onBack, onCodeSent }: SignUpDetailsScreenP
         </View>
       </ScrollView>
 
-      <DatePickerSheet title="Date of birth" {...picker} />
+      <DatePickerSheet title={fieldCopy.dateOfBirth.label} {...picker} />
     </Screen>
   );
 }

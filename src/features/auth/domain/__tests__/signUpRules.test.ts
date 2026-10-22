@@ -5,6 +5,7 @@ import {
   checkPassword,
   isDateOfBirthValid,
   isEmailValid,
+  fullNameProblem,
   isFullNameValid,
   isPasswordValid,
   isVerificationCodeValid,
@@ -57,12 +58,39 @@ describe('email', () => {
 });
 
 describe('full name', () => {
-  it('needs two letters, in any script', () => {
+  it('needs a first and a last name, in any script', () => {
     expect(isFullNameValid('Sarah Mitchell')).toBe(true);
-    expect(isFullNameValid('Adébáyọ̀')).toBe(true);
-    expect(isFullNameValid('李明')).toBe(true);
+    expect(isFullNameValid('Adébáyọ̀ Okonkwo')).toBe(true);
+    expect(isFullNameValid('李 明')).toBe(true);
+    expect(isFullNameValid('  Mary   Jane  Watson ')).toBe(true);
     expect(isFullNameValid(' A ')).toBe(false);
-    expect(isFullNameValid('12')).toBe(false);
+    expect(isFullNameValid('12 34')).toBe(false);
+  });
+
+  /**
+   * The API stores a first and a last name and rejects an empty one, so a name
+   * written as a single word cannot be sent at all. That excludes mononyms and
+   * the many names normally written without a space. Asking for the two parts is
+   * the least-bad thing the client can do about it — the fix is on the API, or in
+   * a form that asks for both plainly. Recorded here so the exclusion is a known
+   * decision rather than a surprise.
+   */
+  it('rejects a single-word name, which the API cannot store', () => {
+    expect(isFullNameValid('Adébáyọ̀')).toBe(false);
+    expect(isFullNameValid('李明')).toBe(false);
+  });
+
+  it('holds each part to the API\'s 60 characters, split the way the mapper splits it', () => {
+    const sixty = 'a'.repeat(60);
+    expect(fullNameProblem(`${sixty} ${sixty}`)).toBeNull();
+    expect(fullNameProblem(`${sixty}a Smith`)).toBe('tooLong');
+    // The last name is everything after the first word, spaces included.
+    expect(fullNameProblem(`Mary ${'b'.repeat(30)} ${'c'.repeat(30)}`)).toBe('tooLong');
+    expect(isFullNameValid(`${sixty}a Smith`)).toBe(false);
+  });
+
+  it('says a name is incomplete rather than too long when it is both one word and long', () => {
+    expect(fullNameProblem('a'.repeat(80))).toBe('incomplete');
   });
 });
 
@@ -89,6 +117,10 @@ describe('verification code', () => {
 });
 
 describe('sign-up form', () => {
+  it('cannot be sent with a password over 128 characters', () => {
+    expect(canSubmitSignUp({ ...VALID, password: `Travel2026${'x'.repeat(119)}` }, TODAY)).toBe(false);
+  });
+
   it('can be sent only when every field passes', () => {
     expect(canSubmitSignUp(VALID, TODAY)).toBe(true);
     expect(canSubmitSignUp({ ...VALID, email: 'nope' }, TODAY)).toBe(false);
