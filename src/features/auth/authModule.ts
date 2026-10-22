@@ -1,3 +1,5 @@
+import { apiRequest, type ApiRequest } from '@core/api/apiClient';
+import { isApiError } from '@core/api/ApiError';
 import { getAppConfig } from '@core/config/appConfig';
 
 import { sessionStorage } from './data/datasources/local/sessionStorage';
@@ -27,6 +29,28 @@ import {
 import { makeSignIn } from './domain/usecases/SignInUseCase';
 import { makeStartEmailSignUp } from './domain/usecases/StartEmailSignUpUseCase';
 import { makeVerifyEmail } from './domain/usecases/VerifyEmailUseCase';
+import { AuthError } from './domain/entities/AuthError';
+import type { WithSession } from './domain/usecases/SessionUseCases';
+
+/**
+ * An API call made as the signed-in person, for features other than auth: the
+ * token is attached, refreshed ahead of expiry, and a 401 is retried once with a
+ * fresh one. Errors other than a dead session reach the caller as `ApiError`.
+ */
+export type AuthorizedRequest = <T>(request: Omit<ApiRequest, 'accessToken'>) => Promise<T>;
+
+function makeAuthorizedRequest(withSession: WithSession): AuthorizedRequest {
+  return (request) =>
+    withSession(async (accessToken) => {
+      try {
+        return await apiRequest({ ...request, accessToken });
+      } catch (e) {
+        // The one answer the session wrapper acts on: refresh, and try again.
+        if (isApiError(e) && e.status === 401) throw new AuthError('sessionExpired');
+        throw e;
+      }
+    });
+}
 
 /**
  * The feature's composition root: the one place that knows which repository
@@ -64,6 +88,7 @@ export function createAuthUseCases({ onSessionEnded }: { onSessionEnded?: () => 
     restoreSession: makeRestoreSession(store),
     keepSession: makeKeepSession(store),
     signOut: makeSignOut(repo, store, withSession),
+    authorizedRequest: makeAuthorizedRequest(withSession),
     offerPasswordSave: makeOfferPasswordSave(passwordVault),
     forgetPasswordSaveOffers: makeForgetPasswordSaveOffers(passwordVault),
     /**

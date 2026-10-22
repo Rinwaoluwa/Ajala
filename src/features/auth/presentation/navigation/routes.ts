@@ -8,7 +8,6 @@ export const signUpRoutes = {
   options: '/(auth)/sign-up',
   details: '/(auth)/sign-up/details',
   verify: '/(auth)/sign-up/verify',
-  preferences: '/(auth)/sign-up/preferences',
   signIn: '/(auth)/sign-in',
 } as const;
 
@@ -28,6 +27,8 @@ export const accountRoutes = {
   /** The Verification screen for linking Google or Apple; takes `challengeId` and `provider`. */
   linkAccount: '/(auth)/link-account',
   terms: '/(auth)/terms',
+  /** Profile setup, which the `profile` feature owns; the path is all auth needs. */
+  profileSetup: '/(profile-setup)/location',
 } as const;
 
 export const passwordResetRoutes = {
@@ -39,13 +40,12 @@ export const passwordResetRoutes = {
 
 /** Where a signed-in person belongs. */
 export const appRoutes = {
-  home: '/(app)',
+  home: '/(app)/(tabs)',
 } as const;
 
 /** Where each answer from `GET /me` sends someone who has just signed in. */
 export const nextStepRoutes = {
-  // Profile setup is step 3 of sign-up. It is a placeholder until it is built.
-  completeProfile: signUpRoutes.preferences,
+  completeProfile: accountRoutes.profileSetup,
   acceptTerms: accountRoutes.terms,
   home: appRoutes.home,
 } as const satisfies Record<NextStep, string>;

@@ -5,7 +5,13 @@
  * import from. Repositories, use cases, hooks and internal components stay private.
  */
 
-export { AuthProvider, useAuthState, useSignOut } from './presentation/state/AuthContext';
+export {
+  AuthProvider,
+  useAuthState,
+  useAuthorizedRequest,
+  useSignOut,
+} from './presentation/state/AuthContext';
+export type { AuthorizedRequest } from './authModule';
 export { useEntryCheck } from './presentation/hooks/useEntryCheck';
 export { SignUpFlowProvider } from './presentation/state/SignUpFlowContext';
 export { SignInFlowProvider } from './presentation/state/SignInFlowContext';

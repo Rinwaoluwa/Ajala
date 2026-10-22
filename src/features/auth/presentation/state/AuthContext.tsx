@@ -1,3 +1,4 @@
+import { useQueryClient } from '@tanstack/react-query';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
 import { createAuthUseCases, type AuthUseCases } from '../../authModule';
@@ -47,9 +48,17 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AuthState>({ status: 'loading' });
+  const queryClient = useQueryClient();
   const useCases = useMemo(
-    () => createAuthUseCases({ onSessionEnded: () => setState({ status: 'signedOut' }) }),
-    [],
+    () =>
+      createAuthUseCases({
+        onSessionEnded: () => {
+          // Nothing cached for the account may outlive its session (spec §7).
+          queryClient.clear();
+          setState({ status: 'signedOut' });
+        },
+      }),
+    [queryClient],
   );
 
   useEffect(() => {
@@ -91,8 +100,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // clear locally. The use case never rejects, so a dead network still signs
     // the person out on this device.
     await useCases.signOut();
+    queryClient.clear();
     setState({ status: 'signedOut' });
-  }, [useCases]);
+  }, [useCases, queryClient]);
 
   const value = useMemo(
     () => ({ useCases, state, keepSession, signOut, completeEntryCheck }),
@@ -124,6 +134,11 @@ export function useKeepSession() {
 
 export function useSignOut() {
   return useAuth().signOut;
+}
+
+/** Makes API calls as the signed-in person; see `AuthorizedRequest`. */
+export function useAuthorizedRequest() {
+  return useAuth().useCases.authorizedRequest;
 }
 
 export function useCompleteEntryCheck() {
