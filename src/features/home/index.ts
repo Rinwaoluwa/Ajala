@@ -1,11 +1,9 @@
 /**
- * Public API of the `home` feature.
- *
- * This file is the ONLY entry point other features and the `app/` route tree may
- * import from. Export screens, route params and the feature's provider here;
- * keep repositories, DTOs and internal components private.
- *
- * export { default as HomeFeedScreen } from './presentation/screens/HomeFeedScreen';
+ * Public API of the `home` feature: the feed, and Teleport (the city picker and
+ * its paywall).
  */
 
-export {};
+export { HomeScreen, type HomeScreenProps } from './presentation/screens/HomeScreen';
+export { TeleportScreen, type TeleportScreenProps } from './presentation/screens/TeleportScreen';
+export { homeRoutes } from './presentation/navigation/routes';
+export type { PostCard, PostType } from './domain/entities/Feed';

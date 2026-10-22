@@ -3,6 +3,11 @@
 **FRD coverage:** MOB-020 → MOB-027, consumes MOB-030 → MOB-039
 **Owner:** _unassigned_ — put your name here when you pick this feature up.
 
+**Built so far:** the feed (`GET /feed` with `X-Client-Location`, cursor paging, pull to refresh,
+skeleton, empty and error states), the city header, post-type pills (the API's types, agreed with
+product), the level card (a static placeholder — no backend), and the Teleport city picker (`GET
+/cities`). Teleport cannot switch the feed's city yet; other cities open the paywall in `payment`.
+
 City-default feed, city selector header, teleport banner, feed ordering, cursor pagination, empty state, post-type filter pills.
 
 ## Boundary rules
