@@ -88,6 +88,38 @@ export type SemanticColors = {
   indicatorInactive: string;
   /** Behind an onboarding illustration that has no background of its own. */
   illustrationBackdrop: string;
+
+  /**
+   * An unselected choice chip and its label. The pale pill with ink text in BOTH
+   * schemes: the dark profile-setup frames keep the light chips on Night.
+   */
+  chipFill: string;
+  chipForeground: string;
+  /** Over the screen behind a celebration sheet: a light teal wash in both designs. */
+  celebrationScrim: string;
+
+  /** A raised card on the screen (the feed's level card, list rows): white / Deep. */
+  card: string;
+  /** Behind a bottom sheet or a modal: a dimming wash. */
+  scrim: string;
+  /** Loading placeholders: the block (an image's place) and the body under it. */
+  skeleton: string;
+  skeletonSurface: string;
+  /** An unselected filter pill and its label (the feed's type pills). */
+  pillFill: string;
+  pillForeground: string;
+  /** The round icon buttons in the home header (bell, chat): pale Marigold / Deep. */
+  iconButtonFill: string;
+  /** The floating tab bar's two halves. */
+  tabBar: string;
+  /**
+   * The chosen tile or row (current city, picked post type): a mint fill with a
+   * teal outline. Mint in both schemes — the dark frames keep the light tile.
+   */
+  selectedFill: string;
+  selectedForeground: string;
+  /** A Marigold-tinted chip: the post-type tag on a card, the picker's back button. */
+  accentSoft: string;
 };
 
 const light: SemanticColors = {
@@ -115,6 +147,20 @@ const light: SemanticColors = {
   pattern: palette.patternLight,
   indicatorInactive: schemeRoles.light.surfaceMuted,
   illustrationBackdrop: schemeRoles.light.surfaceMuted,
+  chipFill: schemeRoles.light.surfaceMuted,
+  chipForeground: palette.ink,
+  celebrationScrim: 'rgba(14, 111, 105, 0.5)',
+  card: palette.white,
+  scrim: 'rgba(13, 23, 21, 0.4)',
+  skeleton: '#EEEEEE',
+  skeletonSurface: '#F5F6F8',
+  pillFill: schemeRoles.light.surfaceMuted,
+  pillForeground: palette.inkSecondary,
+  iconButtonFill: schemeRoles.light.warningSoft,
+  tabBar: palette.white,
+  selectedFill: '#E6FAF7',
+  selectedForeground: palette.teal,
+  accentSoft: '#FBE7B8',
 };
 
 const dark: SemanticColors = {
@@ -147,6 +193,23 @@ const dark: SemanticColors = {
   indicatorInactive: schemeRoles.light.surfaceMuted,
   // The dark passport frame is flat Night behind the art.
   illustrationBackdrop: schemeRoles.dark.background,
+  chipFill: schemeRoles.light.surfaceMuted,
+  chipForeground: palette.ink,
+  // Teal at half strength would go murky on Night; the dark frame washes the
+  // screen in the same pale teal as the light one.
+  celebrationScrim: 'rgba(134, 176, 172, 0.94)',
+  card: palette.deep,
+  scrim: 'rgba(0, 0, 0, 0.55)',
+  // The dark skeleton frame draws the image block in a deep teal.
+  skeleton: '#183D3A',
+  skeletonSurface: palette.deep,
+  pillFill: palette.deep,
+  pillForeground: palette.mistSecondary,
+  iconButtonFill: palette.deep,
+  tabBar: '#111417',
+  selectedFill: '#E6FAF7',
+  selectedForeground: palette.teal,
+  accentSoft: '#FBE7B8',
 };
 
 export const themes: Record<ColorScheme, SemanticColors> = { light, dark };

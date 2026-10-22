@@ -47,4 +47,44 @@ export const icons = {
     symbol: 'xmark',
     android: require('@expo/material-symbols/close.xml') as number,
   },
+  search: {
+    symbol: 'magnifyingglass',
+    android: require('@expo/material-symbols/search.xml') as number,
+  },
+  location: {
+    symbol: 'location.circle',
+    android: require('@expo/material-symbols/my_location.xml') as number,
+  },
+  person: {
+    symbol: 'person.fill',
+    android: require('@expo/material-symbols/person.xml') as number,
+  },
+  add: {
+    symbol: 'plus',
+    android: require('@expo/material-symbols/add.xml') as number,
+  },
+  check: {
+    symbol: 'checkmark',
+    android: require('@expo/material-symbols/check.xml') as number,
+  },
+  faceId: {
+    symbol: 'faceid',
+    android: require('@expo/material-symbols/face.xml') as number,
+  },
+  touchId: {
+    symbol: 'touchid',
+    android: require('@expo/material-symbols/fingerprint.xml') as number,
+  },
+  lock: {
+    symbol: 'lock.fill',
+    android: require('@expo/material-symbols/lock.xml') as number,
+  },
+  chevronDown: {
+    symbol: 'chevron.down',
+    android: require('@expo/material-symbols/keyboard_arrow_down.xml') as number,
+  },
+  chevronLeft: {
+    symbol: 'chevron.left',
+    android: require('@expo/material-symbols/chevron_left.xml') as number,
+  },
 } satisfies Record<string, NativeIconSource>;

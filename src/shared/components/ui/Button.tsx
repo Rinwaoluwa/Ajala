@@ -250,6 +250,8 @@ export function ButtonCore({
 
 export type ButtonProps = SharedButtonProps & {
   fullWidth?: boolean;
+  /** A filled button in a colour that is not a variant; see `ButtonCoreProps.tint`. */
+  tint?: ButtonCoreProps['tint'];
 };
 
 export function Button({ fullWidth = false, size = 'md', ...props }: ButtonProps) {

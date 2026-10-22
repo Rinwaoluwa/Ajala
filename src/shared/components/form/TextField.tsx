@@ -1,5 +1,5 @@
 import { Host, TextInput, type TextInputRef } from '@expo/ui';
-import { memo, useRef, useState, type ComponentProps, type ReactNode } from 'react';
+import { memo, useCallback, useEffect, useRef, useState, type ComponentProps, type ReactNode } from 'react';
 import { Platform, Pressable } from 'react-native';
 import Animated, {
   Easing,
@@ -14,8 +14,8 @@ import { useFontScale } from '@shared/hooks/useFontScale';
 import { useTheme } from '@shared/hooks/useTheme';
 import { layout, textStyles } from '@shared/theme';
 
-import { NATIVE_BUTTON_INSET } from '../ui/nativeButtonInset';
 import { nativeTextScaleCap } from '../ui/nativeTextScale';
+import { Text } from '../ui/Text';
 import { FieldFrame, fieldLineHeight } from './FieldFrame';
 
 /**
@@ -26,10 +26,10 @@ import { FieldFrame, fieldLineHeight } from './FieldFrame';
  * `onChangeText`. Seed it with `defaultValue`. That keeps typing on the native side
  * with no round trip through React on every keystroke.
  *
- * `trailing` is Expo UI content drawn at the right edge. It is hosted separately
- * and hugs its content. On its own it is a native control (it brings its own
- * button). With `trailingAction` it is only a glyph, and the field makes it a
- * button with a platform-size tap area around it (the password field's eye).
+ * `trailing` is an Expo UI glyph drawn at the right edge, hosted separately and
+ * hugging its content. On its own it is a status mark (the handle's check). With
+ * `trailingAction` the field makes it a button with a platform-size tap area
+ * around it (the password field's eye). `leading` and `prefix` sit before the text.
  */
 
 type NativeInputProps = ComponentProps<typeof TextInput>;
@@ -52,6 +52,16 @@ export type TextFieldProps = {
   trailing?: ReactNode;
   /** Makes `trailing` (then a plain glyph) a button. */
   trailingAction?: TrailingAction;
+  /** A glyph before the text (Expo UI content), e.g. the search field's magnifier. */
+  leading?: ReactNode;
+  /** Fixed text before what is typed, e.g. "@" before a handle. */
+  prefix?: string;
+  /** The pale filled box (see `FieldFrame`). */
+  filled?: boolean;
+  /** Not drawn — a search box whose placeholder names it, which the native field reads out. */
+  labelHidden?: boolean;
+  autoFocus?: boolean;
+  maxLength?: number;
   testID?: string;
 };
 
@@ -77,13 +87,29 @@ function TextFieldComponent({
   returnKeyType,
   trailing,
   trailingAction,
+  leading,
+  prefix,
+  filled = false,
+  labelHidden = false,
+  autoFocus,
+  maxLength,
   testID,
 }: TextFieldProps) {
   const theme = useTheme();
   const inputRef = useRef<TextInputRef>(null);
+  // Always registered, forwarding to whatever `onSubmitEditing` is now. The native
+  // field adds its submit modifier only while it has a handler, and adding or
+  // removing it rebuilds the field — dropping focus and the keyboard mid-typing
+  // whenever a form flips between "can submit" and "can't".
+  const submitRef = useRef(onSubmitEditing);
+  useEffect(() => {
+    submitRef.current = onSubmitEditing;
+  }, [onSubmitEditing]);
+  const handleSubmit = useCallback(() => submitRef.current?.(), []);
   const [focused, setFocused] = useState(false);
   // The native text follows the text-size setting; its line has to grow with it.
   const lineHeight = fieldLineHeight(useFontScale());
+  const textColor = filled ? theme.chipForeground : theme.foreground;
 
   return (
     <FieldFrame
@@ -91,15 +117,32 @@ function TextFieldComponent({
       focused={focused}
       error={error}
       hasTrailing={trailing != null}
+      filled={filled}
+      labelHidden={labelHidden}
       onPressBox={() => inputRef.current?.focus()}
       testID={testID}
     >
+      {leading != null ? (
+        <Host matchContents style={{ marginRight: 8 }} pointerEvents="none">
+          {leading}
+        </Host>
+      ) : null}
+      {prefix ? (
+        <Text
+          variant="bodySm"
+          style={{ color: textColor }}
+          importantForAccessibility="no"
+          accessibilityElementsHidden
+        >
+          {prefix}
+        </Text>
+      ) : null}
       <Host style={{ flex: 1, height: lineHeight }}>
         <TextInput
           ref={inputRef}
           defaultValue={defaultValue}
           onChangeText={onChangeText}
-          onSubmitEditing={onSubmitEditing ? () => onSubmitEditing() : undefined}
+          onSubmitEditing={handleSubmit}
           onFocus={() => setFocused(true)}
           onBlur={() => {
             setFocused(false);
@@ -112,6 +155,8 @@ function TextFieldComponent({
           autoCapitalize={autoCapitalize}
           autoComplete={autoComplete}
           autoCorrect={autoCorrect}
+          autoFocus={autoFocus}
+          maxLength={maxLength}
           returnKeyType={returnKeyType}
           cursorColor={theme.primary}
           style={{ height: lineHeight }}
@@ -119,7 +164,7 @@ function TextFieldComponent({
           textStyle={{
             fontFamily: textStyles.bodySm.fontFamily,
             fontSize: textStyles.bodySm.fontSize,
-            color: theme.foreground,
+            color: textColor,
           }}
           testID={testID ? `${testID}-input` : undefined}
         />
@@ -127,9 +172,8 @@ function TextFieldComponent({
       {trailing != null && trailingAction ? (
         <TrailingButton action={trailingAction}>{trailing}</TrailingButton>
       ) : trailing != null ? (
-        // Trailing content is a native button; cancel its own padding (Android) so the
-        // icon sits the design's distance from the edge.
-        <Host matchContents style={{ marginRight: -NATIVE_BUTTON_INSET }}>
+        // A status glyph (the handle's check, a spinner); it takes no touches.
+        <Host matchContents pointerEvents="none">
           {trailing}
         </Host>
       ) : null}

@@ -39,6 +39,13 @@ export type FieldFrameProps = {
   error?: string | null;
   /** Whether a trailing icon sets the taller box height. */
   hasTrailing?: boolean;
+  /**
+   * The pale filled box of the setup screens' search and city fields. Pale in both
+   * schemes, as the dark frames draw it, so its content uses the chip ink.
+   */
+  filled?: boolean;
+  /** Leaves the label out (the search fields, which their placeholder names). */
+  labelHidden?: boolean;
   onPressBox?: () => void;
   children: ReactNode;
   testID?: string;
@@ -49,6 +56,8 @@ export function FieldFrame({
   focused = false,
   error,
   hasTrailing = false,
+  filled = false,
+  labelHidden = false,
   onPressBox,
   children,
   testID,
@@ -60,19 +69,22 @@ export function FieldFrame({
 
   return (
     <View testID={testID}>
-      <Text variant="labelXs" tone="muted">
-        {label}
-      </Text>
+      {labelHidden ? null : (
+        <Text variant="labelXs" tone="muted">
+          {label}
+        </Text>
+      )}
       <Pressable
         onPress={onPressBox}
         // The field inside is the accessible element; the box is only a larger target.
         accessible={false}
         style={{
-          marginTop: input.labelGap,
+          marginTop: labelHidden ? 0 : input.labelGap,
           minHeight: (hasTrailing ? input.heightWithIcon : input.height) + growth,
           borderWidth: BORDER,
           borderColor,
           borderRadius: input.radius,
+          backgroundColor: filled ? theme.chipFill : undefined,
           flexDirection: 'row',
           alignItems: 'center',
           paddingLeft: input.paddingX - BORDER,
