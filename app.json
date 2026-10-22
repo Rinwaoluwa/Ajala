@@ -14,7 +14,8 @@
         "light": "./assets/images/app-icon/icon.png",
         "dark": "./assets/images/app-icon/icon-dark.png",
         "tinted": "./assets/images/app-icon/icon-tinted.png"
-      }
+      },
+      "appleTeamId": "B33RBL65KK"
     },
     "android": {
       "package": "com.ajala.app",
@@ -70,7 +71,28 @@
         }
       ],
       "expo-asset",
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Ajala uses your location to show nearby activities and your position on the map.",
+          "locationAlwaysAndWhenInUsePermission": false,
+          "locationAlwaysPermission": false
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Ajala uses your photos so you can choose a profile picture.",
+          "cameraPermission": "Ajala uses the camera so you can take a profile picture."
+        }
+      ],
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Ajala uses Face ID so you can get back into the app with a glance."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
