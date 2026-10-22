@@ -1,36 +1,57 @@
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { View, useWindowDimensions } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useDerivedValue } from 'react-native-reanimated';
 
-import { ImageCarousel, PaginationDots, Text, type CarouselImage } from '@shared/components';
+import { Pager, PaginationDots, ProgressReveal } from '@shared/components';
+import { MAX_TEXT_SCALE, useFontScale } from '@shared/hooks/useFontScale';
 
+import type { OnboardingSlide } from '../../domain/entities/OnboardingSlide';
 import { OnboardingActions } from '../components/OnboardingActions';
-import { OnboardingCopy } from '../components/OnboardingCopy';
+import { OnboardingSlidePage } from '../components/OnboardingSlidePage';
+import { WelcomeBackdrop } from '../components/WelcomeBackdrop';
+import { useWelcomeActionsMetrics } from '../components/WelcomeActions';
 import { useOnboarding } from '../hooks/useOnboarding';
-import { getOnboardingImage } from '../onboardingImages';
 import type { OnboardingExit } from '../state/OnboardingState';
 
 /**
- * Onboarding — Figma "Onboarding Screen_Variant 2" (node 167-7636).
+ * Onboarding — the Figma onboarding frames (light and dark): three illustrated
+ * slides, then the welcome page.
  *
- * Only the photo moves. Tapping Next scrolls the pager, swiping drives the same
- * index, and the dots read the pager's live scroll offset so they track the image
- * rather than catching up afterwards. The copy below swaps in place. The action
- * row follows the same scroll offset: Skip / Next give way to Sign Up / Sign In as
- * the last photo slides in, and come back as it slides out.
+ * Only the illustration and its text move. The pager carries each slide's art and
+ * copy, and finally the welcome page's swirl, logo and tagline. Over the foot of
+ * the screen sits a fixed action bar (`OnboardingActions`): Skip / Next on the
+ * slides, giving way to Sign up / Sign in as the welcome page slides in. Skip jumps
+ * to the welcome page; only Sign up and Sign in leave the tour.
+ *
+ * The dots also stay put, centred at the foot of the illustration area, and read
+ * the pager's live scroll offset so they track the page rather than catching up
+ * afterwards. Four dots, as drawn: the welcome page counts. They fade out as it
+ * slides in, since it has no illustration for them to sit on.
  *
  * LAYOUT CONTRACT — every row states its own height strategy, because a flex:1
  * child inside a parent that hugs its content resolves to zero height and silently
  * disappears:
- *   - photo row:  fixed  (imageHeight)
- *   - copy row:   flex-1 (takes the remainder)
- *   - action row: fixed  (the Sign Up / Sign In stack + safe-area padding)
+ *   - pager:       fills the screen; each slide is illustration (fixed) + copy (flex-1)
+ *   - action bar:  absolute at the foot, fixed at the Sign up / Sign in stack height;
+ *                  pages reserve that height so their content never sits under it
  */
 
-/** The photo occupies this share of the screen height. Measured from the design. */
-const IMAGE_HEIGHT_RATIO = 0.62;
-/** Dots sit this far in from the photo's lower-left corner (Figma: 16pt). */
-const DOTS_INSET = 16;
+/** The illustration takes this share of the screen height: 527 of 852 in the design. */
+const ILLUSTRATION_HEIGHT_RATIO = 0.62;
+/**
+ * With the largest text the art gives up room to the copy, down to this share.
+ * In between it shrinks in proportion to how far the text has grown.
+ */
+const MIN_ILLUSTRATION_HEIGHT_RATIO = 0.45;
+/** The dots' bottom edge, above the foot of the illustration (measured). */
+const DOTS_INSET = 4;
+const DOT_SIZE = 8;
+/** Between the copy's last line and the action bar. */
+const COPY_CLEARANCE = 16;
+
+type Page = { kind: 'slide'; slide: OnboardingSlide } | { kind: 'welcome' };
+
+const keyOf = (page: Page) => (page.kind === 'slide' ? page.slide.id : 'welcome');
 
 export type OnboardingScreenProps = {
   /** How the user left. The route maps the intent to a destination. */
@@ -39,61 +60,79 @@ export type OnboardingScreenProps = {
 
 export function OnboardingScreen({ onExit }: OnboardingScreenProps) {
   const { height } = useWindowDimensions();
-  const insets = useSafeAreaInsets();
-  const { state, progress, activeSlide, isLast, next, skip, signUp, signIn, setIndex } =
+  const { reservedBottom } = useWelcomeActionsMetrics();
+  const { state, progress, welcomeIndex, isWelcome, next, skip, signUp, signIn, setIndex } =
     useOnboarding({ onExit });
 
-  const imageHeight = height * IMAGE_HEIGHT_RATIO;
+  const growth = (useFontScale() - 1) / (MAX_TEXT_SCALE - 1);
+  const illustrationHeight =
+    height *
+    (ILLUSTRATION_HEIGHT_RATIO -
+      (ILLUSTRATION_HEIGHT_RATIO - MIN_ILLUSTRATION_HEIGHT_RATIO) * growth);
 
-  const images = useMemo<CarouselImage[]>(
-    // Decorative: the heading beside each one already carries the meaning.
-    () => state.slides.map((s) => ({ key: s.id, source: getOnboardingImage(s.imageKey) })),
+  const pages = useMemo<Page[]>(
+    () => [...state.slides.map((slide) => ({ kind: 'slide' as const, slide })), { kind: 'welcome' }],
     [state.slides],
+  );
+
+  // 0 on the last slide, 1 on the welcome page: what Sign up / Sign in reveal on.
+  const welcomeReveal = useDerivedValue(() => progress.get() - (welcomeIndex - 1));
+
+  const renderPage = useCallback(
+    (page: Page, index: number) =>
+      page.kind === 'slide' ? (
+        <OnboardingSlidePage
+          slide={page.slide}
+          illustrationHeight={illustrationHeight}
+          reservedBottom={reservedBottom + COPY_CLEARANCE}
+          active={index === state.index}
+        />
+      ) : (
+        <WelcomeBackdrop reservedBottom={reservedBottom} />
+      ),
+    [illustrationHeight, reservedBottom, state.index],
   );
 
   return (
     <View className="flex-1 bg-background">
-      {/* Fixed-height photo row; the dots overlay it. */}
-      <View style={{ height: imageHeight }}>
-        <ImageCarousel
-          images={images}
-          index={state.index}
-          onIndexChange={setIndex}
-          progress={progress}
-          height={imageHeight}
-        />
-        <View style={{ position: 'absolute', left: DOTS_INSET, bottom: DOTS_INSET }}>
-          <PaginationDots
-            count={state.slides.length}
-            progress={progress}
-            activeIndex={state.index}
-            onSurface
-          />
-        </View>
-      </View>
+      <Pager
+        pages={pages}
+        keyOf={keyOf}
+        renderPage={renderPage}
+        index={state.index}
+        onIndexChange={setIndex}
+        progress={progress}
+      />
 
-      {/* Takes the remaining height. */}
-      <OnboardingCopy slide={activeSlide} />
+      <ProgressReveal
+        progress={progress}
+        range={[welcomeIndex - 1, welcomeIndex - 0.5]}
+        mode="out"
+        rise={0}
+        interactive={!isWelcome}
+        style={{
+          position: 'absolute',
+          left: 0,
+          right: 0,
+          top: illustrationHeight - DOTS_INSET - DOT_SIZE,
+          alignItems: 'center',
+        }}
+      >
+        <PaginationDots count={pages.length} progress={progress} activeIndex={state.index} />
+      </ProgressReveal>
 
-      {/* Fixed height, set by OnboardingActions. */}
-      <View className="px-20 pt-16" style={{ paddingBottom: Math.max(insets.bottom, 16) }}>
-        <OnboardingActions
-          progress={progress}
-          lastIndex={state.slides.length - 1}
-          isLast={isLast}
-          busy={state.isFinishing}
-          onSkip={skip}
-          onNext={next}
-          onSignUp={signUp}
-          onSignIn={signIn}
-        />
-
-        {state.error ? (
-          <Text variant="bodySm" tone="destructive" className="pt-8">
-            {state.error}
-          </Text>
-        ) : null}
-      </View>
+      <OnboardingActions
+        progress={progress}
+        welcomeReveal={welcomeReveal}
+        welcomeIndex={welcomeIndex}
+        isWelcome={isWelcome}
+        busy={state.isFinishing}
+        error={state.error}
+        onSkip={skip}
+        onNext={next}
+        onSignUp={signUp}
+        onSignIn={signIn}
+      />
     </View>
   );
 }

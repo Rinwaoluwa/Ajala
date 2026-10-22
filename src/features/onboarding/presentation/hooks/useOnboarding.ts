@@ -29,8 +29,9 @@ export function useOnboarding({ onExit }: UseOnboardingOptions) {
   }));
 
   /**
-   * Live scroll position in slides, written by the carousel on the UI thread and
-   * read by the dots. One source, so the indicator cannot drift from the photo.
+   * Live scroll position in pages, written by the pager on the UI thread and read
+   * by the dots and the welcome reveal. One source, so neither can drift from the
+   * page under the user's finger.
    */
   const progress = useSharedValue(0);
 
@@ -62,9 +63,12 @@ export function useOnboarding({ onExit }: UseOnboardingOptions) {
     [onExit, useCases],
   );
 
-  /** Derived, never stored — a stored copy is the kind that drifts. */
-  const activeSlide = state.slides[state.index];
-  const isLast = state.index === state.slides.length - 1;
+  /**
+   * Derived, never stored — a stored copy is the kind that drifts. The welcome
+   * page comes after the last slide.
+   */
+  const welcomeIndex = state.slides.length;
+  const isWelcome = state.index === welcomeIndex;
 
   /** Called when the pager settles, so a swipe and a Next tap share one index. */
   const setIndex = useCallback((index: number) => {
@@ -72,16 +76,20 @@ export function useOnboarding({ onExit }: UseOnboardingOptions) {
   }, []);
 
   /**
-   * Advance one slide. Changing the index is enough — the carousel is controlled,
+   * Advance one page. Changing the index is enough — the pager is controlled,
    * so it animates itself to the new page and the dots follow its scroll offset.
    */
   const next = useCallback(() => {
-    setState((s) => (s.index < s.slides.length - 1 ? { ...s, index: s.index + 1 } : s));
+    setState((s) => (s.index < s.slides.length ? { ...s, index: s.index + 1 } : s));
   }, []);
 
-  const skip = useCallback(() => void exit('skip'), [exit]);
+  /** Skip the rest of the tour, to the welcome page and its Sign up / Sign in. */
+  const skip = useCallback(() => {
+    setState((s) => ({ ...s, index: s.slides.length }));
+  }, []);
+
   const signUp = useCallback(() => void exit('signUp'), [exit]);
   const signIn = useCallback(() => void exit('signIn'), [exit]);
 
-  return { state, progress, activeSlide, isLast, next, skip, signUp, signIn, setIndex };
+  return { state, progress, welcomeIndex, isWelcome, next, skip, signUp, signIn, setIndex };
 }

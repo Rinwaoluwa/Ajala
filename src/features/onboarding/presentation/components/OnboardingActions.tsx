@@ -1,40 +1,46 @@
 import { View } from 'react-native';
 import type { SharedValue } from 'react-native-reanimated';
 
-import { Button, ProgressReveal, buttonMetrics } from '@shared/components';
+import { Button, ProgressReveal, Text } from '@shared/components';
+
+import {
+  ACTIONS_SIDE_INSET,
+  WelcomeActions,
+  useWelcomeActionsMetrics,
+} from './WelcomeActions';
 
 /**
- * The action area, which changes on the last slide.
+ * The tour's action bar, fixed at the foot of the screen while the slides move
+ * behind it.
  *
- * Slides 1–3: Skip on the left, Next on the right, space-between (Figma frame
- * 1171287759 — Horizontal, Fill, height 44, justify space-between).
+ * On the slides: Skip on the left and Next on the right, each 94pt wide, so
+ * Skip's label sits where Next's is mirrored (measured from the onboarding
+ * frames). On the welcome page: Sign up and Sign in.
  *
- * Last slide: the tour is over, so it offers the two ways into the app — Sign Up
- * filled and Sign In outlined, both full width and stacked.
+ * The change follows the swipe. Both sets are always mounted and read the
+ * pager's live `progress`: in the first half of the swipe onto the welcome page
+ * Skip and Next fade away, in the second half Sign up and then Sign in rise in.
+ * Swiping back plays it in reverse, and a Next tap drives it the same way because
+ * it scrolls the same pager.
  *
- * The change follows the photo. Both sets are always mounted and read the pager's
- * live scroll offset: in the first half of the swipe onto the last slide Skip and
- * Next fade away, in the second half Sign Up and then Sign In rise in. Swiping back
- * plays it in reverse, and a Next tap drives it the same way because it scrolls
- * the same pager.
- *
- * The area is always as tall as the final stack, so the copy above never shifts
- * as the buttons change. Skip and Next sit on its bottom edge, where they have
- * always been. Touch and screen-reader focus follow the settled slide, so a
+ * The bar is always as tall as the Sign up / Sign in stack — taller at a larger
+ * text size — so nothing above it moves as the buttons change. Skip and Next sit
+ * on its bottom edge. Touch and screen-reader focus follow the settled page, so a
  * half-faded button cannot be tapped.
  */
 
-const GAP = 12;
-const FINAL_HEIGHT = buttonMetrics.height.lg * 2 + GAP;
+const ACTION_WIDTH = 94;
 
 export type OnboardingActionsProps = {
-  /** Live pager position in slides, written by the carousel. */
+  /** Live pager position in pages. */
   progress: SharedValue<number>;
-  /** Index of the last slide. */
-  lastIndex: number;
-  /** Whether the pager has settled on the last slide. */
-  isLast: boolean;
+  /** 0 on the last slide, 1 on the welcome page. */
+  welcomeReveal: SharedValue<number>;
+  welcomeIndex: number;
+  /** Whether the pager has settled on the welcome page. */
+  isWelcome: boolean;
   busy: boolean;
+  error: string | null;
   onSkip: () => void;
   onNext: () => void;
   onSignUp: () => void;
@@ -43,44 +49,64 @@ export type OnboardingActionsProps = {
 
 export function OnboardingActions({
   progress,
-  lastIndex,
-  isLast,
+  welcomeReveal,
+  welcomeIndex,
+  isWelcome,
   busy,
+  error,
   onSkip,
   onNext,
   onSignUp,
   onSignIn,
 }: OnboardingActionsProps) {
-  return (
-    <View style={{ height: FINAL_HEIGHT }}>
-      <ProgressReveal
-        progress={progress}
-        range={[lastIndex - 1, lastIndex - 0.5]}
-        mode="out"
-        interactive={!isLast}
-        style={{ position: 'absolute', left: 0, right: 0, bottom: 0 }}
-      >
-        <View className="flex-row items-center justify-between">
-          <Button label="Skip" variant="ghost" size="md" onPress={onSkip} disabled={busy} />
-          <Button label="Next" variant="primary" size="md" onPress={onNext} disabled={busy} />
-        </View>
-      </ProgressReveal>
+  const { stackHeight, bottomPadding } = useWelcomeActionsMetrics();
 
-      <View style={{ position: 'absolute', left: 0, right: 0, top: 0, gap: GAP }}>
+  return (
+    <View
+      pointerEvents="box-none"
+      style={{
+        position: 'absolute',
+        left: 0,
+        right: 0,
+        bottom: 0,
+        paddingHorizontal: ACTIONS_SIDE_INSET,
+        paddingBottom: bottomPadding,
+      }}
+    >
+      {error ? (
+        <Text variant="bodySm" tone="destructive" className="pb-8 text-center">
+          {error}
+        </Text>
+      ) : null}
+
+      <View style={{ height: stackHeight }} pointerEvents="box-none">
         <ProgressReveal
           progress={progress}
-          range={[lastIndex - 0.5, lastIndex - 0.1]}
-          interactive={isLast}
+          range={[welcomeIndex - 1, welcomeIndex - 0.5]}
+          mode="out"
+          interactive={!isWelcome}
+          style={{ position: 'absolute', left: 0, right: 0, bottom: 0 }}
         >
-          <Button label="Sign Up" variant="primary" size="lg" fullWidth onPress={onSignUp} loading={busy} />
+          <View className="flex-row items-center justify-between">
+            <View style={{ width: ACTION_WIDTH }}>
+              <Button label="Skip" variant="ghost" size="md" fullWidth onPress={onSkip} disabled={busy} />
+            </View>
+            <View style={{ width: ACTION_WIDTH }}>
+              <Button label="Next" variant="primary" size="md" fullWidth onPress={onNext} disabled={busy} />
+            </View>
+          </View>
         </ProgressReveal>
-        <ProgressReveal
-          progress={progress}
-          range={[lastIndex - 0.4, lastIndex]}
-          interactive={isLast}
-        >
-          <Button label="Sign In" variant="secondary" size="lg" fullWidth onPress={onSignIn} disabled={busy} />
-        </ProgressReveal>
+
+        <View style={{ position: 'absolute', left: 0, right: 0, top: 0 }} pointerEvents="box-none">
+          <WelcomeActions
+            reveal={welcomeReveal}
+            entrance="swipe"
+            interactive={isWelcome}
+            busy={busy}
+            onSignUp={onSignUp}
+            onSignIn={onSignIn}
+          />
+        </View>
       </View>
     </View>
   );

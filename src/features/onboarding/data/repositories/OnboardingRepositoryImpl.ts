@@ -3,7 +3,9 @@ import type { OnboardingRepository } from '../../domain/repositories/OnboardingR
 import { onboardingStorage } from '../datasources/local/onboardingStorage';
 
 /**
- * Slide copy, transcribed from Figma "Onboarding Screen_Variant 2" (node 167-7636).
+ * Slide copy, transcribed from the Figma onboarding frames (Mobile page, light and
+ * dark). The tour is three slides; the welcome page that follows them is not a
+ * slide, it is where the tour ends, and the screen draws it.
  *
  * Held in the data layer rather than fetched: this copy ships with the binary, is
  * needed before the first network call, and changing it is a release, not a config
@@ -12,28 +14,22 @@ import { onboardingStorage } from '../datasources/local/onboardingStorage';
  */
 const SLIDES: OnboardingSlide[] = [
   {
-    id: 'discover',
-    title: 'Discover New Place',
-    body: 'Explore beautiful destinations and uncover places worth adding to your travel list.',
-    imageKey: 'discover',
+    id: 'passport',
+    title: 'Travel your way.',
+    body: 'Collect stamps for the places you visit and experiences you complete. Build your AJALA Passport as you explore.',
+    imageKey: 'passport',
   },
   {
-    id: 'connect',
-    title: 'Connect With Travelers',
-    body: 'Explore beautiful destinations and uncover places worth adding to your travel list.',
-    imageKey: 'connect',
+    id: 'journey',
+    title: 'Make every trip a story',
+    body: 'Explore new places, discover experiences, and build your journey one adventure at a time.',
+    imageKey: 'journey',
   },
   {
-    id: 'plan',
-    title: 'Discover New Places',
-    body: 'Explore beautiful destinations and uncover places worth adding to your travel list.',
-    imageKey: 'plan',
-  },
-  {
-    id: 'start',
-    title: 'Discover New Places',
-    body: 'Explore beautiful destinations and uncover places worth adding to your travel list.',
-    imageKey: 'start',
+    id: 'badges',
+    title: 'Explore. Earn. Repeat.',
+    body: 'Discover new places, complete travel experiences, and unlock badges along the way.',
+    imageKey: 'badges',
   },
 ];
 

@@ -6,7 +6,12 @@ import type { OnboardingExit } from '../state/OnboardingState';
  * of the auth stack.
  */
 export const onboardingExitRoutes: Record<OnboardingExit, '/(auth)/sign-in' | '/(auth)/sign-up'> = {
-  skip: '/(auth)/sign-in',
   signUp: '/(auth)/sign-up',
   signIn: '/(auth)/sign-in',
 };
+
+export const onboardingRoutes = {
+  tour: '/(onboarding)',
+  /** The welcome screen on its own, for a returning visitor who is signed out. */
+  welcome: '/(onboarding)/welcome',
+} as const;
