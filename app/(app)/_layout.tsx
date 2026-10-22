@@ -2,6 +2,7 @@ import { Redirect, Stack } from 'expo-router';
 import { View } from 'react-native';
 
 import { nextStepRoutes, signInRoutes, useAuthState, useEntryCheck } from '@features/auth';
+import { LocationGate } from '@features/location-access';
 import { useStackScreenOptions } from '@shared/hooks/useStackScreenOptions';
 
 /**
@@ -14,6 +15,9 @@ import { useStackScreenOptions } from '@shared/hooks/useStackScreenOptions';
  *
  * A session restored from the last launch is then checked against `GET /me`
  * (`useEntryCheck`): updated terms, or an unfinished profile, come before the app.
+ *
+ * Location is required to use Ajala: without it, the app is held behind "Turn on
+ * location to explore AJALA", which moves on by itself once it is allowed.
  */
 export default function AppLayout() {
   const auth = useAuthState();
@@ -26,5 +30,15 @@ export default function AppLayout() {
   // Usually a few hundred milliseconds, much of it under the launch overlay.
   if (entry.pending) return <View className="flex-1 bg-background" />;
 
-  return <Stack screenOptions={screenOptions} />;
+  return (
+    <LocationGate>
+      <Stack screenOptions={screenOptions}>
+        <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
+        <Stack.Screen
+          name="teleport-paywall"
+          options={{ presentation: 'fullScreenModal', animation: 'fade' }}
+        />
+      </Stack>
+    </LocationGate>
+  );
 }

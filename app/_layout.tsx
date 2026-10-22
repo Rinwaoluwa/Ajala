@@ -1,12 +1,15 @@
+import { QueryClientProvider } from '@tanstack/react-query';
 import { useFonts } from 'expo-font';
 import { SplashScreen, Stack, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useState } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { AppLockGate } from '@features/app-lock';
 import { ForceUpdateGate } from '@features/app-update';
 import { AuthProvider } from '@features/auth';
 import { LaunchOverlay } from '@bootstrap/splash/LaunchOverlay';
+import { queryClient } from '@core/api/queryClient/queryClient';
 import { useStackScreenOptions } from '@shared/hooks/useStackScreenOptions';
 import { LaunchStateProvider } from '@shared/state/LaunchState';
 import { fontAssets } from '@shared/theme';
@@ -38,6 +41,8 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
+      {/* The API cache, under everything that reads the API. */}
+      <QueryClientProvider client={queryClient}>
       {/* The session is app-wide state: the signed-in area guards on it and the
           entry route decides where to send people by it. */}
       <AuthProvider>
@@ -45,12 +50,15 @@ export default function RootLayout() {
       <StatusBar style="auto" />
       {/* Beneath the launch overlay, so the splash still covers a forced update. */}
       <ForceUpdateGate>
-        <Stack screenOptions={screenOptions}>
-          {/* The first screen appears under the launch overlay, so it needs no
-              entrance of its own; one that animates in waits for the hand-off. */}
-          <Stack.Screen name="index" options={{ animation: 'none' }} />
-          <Stack.Screen name="(onboarding)" options={{ animation: 'none' }} />
-        </Stack>
+        {/* Biometric unlock, when turned on: over the app, under a forced update. */}
+        <AppLockGate>
+          <Stack screenOptions={screenOptions}>
+            {/* The first screen appears under the launch overlay, so it needs no
+                entrance of its own; one that animates in waits for the hand-off. */}
+            <Stack.Screen name="index" options={{ animation: 'none' }} />
+            <Stack.Screen name="(onboarding)" options={{ animation: 'none' }} />
+          </Stack>
+        </AppLockGate>
       </ForceUpdateGate>
       {launched ? null : (
         // Ready once the index has routed somewhere: the destination is on screen beneath.
@@ -62,6 +70,7 @@ export default function RootLayout() {
       )}
       </LaunchStateProvider>
       </AuthProvider>
+      </QueryClientProvider>
     </SafeAreaProvider>
   );
 }
