@@ -23,3 +23,5 @@ coverage/
 
 expo-env.d.ts
 # @end expo-cli
+
+.claude/settings.local.json
