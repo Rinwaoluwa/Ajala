@@ -18,6 +18,8 @@ export const palette = {
   teal: c.brand.teal.value,
   marigold: c.brand.marigold.value,
   coral: c.brand.coral.value,
+  tealDark: c.brand.tealDark.value,
+  patternLight: c.brand.patternLight.value,
 
   success: c.status.success.value,
   error: c.status.error.value,
@@ -55,6 +57,15 @@ const controlRoles = (s: typeof c.light | typeof c.dark) => ({
   track: s.track.value,
   placeholder: s.placeholder.value,
   successSoft: s.successSoft.value,
+  // The status sheet's four tones and the OTP ring, from the modal-8 variants and
+  // the Verification frames.
+  successTitle: s.successTitle.value,
+  info: s.info.value,
+  infoSoft: s.infoSoft.value,
+  warningSoft: s.warningSoft.value,
+  danger: s.danger.value,
+  dangerSoft: s.dangerSoft.value,
+  focusRing: s.focusRing.value,
 });
 
 export const schemeRoles = {

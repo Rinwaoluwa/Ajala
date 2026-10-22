@@ -32,6 +32,17 @@
         "on": "#FFFFFF",
         "contrast": 4.6,
         "use": "The single most important action per screen"
+      },
+      "tealDark": {
+        "value": "#094B47",
+        "name": "Deep Teal",
+        "source": "Figma 'Splash / Initial' gradient stop",
+        "use": "Bottom of the splash gradient, the loader's trailing fill, and the swirl pattern on the splash"
+      },
+      "patternLight": {
+        "value": "#F3F5F5",
+        "source": "Ajala_Splash_Animation_Spec.md (estimated from screenshots); matches the swirl in the Figma pattern export on white",
+        "use": "The swirl pattern behind the light splash and welcome screens"
       }
     },
     "status": {
@@ -112,6 +123,43 @@
         "value": "#E1F2EF",
         "use": "Tinted badge behind a success mark",
         "source": "measured"
+      },
+      "successTitle": {
+        "value": "#0E6F69",
+        "use": "Heading of a success sheet ('Email verified!', 'All set!')",
+        "source": "measured"
+      },
+      "info": {
+        "value": "#5C5CF6",
+        "use": "Info sheet heading, mark and button ('Connection interrupted')",
+        "source": "measured",
+        "note": "Read off a screenshot, not the Properties panel; confirm the hex in Figma. It is the kit's indigo, not a brand colour — flagged to design."
+      },
+      "infoSoft": {
+        "value": "#EBEAFD",
+        "use": "Tinted badge behind an info mark",
+        "source": "measured"
+      },
+      "warningSoft": {
+        "value": "#FCF6E8",
+        "use": "Tinted badge behind a warning mark. The warning colour itself is Marigold (`accent`).",
+        "source": "measured"
+      },
+      "danger": {
+        "value": "#CD3546",
+        "use": "Error sheet heading, mark and button ('That didn't go through', 'Email verification failed')",
+        "source": "measured",
+        "note": "Brighter than the brand error #A61B29, and the same in both schemes. Read off a screenshot; confirm the hex in Figma. A red button contradicts the usage rule 'never use Crimson for buttons' — flagged to design."
+      },
+      "dangerSoft": {
+        "value": "#F5DCE1",
+        "use": "Tinted badge behind an error mark",
+        "source": "measured"
+      },
+      "focusRing": {
+        "value": "#0E6F69",
+        "use": "Ring around the OTP box the next digit goes into",
+        "source": "measured"
       }
     },
     "dark": {
@@ -179,16 +227,51 @@
         "derived": true
       },
       "track": {
-        "value": "#34443F",
-        "derived": true
+        "value": "#D2D5DA",
+        "source": "measured",
+        "note": "The dark sign-up and password-reset frames keep the light track: inactive step segments, unmet rule marks and code-box outlines are the same pale grey as on white. Was a derived #34443F."
       },
       "placeholder": {
         "value": "#6E7C79",
         "derived": true
       },
       "successSoft": {
-        "value": "#173A2B",
-        "derived": true
+        "value": "#E1F2EF",
+        "source": "measured",
+        "note": "The dark 'Email verified!' sheet keeps the light badge tint rather than a dark one (was #173A2B, derived before the dark sheet was drawn)."
+      },
+      "successTitle": {
+        "value": "#EEF3F2",
+        "source": "measured",
+        "note": "Mist, not teal: the dark 'Email verified!' sheet sets its heading in the text colour."
+      },
+      "info": {
+        "value": "#5C5CF6",
+        "derived": true,
+        "note": "No dark info sheet is drawn; kept as on light, as the dark error sheet keeps its red."
+      },
+      "infoSoft": {
+        "value": "#EBEAFD",
+        "derived": true,
+        "note": "Light tint on dark, as the drawn dark success and error badges are."
+      },
+      "warningSoft": {
+        "value": "#FCF6E8",
+        "derived": true,
+        "note": "Light tint on dark, as the drawn dark success and error badges are."
+      },
+      "danger": {
+        "value": "#CD3546",
+        "source": "measured"
+      },
+      "dangerSoft": {
+        "value": "#F5DCE1",
+        "source": "measured"
+      },
+      "focusRing": {
+        "value": "#F5B83D",
+        "source": "measured",
+        "note": "Marigold on Night, from the dark Verification frame."
       }
     },
     "kitLeftovers": {

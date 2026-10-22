@@ -34,8 +34,24 @@ export type SemanticColors = {
   /** Inactive step segments, unmet rule marks, OTP box outlines. */
   track: string;
   placeholder: string;
-  /** Tinted badge behind a success mark. */
+  /** Tinted badge behind a success mark. Stays light on dark, as the dark sheet draws it. */
   successSoft: string;
+  /** Success sheet heading: teal on light, Mist on dark ("Email verified!"). */
+  successTitle: string;
+  /** Info sheet heading, mark and button. The kit's indigo — flagged to design. */
+  info: string;
+  infoSoft: string;
+  /** Badge behind a warning mark. The warning colour itself is `accent`. */
+  warningSoft: string;
+  /**
+   * Error sheet heading, mark and button. Not `destructive`: the design's red is
+   * brighter than the brand error and the same in both schemes, and it carries a
+   * white label, which `destructive` on dark (#F87171) cannot.
+   */
+  danger: string;
+  dangerSoft: string;
+  /** Ring on the OTP box the next digit goes into: teal on light, Marigold on dark. */
+  focusRing: string;
 
   /** Buttons, headings, active tabs, links, verified badges. */
   primary: string;
@@ -49,6 +65,29 @@ export type SemanticColors = {
 
   success: string;
   destructive: string;
+
+  /**
+   * Fill and label of a filled primary button. Brand teal with white in BOTH
+   * schemes: every dark frame (onboarding, sign-up, password reset) draws its
+   * buttons in #0E6F69, not Teal Light. White on teal is 6:1, and the fill is
+   * just over 3:1 against Night, which is what a control's edge needs.
+   */
+  primaryFill: string;
+  primaryFillForeground: string;
+  /** Outline of a secondary button: teal on light, Mist on dark (the welcome "Sign in"). */
+  outline: string;
+  /**
+   * A disabled filled button. The dark designs keep the light pill rather than
+   * dimming it, so this does not follow `surfaceMuted` (which is dark on Night).
+   */
+  disabledFill: string;
+  disabledForeground: string;
+  /** The swirl pattern behind the welcome screen. */
+  pattern: string;
+  /** Inactive pagination dots: the same pale grey in both onboarding designs. */
+  indicatorInactive: string;
+  /** Behind an onboarding illustration that has no background of its own. */
+  illustrationBackdrop: string;
 };
 
 const light: SemanticColors = {
@@ -67,6 +106,15 @@ const light: SemanticColors = {
 
   success: palette.success,
   destructive: palette.error,
+
+  primaryFill: palette.teal,
+  primaryFillForeground: palette.white,
+  outline: palette.teal,
+  disabledFill: schemeRoles.light.surfaceMuted,
+  disabledForeground: palette.inkSecondary,
+  pattern: palette.patternLight,
+  indicatorInactive: schemeRoles.light.surfaceMuted,
+  illustrationBackdrop: schemeRoles.light.surfaceMuted,
 };
 
 const dark: SemanticColors = {
@@ -88,6 +136,17 @@ const dark: SemanticColors = {
 
   success: palette.successLight,
   destructive: palette.errorLight,
+
+  primaryFill: palette.teal,
+  primaryFillForeground: palette.white,
+  outline: palette.mist,
+  disabledFill: schemeRoles.light.surfaceMuted,
+  disabledForeground: palette.inkSecondary,
+  // One step above Night, as in the dark welcome frame.
+  pattern: palette.deep,
+  indicatorInactive: schemeRoles.light.surfaceMuted,
+  // The dark passport frame is flat Night behind the art.
+  illustrationBackdrop: schemeRoles.dark.background,
 };
 
 export const themes: Record<ColorScheme, SemanticColors> = { light, dark };
