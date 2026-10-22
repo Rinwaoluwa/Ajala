@@ -23,9 +23,14 @@ export {
 } from './ui/TextLink';
 export { NativeIcon, type NativeIconProps, type NativeIconSource } from './ui/NativeIcon';
 export { icons } from './ui/icons';
-export { TextField, type TextFieldProps } from './form/TextField';
+export { NativeSpinner, type NativeSpinnerProps } from './ui/NativeSpinner';
+export { SvgIcon, type SvgIconName, type SvgIconProps } from './ui/SvgIcon';
+export { VectorIcon, type VectorIconName, type VectorIconProps } from './ui/VectorIcon';
+export { Illustration, type IllustrationName } from './ui/Illustration';
+export { TextField, type TextFieldProps, type TrailingAction } from './form/TextField';
 export { PasswordField, type PasswordFieldProps } from './form/PasswordField';
 export { SelectField, type SelectFieldProps } from './form/SelectField';
+export { Chip, ChipGroup, type ChipProps, type ChipGroupProps, type ChipTone } from './form/Chip';
 export {
   ScreenHeader,
   SCREEN_HEADER_HEIGHT,
@@ -46,9 +51,13 @@ export { PasswordRules, type PasswordRulesProps, type PasswordRule } from './for
 // React Native + NativeWind + Reanimated
 export { Text, type TextProps, type TextVariant, type TextTone } from './ui/Text';
 export { ImageCarousel, type ImageCarouselProps, type CarouselImage } from './media/ImageCarousel';
+export { RoundFlag } from './media/RoundFlag';
 export { PaginationDots, type PaginationDotsProps } from './ui/PaginationDots';
 export { Screen, type ScreenProps, type ScreenEdge } from './layout/Screen';
 export { Pager, type PagerProps } from './layout/Pager';
+export { PlaceholderScreen } from './layout/PlaceholderScreen';
+export { PostCard, type PostCardModel } from './post/PostCard';
+export { formatCardDate, formatCardTime, formatDistance } from './post/formatPost';
 export { SwirlPattern, type SwirlPatternProps } from './brand/SwirlPattern';
 export {
   StepProgress,
@@ -58,5 +67,15 @@ export {
 
 // Reanimated
 export { ProgressReveal, type ProgressRevealProps } from './motion/ProgressReveal';
+export { enterRise, ENTER_MS } from './motion/enter';
 export { ProgressBar, type ProgressBarProps } from './feedback/ProgressBar';
+export { LoadingRing, type LoadingRingProps } from './feedback/LoadingRing';
+export { SkeletonBlock, SkeletonPulse, type SkeletonBlockProps } from './feedback/Skeleton';
+export { Sheet, type SheetProps } from './overlay/Sheet';
+export {
+  FloatingTabBar,
+  type FloatingTabBarProps,
+  type TabItem,
+} from './navigation/FloatingTabBar';
+export { CelebrationSheet, type CelebrationSheetProps } from './overlay/CelebrationSheet';
 export { Logo, logoHeight, type LogoProps, type LogoTone } from './brand/Logo';
