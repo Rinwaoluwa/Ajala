@@ -49,6 +49,24 @@ describe('apiRequest', () => {
     expect(init?.headers).toMatchObject({ Authorization: 'Bearer tok', 'Content-Type': 'application/json' });
   });
 
+  it('sends FormData as it is, leaving the multipart Content-Type to fetch', async () => {
+    fetchMock.mockResolvedValue(json(200, { avatarUrl: 'https://cdn/a.jpg' }));
+    const form = new FormData();
+    await apiRequest({ method: 'POST', path: '/me/avatar', body: form, accessToken: 'tok' });
+
+    const [, init] = fetchMock.mock.calls[0]!;
+    expect(init?.body).toBe(form);
+    expect((init?.headers as Record<string, string>)['Content-Type']).toBeUndefined();
+  });
+
+  it('sends extra headers alongside its own', async () => {
+    fetchMock.mockResolvedValue(json(200, {}));
+    await apiRequest({ method: 'GET', path: '/feed', headers: { 'X-Client-Location': '6.453,3.396' } });
+
+    const [, init] = fetchMock.mock.calls[0]!;
+    expect(init?.headers).toMatchObject({ Accept: 'application/json', 'X-Client-Location': '6.453,3.396' });
+  });
+
   it('resolves a 204 without a body', async () => {
     fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
     await expect(apiRequest({ method: 'POST', path: '/api/v1/auth/logout' })).resolves.toBeNull();

@@ -20,9 +20,15 @@ import { apiConfig } from './apiConfig';
 export type ApiRequest = {
   method: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE';
   path: string;
+  /**
+   * JSON-encoded, or sent as it is when it is `FormData` (uploads, spec §1.4):
+   * fetch then writes the multipart boundary into the Content-Type itself.
+   */
   body?: unknown;
   /** Bearer token for endpoints that need one. */
   accessToken?: string | null;
+  /** Extra headers, e.g. `X-Client-Location` on the feed (spec §2.11). */
+  headers?: Record<string, string>;
   signal?: AbortSignal;
   /**
    * Whether a GET may be retried after a dropped connection or a 500/503.
@@ -103,16 +109,24 @@ async function sendOnce<T>(request: ApiRequest): Promise<T> {
   const onAbort = () => controller.abort();
   request.signal?.addEventListener('abort', onAbort);
 
+  const multipart = request.body instanceof FormData;
+
   let response: Response;
   try {
     response = await fetch(`${apiConfig.baseUrl}${request.path}`, {
       method: request.method,
       headers: {
         Accept: 'application/json',
-        ...(request.body === undefined ? null : { 'Content-Type': 'application/json' }),
+        ...(request.body === undefined || multipart ? null : { 'Content-Type': 'application/json' }),
         ...(request.accessToken ? { Authorization: `Bearer ${request.accessToken}` } : null),
+        ...request.headers,
       },
-      body: request.body === undefined ? undefined : JSON.stringify(request.body),
+      body:
+        request.body === undefined
+          ? undefined
+          : multipart
+            ? (request.body as FormData)
+            : JSON.stringify(request.body),
       signal: controller.signal,
     });
   } catch (e) {

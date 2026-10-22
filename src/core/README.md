@@ -8,7 +8,7 @@ Mapbox, the analytics vendor or the HTTP client should touch this folder and not
 | `api/rest` | HTTP client, auth/refresh interceptors, certificate pinning, endpoint map (NestJS API) |
 | `api/websocket` | socket lifecycle, channels, typed events — chat and live counts |
 | `api/messaging` | FCM/APNs registration and push handlers (a push triggers a repository refresh, it never writes state) |
-| `api/queryClient` | server-cache configuration if TanStack Query is used |
+| `api/queryClient` | the app's TanStack Query client and its defaults (no query retries — `apiClient` retries GETs; 1 min fresh, 10 min kept; foreground = focus), plus keys shared across features (`GET /me`). Every API read is a query and every write a mutation; features keep their own keys, namespaced by feature. Sign-out clears it. |
 | `cache` | cache policies (`cacheFirst`, `networkFirst`, `cacheOnly`, `realtime`) and per-entity TTLs |
 | `storage` | `secure` (Keychain / EncryptedSharedPreferences — tokens only), `kv` (MMKV), `db` (SQLite + migrations) |
 | `offline` | the pending-write queue and connectivity watcher (NFR-MOB-03) |
