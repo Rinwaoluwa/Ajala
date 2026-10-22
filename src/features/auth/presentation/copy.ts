@@ -131,7 +131,7 @@ export const authErrorMessages: Record<AuthErrorCode, string> = {
   expiredCode: 'That code has expired. Send yourself a new one.',
   // Deliberately vague about which half is wrong: saying "no account with that
   // email" would let anyone test which addresses are registered.
-  invalidCredentials: "That email and password don't match. Please try again.",
+  invalidCredentials: "Invalid email or password. Please try again.",
   invalidDetails: 'Some details need another look.',
   emailNotVerified: 'Confirm your email first — we have sent you a new code.',
   stepUpRequired: 'We emailed you a code to confirm it is you. Enter it to finish signing in.',
