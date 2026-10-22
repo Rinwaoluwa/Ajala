@@ -6,3 +6,6 @@
  * visible content lands where it does on iOS.
  */
 export const NATIVE_BUTTON_INSET = 12;
+
+/** `TextButtonContentPadding`'s vertical half: 8dp above and below the content. */
+export const NATIVE_BUTTON_INSET_VERTICAL = 8;

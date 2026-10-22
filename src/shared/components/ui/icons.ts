@@ -34,4 +34,17 @@ export const icons = {
     symbol: 'checkmark.circle.fill',
     android: require('../../../../assets/icons/android/check_circle_fill.xml') as number,
   },
+  // The status-sheet badges (Figma modal-8 variants): info, warning, error.
+  info: {
+    symbol: 'info.circle',
+    android: require('@expo/material-symbols/info.xml') as number,
+  },
+  warning: {
+    symbol: 'exclamationmark.triangle',
+    android: require('@expo/material-symbols/warning.xml') as number,
+  },
+  close: {
+    symbol: 'xmark',
+    android: require('@expo/material-symbols/close.xml') as number,
+  },
 } satisfies Record<string, NativeIconSource>;

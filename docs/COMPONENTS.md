@@ -71,24 +71,26 @@ styling through `style`, content as children, explicit dimensions on the Host, a
 | Component | Built on | Notes |
 | --- | --- | --- |
 | `Button` | Expo UI | Variants `primary` / `cta` / `secondary` / `neutral` / `ghost`; heights `sm` 36 / `md` 44 / `lg` 50. Pill-shaped (Figma `Corner_Radius/80`), except `neutral`, the social "Sign up with …" style, which is a 12pt-radius outline. Optional leading `icon`. Disabled is the design's muted fill and grey label, not an opacity. Label is `Label/Small` (Inter 500, 14/20). |
-| `ButtonCore` | Expo UI | The native button without its Host, for use inside Expo UI content such as a sheet. Give it a `width` to fill. |
-| `TextLink` | Expo UI | Short tappable phrase in the link colour (Teal on light, Marigold on dark). |
+| `ButtonCore` | Expo UI | The native button without its Host, for use inside Expo UI content such as a sheet. Give it a `width` to fill. `tint` gives a filled button a colour that is not a variant (the status sheets). |
+| `TextLink` | Expo UI | Tappable phrase. `tone` picks the colour (`link` teal/marigold, `accent` marigold, `foreground` ink) and `emphasis` the weight (`strong` for the uppercase footer links, `plain` for an inline one like "Forgot password?"). |
 | `NativeIcon` + `icons` | Expo UI | One glyph per platform: an SF Symbol on iOS, a vector drawable on Android (Material Symbols from `@expo/material-symbols`, scaled to match SF sizing). Brand marks (the Google "G") are a PNG on iOS and an untinted drawable on Android. Add new glyphs to `ui/icons.ts`; an inline SF Symbol name renders nothing on Android. |
 | `TextField` | Expo UI + RN chrome | Label, 38pt box (42pt with a trailing icon), 1pt outline, 6pt radius. Uncontrolled native input; primary outline while focused, destructive with an error. |
 | `PasswordField` | Expo UI | `TextField` with an eye toggle. Text survives the secure/plain swap. |
 | `SelectField` | Expo UI + RN chrome | Looks like a field; the box is one native button (value or placeholder, trailing icon). Used for date of birth. |
 | `PasswordRules` | Expo UI icon + RN | 20pt rows, 12pt mark (grey unmet, Marigold met), Inter 12/16 muted text. Each row announces "met" / "not met". |
-| `OtpInput` | Expo UI input + RN boxes | One invisible native input over six drawn 50×56 boxes, so the number pad, iOS code autofill and paste all work. 2pt primary ring on the next box. |
-| `StepProgress` | RN | 3pt segments, 8pt apart; only the current step is highlighted. |
+| `OtpInput` | Expo UI input + RN boxes | One invisible native input over six drawn 50×56 boxes, so the number pad, iOS code autofill and paste all work. 2pt `focusRing` on the next box — teal on light, Marigold on dark. |
+| `StepProgress` | RN | 3pt segments, 8pt apart; only the current step is highlighted. `tone` picks the highlight; both auth flows now use Marigold (`accent`). |
 | `ScreenHeader` | Expo UI back button + RN title | Back arrow and a Plus Jakarta 20/28 title. |
 | `DatePickerSheet` | Expo UI | iOS: bottom sheet with a SwiftUI wheel and Done. Android: the system date dialog. Edits a draft; Done commits. |
-| `StatusSheet` | Expo UI | The "Email verified!" confirmation: tinted check badge, heading, message, one full-width action. SwiftUI end to end. |
+| `StatusSheet` | Expo UI | A status sheet: drag handle, tinted badge with a mark, heading, muted message, one full-width pill. `tone` — `info` / `warning` / `error` / `success` — sets badge, mark, heading and button together (modal-8 variants). `titleTone="default"` puts the heading in the text colour ("Password reset successful"). The button is `ButtonCore`, tinted to the status colour for all but success. SwiftUI end to end. |
 | `Text` | RN + NativeWind | Variant per step of the type scale, `tone` per semantic colour (`heading`, `link`, `muted`, …). Nobody picks a font size by hand. |
-| `ImageCarousel` | RN + Reanimated | Controlled horizontal pager. Publishes live scroll offset to a Reanimated shared value so indicators track it. |
-| `PaginationDots` | RN + Reanimated | 8pt dots, 6pt gap, active dot widens to a 24pt marigold pill. Driven by the carousel's `progress`. Dots over media stay white in both themes. |
-| `ProgressReveal` | RN + Reanimated | Shows or hides content in step with a live progress value (fade + 16pt rise). Scrubbed, not played: it reverses when the user swipes back. Touch and screen-reader focus follow settled state. |
-| `ProgressBar` | RN + Reanimated | Pill-shaped bar; the caller owns the timing. Themed track and fill by default. |
-| `Logo` | expo-image | The lockup SVG. Same artwork on light and dark, per the dark splash design. |
+| `Pager` | RN + Reanimated | Controlled horizontal pager of arbitrary pages. Publishes live scroll offset (in pages) to a Reanimated shared value so indicators and reveals track it. Onboarding pages the whole screen with it. |
+| `ImageCarousel` | RN + Reanimated | A `Pager` of full-bleed photos with BlurHash placeholders. |
+| `PaginationDots` | RN + Reanimated | 8pt dots, 6pt gap, active dot widens to a 24pt marigold pill. Driven by the pager's `progress`. Inactive dots are `indicatorInactive` (pale grey in both schemes); over media they stay white. |
+| `ProgressReveal` | RN + Reanimated | Shows or hides content in step with a live progress value (fade + 16pt rise; `rise={0}` for a fade alone). Scrubbed, not played: it reverses when the user swipes back. Touch and screen-reader focus follow settled state. |
+| `ProgressBar` | RN + Reanimated | Pill-shaped bar; the caller owns the timing. Themed track and fill by default. (The launch splash has its own loader, `src/bootstrap/splash/SplashLoader.tsx`.) |
+| `Logo` | expo-image | The mark and wordmark, no tagline. `tone="brand"` is teal with coral dots (white and Night); `tone="inverse"` is white with marigold dots (the splash gradient). The tagline is set as text where it appears. |
+| `SwirlPattern` | expo-image | The brand swirl behind the splash and welcome screens: an alpha mask tinted per surface (`theme.pattern`, or deep teal on the splash). Decorative, fills its parent. |
 | `Screen` | RN + NativeWind | Background, the measured 20pt gutter, safe-area insets via `useSafeAreaInsets()`. |
 
 ### Inside an Expo UI sheet
@@ -138,23 +140,46 @@ ORDER; do not read timing, easing or transition type out of an unconfigured one.
 
 Rules that came out of that regression:
 
-- **Only the thing that changed moves.** The photo strip translates. The background, the white
-  content area and the Skip/Next row stay put. Chrome that survives a state change must never
-  animate through it — cross-fading a button the user is about to tap makes it flicker under their
-  finger, and briefly renders two of them.
+- **Only the thing that changed moves.** The pager carries each slide's illustration and copy,
+  and finally the welcome page's swirl, logo and tagline. The dots and the action bar (Skip /
+  Next, then Sign up / Sign in) stay put over it. Chrome that survives a state change must never
+  animate through it — cross-fading a button the user is about to tap makes it flicker under
+  their finger, and briefly renders two of them.
 - **Indicators read the same source as the thing they indicate.** `PaginationDots` takes the
-  pager's live scroll offset (`progress`), so it tracks the photo frame-for-frame instead of
+  pager's live scroll offset (`progress`), so it tracks the page frame-for-frame instead of
   animating on its own clock and drifting.
-- **Every row declares a height strategy.** In `OnboardingScreen`: photo row fixed, copy row
-  `flex-1`, action row fixed at the height of the Sign Up / Sign In stack. A `flex-1` child inside a parent that hugs its content resolves to
-  height 0 in Yoga and vanishes silently — that is exactly how the onboarding copy disappeared.
+- **Every row declares a height strategy.** On a slide: illustration fixed (a share of the screen
+  height), copy in a `flex-1` scroll view below it that reserves the action bar's height. The
+  action bar is absolute at the foot, fixed at the Sign up / Sign in stack's height. A `flex-1` child inside a parent
+  that hugs its content resolves to height 0 in Yoga and vanishes silently — that is exactly how
+  the onboarding copy once disappeared.
 
-### Sign Up / Sign In follow the swipe
+### Sign up / Sign in follow the swipe
 
-Both button sets are always mounted and read the pager's `progress`. In the first half of the swipe
-onto the last slide Skip and Next fade away; in the second half Sign Up, then Sign In, rise in.
-Swipe back and it runs in reverse. Because it is scrubbed from the same value as the photo, a Next
-tap drives it identically, and it can never disagree with what is on screen.
+Both button sets are always mounted in the action bar and read the pager's `progress`. In the first
+half of the swipe onto the welcome page Skip and Next fade away (and the dots with them); in the
+second half Sign up, then Sign in, rise in. Swipe back and it runs in reverse. Skip and Next move the
+same pager, so they drive it identically.
+
+When the welcome screen is shown on its own (a returning, signed-out visitor), the same buttons
+fade in over 300ms with no movement, per the splash spec — starting when the launch splash hands
+over (`useLaunchHandedOff`), not on mount, since the screen mounts unseen beneath the splash.
+
+### Launch splash
+
+`src/bootstrap/splash/` follows `Ajala_Splash_Animation_Spec.md`: a 3s timeline (1.5s rest, a 1s
+sweep of the loader's warm head, a hold), then a 150ms cross-fade to the first screen — or later,
+if startup is slower. Reduce Motion skips the sweep.
+
+The native launch screens hand over without a visible change:
+
+- **iOS** shows the splash without its bar, full screen (`assets/images/splash/launch-ios.png`,
+  `cover`). The JS splash starts on that exact frame — it scales its logo the way `cover` scales
+  the image, so the two line up on any screen shape — and the bar fades in as it takes over.
+  Regenerate the image if the splash's logo or colours change.
+- **Android 12+** can only draw a flat colour and a centred icon, so it is flat brand teal with the
+  white wordmark at 168dp; the JS splash fades its gradient and pattern in and settles the logo
+  to full size.
 
 ### Known rough edge
 

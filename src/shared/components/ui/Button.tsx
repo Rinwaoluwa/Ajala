@@ -5,9 +5,14 @@ import { View, type LayoutChangeEvent } from 'react-native';
 import { useTheme } from '@shared/hooks/useTheme';
 import { layout, textStyles } from '@shared/theme';
 
+import { buttonHitArea } from './buttonHitArea';
+import { a11yLabel } from './nativeA11y';
 import { resolveButtonOutline } from './buttonOutline';
 import { NativeIcon, type NativeIconSource } from './NativeIcon';
-import { NATIVE_BUTTON_INSET } from './nativeButtonInset';
+import { NativeSpinner } from './NativeSpinner';
+import { NATIVE_BUTTON_INSET, NATIVE_BUTTON_INSET_VERTICAL } from './nativeButtonInset';
+import { nativeLineBox } from './nativeLineBox';
+import { nativeTextScaleCap } from './nativeTextScale';
 
 /**
  * Button — a real SwiftUI / Jetpack Compose button, styled to the design.
@@ -53,12 +58,32 @@ import { NATIVE_BUTTON_INSET } from './nativeButtonInset';
  *
  * The label is a child rather than the `label` prop, because only a child can carry
  * our font and colour. Press feedback, focus order and accessibility stay native.
+ *
+ * LARGER TEXT. The label follows the text-size setting (to 2×, see
+ * `nativeTextScale`). So the button is sized by padding around its label, not by
+ * a fixed height: at the default size that padding gives exactly the design's
+ * height, and at larger sizes the button grows — and a long label wraps onto a
+ * second line — instead of clipping. The Host reports the native height back to
+ * React Native (`matchContents` vertically), and the wrapper keeps the designed
+ * height as a minimum.
  */
 
 export type ButtonVariant = 'primary' | 'cta' | 'secondary' | 'neutral' | 'ghost';
 export type ButtonSize = 'sm' | 'md' | 'lg';
 
 const HEIGHT: Record<ButtonSize, number> = layout.button.height;
+
+const ignorePress = () => undefined;
+
+/**
+ * The label's line as the platform draws it (`Label/Small`, 14/20): the padding
+ * around it makes up the rest of the button's height.
+ */
+const LABEL_LINE = nativeLineBox(textStyles.labelSm.fontSize, textStyles.labelSm.lineHeight);
+
+/** Sized to sit level with the 14/20 label. */
+const SPINNER_SIZE = 16;
+const SPINNER_GAP = 8;
 
 type VariantColors = { background?: string; border?: string; label: string };
 
@@ -69,10 +94,10 @@ type SharedButtonProps = {
   size?: ButtonSize;
   disabled?: boolean;
   /**
-   * A write is in flight. The button goes inert, which is what prevents the
-   * double-submit, and dims slightly so the tap visibly registered. Expo UI's
-   * universal set has no spinner, so show one beside the button if an action is
-   * slow enough to need it.
+   * A request is in flight. The button goes inert, which is what prevents the
+   * double-submit, and shows a native spinner inside it, before the label (in
+   * place of the icon, if it has one), so the wait reads as "working" rather
+   * than "nothing happened". It keeps its enabled colours: it is busy, not off.
    */
   loading?: boolean;
   /** A mark before the label, e.g. a provider logo on a social sign-up button. */
@@ -89,6 +114,12 @@ type SharedButtonProps = {
 export type ButtonCoreProps = SharedButtonProps & {
   /** Fixed width in points. Leave out to hug the label. */
   width?: number;
+  /**
+   * A filled button in a colour that is not a variant — the status sheets' info,
+   * warning and error actions. Replaces the variant's enabled fill and label;
+   * disabled still uses the variant's muted look.
+   */
+  tint?: { fill: string; label: string };
 };
 
 export function ButtonCore({
@@ -101,6 +132,7 @@ export function ButtonCore({
   icon,
   surface,
   width,
+  tint,
   testID,
 }: ButtonCoreProps) {
   const theme = useTheme();
@@ -111,23 +143,30 @@ export function ButtonCore({
 
   // One lookup rather than a chain of conditionals: adding a variant is one entry.
   const enabled: Record<ButtonVariant, VariantColors> = {
-    primary: { background: theme.primary, label: theme.primaryForeground },
+    primary: { background: theme.primaryFill, label: theme.primaryFillForeground },
     cta: { background: theme.cta, label: theme.ctaForeground },
-    secondary: { border: theme.primary, label: theme.primary },
+    // The dark welcome design labels this in brand teal, which is 3:1 on Night —
+    // too faint for 14pt text — so the label takes Teal Light there instead.
+    secondary: { border: theme.outline, label: theme.primary },
     neutral: { border: theme.controlBorder, label: theme.foreground },
     ghost: { label: theme.foreground },
   };
   // Disabled, from the Create Account design: filled buttons keep their shape in a
   // muted fill, outlined ones keep their outline in the track colour, and every
   // label goes grey. No opacity, so the grey is the grey the design asked for.
+  // Filled ones stay a light pill in dark mode too, as the dark frames draw them.
   const inactive: Record<ButtonVariant, VariantColors> = {
-    primary: { background: theme.surfaceMuted, label: theme.muted },
-    cta: { background: theme.surfaceMuted, label: theme.muted },
+    primary: { background: theme.disabledFill, label: theme.disabledForeground },
+    cta: { background: theme.disabledFill, label: theme.disabledForeground },
     secondary: { border: theme.track, label: theme.muted },
     neutral: { border: theme.track, label: theme.muted },
     ghost: { label: theme.muted },
   };
-  const { background, border, label: labelColor } = (disabled ? inactive : enabled)[variant];
+  const { background, border, label: labelColor } = disabled
+    ? inactive[variant]
+    : tint
+      ? { background: tint.fill, border: undefined, label: tint.label }
+      : enabled[variant];
 
   // Platform decides whether the stroke rides on `style` or on a SwiftUI modifier.
   const outline = resolveButtonOutline(
@@ -141,6 +180,18 @@ export function ButtonCore({
   // native button's own content padding (Android) counts towards the design's 20pt.
   const paddingHorizontal =
     variant === 'ghost' ? 0 : Math.max(0, layout.button.paddingX - NATIVE_BUTTON_INSET);
+
+  // What the padding wraps: the label's line, or the mark beside it if that is
+  // taller (the 18pt provider logos). Kept while the spinner stands in for the
+  // mark, so a busy button does not change height.
+  const contentHeight = icon ? Math.max(LABEL_LINE, layout.socialButton.iconSize) : LABEL_LINE;
+
+  // The spinner takes the icon's slot, so a button with a mark does not grow.
+  const leading = loading ? (
+    <NativeSpinner size={SPINNER_SIZE} color={labelColor} />
+  ) : icon ? (
+    <NativeIcon source={icon} size={layout.socialButton.iconSize} color={labelColor} />
+  ) : null;
 
   const text = (
     <ExpoText
@@ -160,23 +211,34 @@ export function ButtonCore({
   return (
     <ExpoButton
       variant="text"
-      onPress={onPress}
-      disabled={disabled || loading}
+      // While loading the button stays enabled and swallows taps instead. Disabling
+      // it would make SwiftUI dim the label and spinner to a faded grey, which reads
+      // as "unavailable" — the opposite of "working, please wait".
+      onPress={loading ? ignorePress : onPress}
+      disabled={disabled}
       testID={testID}
-      modifiers={outline.modifiers}
+      modifiers={[
+        ...(outline.modifiers ?? []),
+        ...buttonHitArea(radius),
+        // The label grows with the text-size setting, up to the shared ceiling.
+        ...nativeTextScaleCap(),
+        // The spinner is silent to VoiceOver, so the label says it instead.
+        ...(loading ? a11yLabel(`${label}, loading`) : []),
+      ]}
       style={{
-        height,
+        // Padding, not a fixed height: equals the design's height at the default
+        // text size and grows with the label beyond it.
+        paddingVertical: Math.max(0, (height - contentHeight) / 2 - NATIVE_BUTTON_INSET_VERTICAL),
         ...(width !== undefined ? { width } : null),
         paddingHorizontal,
         backgroundColor: background ?? outline.fill,
         borderRadius: radius,
         ...(outline.styleBorder ?? null),
-        opacity: loading ? 0.7 : 1,
       }}
     >
-      {icon ? (
-        <Row alignment="center" spacing={layout.socialButton.iconGap}>
-          <NativeIcon source={icon} size={layout.socialButton.iconSize} color={labelColor} />
+      {leading ? (
+        <Row alignment="center" spacing={icon ? layout.socialButton.iconGap : SPINNER_GAP}>
+          {leading}
           {text}
         </Row>
       ) : (
@@ -205,7 +267,7 @@ export function Button({ fullWidth = false, size = 'md', ...props }: ButtonProps
     <View
       onLayout={fullWidth ? handleLayout : undefined}
       style={{
-        height,
+        minHeight: height,
         alignSelf: fullWidth ? 'stretch' : 'flex-start',
         // A ghost button's label sits on the content edge; on Android the native
         // button pads it inward, so the button reaches out by the same amount.
@@ -217,8 +279,9 @@ export function Button({ fullWidth = false, size = 'md', ...props }: ButtonProps
           // A fresh native view per sizing mode — see note 2 above. Without this,
           // a Button reused from a hug-width slot keeps its old width.
           key={fullWidth ? 'fill' : 'hug'}
-          matchContents={!fullWidth}
-          style={fullWidth ? { height, width: '100%' } : { height }}
+          // Height always follows the native button, so it can grow with the label.
+          matchContents={fullWidth ? { vertical: true } : true}
+          style={fullWidth ? { width: '100%' } : undefined}
         >
           <ButtonCore {...props} size={size} width={fullWidth ? measuredWidth : undefined} />
         </Host>
@@ -227,5 +290,12 @@ export function Button({ fullWidth = false, size = 'md', ...props }: ButtonProps
   );
 }
 
-/** Kept so a caller can reserve space for a button without importing the component. */
-export const buttonMetrics = { height: HEIGHT } as const;
+/**
+ * Kept so a caller can reserve space for a button without importing the component.
+ * `heightAt` is the height at a text-size scale (`useFontScale()`): the label's
+ * line grows and the padding around it does not.
+ */
+export const buttonMetrics = {
+  height: HEIGHT,
+  heightAt: (size: ButtonSize, scale: number) => Math.ceil(HEIGHT[size] + LABEL_LINE * (scale - 1)),
+} as const;

@@ -5,3 +5,6 @@
  * its content. Android is in `nativeButtonInset.android.ts`.
  */
 export const NATIVE_BUTTON_INSET = 0;
+
+/** Vertical padding the native button adds around its content. iOS: none. */
+export const NATIVE_BUTTON_INSET_VERTICAL = 0;

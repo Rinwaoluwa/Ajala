@@ -1,5 +1,5 @@
 import { Button as ExpoButton } from '@expo/ui';
-import { useState } from 'react';
+import { memo, useState } from 'react';
 
 import { useTheme } from '@shared/hooks/useTheme';
 
@@ -21,7 +21,7 @@ const EYE_SIZE = 12;
 
 export type PasswordFieldProps = Omit<TextFieldProps, 'secureTextEntry' | 'trailing'>;
 
-export function PasswordField(props: PasswordFieldProps) {
+function PasswordFieldComponent(props: PasswordFieldProps) {
   const theme = useTheme();
   const [visible, setVisible] = useState(false);
   const label = visible ? 'Hide password' : 'Show password';
@@ -46,3 +46,10 @@ export function PasswordField(props: PasswordFieldProps) {
     />
   );
 }
+
+/**
+ * Memoised: this renders native Expo UI views, so re-rendering it for a change
+ * elsewhere on the form does real native work. Its props are stable by
+ * construction — see the hooks that build them.
+ */
+export const PasswordField = memo(PasswordFieldComponent);

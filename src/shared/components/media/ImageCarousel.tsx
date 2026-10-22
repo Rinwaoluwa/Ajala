@@ -1,34 +1,31 @@
 import { Image } from 'expo-image';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  View,
-  type ImageSourcePropType,
-  type LayoutChangeEvent,
-  type NativeScrollEvent,
-  type NativeSyntheticEvent,
-  type ViewProps,
-} from 'react-native';
-import Animated, { useAnimatedScrollHandler, type SharedValue } from 'react-native-reanimated';
+import { useCallback } from 'react';
+import { type ImageSourcePropType, type ViewProps } from 'react-native';
+import type { SharedValue } from 'react-native-reanimated';
 
-import { cn } from '@shared/utils/cn';
+import { Pager } from '../layout/Pager';
 
 /**
  * Horizontally paged images.
  *
- * Only the images move — whatever sits around the carousel stays put.
- *
- * Controlled: the active index lives with the caller, so a "Next" tap and a swipe
- * are the same state change rather than two sources that can disagree. The carousel
- * scrolls itself when the index changes from outside, and reports the index when the
- * user swipes.
- *
- * Width is measured rather than taken from the window, so it also works inset.
+ * Only the images move — whatever sits around the carousel stays put. A `Pager`
+ * of full-bleed photos: paging, the controlled index and the live `progress` all
+ * come from there.
  */
 
 export type CarouselImage = {
   /** Stable identity for the list. */
   key: string;
   source: ImageSourcePropType | undefined;
+  /**
+   * BlurHash shown while the photo decodes. Without one the frame is the screen's
+   * background until the photo lands, which reads as a white flash.
+   *
+   * Pass the bare hash. It is wrapped below, because expo-image only recognises a
+   * loose string as a hash when it is prefixed `blurhash:/` — otherwise it takes it
+   * for a URL, fails to load it and shows nothing at all.
+   */
+  placeholder?: string;
   /** Describe the picture, or omit when it is decorative. */
   accessibilityLabel?: string;
 };
@@ -47,104 +44,33 @@ export type ImageCarouselProps = Omit<ViewProps, 'children'> & {
   className?: string;
 };
 
-const AnimatedFlatList = Animated.FlatList<CarouselImage>;
+/** Long enough to read as a fade rather than a pop, short enough not to feel slow. */
+const FADE_MS = 220;
 
-export function ImageCarousel({
-  images,
-  index,
-  onIndexChange,
-  height,
-  progress,
-  className,
-  ...props
-}: ImageCarouselProps) {
-  const listRef = useRef<Animated.FlatList<CarouselImage>>(null);
-  const [width, setWidth] = useState(0);
+const keyOf = (image: CarouselImage) => image.key;
 
-  /**
-   * The page the carousel itself last settled on. Without this, the effect below
-   * would scroll again in response to the index it just reported, fighting the
-   * user's finger at the end of every swipe.
-   */
-  const settledIndex = useRef(index);
-
-  // Runs on the UI thread, so the dots keep up even while JS is busy.
-  const onScroll = useAnimatedScrollHandler({
-    onScroll: (event) => {
-      if (!progress || width === 0) return;
-      // `.set()` rather than `.value =`: same write, but it does not read as
-      // mutating a prop, which the React Compiler rule rejects.
-      progress.set(event.contentOffset.x / width);
-    },
-  });
-
-  const handleLayout = useCallback((e: LayoutChangeEvent) => {
-    setWidth(e.nativeEvent.layout.width);
-  }, []);
-
-  useEffect(() => {
-    if (width === 0 || settledIndex.current === index) return;
-    settledIndex.current = index;
-    listRef.current?.scrollToOffset({ offset: index * width, animated: true });
-  }, [index, width]);
-
-  const handleMomentumEnd = useCallback(
-    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-      if (width === 0) return;
-      const next = Math.round(e.nativeEvent.contentOffset.x / width);
-      if (next === settledIndex.current) return;
-      settledIndex.current = next;
-      onIndexChange(next);
-    },
-    [onIndexChange, width],
-  );
-
-  // Stable reference so FlatList does not re-render every page on each parent render.
-  const renderItem = useCallback(
-    ({ item }: { item: CarouselImage }) => (
-      <View style={{ width, height }}>
-        {item.source ? (
-          <Image
-            source={item.source}
-            style={{ width: '100%', height: '100%' }}
-            contentFit="cover"
-            transition={0}
-            accessibilityLabel={item.accessibilityLabel}
-            accessible={Boolean(item.accessibilityLabel)}
-          />
-        ) : null}
-      </View>
-    ),
-    [height, width],
-  );
-
-  return (
-    <View onLayout={handleLayout} style={{ height }} className={cn('w-full', className)} {...props}>
-      {/* Rendering before the first layout would size every page to zero width. */}
-      {width > 0 ? (
-        <AnimatedFlatList
-          ref={listRef}
-          data={images}
-          keyExtractor={(item) => item.key}
-          renderItem={renderItem}
-          horizontal
-          pagingEnabled
-          showsHorizontalScrollIndicator={false}
-          // Stop the rubber-band past the first and last page. Without this the
-          // user can drag the strip clear of its bounds and see the page
-          // background through the gap, which reads as the image overflowing.
-          bounces={false}
-          alwaysBounceHorizontal={false}
-          overScrollMode="never"
-          // A page is exactly one screen, so there is nothing to decelerate into.
-          decelerationRate="fast"
-          onScroll={onScroll}
-          scrollEventThrottle={16}
-          onMomentumScrollEnd={handleMomentumEnd}
-          getItemLayout={(_, i) => ({ length: width, offset: width * i, index: i })}
-          initialScrollIndex={index}
+export function ImageCarousel({ images, ...props }: ImageCarouselProps) {
+  const renderPage = useCallback(
+    (item: CarouselImage) =>
+      item.source ? (
+        <Image
+          source={item.source}
+          placeholder={item.placeholder ? { blurhash: item.placeholder } : undefined}
+          placeholderContentFit="cover"
+          style={{ width: '100%', height: '100%' }}
+          contentFit="cover"
+          // Keep decoded frames in memory as well as on disk: swiping back to a
+          // page the user has already seen should not decode it again.
+          cachePolicy="memory-disk"
+          transition={FADE_MS}
+          accessibilityLabel={item.accessibilityLabel}
+          accessible={Boolean(item.accessibilityLabel)}
         />
-      ) : null}
-    </View>
+      ) : (
+        <></>
+      ),
+    [],
   );
+
+  return <Pager pages={images} keyOf={keyOf} renderPage={renderPage} {...props} />;
 }

@@ -1,4 +1,4 @@
-import { View, type ViewProps } from 'react-native';
+import { ScrollView, View, type ViewProps } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { cn } from '@shared/utils/cn';
@@ -12,6 +12,10 @@ import { cn } from '@shared/utils/cn';
  *
  * `edges` controls which sides get inset padding. A screen with a full-bleed image
  * under the status bar passes `edges={['bottom']}` so the image reaches the top.
+ *
+ * `scroll` makes the content scrollable for when it outgrows the screen — at a
+ * large text size, typically. The content still fills the screen when it fits
+ * (`flexGrow: 1`), so a `flex-1` spacer keeps pinning a footer to the bottom.
  */
 
 export type ScreenEdge = 'top' | 'bottom';
@@ -20,14 +24,18 @@ export type ScreenProps = ViewProps & {
   edges?: ScreenEdge[];
   /** Apply the standard horizontal gutter. Off for full-bleed layouts. */
   padded?: boolean;
+  /** Scroll when the content is taller than the screen. */
+  scroll?: boolean;
   className?: string;
 };
 
 export function Screen({
   edges = ['top', 'bottom'],
   padded = true,
+  scroll = false,
   className,
   style,
+  children,
   ...props
 }: ScreenProps) {
   const insets = useSafeAreaInsets();
@@ -45,6 +53,19 @@ export function Screen({
         style,
       ]}
       {...props}
-    />
+    >
+      {scroll ? (
+        <ScrollView
+          className="flex-1"
+          contentContainerStyle={{ flexGrow: 1 }}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {children}
+        </ScrollView>
+      ) : (
+        children
+      )}
+    </View>
   );
 }

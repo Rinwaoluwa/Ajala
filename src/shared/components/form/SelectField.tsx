@@ -1,6 +1,8 @@
+import { memo } from 'react';
 import { Button as ExpoButton, Host, Row, Spacer, Text as ExpoText } from '@expo/ui';
 import { View } from 'react-native';
 
+import { useFontScale } from '@shared/hooks/useFontScale';
 import { useMeasuredWidth } from '@shared/hooks/useMeasuredWidth';
 import { useTheme } from '@shared/hooks/useTheme';
 import { layout, textStyles } from '@shared/theme';
@@ -8,7 +10,8 @@ import { layout, textStyles } from '@shared/theme';
 import { a11yLabel } from '../ui/nativeA11y';
 import { NativeIcon, type NativeIconSource } from '../ui/NativeIcon';
 import { NATIVE_BUTTON_INSET } from '../ui/nativeButtonInset';
-import { FieldFrame } from './FieldFrame';
+import { nativeTextScaleCap } from '../ui/nativeTextScale';
+import { FIELD_LINE_HEIGHT, FieldFrame, fieldLineHeight } from './FieldFrame';
 
 /**
  * A field that is picked rather than typed, such as a date of birth.
@@ -31,7 +34,7 @@ export type SelectFieldProps = {
   testID?: string;
 };
 
-export function SelectField({
+function SelectFieldComponent({
   label,
   value,
   placeholder,
@@ -42,7 +45,8 @@ export function SelectField({
 }: SelectFieldProps) {
   const theme = useTheme();
   const { width, onLayout } = useMeasuredWidth();
-  const innerHeight = input.heightWithIcon - 2;
+  // Grows with the text-size setting by as much as the value's line does.
+  const innerHeight = input.heightWithIcon - 2 + fieldLineHeight(useFontScale()) - FIELD_LINE_HEIGHT;
 
   return (
     <FieldFrame label={label} error={error} hasTrailing onPressBox={onPress} testID={testID}>
@@ -58,7 +62,7 @@ export function SelectField({
             <ExpoButton
               variant="text"
               onPress={onPress}
-              modifiers={a11yLabel(`${label}, ${value ?? 'not set'}`)}
+              modifiers={[...a11yLabel(`${label}, ${value ?? 'not set'}`), ...nativeTextScaleCap()]}
               testID={testID ? `${testID}-button` : undefined}
               style={{ width, height: innerHeight }}
             >
@@ -82,3 +86,10 @@ export function SelectField({
     </FieldFrame>
   );
 }
+
+/**
+ * Memoised: this renders native Expo UI views, so re-rendering it for a change
+ * elsewhere on the form does real native work. Its props are stable by
+ * construction — see the hooks that build them.
+ */
+export const SelectField = memo(SelectFieldComponent);

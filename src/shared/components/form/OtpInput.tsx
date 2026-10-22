@@ -18,7 +18,8 @@ import { Text } from '../ui/Text';
  *
  * Measured from the Verification design: boxes 50×56pt, 8pt apart, 8pt radius, a
  * muted fill with a 1pt outline. The box the next digit goes into gets a 2pt
- * primary ring just outside it. With all digits entered, the last box keeps the ring.
+ * ring just outside it — teal on light, Marigold on dark, as the two Verification
+ * frames draw it. With all digits entered, the last box keeps the ring.
  */
 
 const otp = layout.otp;
@@ -126,7 +127,7 @@ export function OtpInput({
                       bottom: -RING - 1,
                       borderRadius: otp.radius + RING,
                       borderWidth: RING,
-                      borderColor: theme.primary,
+                      borderColor: theme.focusRing,
                     }}
                   />
                 ) : null}

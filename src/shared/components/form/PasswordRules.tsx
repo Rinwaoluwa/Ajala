@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Host } from '@expo/ui';
 import { View } from 'react-native';
 
@@ -16,7 +17,7 @@ import { Text } from '../ui/Text';
  * brand's "validation met" colour. The text stays muted either way; the mark
  * alone carries the state.
  *
- * Each row is announced with its state, so a screen reader user hears "Minimum of
+ * Each row is announced with its state, so a screen reader user hears "At least
  * 8 characters, met" rather than a colour they cannot see.
  */
 
@@ -28,7 +29,7 @@ export type PasswordRulesProps = {
   rules: PasswordRule[];
 };
 
-export function PasswordRules({ rules: items }: PasswordRulesProps) {
+function PasswordRulesComponent({ rules: items }: PasswordRulesProps) {
   const theme = useTheme();
 
   return (
@@ -38,7 +39,8 @@ export function PasswordRules({ rules: items }: PasswordRulesProps) {
           key={rule.id}
           accessible
           accessibilityLabel={`${rule.label}, ${rule.met ? 'met' : 'not met'}`}
-          style={{ height: rules.rowHeight, flexDirection: 'row', alignItems: 'center', gap: rules.markGap }}
+          // A minimum, so a rule that wraps at a larger text size is not cut off.
+          style={{ minHeight: rules.rowHeight, flexDirection: 'row', alignItems: 'center', gap: rules.markGap }}
         >
           <Host matchContents>
             <NativeIcon
@@ -47,7 +49,7 @@ export function PasswordRules({ rules: items }: PasswordRulesProps) {
               color={rule.met ? theme.accent : theme.track}
             />
           </Host>
-          <Text variant="bodyXs" tone="muted">
+          <Text variant="bodyXs" tone="muted" className="flex-1">
             {rule.label}
           </Text>
         </View>
@@ -55,3 +57,10 @@ export function PasswordRules({ rules: items }: PasswordRulesProps) {
     </View>
   );
 }
+
+/**
+ * Memoised: this renders native Expo UI views, so re-rendering it for a change
+ * elsewhere on the form does real native work. Its props are stable by
+ * construction — see the hooks that build them.
+ */
+export const PasswordRules = memo(PasswordRulesComponent);

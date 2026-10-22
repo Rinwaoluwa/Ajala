@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Pressable, View } from 'react-native';
 
+import { useFontScale } from '@shared/hooks/useFontScale';
 import { useTheme } from '@shared/hooks/useTheme';
 import { layout } from '@shared/theme';
 
@@ -13,6 +14,10 @@ import { Text } from '../ui/Text';
  * box; the box is 38pt tall, or 42pt when a 20pt trailing icon sets its height, with
  * a 1pt outline and 6pt radius. Text starts 8pt in, and a trailing icon sits 16pt
  * from the right edge.
+ *
+ * With a larger text-size setting the box grows by however much the line of text
+ * inside it grew (`fieldLineHeight`), so the text is never clipped. At the
+ * default size it is exactly the measured height.
  *
  * The box is React Native; what goes inside it (a native text field, a native
  * button) is the caller's. Tapping the padding runs `onPressBox`, so the whole box
@@ -49,6 +54,7 @@ export function FieldFrame({
   testID,
 }: FieldFrameProps) {
   const theme = useTheme();
+  const growth = fieldLineHeight(useFontScale()) - FIELD_LINE_HEIGHT;
 
   const borderColor = error ? theme.destructive : focused ? theme.primary : theme.controlBorder;
 
@@ -63,7 +69,7 @@ export function FieldFrame({
         accessible={false}
         style={{
           marginTop: input.labelGap,
-          height: hasTrailing ? input.heightWithIcon : input.height,
+          minHeight: (hasTrailing ? input.heightWithIcon : input.height) + growth,
           borderWidth: BORDER,
           borderColor,
           borderRadius: input.radius,
@@ -84,5 +90,10 @@ export function FieldFrame({
   );
 }
 
-/** The inner height a single line of field text occupies. */
+/** The inner height a single line of field text occupies, at the default text size. */
 export const FIELD_LINE_HEIGHT = 20;
+
+/** That line's height at the current text size (`useFontScale()`). */
+export function fieldLineHeight(scale: number): number {
+  return Math.ceil(FIELD_LINE_HEIGHT * scale);
+}

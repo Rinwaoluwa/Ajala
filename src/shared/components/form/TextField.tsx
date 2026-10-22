@@ -1,11 +1,13 @@
 import { Host, TextInput, type TextInputRef } from '@expo/ui';
-import { useRef, useState, type ComponentProps, type ReactNode } from 'react';
+import { memo, useRef, useState, type ComponentProps, type ReactNode } from 'react';
 
+import { useFontScale } from '@shared/hooks/useFontScale';
 import { useTheme } from '@shared/hooks/useTheme';
 import { textStyles } from '@shared/theme';
 
 import { NATIVE_BUTTON_INSET } from '../ui/nativeButtonInset';
-import { FIELD_LINE_HEIGHT, FieldFrame } from './FieldFrame';
+import { nativeTextScaleCap } from '../ui/nativeTextScale';
+import { FieldFrame, fieldLineHeight } from './FieldFrame';
 
 /**
  * A labelled single-line text field. The input is Expo UI's `TextInput` — a real
@@ -40,7 +42,7 @@ export type TextFieldProps = {
   testID?: string;
 };
 
-export function TextField({
+function TextFieldComponent({
   label,
   placeholder,
   defaultValue,
@@ -60,6 +62,8 @@ export function TextField({
   const theme = useTheme();
   const inputRef = useRef<TextInputRef>(null);
   const [focused, setFocused] = useState(false);
+  // The native text follows the text-size setting; its line has to grow with it.
+  const lineHeight = fieldLineHeight(useFontScale());
 
   return (
     <FieldFrame
@@ -70,7 +74,7 @@ export function TextField({
       onPressBox={() => inputRef.current?.focus()}
       testID={testID}
     >
-      <Host style={{ flex: 1, height: FIELD_LINE_HEIGHT }}>
+      <Host style={{ flex: 1, height: lineHeight }}>
         <TextInput
           ref={inputRef}
           defaultValue={defaultValue}
@@ -90,7 +94,8 @@ export function TextField({
           autoCorrect={autoCorrect}
           returnKeyType={returnKeyType}
           cursorColor={theme.primary}
-          style={{ height: FIELD_LINE_HEIGHT }}
+          style={{ height: lineHeight }}
+          modifiers={nativeTextScaleCap()}
           textStyle={{
             fontFamily: textStyles.bodySm.fontFamily,
             fontSize: textStyles.bodySm.fontSize,
@@ -109,3 +114,10 @@ export function TextField({
     </FieldFrame>
   );
 }
+
+/**
+ * Memoised: this renders native Expo UI views, so re-rendering it for a change
+ * elsewhere on the form does real native work. Its props are stable by
+ * construction — see the hooks that build them.
+ */
+export const TextField = memo(TextFieldComponent);

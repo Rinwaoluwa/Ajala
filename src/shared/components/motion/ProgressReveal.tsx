@@ -41,6 +41,8 @@ export type ProgressRevealProps = {
   mode?: 'in' | 'out';
   /** Whether the content takes touches and is visible to assistive technology. */
   interactive: boolean;
+  /** How far below its resting place hidden content sits. 0 for a fade alone. */
+  rise?: number;
   style?: StyleProp<ViewStyle>;
 };
 
@@ -50,6 +52,7 @@ export function ProgressReveal({
   range,
   mode = 'in',
   interactive,
+  rise = RISE_PX,
   style,
 }: ProgressRevealProps) {
   const reduceMotion = useReducedMotion();
@@ -62,7 +65,7 @@ export function ProgressReveal({
     const shown = Easing.out(Easing.cubic)(mode === 'in' ? t : 1 - t);
     return {
       opacity: shown,
-      transform: [{ translateY: reduceMotion ? 0 : (1 - shown) * RISE_PX }],
+      transform: [{ translateY: reduceMotion ? 0 : (1 - shown) * rise }],
     };
   });
 

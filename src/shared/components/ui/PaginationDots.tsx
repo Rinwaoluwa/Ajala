@@ -85,7 +85,10 @@ export function PaginationDots({
   // photograph in both themes, so resolving `onSurface` through the theme made the
   // inactive dots #17231F in dark mode — near-black pips on a dark photo, invisible.
   // They stay white; the active dot is marigold, which holds on both.
-  const inactiveColor = onSurface ? ON_MEDIA_INACTIVE : theme.muted;
+  //
+  // On the app's own surfaces the onboarding designs use the same pale grey in
+  // both schemes (`indicatorInactive`).
+  const inactiveColor = onSurface ? ON_MEDIA_INACTIVE : theme.indicatorInactive;
   const activeColor = theme.accent;
 
   return (

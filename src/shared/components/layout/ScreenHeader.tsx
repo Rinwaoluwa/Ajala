@@ -18,10 +18,15 @@ import { Text } from '../ui/Text';
  * feedback and VoiceOver ("Back, button") are the platform's own.
  *
  * Place it inside the safe area; it adds no top inset of its own.
+ *
+ * The row is a minimum height, not a fixed one: with a larger text-size setting
+ * the title grows, and a long title wraps to a second line rather than being cut.
  */
 
 /** Row height, so the row centre lands where the design puts it. */
 const ROW_HEIGHT = 30;
+/** Exported so a screen without a title can hold the same space open. */
+export const SCREEN_HEADER_HEIGHT = ROW_HEIGHT;
 /** Padding around the arrow: a larger tap target without moving the glyph. */
 const ARROW_PAD = 4;
 /** SF Symbols `arrow.left` at 18pt draws the 16pt-wide arrow in the design. */
@@ -39,7 +44,7 @@ export function ScreenHeader({ title, onBack }: ScreenHeaderProps) {
   const theme = useTheme();
 
   return (
-    <View style={{ height: ROW_HEIGHT, flexDirection: 'row', alignItems: 'center' }}>
+    <View style={{ minHeight: ROW_HEIGHT, flexDirection: 'row', alignItems: 'center' }}>
       {onBack ? (
         <Host
           matchContents
@@ -61,7 +66,7 @@ export function ScreenHeader({ title, onBack }: ScreenHeaderProps) {
           </ExpoButton>
         </Host>
       ) : null}
-      <Text variant="headingMd" accessibilityRole="header" numberOfLines={1} className="flex-1">
+      <Text variant="headingMd" accessibilityRole="header" numberOfLines={2} className="flex-1">
         {title}
       </Text>
     </View>

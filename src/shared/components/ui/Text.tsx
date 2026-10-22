@@ -1,5 +1,6 @@
-import { Text as RNText, type TextProps as RNTextProps } from 'react-native';
+import { Text as RNText, useWindowDimensions, type TextProps as RNTextProps } from 'react-native';
 
+import { MAX_HEADING_SCALE, MAX_TEXT_SCALE } from '@shared/hooks/useFontScale';
 import { cn } from '@shared/utils/cn';
 
 /**
@@ -8,6 +9,10 @@ import { cn } from '@shared/utils/cn';
  * Every string in the app goes through a named step of the type scale, so nobody
  * hand-picks a font size. Variants map 1:1 to `typography.scale` in the token
  * contract — add a step there, not here.
+ *
+ * Text follows the person's text-size setting, up to a ceiling per step (see
+ * `useFontScale`): large headings grow least, so a single long word still fits
+ * the width; body text grows most, because that is what people need to read.
  */
 
 export type TextVariant =
@@ -60,6 +65,26 @@ const variantClass: Record<TextVariant, string> = {
   code: 'font-body text-code',
 };
 
+/** How far each step may grow with the text-size setting. */
+const maxScale: Record<TextVariant, number> = {
+  display: MAX_HEADING_SCALE,
+  headingXxl: MAX_HEADING_SCALE,
+  headingXl: MAX_HEADING_SCALE,
+  headingLg: MAX_HEADING_SCALE,
+  // Smaller headings sit in bars and rows beside other things; half again is room enough.
+  headingMd: 1.5,
+  headingSm: 1.5,
+  bodyLg: MAX_TEXT_SCALE,
+  bodyMd: MAX_TEXT_SCALE,
+  bodySm: MAX_TEXT_SCALE,
+  labelMd: MAX_TEXT_SCALE,
+  labelSm: MAX_TEXT_SCALE,
+  labelXs: MAX_TEXT_SCALE,
+  bodyXs: MAX_TEXT_SCALE,
+  // A code digit sits in a fixed-size box, six to a row.
+  code: MAX_HEADING_SCALE,
+};
+
 const toneClass: Record<TextTone, string> = {
   default: 'text-foreground',
   muted: 'text-muted',
@@ -86,9 +111,18 @@ export function Text({
   className,
   ...props
 }: TextProps) {
+  // React Native keeps a mounted text's measured size when the text-size setting
+  // changes while the app is open, so a screen already on display would clip its
+  // text (or leave gaps) until it re-rendered for some other reason. Keying on the
+  // scale has the text measured afresh at the new size; it changes only when the
+  // setting does.
+  const { fontScale } = useWindowDimensions();
+
   return (
     <RNText
+      key={fontScale}
       className={cn(variantClass[variant], toneClass[tone], className)}
+      maxFontSizeMultiplier={maxScale[variant]}
       {...props}
     />
   );
