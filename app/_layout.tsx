@@ -4,8 +4,11 @@ import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useState } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { ForceUpdateGate } from '@features/app-update';
+import { AuthProvider } from '@features/auth';
 import { LaunchOverlay } from '@bootstrap/splash/LaunchOverlay';
 import { useStackScreenOptions } from '@shared/hooks/useStackScreenOptions';
+import { LaunchStateProvider } from '@shared/state/LaunchState';
 import { fontAssets } from '@shared/theme';
 
 import '../global.css';
@@ -19,7 +22,10 @@ export default function RootLayout() {
   // The index route has no segments; any destination has at least its group. The
   // pathname cannot tell them apart: groups are not part of it, so onboarding is "/" too.
   const segments = useSegments();
+  // Handed off: the overlay has started to fade. Launched: it has gone.
+  const [handedOff, setHandedOff] = useState(false);
   const [launched, setLaunched] = useState(false);
+  const handleHandOff = useCallback(() => setHandedOff(true), []);
   const handleLaunched = useCallback(() => setLaunched(true), []);
 
   useEffect(() => {
@@ -32,16 +38,30 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
+      {/* The session is app-wide state: the signed-in area guards on it and the
+          entry route decides where to send people by it. */}
+      <AuthProvider>
+      <LaunchStateProvider handedOff={handedOff}>
       <StatusBar style="auto" />
-      <Stack screenOptions={screenOptions}>
-        {/* The first screen appears under the launch overlay, so it needs no entrance of its own. */}
-        <Stack.Screen name="index" options={{ animation: 'none' }} />
-        <Stack.Screen name="(onboarding)" options={{ animation: 'none' }} />
-      </Stack>
+      {/* Beneath the launch overlay, so the splash still covers a forced update. */}
+      <ForceUpdateGate>
+        <Stack screenOptions={screenOptions}>
+          {/* The first screen appears under the launch overlay, so it needs no
+              entrance of its own; one that animates in waits for the hand-off. */}
+          <Stack.Screen name="index" options={{ animation: 'none' }} />
+          <Stack.Screen name="(onboarding)" options={{ animation: 'none' }} />
+        </Stack>
+      </ForceUpdateGate>
       {launched ? null : (
         // Ready once the index has routed somewhere: the destination is on screen beneath.
-        <LaunchOverlay ready={segments.length > 0} onDone={handleLaunched} />
+        <LaunchOverlay
+          ready={segments.length > 0}
+          onHandOff={handleHandOff}
+          onDone={handleLaunched}
+        />
       )}
+      </LaunchStateProvider>
+      </AuthProvider>
     </SafeAreaProvider>
   );
 }
