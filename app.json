@@ -40,20 +40,31 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash/splash-logo.png",
-          "imageWidth": 229,
+          "image": "./assets/images/splash/splash-wordmark.png",
+          "imageWidth": 196,
           "resizeMode": "contain",
-          "backgroundColor": "#FFFFFF",
+          "backgroundColor": "#0E6F69",
           "dark": {
-            "image": "./assets/images/splash/splash-logo.png",
-            "backgroundColor": "#0D1715"
+            "image": "./assets/images/splash/splash-wordmark.png",
+            "backgroundColor": "#0E6F69"
+          },
+          "ios": {
+            "image": "./assets/images/splash/launch-ios.png",
+            "resizeMode": "cover",
+            "enableFullScreenImage_legacy": true,
+            "backgroundColor": "#0E6F69",
+            "dark": {
+              "image": "./assets/images/splash/launch-ios.png",
+              "backgroundColor": "#0E6F69"
+            }
           },
           "android": {
-            "image": "./assets/images/splash/splash-logo-android.png",
+            "image": "./assets/images/splash/splash-wordmark-android.png",
             "imageWidth": 168,
+            "backgroundColor": "#0E6F69",
             "dark": {
-              "image": "./assets/images/splash/splash-logo-android.png",
-              "backgroundColor": "#0D1715"
+              "image": "./assets/images/splash/splash-wordmark-android.png",
+              "backgroundColor": "#0E6F69"
             }
           }
         }
