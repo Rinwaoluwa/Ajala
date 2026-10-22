@@ -513,6 +513,11 @@
       "labelGap": 4,
       "fieldGap": 18
     },
+    "touchTarget": {
+      "$note": "The smallest tap area for an icon-only control: Apple's HIG asks for 44pt, Material for 48dp. The glyph keeps its drawn size; the target extends around it.",
+      "ios": 44,
+      "android": 48
+    },
     "passwordRules": {
       "rowHeight": 20,
       "markSize": 12,

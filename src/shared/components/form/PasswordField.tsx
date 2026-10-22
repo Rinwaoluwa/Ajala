@@ -1,10 +1,9 @@
-import { Button as ExpoButton } from '@expo/ui';
-import { memo, useState } from 'react';
+import { memo, useCallback, useMemo, useState } from 'react';
 
 import { useTheme } from '@shared/hooks/useTheme';
+import { layout } from '@shared/theme';
 
 import { icons } from '../ui/icons';
-import { a11yLabel } from '../ui/nativeA11y';
 import { NativeIcon } from '../ui/NativeIcon';
 import { TextField, type TextFieldProps } from './TextField';
 
@@ -14,17 +13,34 @@ import { TextField, type TextFieldProps } from './TextField';
  * Switching visibility swaps SwiftUI's `SecureField` for a `TextField`. Both read
  * the same native text state inside Expo UI's `TextInput`, so what the user typed
  * survives the swap.
+ *
+ * The eye is a glyph inside a full platform-size tap area (44pt iOS, 48dp
+ * Android) — see `TextField`'s `trailingAction`. It is drawn at the field icon
+ * size, which fills the 20pt icon box the design sets the field's height by.
+ *
+ * Password managers: `autoComplete` defaults to `new-password`, which lets iOS
+ * and Google suggest a strong password and offer to save it. Sign-in passes
+ * `current-password` so they offer the saved one instead. Pair it with a
+ * `username` field for the account — that is what the managers save it under.
  */
 
-/** SF Symbols' eye is wide for its size: 12pt draws the 15pt-wide eye in the design. */
-const EYE_SIZE = 12;
+const EYE_SIZE = layout.input.iconSize;
 
-export type PasswordFieldProps = Omit<TextFieldProps, 'secureTextEntry' | 'trailing'>;
+export type PasswordFieldProps = Omit<TextFieldProps, 'secureTextEntry' | 'trailing' | 'trailingAction'>;
 
 function PasswordFieldComponent(props: PasswordFieldProps) {
   const theme = useTheme();
   const [visible, setVisible] = useState(false);
-  const label = visible ? 'Hide password' : 'Show password';
+  const toggle = useCallback(() => setVisible((v) => !v), []);
+
+  const trailingAction = useMemo(
+    () => ({
+      onPress: toggle,
+      accessibilityLabel: visible ? 'Hide password' : 'Show password',
+      testID: props.testID ? `${props.testID}-toggle` : undefined,
+    }),
+    [toggle, visible, props.testID],
+  );
 
   return (
     <TextField
@@ -33,16 +49,8 @@ function PasswordFieldComponent(props: PasswordFieldProps) {
       autoComplete="new-password"
       {...props}
       secureTextEntry={!visible}
-      trailing={
-        <ExpoButton
-          variant="text"
-          onPress={() => setVisible((v) => !v)}
-          modifiers={a11yLabel(label)}
-          testID={props.testID ? `${props.testID}-toggle` : undefined}
-        >
-          <NativeIcon source={visible ? icons.hide : icons.show} size={EYE_SIZE} color={theme.muted} />
-        </ExpoButton>
-      }
+      trailing={<NativeIcon source={visible ? icons.hide : icons.show} size={EYE_SIZE} color={theme.muted} />}
+      trailingAction={trailingAction}
     />
   );
 }

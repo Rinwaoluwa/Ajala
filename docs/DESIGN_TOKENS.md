@@ -84,6 +84,7 @@ Account screen (iPhone 14 & 15 Pro, 393pt):
 | Input | height 56 (hug), label gap 4 |
 | Field group gap | 10pt |
 | Carousel dots | 8pt dots, 6pt gap, 16pt from the left edge |
+| Touch target (`layout.touchTarget`) | 44pt iOS / 48dp Android — platform minimums, not measured. An icon-only control keeps its drawn size and gets this tap area around it. |
 
 **Correction:** an earlier pass recorded the button radius as 8pt. The Properties panel truncates
 the variable name to `Corner_Radius/8…`; hovering it shows the real value, **80px**. Every button in
