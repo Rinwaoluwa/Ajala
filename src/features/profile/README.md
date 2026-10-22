@@ -3,6 +3,12 @@
 **FRD coverage:** MOB-140 → MOB-146
 **Owner:** _unassigned_ — put your name here when you pick this feature up.
 
+**Built so far: profile setup** (API map §3), the flow `GET /me` sends an incomplete profile to:
+location → "Set up your profile" (photo, city, languages, gender, plus name/date of birth when the
+account lacks them) → travel style → destinations → interests → saving (one `PATCH /me`) → display
+name (`PATCH /me { handle }`) → biometric sign-in (`app-lock`) → "You're all set!". Travel styles and
+destinations have no backend field yet (§12) and are not saved, as agreed with product.
+
 Profile header (no follower counts), participation grid, hosted-posts tab, drafts tab (own profile only), profile editing, block from profile.
 
 ## Boundary rules
