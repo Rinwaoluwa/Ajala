@@ -95,6 +95,8 @@ export function useNewPassword({ token, onReset }: UseNewPasswordOptions) {
 
     try {
       await useCases.resetPassword(token, password, confirmation);
+      // Any saved copy is now the old password: offer the new one at the next sign-in.
+      void useCases.forgetPasswordSaveOffers();
       setDone(true);
     } catch (e) {
       if (backOffIfLimited(e)) return;

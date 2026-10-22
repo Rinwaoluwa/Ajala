@@ -44,6 +44,14 @@ export function useEmailVerification({ onVerified }: UseEmailVerificationOptions
     async (code: string) => {
       if (!verification) return;
       const session = await useCases.verifyEmail(verification.email, code, verification.password);
+      // Only a sign-up carries a password here, and a new one is worth saving.
+      if (verification.password) {
+        void useCases.offerPasswordSave({
+          email: verification.email,
+          password: verification.password,
+          moment: 'signedUp',
+        });
+      }
       // The password has done its job; keep the address (the sheet shows it) and drop it.
       setVerification({ email: verification.email, codeLength: verification.codeLength });
       // Started now, awaited on Continue: the sheet's display time hides the round trip.

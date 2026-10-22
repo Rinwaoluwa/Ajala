@@ -66,7 +66,8 @@ export function SignUpDetailsScreen({ onBack, onCodeSent }: SignUpDetailsScreenP
             keyboardType="email-address"
             autoCapitalize="none"
             autoCorrect={false}
-            autoComplete="email"
+            // The account name password managers save the password under.
+            autoComplete="username"
             returnKeyType="next"
             testID="sign-up-email-field"
             {...fields.email}

@@ -32,6 +32,7 @@ export function useStepUpVerification({ onSignedIn }: { onSignedIn: (next: NextS
       if (!stepUp) throw new AuthError('unknown');
       try {
         const session = await useCases.signIn({ ...stepUp, otpCode });
+        void useCases.offerPasswordSave({ ...stepUp, moment: 'signedIn' });
         // The credentials are NOT cleared here: that would trip the screen's
         // "nothing to answer, go back" guard mid-navigation. Every next step is
         // outside the sign-in stack, and leaving it unmounts the flow that holds them.

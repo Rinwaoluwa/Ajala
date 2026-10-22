@@ -86,7 +86,8 @@ export function SignInScreen({
             keyboardType="email-address"
             autoCapitalize="none"
             autoCorrect={false}
-            autoComplete="email"
+            // The account name password managers save the password under.
+            autoComplete="username"
             returnKeyType="next"
             testID="sign-in-email-field"
             {...fields.email}

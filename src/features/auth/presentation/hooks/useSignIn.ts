@@ -91,9 +91,12 @@ export function useSignIn({ onSignedIn, onNeedsVerification, onStepUpRequired }:
     setFormError(null);
 
     try {
+      const session = await useCases.signIn({ email, password });
+      // Not awaited: the manager's prompt (Android) rides over the next screen.
+      void useCases.offerPasswordSave({ email, password, moment: 'signedIn' });
       // A login answers with tokens only (`TokenPairDto`); `finishSignIn` asks
       // `GET /me` who this is and where they go.
-      onSignedIn(await finishSignIn(await useCases.signIn({ email, password })));
+      onSignedIn(await finishSignIn(session));
     } catch (e) {
       if (backOffIfLimited(e)) return;
       const code = isAuthError(e) ? e.code : 'unknown';

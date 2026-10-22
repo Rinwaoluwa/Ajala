@@ -1,6 +1,7 @@
 import { getAppConfig } from '@core/config/appConfig';
 
 import { sessionStorage } from './data/datasources/local/sessionStorage';
+import { passwordVault } from './data/datasources/native/passwordVault';
 import { createAuthRepository } from './data/repositories/AuthRepositoryImpl';
 import {
   makeAcceptTerms,
@@ -12,6 +13,7 @@ import {
   makeIsProviderAvailable,
   makeSignInWithProvider,
 } from './domain/usecases/ProviderSignInUseCases';
+import { makeForgetPasswordSaveOffers, makeOfferPasswordSave } from './domain/usecases/PasswordSaveUseCases';
 import { makeRequestPasswordReset } from './domain/usecases/RequestPasswordResetUseCase';
 import { makeResendEmailCode } from './domain/usecases/ResendEmailCodeUseCase';
 import { makeResetPassword } from './domain/usecases/ResetPasswordUseCase';
@@ -62,6 +64,8 @@ export function createAuthUseCases({ onSessionEnded }: { onSessionEnded?: () => 
     restoreSession: makeRestoreSession(store),
     keepSession: makeKeepSession(store),
     signOut: makeSignOut(repo, store, withSession),
+    offerPasswordSave: makeOfferPasswordSave(passwordVault),
+    forgetPasswordSaveOffers: makeForgetPasswordSaveOffers(passwordVault),
     /**
      * Fetches the app config ahead of need. Sign-up, Google and Apple all send
      * the terms version from it; fetching it at launch keeps that round trip off

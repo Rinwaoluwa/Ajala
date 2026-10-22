@@ -17,6 +17,15 @@
  * block below, uncomment the code in
  * `src/features/auth/data/datasources/native/appleIdentity.ts`, and rebuild
  * (`npx expo prebuild --platform ios --clean`).
+ *
+ * PASSWORD AUTOFILL (iOS) — set IOS_WEBCREDENTIALS_DOMAIN to the domain whose
+ * `/.well-known/apple-app-site-association` lists this app under
+ * `webcredentials.apps` ("<TEAM_ID>.com.ajala.app"). iCloud Keychain then offers
+ * to save the password after sign-up and sign-in, and suggests strong ones.
+ * Off by default for the same reason as Apple sign-in: a free personal team
+ * cannot sign the Associated Domains capability.
+ *
+ *   IOS_WEBCREDENTIALS_DOMAIN=ajalatrvl.com
  */
 module.exports = ({ config }) => {
   // Xcode 26 rejects expo-modules-core 57.0.23 in Swift 6 mode; see the plugin.
@@ -30,6 +39,17 @@ module.exports = ({ config }) => {
   //   ios: { ...next.ios, usesAppleSignIn: true },
   //   plugins: [...(next.plugins ?? []), 'expo-apple-authentication'],
   // };
+
+  const webCredentialsDomain = process.env.IOS_WEBCREDENTIALS_DOMAIN;
+  if (webCredentialsDomain) {
+    next = {
+      ...next,
+      ios: {
+        ...next.ios,
+        associatedDomains: [...(next.ios?.associatedDomains ?? []), `webcredentials:${webCredentialsDomain}`],
+      },
+    };
+  }
 
   const iosUrlScheme = process.env.GOOGLE_IOS_URL_SCHEME;
   if (iosUrlScheme) {
