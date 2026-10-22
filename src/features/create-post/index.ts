@@ -1,11 +1,11 @@
 /**
- * Public API of the `create-post` feature.
- *
- * This file is the ONLY entry point other features and the `app/` route tree may
- * import from. Export screens, route params and the feature's provider here;
- * keep repositories, DTOs and internal components private.
- *
- * export { default as TypeSelectorSheet } from './presentation/screens/TypeSelectorSheet';
+ * Public API of the `create-post` feature. Today: choosing what to create; the
+ * wizard (API map §5) comes next.
  */
 
-export {};
+export {
+  CreateSomethingSheet,
+  type CreateSomethingSheetProps,
+} from './presentation/components/CreateSomethingSheet';
+export { POST_KINDS, type PostKind } from './domain/postKinds';
+export { createPostRoutes } from './presentation/navigation/routes';
