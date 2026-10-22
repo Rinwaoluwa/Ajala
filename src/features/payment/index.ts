@@ -1,11 +1,10 @@
 /**
- * Public API of the `payment` feature.
- *
- * This file is the ONLY entry point other features and the `app/` route tree may
- * import from. Export screens, route params and the feature's provider here;
- * keep repositories, DTOs and internal components private.
- *
- * export { default as PaywallSheet } from './presentation/screens/PaywallSheet';
+ * Public API of the `payment` feature. Today: the Teleport paywall, as a screen
+ * only — purchase (StoreKit / Play Billing) is not built (API map §12).
  */
 
-export {};
+export {
+  TeleportPaywallScreen,
+  type TeleportPaywallScreenProps,
+} from './presentation/screens/TeleportPaywallScreen';
+export { paymentRoutes } from './presentation/navigation/routes';
