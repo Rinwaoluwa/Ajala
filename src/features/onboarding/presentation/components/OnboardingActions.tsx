@@ -2,12 +2,9 @@ import { View } from 'react-native';
 import type { SharedValue } from 'react-native-reanimated';
 
 import { Button, ProgressReveal, Text } from '@shared/components';
+import { useFontScale } from '@shared/hooks/useFontScale';
 
-import {
-  ACTIONS_SIDE_INSET,
-  WelcomeActions,
-  useWelcomeActionsMetrics,
-} from './WelcomeActions';
+import { ACTIONS_SIDE_INSET, WelcomeActions, useWelcomeActionsMetrics } from './WelcomeActions';
 
 /**
  * The tour's action bar, fixed at the foot of the screen while the slides move
@@ -60,6 +57,9 @@ export function OnboardingActions({
   onSignIn,
 }: OnboardingActionsProps) {
   const { stackHeight, bottomPadding } = useWelcomeActionsMetrics();
+  // The design's 94pt at the default size; each button widens with the label (about 40pt
+  // more at 2x) so "Next" never wraps, and two still fit a 320pt screen.
+  const actionWidth = ACTION_WIDTH + Math.round((useFontScale() - 1) * 40);
 
   return (
     <View
@@ -88,10 +88,10 @@ export function OnboardingActions({
           style={{ position: 'absolute', left: 0, right: 0, bottom: 0 }}
         >
           <View className="flex-row items-center justify-between">
-            <View style={{ width: ACTION_WIDTH }}>
+            <View style={{ width: actionWidth }}>
               <Button label="Skip" variant="ghost" size="md" fullWidth onPress={onSkip} disabled={busy} />
             </View>
-            <View style={{ width: ACTION_WIDTH }}>
+            <View style={{ width: actionWidth }}>
               <Button label="Next" variant="primary" size="md" fullWidth onPress={onNext} disabled={busy} />
             </View>
           </View>
