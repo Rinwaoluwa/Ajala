@@ -1,8 +1,13 @@
 import { router } from 'expo-router';
 
-import { PlaceholderScreen } from '@shared/components';
+import { NotificationsScreen } from '@features/notifications';
 
-/** PLACEHOLDER — notifications are not built yet. */
+/** The notifications list, opened from the home bell. */
 export default function NotificationsRoute() {
-  return <PlaceholderScreen title="Notifications" onBack={() => router.back()} />;
+  return (
+    <NotificationsScreen
+      onBack={() => router.back()}
+      onOpenPost={(id) => router.push({ pathname: '/(app)/post/[id]', params: { id } })}
+    />
+  );
 }

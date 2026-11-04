@@ -1,11 +1,7 @@
 /**
- * Public API of the `notifications` feature.
- *
- * This file is the ONLY entry point other features and the `app/` route tree may
- * import from. Export screens, route params and the feature's provider here;
- * keep repositories, DTOs and internal components private.
- *
- * export { default as NotificationCenterScreen } from './presentation/screens/NotificationCenterScreen';
+ * Public API of the `notifications` feature: the list opened from the home bell.
  */
-
-export {};
+export {
+  NotificationsScreen,
+  type NotificationsScreenProps,
+} from './presentation/screens/NotificationsScreen';
