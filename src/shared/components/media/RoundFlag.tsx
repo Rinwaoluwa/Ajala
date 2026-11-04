@@ -8,7 +8,7 @@ import { Text } from '../ui/Text';
 
 /**
  * A country's flag as a disc — the flag artwork itself, cropped round, with a
- * soft shadow (the Teleport badge's home and destination flags). The art is the
+ * soft shadow (the Travel badge's home and destination flags). The art is the
  * square set from `country-flag-icons` (MIT). An unknown code falls back to the
  * emoji flag.
  */

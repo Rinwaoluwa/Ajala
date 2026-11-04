@@ -1,5 +1,6 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
-import { memo, useState } from 'react';
+import { memo, useEffect } from 'react';
 import { Pressable, View } from 'react-native';
 import Animated, {
   Easing,
@@ -10,9 +11,12 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
+import { useMeasuredWidth } from '@shared/hooks/useMeasuredWidth';
 import { useTheme } from '@shared/hooks/useTheme';
+import { savedPosts, useIsSaved } from '@shared/state/savedPosts';
 import { palette } from '@shared/theme';
 
+import { GlassSurface } from '../surface/GlassSurface';
 import { SvgIcon } from '../ui/SvgIcon';
 import { VectorIcon } from '../ui/VectorIcon';
 import { Text } from '../ui/Text';
@@ -45,19 +49,24 @@ const TYPE_LABEL: Record<PostCardModel['type'], string> = {
 
 /**
  * A post on the feed (Figma Home Feed card): the cover photo full-bleed with a
- * dark fade at the foot; the type tag and a heart at the top; at the foot the
+ * dark fade at the foot; the type tag and a save (bookmark) button at the top; at the foot the
  * host, the distance, the title (Plus Jakarta 24, white), the date and time, and
  * the place.
  *
  * Not on the card: the design's description line. Feed cards carry no
  * description (`PostCardDto`); it belongs to the post page. Flagged.
  *
- * The heart is a STATIC PLACEHOLDER — there is no save endpoint (API map §12):
- * tapped, it fills coral (from a teal outline) and pops, but nothing is kept, as
- * agreed with product.
+ * Liquid Glass where the phone has it (`GlassSurface`): the distance pill and
+ * the save button sit on the photo as light glass with no fill of their own.
+ * Elsewhere they are the design's solid white. The type tag stays solid
+ * Marigold in both, as designed.
+ *
+ * The bookmark saves the post on this phone (`savedPosts`) — there is no save
+ * endpoint yet (API map §12). Tapped, it fills (Ionicons `bookmark-outline` →
+ * `bookmark`, cross-faded) and pops; "Saved activities" lists what was kept.
  *
  * Square, at the content width. Motion: a press dips the card to 98%; the photo
- * fades in over 250ms as it loads; the heart pops to 120% and settles.
+ * fades in over 250ms as it loads; the bookmark pops to 120% and settles.
  */
 
 const RADIUS = 24;
@@ -65,19 +74,27 @@ const RADIUS = 24;
 function PostCardComponent({ post, onPress }: { post: PostCardModel; onPress: () => void }) {
   const theme = useTheme();
   const reduceMotion = useReducedMotion();
-  const [liked, setLiked] = useState(false);
+  const saved = useIsSaved(post.id);
   const press = useSharedValue(0);
-  const heart = useSharedValue(1);
+  const pop = useSharedValue(1);
+  const on = useSharedValue(saved ? 1 : 0);
+
+  useEffect(() => {
+    on.set(withTiming(saved ? 1 : 0, { duration: 160, easing: Easing.out(Easing.quad) }));
+  }, [saved, on]);
 
   const cardStyle = useAnimatedStyle(() => ({
     transform: reduceMotion ? [] : [{ scale: 1 - 0.02 * press.value }],
   }));
-  const heartStyle = useAnimatedStyle(() => ({ transform: [{ scale: heart.value }] }));
+  const popStyle = useAnimatedStyle(() => ({ transform: [{ scale: pop.value }] }));
+  // Only the icons fade — never the glass under them.
+  const outlineStyle = useAnimatedStyle(() => ({ opacity: 1 - on.value }));
+  const filledStyle = useAnimatedStyle(() => ({ opacity: on.value }));
 
-  const toggleLike = () => {
-    setLiked((v) => !v);
+  const toggleSave = () => {
+    savedPosts.toggle(post);
     if (!reduceMotion) {
-      heart.set(
+      pop.set(
         withSequence(
           withTiming(1.2, { duration: 110, easing: Easing.out(Easing.quad) }),
           withTiming(1, { duration: 160, easing: Easing.inOut(Easing.quad) }),
@@ -86,6 +103,10 @@ function PostCardComponent({ post, onPress }: { post: PostCardModel; onPress: ()
     }
   };
 
+  // Square at least: the top row and the foot sit in normal flow at either end, so at a
+  // large text size the foot makes the card taller instead of running into the tag
+  // and bookmark. Until the first layout it is a plain square, as it always looks at 1x.
+  const { width: cardWidth, onLayout: onCardLayout } = useMeasuredWidth();
   const distance = formatDistance(post.distanceKm);
   const date = post.startAt ? formatCardDate(post.startAt) : null;
   const time = post.startAt ? formatCardTime(post.startAt) : null;
@@ -102,8 +123,10 @@ function PostCardComponent({ post, onPress }: { post: PostCardModel; onPress: ()
           .join(', ')}
       >
         <View
+          onLayout={onCardLayout}
           style={{
-            aspectRatio: 1,
+            ...(cardWidth > 0 ? { minHeight: cardWidth } : { aspectRatio: 1 }),
+            justifyContent: 'space-between',
             borderRadius: RADIUS,
             overflow: 'hidden',
             backgroundColor: theme.skeleton,
@@ -143,36 +166,39 @@ function PostCardComponent({ post, onPress }: { post: PostCardModel; onPress: ()
               </Text>
             </View>
             <Pressable
-              onPress={toggleLike}
+              onPress={toggleSave}
               hitSlop={6}
               accessibilityRole="button"
-              accessibilityLabel={liked ? 'Saved' : 'Save'}
-              accessibilityState={{ selected: liked }}
+              accessibilityLabel={saved ? 'Saved' : 'Save'}
+              accessibilityState={{ selected: saved }}
             >
-              <Animated.View
-                style={[
-                  {
+              <Animated.View style={popStyle}>
+                <GlassSurface
+                  fallbackColor={palette.white}
+                  appearance="light"
+                  interactive
+                  shadow={false}
+                  style={{
                     width: 48,
                     height: 48,
                     borderRadius: 24,
-                    backgroundColor: palette.white,
                     alignItems: 'center',
                     justifyContent: 'center',
-                  },
-                  heartStyle,
-                ]}
-              >
-                <VectorIcon
-                  name="like"
-                  size={26}
-                  color={liked ? palette.coral : palette.teal}
-                  filled={liked}
-                />
+                  }}
+                >
+                  {/* Outline and filled cross-fade, so the mark keeps its shape and only fills. */}
+                  <Animated.View style={[{ position: 'absolute' }, outlineStyle]}>
+                    <Ionicons name="bookmark-outline" size={24} color={palette.teal} />
+                  </Animated.View>
+                  <Animated.View style={filledStyle}>
+                    <Ionicons name="bookmark" size={24} color={palette.teal} />
+                  </Animated.View>
+                </GlassSurface>
               </Animated.View>
             </Pressable>
           </View>
 
-          <View style={{ position: 'absolute', left: 16, right: 16, bottom: 16, gap: 6 }}>
+          <View style={{ paddingHorizontal: 16, paddingBottom: 16, gap: 6 }}>
             <View className="flex-row items-center" style={{ gap: 8 }}>
               {post.host.avatarUrl ? (
                 <Image
@@ -188,18 +214,16 @@ function PostCardComponent({ post, onPress }: { post: PostCardModel; onPress: ()
                 {post.host.name}
               </Text>
               {distance ? (
-                <View
-                  style={{
-                    backgroundColor: palette.white,
-                    borderRadius: 999,
-                    paddingHorizontal: 8,
-                    paddingVertical: 2,
-                  }}
+                <GlassSurface
+                  fallbackColor={palette.white}
+                  appearance="light"
+                  shadow={false}
+                  style={{ borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 }}
                 >
                   <Text variant="bodyXs" style={{ color: palette.ink }}>
                     {distance}
                   </Text>
-                </View>
+                </GlassSurface>
               ) : null}
             </View>
             <Text variant="headingLg" numberOfLines={2} style={{ color: palette.white }}>

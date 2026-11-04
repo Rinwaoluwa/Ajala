@@ -9,7 +9,7 @@ import { SCREEN_GUTTER, textStyles } from '@shared/theme';
 import type { DatePickerSheetProps } from './DatePickerSheet';
 
 /**
- * iOS: a bottom sheet with a title, a Done button and a date wheel.
+ * iOS: a bottom sheet with a title, a Done button and a date (or time) wheel.
  *
  * The sheet's content is SwiftUI throughout — Expo UI's BottomSheet presents in
  * its own view controller, so a React Native view placed in it would not receive
@@ -20,6 +20,7 @@ import type { DatePickerSheetProps } from './DatePickerSheet';
 export function DatePickerSheet({
   isPresented,
   title,
+  mode = 'date',
   value,
   minimumDate,
   maximumDate,
@@ -74,7 +75,7 @@ export function DatePickerSheet({
         </Row>
         <DatePicker
           selection={draft}
-          displayedComponents={['date']}
+          displayedComponents={[mode === 'time' ? 'hourAndMinute' : 'date']}
           range={minimumDate || maximumDate ? { start: minimumDate, end: maximumDate } : undefined}
           onDateChange={setDraft}
           // The wheel's own width is narrower than the sheet; centre it across the full width.

@@ -38,10 +38,11 @@ const ICONS = {
  * grey (made colour here, on a teal ramp taken from the meetup art's own teals).
  */
 const ILLUSTRATIONS = {
-  meet: { file: 'meet.svg', supplied: 'colour' },
-  confetti: { file: 'confetti-greyed.svg', supplied: 'grey' },
-  calendar: { file: 'calender-greyed.svg', supplied: 'grey' },
-  group: { file: 'group-greyed.svg', supplied: 'grey' },
+  // The colour art supplied for "Create something" (assets/icons/colored_*.svg).
+  meet: { file: 'colored_create_something.svg', supplied: 'colour' },
+  confetti: { file: 'colored_confetti.svg', supplied: 'colour' },
+  calendar: { file: 'colored_calender.svg', supplied: 'colour' },
+  group: { file: 'colored_group.svg', supplied: 'colour' },
 };
 
 const ROOT = path.join(__dirname, '..');

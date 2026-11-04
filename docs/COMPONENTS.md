@@ -74,14 +74,14 @@ styling through `style`, content as children, explicit dimensions on the Host, a
 | `ButtonCore` | Expo UI | The native button without its Host, for use inside Expo UI content such as a sheet. Give it a `width` to fill. `tint` gives a filled button a colour that is not a variant (the status sheets). |
 | `TextLink` | Expo UI | Tappable phrase. `tone` picks the colour (`link` teal/marigold, `accent` marigold, `foreground` ink) and `emphasis` the weight (`strong` for the uppercase footer links, `plain` for an inline one like "Forgot password?"). |
 | `NativeIcon` + `icons` | Expo UI | One glyph per platform: an SF Symbol on iOS, a vector drawable on Android (Material Symbols from `@expo/material-symbols`, scaled to match SF sizing). Brand marks (the Google "G") are a PNG on iOS and an untinted drawable on Android. Add new glyphs to `ui/icons.ts`; an inline SF Symbol name renders nothing on Android. |
-| `TextField` | Expo UI + RN chrome | Label, 38pt box (42pt with a trailing icon), 1pt outline, 6pt radius. Uncontrolled native input; primary outline while focused, destructive with an error. `leading` (a glyph before the text), `prefix` ("@"), `filled` (the pale search/city box, pale in both schemes with chip ink), `labelHidden` (search boxes their placeholder names), `trailing` (a status glyph) or `trailing` + `trailingAction` (a 44/48pt button). |
+| `TextField` | Expo UI + RN chrome | Label, 38pt box (42pt with a trailing icon), 1pt outline, 6pt radius. Uncontrolled native input; primary outline while focused, destructive with an error, or a muted `helper` line ("0/100") without one. `leading` (a glyph before the text), `prefix` ("@"), `filled` (the pale search/city box, pale in both schemes with chip ink), `labelHidden` (search boxes their placeholder names), `bare` (no outline or fill: the field sits on a glass surface), `trailing` (a status glyph) or `trailing` + `trailingAction` (a 44/48pt button). |
 | `PasswordField` | Expo UI | `TextField` with an eye toggle. Text survives the secure/plain swap. The eye is a 16pt glyph in a `layout.touchTarget` tap area (44pt iOS, 48dp Android) via `TextField`'s `trailingAction`; a tap dims it and settles it back (200ms, scale dropped under Reduce Motion). Defaults to `autoComplete="new-password"`; pass `current-password` on sign-in and pair it with an `autoComplete="username"` email field so password managers suggest, fill and save. |
 | `SelectField` | Expo UI + RN chrome | Looks like a field; the box is one native button (value or placeholder, trailing icon). Used for date of birth. |
 | `PasswordRules` | Expo UI icon + RN | 20pt rows, 12pt mark (grey unmet, Marigold met), Inter 12/16 muted text. Each row announces "met" / "not met". |
 | `OtpInput` | Expo UI input + RN boxes | One invisible native input over six drawn 50×56 boxes, so the number pad, iOS code autofill and paste all work. 2pt `focusRing` on the next box — teal on light, Marigold on dark. |
 | `StepProgress` | RN | 3pt segments, 8pt apart; only the current step is highlighted. `tone` picks the highlight; both auth flows now use Marigold (`accent`). |
 | `ScreenHeader` | Expo UI back button + RN title | Back arrow and a Plus Jakarta 20/28 title. |
-| `DatePickerSheet` | Expo UI | iOS: bottom sheet with a SwiftUI wheel and Done. Android: the system date dialog. Edits a draft; Done commits. |
+| `DatePickerSheet` | Expo UI | iOS: bottom sheet with a SwiftUI wheel and Done. Android: the system dialog. `mode="time"` picks a time of day instead of a date. Edits a draft; Done commits. |
 | `StatusSheet` | Expo UI | A status sheet: drag handle, tinted badge with a mark, heading, muted message, one full-width pill. `tone` — `info` / `warning` / `error` / `success` — sets badge, mark, heading and button together (modal-8 variants). `titleTone="default"` puts the heading in the text colour ("Password reset successful"). The button is `ButtonCore`, tinted to the status colour for all but success. SwiftUI end to end. |
 | `CelebrationSheet` | RN + Reanimated + Lottie | The end-of-flow sheet ("You're all set!"): a pale teal wash, a sheet that rises with an illustration, heading, message and one pill. RN, not Expo UI's BottomSheet, because it hosts an SVG and a Lottie burst (played once after the sheet settles; skipped under Reduce Motion). No swipe-to-dismiss: there is one way forward. |
 | `Text` | RN + NativeWind | Variant per step of the type scale, `tone` per semantic colour (`heading`, `link`, `muted`, …). Nobody picks a font size by hand. |
@@ -99,12 +99,28 @@ styling through `style`, content as children, explicit dimensions on the Host, a
 | `VectorIcon` | react-native-svg + Reanimated | A design icon drawn as vectors with an outlined and a filled state — the tabs (filled Marigold when current, grey outline otherwise), the heart (teal outline → coral fill), header bell/chat/pin. Filled = the icon's silhouette painted in the colour with its own strokes drawn over it a shade darker (the design's two-tone house), so the active icon keeps every stroke of the inactive one. Path data comes from the SVGs via `npm run icons` (`scripts/generate-icons.js`); the house is two-tone art already and is outlined by stroking. States cross-fade in 160ms. |
 | `RoundFlag` | react-native-svg | A country's flag as a disc: the flag art cropped round (square set from `country-flag-icons`, MIT) with a soft shadow, no backing. Falls back to the emoji flag. |
 | `Illustration` | react-native-svg + Reanimated | Multi-colour art with a chosen and an unchosen look ("Create something" cards): colour when `active`, grey otherwise, cross-fading in 180ms. Both versions are generated by `npm run icons` — art supplied in colour gets a grey copy, art supplied grey gets a colour copy on the brand's teal ramp. |
-| `PostCard` | RN + Reanimated + expo-image | The post card every feature shares: square cover photo with a dark foot fade, type tag, heart (placeholder until saves exist), host, distance, title, date/time and place. Features map their post onto `PostCardModel`. Dips to 98% on press; the heart pops. |
+| `PostCard` | RN + Reanimated + expo-image | The post card every feature shares: square cover photo with a dark foot fade, type tag, a bookmark (saves on the phone via `@shared/state/savedPosts` until the API has saves; glass circle where available), host, distance (glass pill), title, date/time and place. Features map their post onto `PostCardModel`. Dips to 98% on press; the heart pops. |
 | `PlaceholderScreen` | RN | A titled "coming soon" stand-in so navigation lands somewhere real while a screen is unbuilt. Replace each use. |
 | `ProgressBar` | RN + Reanimated | Pill-shaped bar; the caller owns the timing. Themed track and fill by default. (The launch splash has its own loader, `src/bootstrap/splash/SplashLoader.tsx`.) |
 | `Logo` | expo-image | The mark and wordmark, no tagline. `tone="brand"` is teal with coral dots (white and Night); `tone="inverse"` is white with marigold dots (the splash gradient). The tagline is set as text where it appears. |
 | `SwirlPattern` | expo-image | The brand swirl behind the splash and welcome screens: an alpha mask tinted per surface (`theme.pattern`, or deep teal on the splash). Decorative, fills its parent. |
 | `Screen` | RN + NativeWind | Background, the measured 20pt gutter, safe-area insets via `useSafeAreaInsets()`. |
+| `Toggle` | Expo UI | An on/off switch: SwiftUI `Toggle` (label hidden, tinted teal) on iOS, Compose `Switch` (teal on, pale mint off) on Android. Draws no words; the row around it does and passes them as `accessibilityLabel`. |
+| `TextArea` | Expo UI + RN chrome | A labelled box of several lines (a post's description, a report's details): multi-line native input in the field chrome, `lines` tall (grows with text size), `helper` or error below, `filled` for the pale box. |
+| `CheckboxRow` | RN + Reanimated | A ticked-or-not line in a list of reasons: 20pt box (teal fill and white check when ticked, 150ms cross-fade), label beside it; the whole row is a 44pt+ target. |
+| `SortableGrid` | RN + Gesture Handler + Reanimated | Items that can be reordered by dragging — a post's photos (3 columns) and its itinerary lines (1 column). Hold 250ms, drag; the others slide 200ms out of the way and `onMove(from, to)` reports the move. Cells are placed by index, not wrapped, so computed widths cannot spill onto a new row; row height is `cellHeight(width)` or measured. "Move earlier/later" actions for screen readers. Reduce Motion drops the lift and slides. Needs the `GestureHandlerRootView` at the app root. |
+| `ScrollRow` | RN | A row that is plain while its items fit and scrolls sideways only once they overflow (pills, map chips) — glass inside a horizontal scroll view is unreliable. |
+| `PillTabs` | RN + Reanimated + `GlassSurface` | One-of pills in a `ScrollRow`: the home feed's All / Meetups / Events…, Trips' Upcoming / Requests / Past, the Saved, Drafts, Notifications and Achievements filters. Frosted glass where available (chosen pill tinted teal, white label); otherwise solid teal-and-pale (`look="filled"`) or white with a hairline (`look="outline"`). 180ms cross-fade. |
+| `UnderlineTabs` / `SegmentedControl` | RN + Reanimated | Switch between views of a screen: labels with a sliding underline (Hosting / Attending), or a pale track with a sliding fill (Badges / Stamps — teal on light, Marigold on dark). 220ms slide, instant under Reduce Motion; segments share the measured width. |
+| `CenteredHeader` | RN + `GlassSurface` | Title centred with a 40pt round back button (mint, or glass) — Saved activities, Notifications, Achievements. Optional trailing control; the title wraps rather than collides. |
+| `ListGroup` / `ListRow` | RN + Expo UI icons + `Toggle` | Settings-style lists: optional caps heading, a rounded outlined card of rows split by hairlines. A row has a title, optional muted line, and at the right a chevron, a value, a tick or a switch; `destructive` reds the title. Grows with text size; the whole row is the target. |
+| `Avatar` / `AvatarStack` | RN + expo-image | A person's round photo, or their initial on a tint picked from the name. The stack overlaps faces with a white ring ("3 joining"). |
+| `EmptyState` | RN + Reanimated | Art, heading, line and an optional action ("No plans yet. Where to next?"); rises in with `enterRise`. |
+| `NoteCard` | RN | A quiet note with a teal title on a pale card ("Safety tip", "Good to know"); `tone="accent"` is the Marigold card of the dark Trips frame. |
+| `Tag` | RN | Small labels on cards: `outline` (post type), `success` (Hosting, Completed, Earned), `pending` (Request sent), `neutral`. Pale in both schemes. |
+| `GlassSurface` | expo-glass-effect, RN fallback | A surface floating over content in Liquid Glass where the phone has it, and the design's solid colour (`fallbackColor`, soft shadow) where it does not — see "Liquid Glass" below. `tint` colours it, `interactive` gives controls the system's touch response (drop your own press dip then). Glass materialises on appear (~300ms; instant under Reduce Motion). |
+| `Dialog` | RN + Reanimated, in a `Modal` | A centred card over a scrim ("Report activity", "Before you RSVP"): at most 420pt wide, scrolls when tall, stays above the keyboard. Scrim fades 200ms while the card settles from 96%; closing 160ms. Scrim and back dismiss it. |
+| `MenuButton` | Expo UI `Menu` (iOS) / `Alert` (Android) | A button that offers a few choices (a post's ⋯: report, cancel, delete). iOS opens the native pull-down menu from the button (SF Symbol icons, red for `destructive`); an invisible SwiftUI `Menu` covers the caller's face, so the button keeps its look. A choice runs ~350ms later, once the menu has closed — iOS drops a screen presented during its dismissal. Android shows the system dialog with a Close. |
 
 ### Inside an Expo UI sheet
 
@@ -124,7 +140,40 @@ than the community `DateTimePicker`, which brings its own Host.
 Every Stack uses `useStackScreenOptions()`, which paints each screen's container with the themed
 background. React Navigation's default is white, which flashes during a push in dark mode.
 
-## A trap that already cost us
+## Liquid Glass
+
+Ajala uses Apple's Liquid Glass (iOS 26, built with Xcode 26) for the chrome that floats over
+content, and the Figma design's solid surfaces everywhere else.
+
+- **Glass:** the tab bar's two halves and its "+" (tinted teal), the home header's bell and chat, the filter pills (`PillTabs`), the save button and distance pill on a post card, round back buttons, and the Explore map's controls —
+  the search field, filter and map buttons, type chips (the chosen one tinted its type's colour),
+  View List and the status pill.
+- **Solid, on purpose:** content — cards, the map's mini card, sheets, dialogs, lists, forms.
+  Glass is for controls and navigation layered over content, not for content itself; text on it
+  would shift with whatever is behind.
+- **System controls** built with Expo UI (switches, pickers, date wheels) take the new look from
+  iOS by themselves.
+
+`useLiquidGlass()` decides, live: iOS 26+, the glass API present (`isGlassEffectAPIAvailable`, as
+some iOS 26 betas lacked it), and Reduce Transparency off. Otherwise — Android, iOS 25 and
+earlier, Reduce Transparency on, or a development build without the native module — every
+`GlassSurface` draws its `fallbackColor` with the soft shadow the design has. No blur is used as
+a fallback: the solid design is what was drawn, reads in every light, and costs nothing.
+
+How it is drawn, and the rules that came out of getting it wrong:
+
+- **SwiftUI, not the UIKit glass view.** `GlassSurface` puts its content on a SwiftUI shape with
+  `.glassEffect` (`GlassBackdrop.ios.tsx`, in an Expo UI `Host`). `expo-glass-effect`'s
+  `GlassView` silently failed to draw inside lists and scroll views on screens opened after
+  launch, and when installed during a fade — feed cards and tab pills lost their glass.
+- **Frosted by default.** `variant="regular"` (frosted) is used for buttons, pills and bars: its
+  backing keeps labels easy to read, the look the product owner chose after trying both.
+  `variant="clear"` (see-through, no backing) is there for art that must show through.
+- **Rows that fit don't scroll.** Use `ScrollRow` for pill and chip rows: a plain row while the
+  items fit, a horizontal scroll view only once they overflow.
+- **Press feedback is the caller's.** The glass takes no touches; keep your dip or fade.
+
+## A trap that already cost us## A trap that already cost us
 
 **Never create `src/app/`.** Expo Router resolves its route directory as `src/app` *first* and falls
 back to `app` only if that does not exist. An earlier scaffold used `src/app/` for the composition

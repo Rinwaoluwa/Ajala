@@ -90,12 +90,16 @@ export function OtpInput({
   };
 
   const activeIndex = Math.min(code.length, length - 1);
-  const rowWidth = length * otp.cellWidth + (length - 1) * otp.gap;
+  // The designed row (six 50pt cells) is wider than a narrow phone's column: the
+  // cells shrink to share whatever width there is, never past the design.
+  const designWidth = length * otp.cellWidth + (length - 1) * otp.gap;
+  const [rowWidth, setRowWidth] = useState(designWidth);
 
   return (
     <View>
       <View
-        style={{ width: rowWidth, height: otp.cellHeight }}
+        style={{ width: '100%', maxWidth: designWidth, height: otp.cellHeight }}
+        onLayout={(e) => setRowWidth(e.nativeEvent.layout.width)}
         accessible
         accessibilityLabel={`Verification code, ${code.length} of ${length} digits entered`}
       >
@@ -106,7 +110,8 @@ export function OtpInput({
               <View
                 key={i}
                 style={{
-                  width: otp.cellWidth,
+                  flex: 1,
+                  maxWidth: otp.cellWidth,
                   height: otp.cellHeight,
                   borderRadius: otp.radius,
                   borderWidth: 1,

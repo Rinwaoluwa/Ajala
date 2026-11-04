@@ -26,6 +26,12 @@ export type CarouselImage = {
    * for a URL, fails to load it and shows nothing at all.
    */
   placeholder?: string;
+  /**
+   * A smaller copy of the same photo already on the phone (a feed card's), shown
+   * until this one loads — the picture is there at once and sharpens, rather
+   * than blanking first. Takes precedence over `placeholder`.
+   */
+  placeholderUri?: string;
   /** Describe the picture, or omit when it is decorative. */
   accessibilityLabel?: string;
 };
@@ -55,7 +61,13 @@ export function ImageCarousel({ images, ...props }: ImageCarouselProps) {
       item.source ? (
         <Image
           source={item.source}
-          placeholder={item.placeholder ? { blurhash: item.placeholder } : undefined}
+          placeholder={
+            item.placeholderUri
+              ? { uri: item.placeholderUri }
+              : item.placeholder
+                ? { blurhash: item.placeholder }
+                : undefined
+          }
           placeholderContentFit="cover"
           style={{ width: '100%', height: '100%' }}
           contentFit="cover"

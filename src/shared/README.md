@@ -12,7 +12,7 @@ place a feature may import from besides `@core`.
 | `components/post` | the post card every surface renders | PostCard, PrimaryActionButton, JoinedCountChip, PostTypeBadge, CapacityIndicator, PriceTag |
 | `components/form` | inputs and validation display | TextField, DateTimeField, LocationField, CharCounter |
 | `hooks` | cross-feature React hooks | useDebounce, useAppState, useConnectivity |
-| `state` | **global data** — one store per concern | session, activeCity (teleport), subscription, connectivity, feature flags |
+| `state` | **global data** — one store per concern | session, activeCity (travel), subscription, connectivity, feature flags |
 | `domain` | entities and use cases used by 2+ features | Post, User, City, Interest, RsvpState, Money, ObserveRsvpUseCase |
 | `data` | repositories backing those shared entities | PostRepositoryImpl, UserRepositoryImpl, RsvpRepositoryImpl |
 | `theme` | design tokens from `contracts/design-tokens` | colors, spacing, typography, radii |
@@ -30,9 +30,9 @@ Nothing is placed here speculatively.
 `shared/state` is the "global object" the app reads everywhere:
 
 - `sessionStore` — signed-in user, tokens' presence (never the tokens themselves).
-- `activeCityStore` — the city every surface is scoped to, plus whether it is a teleport (MOB-020 → MOB-023).
+- `activeCityStore` — the city every surface is scoped to, plus whether it is a travel (MOB-020 → MOB-023).
 - `subscriptionStore` — weekly subscription status, published by `@features/payment` and
-  read by Home so teleport can be gated without Home importing Payment.
+  read by Home so travel can be gated without Home importing Payment.
 - `connectivityStore` — online/offline, drives the offline banner and the write queue.
 
 A store is written by exactly one owner and read by anyone. If two features both write

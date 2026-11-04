@@ -87,4 +87,82 @@ export const icons = {
     symbol: 'chevron.left',
     android: require('@expo/material-symbols/chevron_left.xml') as number,
   },
+  clock: {
+    symbol: 'clock',
+    android: require('@expo/material-symbols/schedule.xml') as number,
+  },
+  minus: {
+    symbol: 'minus',
+    android: require('@expo/material-symbols/remove.xml') as number,
+  },
+  /** The grip on a row that can be dragged into a new place (iOS's reorder lines). */
+  dragHandle: {
+    symbol: 'line.3.horizontal',
+    android: require('@expo/material-symbols/drag_indicator.xml') as number,
+  },
+  more: {
+    symbol: 'ellipsis',
+    android: require('@expo/material-symbols/more_horiz.xml') as number,
+  },
+  flag: {
+    symbol: 'flag',
+    android: require('@expo/material-symbols/flag.xml') as number,
+  },
+  filter: {
+    symbol: 'line.3.horizontal.decrease',
+    android: require('@expo/material-symbols/filter_list.xml') as number,
+  },
+  layers: {
+    symbol: 'square.3.layers.3d',
+    android: require('@expo/material-symbols/layers.xml') as number,
+  },
+  bolt: {
+    symbol: 'bolt.fill',
+    android: require('@expo/material-symbols/bolt.xml') as number,
+  },
+  list: {
+    symbol: 'list.bullet',
+    android: require('@expo/material-symbols/list.xml') as number,
+  },
+  /** The map's "locate me": a crosshair on iOS, Material's my-location on Android. */
+  locate: {
+    symbol: 'scope',
+    android: require('@expo/material-symbols/my_location.xml') as number,
+  },
+  chevronRight: {
+    symbol: 'chevron.right',
+    android: require('@expo/material-symbols/chevron_right.xml') as number,
+  },
+  share: {
+    symbol: 'square.and.arrow.up',
+    android: require('@expo/material-symbols/share.xml') as number,
+  },
+  copy: {
+    symbol: 'doc.on.doc',
+    android: require('@expo/material-symbols/content_copy.xml') as number,
+  },
+  block: {
+    symbol: 'nosign',
+    android: require('@expo/material-symbols/block.xml') as number,
+  },
+  settings: {
+    symbol: 'gearshape',
+    android: require('@expo/material-symbols/settings.xml') as number,
+  },
+  edit: {
+    symbol: 'pencil',
+    android: require('@expo/material-symbols/edit.xml') as number,
+  },
+  trash: {
+    symbol: 'trash',
+    android: require('@expo/material-symbols/delete.xml') as number,
+  },
+  send: {
+    symbol: 'paperplane',
+    android: require('@expo/material-symbols/send.xml') as number,
+  },
+  camera: {
+    symbol: 'camera',
+    android: require('@expo/material-symbols/photo_camera.xml') as number,
+  },
 } satisfies Record<string, NativeIconSource>;

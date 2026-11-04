@@ -11,6 +11,11 @@ import type { ColorValue, ImageSourcePropType } from 'react-native';
  *     "G"). A PNG `require()` for iOS, and optionally an untinted vector drawable
  *     for Android.
  *
+ * On its own in React Native layout, wrap it as
+ * `<Host matchContents pointerEvents="none" ignoreSafeArea="all">`. Without
+ * `ignoreSafeArea`, a Host near the top of the screen pads the icon away from the
+ * status bar, and on a phone the gear on Profile was drawn below its circle.
+ *
  * Platform files: `NativeIcon.ios.tsx` (SwiftUI) and `NativeIcon.android.tsx`
  * (Compose). This file holds the types and the web fallback.
  */

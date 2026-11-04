@@ -43,6 +43,8 @@ export type TextFieldProps = {
   /** Called when the field loses focus — the usual moment to show a format error. */
   onBlur?: () => void;
   error?: string | null;
+  /** Muted text under the box while there is no error, e.g. "0/100". */
+  helper?: string | null;
   secureTextEntry?: boolean;
   keyboardType?: NativeInputProps['keyboardType'];
   autoCapitalize?: NativeInputProps['autoCapitalize'];
@@ -58,6 +60,8 @@ export type TextFieldProps = {
   prefix?: string;
   /** The pale filled box (see `FieldFrame`). */
   filled?: boolean;
+  /** No outline or fill: the field's surface is drawn around it (see `FieldFrame`). */
+  bare?: boolean;
   /** Not drawn — a search box whose placeholder names it, which the native field reads out. */
   labelHidden?: boolean;
   autoFocus?: boolean;
@@ -79,6 +83,7 @@ function TextFieldComponent({
   onSubmitEditing,
   onBlur,
   error,
+  helper,
   secureTextEntry,
   keyboardType,
   autoCapitalize,
@@ -90,6 +95,7 @@ function TextFieldComponent({
   leading,
   prefix,
   filled = false,
+  bare = false,
   labelHidden = false,
   autoFocus,
   maxLength,
@@ -109,15 +115,17 @@ function TextFieldComponent({
   const [focused, setFocused] = useState(false);
   // The native text follows the text-size setting; its line has to grow with it.
   const lineHeight = fieldLineHeight(useFontScale());
-  const textColor = filled ? theme.chipForeground : theme.foreground;
+  const textColor = filled && !bare ? theme.chipForeground : theme.foreground;
 
   return (
     <FieldFrame
       label={label}
       focused={focused}
       error={error}
+      helper={helper}
       hasTrailing={trailing != null}
       filled={filled}
+      bare={bare}
       labelHidden={labelHidden}
       onPressBox={() => inputRef.current?.focus()}
       testID={testID}
@@ -173,7 +181,7 @@ function TextFieldComponent({
         <TrailingButton action={trailingAction}>{trailing}</TrailingButton>
       ) : trailing != null ? (
         // A status glyph (the handle's check, a spinner); it takes no touches.
-        <Host matchContents pointerEvents="none">
+        <Host matchContents pointerEvents="none" ignoreSafeArea="all">
           {trailing}
         </Host>
       ) : null}

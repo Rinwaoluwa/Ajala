@@ -1,6 +1,14 @@
 import { Host } from '@expo/ui';
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
-import { Modal, Pressable, StyleSheet, View, type LayoutChangeEvent } from 'react-native';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import {
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
+  useWindowDimensions,
+  type LayoutChangeEvent,
+} from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -30,6 +38,10 @@ import { icons } from '../ui/icons';
  * (ease-out); closing reverses it in 200ms, and only then unmounts. Reduce
  * Motion fades the sheet in place. Tapping the scrim, the ×, or the system back
  * gesture closes it.
+ *
+ * It never grows past the top safe area: at a large text size, content taller
+ * than the room left scrolls inside the sheet (and only then), so the handle,
+ * the title and the × stay on screen.
  */
 
 const RISE_MS = 300;
@@ -49,6 +61,15 @@ export function Sheet({ isPresented, title, onDismiss, children }: SheetProps) {
   // Stays mounted through the closing animation.
   const [mounted, setMounted] = useState(isPresented);
   const [height, setHeight] = useState(0);
+  const window = useWindowDimensions();
+  const [contentOverflows, setContentOverflows] = useState(false);
+  // The scroll area's height and its content's; it scrolls only when the content is taller.
+  const sizes = useRef({ viewport: 0, content: 0 });
+  const measure = (part: 'viewport' | 'content', value: number) => {
+    sizes.current[part] = value;
+    const { viewport, content } = sizes.current;
+    setContentOverflows(viewport > 0 && content > viewport + 1);
+  };
   const shown = useSharedValue(0);
 
   if (isPresented && !mounted) setMounted(true);
@@ -88,6 +109,7 @@ export function Sheet({ isPresented, title, onDismiss, children }: SheetProps) {
             left: 0,
             right: 0,
             bottom: 0,
+            maxHeight: window.height - insets.top - 12,
             opacity: height === 0 ? 0 : 1,
             backgroundColor: theme.surface,
             borderTopLeftRadius: 28,
@@ -102,8 +124,8 @@ export function Sheet({ isPresented, title, onDismiss, children }: SheetProps) {
         <View
           style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: theme.track }}
         />
-        <View className="mt-16 flex-row items-center justify-between">
-          <Text variant="headingMd" accessibilityRole="header">
+        <View className="mt-16 flex-row items-center justify-between" style={{ gap: 12 }}>
+          <Text variant="headingMd" accessibilityRole="header" style={{ flexShrink: 1 }}>
             {title}
           </Text>
           <Pressable
@@ -120,12 +142,21 @@ export function Sheet({ isPresented, title, onDismiss, children }: SheetProps) {
               justifyContent: 'center',
             }}
           >
-            <Host matchContents pointerEvents="none">
+            <Host matchContents pointerEvents="none" ignoreSafeArea="all">
               <NativeIcon source={icons.close} size={12} color={theme.foreground} />
             </Host>
           </Pressable>
         </View>
-        <View className="mt-16">{children}</View>
+        <ScrollView
+          style={{ marginTop: 16, flexShrink: 1 }}
+          scrollEnabled={contentOverflows}
+          showsVerticalScrollIndicator={contentOverflows}
+          keyboardShouldPersistTaps="handled"
+          onLayout={(e) => measure('viewport', e.nativeEvent.layout.height)}
+          onContentSizeChange={(_w, h) => measure('content', h)}
+        >
+          {children}
+        </ScrollView>
       </Animated.View>
     </Modal>
   );

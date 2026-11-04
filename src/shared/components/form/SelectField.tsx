@@ -31,6 +31,7 @@ export type SelectFieldProps = {
   icon: NativeIconSource;
   onPress: () => void;
   error?: string | null;
+  helper?: string | null;
   testID?: string;
 };
 
@@ -41,6 +42,7 @@ function SelectFieldComponent({
   icon,
   onPress,
   error,
+  helper,
   testID,
 }: SelectFieldProps) {
   const theme = useTheme();
@@ -49,7 +51,7 @@ function SelectFieldComponent({
   const innerHeight = input.heightWithIcon - 2 + fieldLineHeight(useFontScale()) - FIELD_LINE_HEIGHT;
 
   return (
-    <FieldFrame label={label} error={error} hasTrailing onPressBox={onPress} testID={testID}>
+    <FieldFrame label={label} error={error} helper={helper} hasTrailing onPressBox={onPress} testID={testID}>
       {/* The button spans the whole box, so it needs the box's inner width in points.
           It reaches out by the native button's own content padding (Android) so the
           value and icon land where the other fields put theirs. */}
@@ -67,7 +69,9 @@ function SelectFieldComponent({
               style={{ width, height: innerHeight }}
             >
               <Row alignment="center" style={{ width: width - NATIVE_BUTTON_INSET * 2 }}>
+                {/* One line, cut with "…": the box is one line tall, so a second would be clipped. */}
                 <ExpoText
+                  numberOfLines={1}
                   textStyle={{
                     fontFamily: textStyles.bodySm.fontFamily,
                     fontSize: textStyles.bodySm.fontSize,
