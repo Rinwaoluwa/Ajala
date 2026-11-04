@@ -9,6 +9,8 @@ import {
   ref,
   registerArchive,
   store,
+  traveller,
+  type DemoPerson,
   type DemoPost,
   type DemoRoute,
 } from '../demoStore';
@@ -172,7 +174,12 @@ function profileDto(id: string) {
   }
   const host = DEMO_HOSTS[hostIndex(id)];
   const person = PEOPLE[id];
-  if (!host || !person) return fail(404, 'NOT_FOUND', 'This profile isn’t available.');
+  if (!host || !person) {
+    // An attendee, commenter or chat partner: a short profile from what is known.
+    const someone = traveller(id);
+    if (someone) return travellerDto(someone);
+    return fail(404, 'NOT_FOUND', 'This profile isn’t available.');
+  }
   const home = cityById(person.city);
   return {
     id: host.id,
@@ -189,6 +196,32 @@ function profileDto(id: string) {
     extras: { tagline: person.tagline ?? null, languages: ['en'] },
     memberSince: new Date(Date.now() - person.memberDays * 86_400_000).toISOString(),
     blockedByMe: blocked.has(id),
+  };
+}
+
+const TRAVELLER_INTERESTS = [['food', 'music'], ['hiking', 'photography'], ['art', 'coffee'], ['nightlife']];
+
+/** A profile for someone the demo only knows by name and photo. */
+function travellerDto(p: DemoPerson) {
+  const seed = [...p.id].reduce((sum, c) => sum + c.charCodeAt(0), 0);
+  const first = p.displayName.split(' ')[0] ?? p.displayName;
+  const lagos = cityById('lagos');
+  const interests = TRAVELLER_INTERESTS[seed % TRAVELLER_INTERESTS.length] ?? [];
+  return {
+    id: p.id,
+    handle: p.displayName.toLowerCase().replace(/[^a-z]+/g, '.'),
+    displayName: p.displayName,
+    avatarUrl: p.avatarUrl,
+    gender: 'prefer_not_to_say',
+    bio: `${first} loves meeting new people around Lagos.`,
+    photos: [],
+    homeCity: lagos ? ref(lagos) : null,
+    visiting: null,
+    verified: p.verified ?? false,
+    interests: DEMO_INTERESTS.filter((i) => interests.includes(i.id)),
+    extras: { tagline: null, languages: ['en'] },
+    memberSince: new Date(Date.now() - (30 + (seed % 300)) * 86_400_000).toISOString(),
+    blockedByMe: blocked.has(p.id),
   };
 }
 

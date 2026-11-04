@@ -23,6 +23,27 @@ describe('the demo profiles', () => {
     expect(attended.items.length).toBe(6);
   });
 
+  it('opens a profile for someone going to a post and for a commenter', async () => {
+    const posts = await demoRequest<{ items: { id: string }[] }>({ method: 'GET', path: '/api/v1/feed' });
+    const postId = posts.items[0]?.id ?? '';
+    const going = await demoRequest<{ items: { user: { id: string; displayName: string } }[] }>({
+      method: 'GET',
+      path: `/api/v1/posts/${postId}/attendees?state=going`,
+    });
+    const someone = going.items[0]?.user;
+    expect(someone).toBeDefined();
+    const profile = await demoRequest<{ id: string; displayName: string }>({
+      method: 'GET',
+      path: `/api/v1/users/${someone?.id}`,
+    });
+    expect(profile).toMatchObject({ id: someone?.id, displayName: someone?.displayName });
+    const commenter = await demoRequest<{ displayName: string }>({
+      method: 'GET',
+      path: '/api/v1/users/u-ngozi',
+    });
+    expect(commenter.displayName).toBe('Ngozi Obi');
+  });
+
   it('blocks and unblocks, listing the blocked', async () => {
     await demoRequest({ method: 'POST', path: '/api/v1/users/h-james/block' });
     const blocks = await demoRequest<{ items: { id: string; blockedByMe: boolean }[] }>({

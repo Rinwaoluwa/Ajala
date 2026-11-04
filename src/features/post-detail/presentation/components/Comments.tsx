@@ -43,6 +43,7 @@ export function CommentsSection({
   hasMore,
   onLoadMore,
   onReply,
+  onOpenProfile,
 }: {
   comments: PostComment[];
   total: number;
@@ -51,6 +52,8 @@ export function CommentsSection({
   hasMore: boolean;
   onLoadMore: () => void;
   onReply: (comment: PostComment) => void;
+  /** The commenter's profile, from their photo or name. */
+  onOpenProfile: (userId: string) => void;
 }) {
   const theme = useTheme();
   const c = postCopy.comments;
@@ -91,7 +94,11 @@ export function CommentsSection({
               key={comment.id}
               entering={i < 6 || comment.pending ? enterRise(i < 6 ? i * 40 : 0) : undefined}
             >
-              <CommentRow comment={comment} onReply={() => onReply(comment)} />
+              <CommentRow
+                comment={comment}
+                onReply={() => onReply(comment)}
+                onOpenProfile={() => onOpenProfile(comment.author.userId)}
+              />
             </Animated.View>
           ))}
           {hasMore ? <TextLink label={c.more} onPress={onLoadMore} emphasis="plain" /> : null}
@@ -101,12 +108,29 @@ export function CommentsSection({
   );
 }
 
-function CommentRow({ comment, onReply }: { comment: PostComment; onReply: () => void }) {
+function CommentRow({
+  comment,
+  onReply,
+  onOpenProfile,
+}: {
+  comment: PostComment;
+  onReply: () => void;
+  onOpenProfile: () => void;
+}) {
   const theme = useTheme();
   const c = postCopy.comments;
   return (
     <View style={{ flexDirection: 'row', gap: 12, opacity: comment.pending ? 0.6 : 1 }}>
-      <Avatar name={comment.author.name} uri={comment.author.avatarUrl} size={44} />
+      <TouchableOpacity
+        activeOpacity={0.6}
+        onPress={onOpenProfile}
+        disabled={comment.pending}
+        accessibilityRole="button"
+        accessibilityLabel={c.openProfile(comment.author.name)}
+        style={{ alignSelf: 'flex-start' }}
+      >
+        <Avatar name={comment.author.name} uri={comment.author.avatarUrl} size={44} />
+      </TouchableOpacity>
       <View style={{ flex: 1, gap: 8 }}>
         <View
           accessible
@@ -119,7 +143,9 @@ function CommentRow({ comment, onReply }: { comment: PostComment; onReply: () =>
             backgroundColor: theme.skeletonSurface,
           }}
         >
-          <Text variant="bodyMd">{comment.author.name}</Text>
+          <Text variant="bodyMd" onPress={comment.pending ? undefined : onOpenProfile} suppressHighlighting>
+            {comment.author.name}
+          </Text>
           <Text variant="bodyMd" tone="muted">
             {comment.replyTo ? (
               <Text variant="bodyMd" tone="primary">{`@${comment.replyTo.name} `}</Text>

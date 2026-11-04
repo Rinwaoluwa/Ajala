@@ -334,6 +334,7 @@ export function PostDetailScreen({ postId, onBack, onOpenProfile, preview = null
             hasMore={talk.hasMore}
             onLoadMore={talk.loadMore}
             onReply={talk.reply}
+            onOpenProfile={onOpenProfile}
           />
         </Animated.View>
       </Animated.ScrollView>

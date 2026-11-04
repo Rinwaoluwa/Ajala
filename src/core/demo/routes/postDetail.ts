@@ -1,5 +1,5 @@
 import { ApiError } from '../../api/ApiError';
-import { archived, fail, page, store, type DemoPost, type DemoRoute } from '../demoStore';
+import { archived, fail, page, rememberPerson, store, type DemoPost, type DemoRoute } from '../demoStore';
 
 /**
  * Demo answers for the post page (API map §6): who is going, the host's
@@ -31,12 +31,12 @@ type Person = { id: string; displayName: string; avatarUrl: string | null; verif
 
 function person(postId: string, i: number): Person {
   const seed = [...postId].reduce((sum, c) => sum + c.charCodeAt(0), 0) + i;
-  return {
+  return rememberPerson({
     id: `u-${postId}-${i}`,
     displayName: `${FIRST[seed % FIRST.length]} ${LAST[Math.floor(seed / FIRST.length) % LAST.length]}`,
     avatarUrl: `https://i.pravatar.cc/150?img=${(seed % 70) + 1}`,
     verified: i % 3 === 0,
-  };
+  }) as Person;
 }
 
 /** A host's pending requests, per post, once first asked for. */
@@ -91,6 +91,7 @@ const VOICES = {
   fatima: { id: 'u-fatima', displayName: 'Fatima Bello', avatarUrl: 'https://i.pravatar.cc/150?img=24' },
   kola: { id: 'u-kola', displayName: 'Kola Adesanya', avatarUrl: 'https://i.pravatar.cc/150?img=53' },
 };
+Object.values(VOICES).forEach(rememberPerson);
 
 const hoursAgo = (h: number) => new Date(Date.now() - h * 3_600_000).toISOString();
 

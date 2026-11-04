@@ -175,6 +175,22 @@ export const archived = (id: string): DemoPost | undefined => {
   return undefined;
 };
 
+/**
+ * Other travellers the demo shows — attendees, commenters, chat partners — so
+ * tapping one opens a profile rather than "This profile isn't available". Each
+ * area remembers the people it draws; Profiles answers `GET /users/:id` from here
+ * when the id is not one of the hosts.
+ */
+export type DemoPerson = { id: string; displayName: string; avatarUrl: string | null; verified?: boolean };
+const travellers = new Map<string, DemoPerson>();
+
+export function rememberPerson(person: DemoPerson): DemoPerson {
+  travellers.set(person.id, person);
+  return person;
+}
+
+export const traveller = (id: string): DemoPerson | undefined => travellers.get(id);
+
 // ---------- helpers ----------
 
 const fail = (status: number, code: ApiErrorCode, message: string): never => {

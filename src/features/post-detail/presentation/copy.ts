@@ -96,6 +96,7 @@ export const postCopy = {
     more: 'Show more comments',
     reply: 'Reply',
     replyTo: (name: string) => `Reply to ${name}`,
+    openProfile: (name: string) => `${name}'s profile`,
     replyingTo: (name: string) => `Replying to ${name}`,
     replyPlaceholder: (name: string) => `Reply to ${name}...`,
     cancelReply: 'Cancel',

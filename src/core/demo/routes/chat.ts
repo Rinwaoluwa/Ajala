@@ -1,4 +1,4 @@
-import { fail, page, store, type DemoRoute } from '../demoStore';
+import { fail, page, rememberPerson, store, type DemoRoute } from '../demoStore';
 
 /**
  * Demo answers for Messages — the PROPOSED chat endpoints (chat is not in the
@@ -28,6 +28,7 @@ const P = {
   sam: { id: 'u-sam', displayName: 'Sam Daniels', avatarUrl: 'https://i.pravatar.cc/150?img=60' },
   tunde: { id: 'u-tunde', displayName: 'Tunde Adebayo', avatarUrl: 'https://i.pravatar.cc/150?img=68' },
 };
+Object.values(P).forEach(rememberPerson);
 
 /**
  * When a seeded message was sent. Earlier days sit at that clock time; today's
