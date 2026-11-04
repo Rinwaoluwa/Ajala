@@ -1,6 +1,8 @@
-import { PlaceholderScreen } from '@shared/components';
+import { router } from 'expo-router';
 
-/** PLACEHOLDER — Explore (API map §7) is not built yet. */
+import { ExploreScreen, exploreRoutes } from '@features/explore';
+
+/** The Explore tab: the map of activities around the person (API map §7). */
 export default function ExploreRoute() {
-  return <PlaceholderScreen title="Explore" body="Meetups that match your interests will appear here." />;
+  return <ExploreScreen onOpenPost={(id) => router.push({ pathname: exploreRoutes.post, params: { id } })} />;
 }
