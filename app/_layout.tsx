@@ -3,6 +3,7 @@ import { useFonts } from 'expo-font';
 import { SplashScreen, Stack, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useState } from 'react';
+import { KeyboardAvoidingView, Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
@@ -47,6 +48,15 @@ export default function RootLayout() {
     // Gestures (dragging a photo into a new place) need a root to attach to.
     <GestureHandlerRootView style={{ flex: 1 }}>
     <SafeAreaProvider>
+      {/* Android draws the app edge to edge, so the keyboard no longer shrinks the
+          window and covered every text box near the bottom (comments, chats, the
+          create wizard, forms). This shrinks the app above the keyboard instead, as
+          the window used to. iOS screens make their own room, so it is off there. */}
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior="padding"
+        enabled={Platform.OS === 'android'}
+      >
       {/* The API cache, under everything that reads the API. */}
       <QueryClientProvider client={queryClient}>
       {/* The session is app-wide state: the signed-in area guards on it and the
@@ -77,6 +87,7 @@ export default function RootLayout() {
       </LaunchStateProvider>
       </AuthProvider>
       </QueryClientProvider>
+      </KeyboardAvoidingView>
     </SafeAreaProvider>
     </GestureHandlerRootView>
   );

@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Pressable, View, useWindowDimensions } from 'react-native';
+import { Platform, Pressable, View, useWindowDimensions } from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -10,6 +10,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useKeyboardShown } from '@shared/hooks/useKeyboardShown';
 import { useLiquidGlass } from '@shared/hooks/useLiquidGlass';
 import { useTheme } from '@shared/hooks/useTheme';
 import { fontFamily, palette } from '@shared/theme';
@@ -77,6 +78,9 @@ export function FloatingTabBar({
   const fabStyle = useAnimatedStyle(() => ({
     transform: reduceMotion ? [] : [{ scale: 1 - 0.06 * press.value }],
   }));
+  // On Android the app shrinks above the keyboard (app/_layout.tsx), which would
+  // lift the bar onto the keyboard over the text box. It steps aside while typing.
+  const keyboardShown = useKeyboardShown();
 
   const half = (items: [TabItem, TabItem], side: 'left' | 'right') => (
     <GlassSurface
@@ -114,6 +118,8 @@ export function FloatingTabBar({
       ))}
     </GlassSurface>
   );
+
+  if (Platform.OS === 'android' && keyboardShown) return null;
 
   return (
     <View
