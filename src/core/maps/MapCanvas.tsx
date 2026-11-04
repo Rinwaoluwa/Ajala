@@ -1,5 +1,6 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState, type ReactNode } from 'react';
-import { Platform, StyleSheet, useColorScheme } from 'react-native';
+import Constants from 'expo-constants';
+import { Platform, StyleSheet, Text, View, useColorScheme } from 'react-native';
 import MapView, { Marker, type MapPressEvent, type Region } from 'react-native-maps';
 
 import { darkMapStyle } from './darkMapStyle';
@@ -39,6 +40,15 @@ export type MapCanvasProps = {
   children?: ReactNode;
 };
 
+/**
+ * Whether this build can draw a map. Android's Google Maps closes the app when it
+ * starts without an API key, so a build made without GOOGLE_MAPS_ANDROID_API_KEY
+ * (app.config.js records it) draws a note in the map's place instead. iOS uses
+ * Apple Maps, which needs no key.
+ */
+export const MAP_AVAILABLE =
+  Platform.OS !== 'android' || Constants.expoConfig?.extra?.googleMapsAndroid === true;
+
 export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(function MapCanvas(
   {
     initialRegion,
@@ -57,6 +67,8 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(function Ma
   useImperativeHandle(ref, () => ({
     animateTo: (region, durationMs = 450) => map.current?.animateToRegion(region as Region, durationMs),
   }));
+
+  if (!MAP_AVAILABLE) return <MapUnavailable dark={dark} />;
 
   return (
     <MapView
@@ -85,6 +97,28 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(function Ma
     </MapView>
   );
 });
+
+function MapUnavailable({ dark }: { dark: boolean }) {
+  return (
+    <View
+      style={[
+        StyleSheet.absoluteFill,
+        {
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: 32,
+          backgroundColor: dark ? '#1C2B2A' : '#E8EFEE',
+        },
+      ]}
+      accessible
+      accessibilityLabel="The map isn't available in this build."
+    >
+      <Text style={{ textAlign: 'center', fontSize: 14, color: dark ? '#C9D6D4' : '#4A5958' }}>
+        The map isn&apos;t available in this build.
+      </Text>
+    </View>
+  );
+}
 
 export type MapPinProps = {
   id: string;

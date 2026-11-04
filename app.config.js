@@ -28,8 +28,10 @@
  *   IOS_WEBCREDENTIALS_DOMAIN=ajalatrvl.com
  *
  * MAPS — the Explore map is react-native-maps: Apple Maps on iOS, which needs no
- * key, and Google Maps on Android, which does. Without the key the Android map
- * draws blank tiles; everything around it still works.
+ * key, and Google Maps on Android, which does. Google Maps closes the app when it
+ * starts without a key, so a build without one says so in `extra.googleMapsAndroid`
+ * and Explore shows a note in place of the map (src/core/maps/MapCanvas.tsx).
+ * For EAS builds, set it as an EAS environment variable, not only in .env:
  *
  *   GOOGLE_MAPS_ANDROID_API_KEY=<Maps SDK for Android key, restricted to com.ajala.app>
  */
@@ -57,12 +59,11 @@ module.exports = ({ config }) => {
     };
   }
 
+  const mapsKey = process.env.GOOGLE_MAPS_ANDROID_API_KEY;
   next = {
     ...next,
-    plugins: [
-      ...(next.plugins ?? []),
-      ['react-native-maps', { androidGoogleMapsApiKey: process.env.GOOGLE_MAPS_ANDROID_API_KEY }],
-    ],
+    extra: { ...next.extra, googleMapsAndroid: Boolean(mapsKey) },
+    plugins: [...(next.plugins ?? []), ['react-native-maps', { androidGoogleMapsApiKey: mapsKey }]],
   };
 
   const iosUrlScheme = process.env.GOOGLE_IOS_URL_SCHEME;

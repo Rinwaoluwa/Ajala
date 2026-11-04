@@ -1,5 +1,6 @@
 /** The map, behind one door: features import from here, never from the SDK. */
 export {
+  MAP_AVAILABLE,
   MapCanvas,
   MapPin,
   type MapCanvasHandle,
