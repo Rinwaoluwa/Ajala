@@ -1,6 +1,13 @@
-import { PlaceholderScreen } from '@shared/components';
+import { router } from 'expo-router';
 
-/** PLACEHOLDER — Trips (API map §8) needs `GET /me/rsvps`, which the backend does not have yet (§12). */
+import { TripsScreen } from '@features/trips';
+
+/** The Trips tab: what I host and what I went to (API map §8). */
 export default function TripsRoute() {
-  return <PlaceholderScreen title="Trips" body="Your upcoming plans and requests will appear here." />;
+  return (
+    <TripsScreen
+      onOpenTrip={(id) => router.push({ pathname: '/(app)/post/[id]', params: { id } })}
+      onExplore={() => router.navigate('/(app)/(tabs)/explore')}
+    />
+  );
 }
