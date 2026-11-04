@@ -1,23 +1,40 @@
-import { contentShape, shapes, type ModifierConfig } from '@expo/ui/swift-ui/modifiers';
+import { contentShape, frame, shapes, type ModifierConfig } from '@expo/ui/swift-ui/modifiers';
 
 /**
- * iOS: make the whole button tappable, not just its label.
+ * iOS: make the whole button tappable, not just its text.
  *
- * `variant="text"` maps to SwiftUI's `.plain` button style, whose hit area is its
- * CONTENT. The pill the user sees is a `.background()` applied around that content,
- * and a background does not take touches. So a wide button with a short label —
- * "Sign In" across the full screen width — was only tappable on the few characters
- * in the middle, and a tap anywhere else did nothing. That is the "I have to press
- * it three or four times" bug.
+ * `variant="text"` maps to SwiftUI's `.plain` button style, which only takes taps
+ * on its LABEL — the view passed as the button's child. Anything Expo UI adds from
+ * the button's own `style` (padding, frame, background) wraps the button from the
+ * outside, so it is drawn but is not part of the label, and a tap on it does
+ * nothing. A full-width "Sign In" was tappable only on its few letters: the "I have
+ * to press it three or four times" bug. A `.contentShape()` on the button from the
+ * outside does not help either: the button's tap is decided inside, on the label.
  *
- * `.contentShape()` declares the shape that hit-testing uses. Expo UI's own
- * `ListItem` does the same thing for the same reason. It is passed through the
- * `modifiers` prop, which Expo UI applies last — after the frame and background —
- * so the shape covers the whole button rather than just the label.
- *
- * The shape follows the button's own corner radius, so the corners outside the
- * pill stay untappable and the touch target matches what is drawn.
+ * So these modifiers go on the LABEL container (the Row inside the button), after
+ * its padding:
+ *   - `fillWidth` / `fillHeight` stretch the label to the frame the button was
+ *     given, so a full-width button's label is full width too (centred);
+ *   - `contentShape` makes the label's empty space — the padding, a `Spacer` —
+ *     hit-test, in the button's own shape so the corners outside a pill stay out.
  */
-export function buttonHitArea(radius: number): ModifierConfig[] {
-  return [contentShape(shapes.roundedRectangle({ cornerRadius: radius }))];
+export function buttonHitArea({
+  radius = 0,
+  fillWidth = false,
+  fillHeight = false,
+}: {
+  radius?: number;
+  fillWidth?: boolean;
+  fillHeight?: boolean;
+}): ModifierConfig[] {
+  const fill =
+    fillWidth || fillHeight
+      ? [
+          frame({
+            maxWidth: fillWidth ? Infinity : undefined,
+            maxHeight: fillHeight ? Infinity : undefined,
+          }),
+        ]
+      : [];
+  return [...fill, contentShape(shapes.roundedRectangle({ cornerRadius: radius }))];
 }

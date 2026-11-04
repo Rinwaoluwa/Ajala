@@ -1,8 +1,9 @@
-import { Button as ExpoButton, Host } from '@expo/ui';
+import { Button as ExpoButton, Host, Row } from '@expo/ui';
 import { View } from 'react-native';
 
 import { useTheme } from '@shared/hooks/useTheme';
 
+import { buttonHitArea } from '../ui/buttonHitArea';
 import { icons } from '../ui/icons';
 import { a11yLabel } from '../ui/nativeA11y';
 import { NativeIcon } from '../ui/NativeIcon';
@@ -59,10 +60,12 @@ export function ScreenHeader({ title, onBack }: ScreenHeaderProps) {
             variant="text"
             onPress={onBack}
             modifiers={a11yLabel('Back')}
-            style={{ padding: ARROW_PAD }}
             testID="screen-header-back"
           >
-            <NativeIcon source={icons.back} size={ARROW_SIZE} color={theme.foreground} />
+            {/* The padding is on the label, inside the button, so it takes taps too. */}
+            <Row style={{ padding: ARROW_PAD }} modifiers={buttonHitArea({})}>
+              <NativeIcon source={icons.back} size={ARROW_SIZE} color={theme.foreground} />
+            </Row>
           </ExpoButton>
         </Host>
       ) : null}

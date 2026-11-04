@@ -56,6 +56,14 @@ import { nativeTextScaleCap } from './nativeTextScale';
  *    rectangular `.border()` would be clipped by the rounded shape and come out
  *    chopped, so an inset `strokeBorder` is used instead.
  *
+ * 5. THE WHOLE BUTTON TAKES TAPS. The padding (and, on iOS, the full width and the
+ *    hit shape) sit on the label Row INSIDE the native button, never on the
+ *    button's own `style`. Expo UI applies a button's style outside the native
+ *    button: on iOS a `.plain` button only takes taps on its label, and on Android
+ *    the padding becomes a margin outside Compose's clickable surface. With the
+ *    padding on the button, only the text in the middle responded and people had
+ *    to tap three to five times. See `buttonHitArea`.
+ *
  * The label is a child rather than the `label` prop, because only a child can carry
  * our font and colour. Press feedback, focus order and accessibility stay native.
  *
@@ -219,31 +227,34 @@ export function ButtonCore({
       testID={testID}
       modifiers={[
         ...(outline.modifiers ?? []),
-        ...buttonHitArea(radius),
         // The label grows with the text-size setting, up to the shared ceiling.
         ...nativeTextScaleCap(),
         // The spinner is silent to VoiceOver, so the label says it instead.
         ...(loading ? a11yLabel(`${label}, loading`) : []),
       ]}
+      // Only what is drawn around the label lives here. The padding is on the label
+      // below, so that it takes taps: see note 5 above.
       style={{
-        // Padding, not a fixed height: equals the design's height at the default
-        // text size and grows with the label beyond it.
-        paddingVertical: Math.max(0, (height - contentHeight) / 2 - NATIVE_BUTTON_INSET_VERTICAL),
         ...(width !== undefined ? { width } : null),
-        paddingHorizontal,
         backgroundColor: background ?? outline.fill,
         borderRadius: radius,
         ...(outline.styleBorder ?? null),
       }}
     >
-      {leading ? (
-        <Row alignment="center" spacing={icon ? layout.socialButton.iconGap : SPINNER_GAP}>
-          {leading}
-          {text}
-        </Row>
-      ) : (
-        text
-      )}
+      <Row
+        alignment="center"
+        spacing={leading ? (icon ? layout.socialButton.iconGap : SPINNER_GAP) : undefined}
+        style={{
+          // Padding, not a fixed height: equals the design's height at the default
+          // text size and grows with the label beyond it.
+          paddingVertical: Math.max(0, (height - contentHeight) / 2 - NATIVE_BUTTON_INSET_VERTICAL),
+          paddingHorizontal,
+        }}
+        modifiers={buttonHitArea({ radius, fillWidth: width !== undefined })}
+      >
+        {leading}
+        {text}
+      </Row>
     </ExpoButton>
   );
 }

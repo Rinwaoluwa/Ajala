@@ -7,6 +7,7 @@ import { useMeasuredWidth } from '@shared/hooks/useMeasuredWidth';
 import { useTheme } from '@shared/hooks/useTheme';
 import { layout, textStyles } from '@shared/theme';
 
+import { buttonHitArea } from '../ui/buttonHitArea';
 import { a11yLabel } from '../ui/nativeA11y';
 import { NativeIcon, type NativeIconSource } from '../ui/NativeIcon';
 import { NATIVE_BUTTON_INSET } from '../ui/nativeButtonInset';
@@ -68,7 +69,12 @@ function SelectFieldComponent({
               testID={testID ? `${testID}-button` : undefined}
               style={{ width, height: innerHeight }}
             >
-              <Row alignment="center" style={{ width: width - NATIVE_BUTTON_INSET * 2 }}>
+              <Row
+                alignment="center"
+                style={{ width: width - NATIVE_BUTTON_INSET * 2 }}
+                // The whole box takes the tap, not just the text and the icon (iOS).
+                modifiers={buttonHitArea({ fillHeight: true })}
+              >
                 {/* One line, cut with "…": the box is one line tall, so a second would be clipped. */}
                 <ExpoText
                   numberOfLines={1}
