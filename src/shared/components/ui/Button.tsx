@@ -1,7 +1,8 @@
 import { Button as ExpoButton, Host, Row, Text as ExpoText } from '@expo/ui';
 import { useCallback, useState } from 'react';
-import { View, type LayoutChangeEvent } from 'react-native';
+import { Platform, View, type LayoutChangeEvent } from 'react-native';
 
+import { useFontScale } from '@shared/hooks/useFontScale';
 import { useTheme } from '@shared/hooks/useTheme';
 import { layout, textStyles } from '@shared/theme';
 
@@ -144,6 +145,7 @@ export function ButtonCore({
   testID,
 }: ButtonCoreProps) {
   const theme = useTheme();
+  const fontScale = useFontScale();
 
   const height = HEIGHT[size];
   const radius =
@@ -236,6 +238,12 @@ export function ButtonCore({
       // below, so that it takes taps: see note 5 above.
       style={{
         ...(width !== undefined ? { width } : null),
+        // Android: the design's height, stated. Compose's button never measures under
+        // its 48dp touch size and draws the pill at whatever it measures, and its
+        // label line is 17dp, not the 20 the padding assumes, so a 44pt "Next" came
+        // out about 56dp tall. A set height keeps the pill at the design's size; the
+        // touch area stays 48dp around it.
+        ...(Platform.OS === 'android' ? { height: buttonMetrics.heightAt(size, fontScale) } : null),
         backgroundColor: background ?? outline.fill,
         borderRadius: radius,
         ...(outline.styleBorder ?? null),
