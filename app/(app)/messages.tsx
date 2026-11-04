@@ -1,8 +1,14 @@
 import { router } from 'expo-router';
 
-import { PlaceholderScreen } from '@shared/components';
+import { MessagesScreen, chatRoutes } from '@features/chat';
 
-/** PLACEHOLDER — messaging is not built yet. */
+/** Messages (Figma Messages): the conversations, opened from the home header's chat icon. */
 export default function MessagesRoute() {
-  return <PlaceholderScreen title="Messages" onBack={() => router.back()} />;
+  return (
+    <MessagesScreen
+      onBack={() => (router.canGoBack() ? router.back() : router.replace('/(app)/(tabs)'))}
+      onOpenThread={(id) => router.push({ pathname: chatRoutes.thread, params: { id } })}
+      onExplore={() => router.replace('/(app)/(tabs)/explore')}
+    />
+  );
 }

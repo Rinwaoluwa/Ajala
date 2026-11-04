@@ -1,11 +1,8 @@
 /**
- * Public API of the `chat` feature.
- *
- * This file is the ONLY entry point other features and the `app/` route tree may
- * import from. Export screens, route params and the feature's provider here;
- * keep repositories, DTOs and internal components private.
- *
- * export { default as ThreadListScreen } from './presentation/screens/ThreadListScreen';
+ * Public API of the `chat` feature: the Messages list and a conversation.
+ * Chat is not in the API yet — see the README for the proposed endpoints.
  */
 
-export {};
+export { MessagesScreen, type MessagesScreenProps } from './presentation/screens/MessagesScreen';
+export { ChatScreen, type ChatScreenProps } from './presentation/screens/ChatScreen';
+export { chatRoutes } from './presentation/navigation/routes';
