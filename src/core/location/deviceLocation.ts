@@ -1,6 +1,8 @@
 import * as Location from 'expo-location';
 import { Linking } from 'react-native';
 
+import { DEMO_MODE } from '../demo/demoMode';
+
 /**
  * Where the phone is, and whether the app may ask. The only file that imports
  * `expo-location`.
@@ -53,6 +55,9 @@ export async function requestLocationPermission(): Promise<LocationPermission> {
  * once when there is a recent one; otherwise a fresh fix, given `timeoutMs`.
  */
 export async function getCurrentCoordinates(timeoutMs = 8000): Promise<Coordinates | null> {
+  // The demo's posts are all in Lagos: a demo build tested anywhere else would show an
+  // empty feed and map, so it stands the phone in Victoria Island instead.
+  if (DEMO_MODE) return DEMO_POSITION;
   try {
     const last = await Location.getLastKnownPositionAsync({ maxAge: 10 * 60 * 1000 });
     if (last) return { lat: last.coords.latitude, lng: last.coords.longitude };
@@ -66,6 +71,9 @@ export async function getCurrentCoordinates(timeoutMs = 8000): Promise<Coordinat
     return null;
   }
 }
+
+/** Where a demo build says the phone is (Victoria Island, Lagos), as docs/DEMO.md suggests for the simulator. */
+const DEMO_POSITION: Coordinates = { lat: 6.4281, lng: 3.4219 };
 
 /** This app's page in the system Settings, where a blocked permission is turned back on. */
 export function openAppSettings(): void {
@@ -81,4 +89,21 @@ export async function getClientLocationHeader(): Promise<Record<string, string> 
   if ((await getLocationPermission()) !== 'granted') return null;
   const coords = await getCurrentCoordinates();
   return coords ? { 'X-Client-Location': `${coords.lat.toFixed(3)},${coords.lng.toFixed(3)}` } : null;
+}
+
+/**
+ * Where a typed place is ("Eko Convention Centre, Lagos"), by the platform's own
+ * geocoder (Apple's on iOS, Google Play services' on Android) — the pin a post
+ * needs (spec §2.12), without a places SDK. The first match wins; null when the
+ * place cannot be found or the geocoder is unreachable.
+ */
+export async function geocodePlace(text: string): Promise<Coordinates | null> {
+  const query = text.trim();
+  if (!query) return null;
+  try {
+    const [first] = await Location.geocodeAsync(query);
+    return first ? { lat: first.latitude, lng: first.longitude } : null;
+  } catch {
+    return null;
+  }
 }
