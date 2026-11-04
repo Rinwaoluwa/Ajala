@@ -6,7 +6,9 @@ import { icons, type NativeIconSource } from '@shared/components';
  * Email takes the label colour in both themes. Google's "G" keeps its own four
  * colours: a PNG on iOS and an untinted vector drawable on Android, both drawn from
  * `assets/icons/brands/google-g.svg`. Before release, replace those with the mark
- * from Google's official Sign-In branding kit.
+ * from Google's official Sign-In branding kit. The vector is `google-g-vector.xml`,
+ * not `google-g.xml`: a release build turns each image into an Android resource
+ * named after its path without the extension, and two `google-g` files collide.
  *
  * ANDROID: the Apple mark is an SF Symbol, which may only be used on Apple
  * platforms, so the Apple button shows its label alone on Android until the mark
@@ -16,7 +18,7 @@ export const providerIcons = {
   apple: { symbol: 'apple.logo' },
   google: {
     image: require('../../../../assets/icons/brands/google-g.png') as number,
-    android: require('../../../../assets/icons/brands/google-g.xml') as number,
+    android: require('../../../../assets/icons/brands/google-g-vector.xml') as number,
   },
   email: icons.mail,
 } satisfies Record<string, NativeIconSource>;

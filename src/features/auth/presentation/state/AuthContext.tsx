@@ -1,6 +1,8 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
+import { savedPosts } from '@shared/state/savedPosts';
+
 import { createAuthUseCases, type AuthUseCases } from '../../authModule';
 import type { AuthSession } from '../../domain/entities/AuthSession';
 
@@ -55,6 +57,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         onSessionEnded: () => {
           // Nothing cached for the account may outlive its session (spec §7).
           queryClient.clear();
+          savedPosts.clear();
           setState({ status: 'signedOut' });
         },
       }),
@@ -69,7 +72,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .restoreSession()
       .then((session) => {
         if (active) {
-          setState(session ? { status: 'signedIn', session, needsEntryCheck: true } : { status: 'signedOut' });
+          setState(
+            session ? { status: 'signedIn', session, needsEntryCheck: true } : { status: 'signedOut' },
+          );
         }
       })
       .catch(() => {
@@ -91,7 +96,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const completeEntryCheck = useCallback(() => {
     setState((current) =>
-      current.status === 'signedIn' && current.needsEntryCheck ? { ...current, needsEntryCheck: false } : current,
+      current.status === 'signedIn' && current.needsEntryCheck
+        ? { ...current, needsEntryCheck: false }
+        : current,
     );
   }, []);
 
@@ -101,6 +108,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // the person out on this device.
     await useCases.signOut();
     queryClient.clear();
+    savedPosts.clear();
     setState({ status: 'signedOut' });
   }, [useCases, queryClient]);
 
