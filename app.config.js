@@ -26,6 +26,12 @@
  * cannot sign the Associated Domains capability.
  *
  *   IOS_WEBCREDENTIALS_DOMAIN=ajalatrvl.com
+ *
+ * MAPS — the Explore map is react-native-maps: Apple Maps on iOS, which needs no
+ * key, and Google Maps on Android, which does. Without the key the Android map
+ * draws blank tiles; everything around it still works.
+ *
+ *   GOOGLE_MAPS_ANDROID_API_KEY=<Maps SDK for Android key, restricted to com.ajala.app>
  */
 module.exports = ({ config }) => {
   // Xcode 26 rejects expo-modules-core 57.0.23 in Swift 6 mode; see the plugin.
@@ -50,6 +56,14 @@ module.exports = ({ config }) => {
       },
     };
   }
+
+  next = {
+    ...next,
+    plugins: [
+      ...(next.plugins ?? []),
+      ['react-native-maps', { androidGoogleMapsApiKey: process.env.GOOGLE_MAPS_ANDROID_API_KEY }],
+    ],
+  };
 
   const iosUrlScheme = process.env.GOOGLE_IOS_URL_SCHEME;
   if (iosUrlScheme) {
