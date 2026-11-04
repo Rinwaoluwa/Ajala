@@ -50,11 +50,16 @@ const FALL_MS = 200;
 export type SheetProps = {
   isPresented: boolean;
   title: string;
+  /**
+   * A line under the title. It sits above the scroll area rather than in it: pulled
+   * up into the scroll area with a negative margin, Android clipped its top.
+   */
+  subtitle?: string;
   onDismiss: () => void;
   children: ReactNode;
 };
 
-export function Sheet({ isPresented, title, onDismiss, children }: SheetProps) {
+export function Sheet({ isPresented, title, subtitle, onDismiss, children }: SheetProps) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const reduceMotion = useReducedMotion();
@@ -147,8 +152,13 @@ export function Sheet({ isPresented, title, onDismiss, children }: SheetProps) {
             </Host>
           </Pressable>
         </View>
+        {subtitle ? (
+          <Text variant="bodySm" tone="muted" style={{ marginTop: 8 }}>
+            {subtitle}
+          </Text>
+        ) : null}
         <ScrollView
-          style={{ marginTop: 16, flexShrink: 1 }}
+          style={{ marginTop: subtitle ? 20 : 16, flexShrink: 1 }}
           scrollEnabled={contentOverflows}
           showsVerticalScrollIndicator={contentOverflows}
           keyboardShouldPersistTaps="handled"

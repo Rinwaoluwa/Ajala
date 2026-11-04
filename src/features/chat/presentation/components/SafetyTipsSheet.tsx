@@ -13,11 +13,8 @@ import { chatCopy } from '../copy';
 export function SafetyTipsSheet({ isPresented, onDismiss }: { isPresented: boolean; onDismiss: () => void }) {
   const t = chatCopy.tips;
   return (
-    <Sheet isPresented={isPresented} title={t.title} onDismiss={onDismiss}>
+    <Sheet isPresented={isPresented} title={t.title} subtitle={t.body} onDismiss={onDismiss}>
       <View style={{ gap: 20 }}>
-        <Text variant="bodySm" tone="muted" style={{ marginTop: -8 }}>
-          {t.body}
-        </Text>
         {t.items.map((tip, i) => (
           <View key={tip.title} style={{ flexDirection: 'row', gap: 16 }} accessible>
             <View
