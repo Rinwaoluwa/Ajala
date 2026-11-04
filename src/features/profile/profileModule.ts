@@ -1,6 +1,7 @@
 import { pickSquareImage } from '@core/media/imagePicker';
 
 import { createProfileRepository } from './data/repositories/ProfileRepositoryImpl';
+import { createProfileViewRepository } from './data/repositories/ProfileViewRepositoryImpl';
 import type { ProfileRequest } from './data/datasources/remote/profileApi';
 import {
   makeCheckHandle,
@@ -13,6 +14,15 @@ import {
   makeSearchCities,
   makeUploadAvatar,
 } from './domain/usecases/ProfileSetupUseCases';
+import {
+  makeBlockPerson,
+  makeGetPerson,
+  makeLoadMyHistory,
+  makeLoadPersonActivity,
+  makeLoadPersonHistory,
+  makeReportPerson,
+  makeUnblockPerson,
+} from './domain/usecases/ProfileViewUseCases';
 
 /**
  * The feature's composition root. `request` makes calls as the signed-in person
@@ -35,6 +45,22 @@ export function createProfileUseCases(request: ProfileRequest) {
 }
 
 export type ProfileUseCases = ReturnType<typeof createProfileUseCases>;
+
+/** The profile pages (own, other people's, achievements): `GET /users/…`, `/me/attended`. */
+export function createProfileViewUseCases(request: ProfileRequest) {
+  const repo = createProfileViewRepository(request);
+  return {
+    loadMyHistory: makeLoadMyHistory(repo),
+    loadPersonHistory: makeLoadPersonHistory(repo),
+    getPerson: makeGetPerson(repo),
+    loadPersonActivity: makeLoadPersonActivity(repo),
+    blockPerson: makeBlockPerson(repo),
+    unblockPerson: makeUnblockPerson(repo),
+    reportPerson: makeReportPerson(repo),
+  };
+}
+
+export type ProfileViewUseCases = ReturnType<typeof createProfileViewUseCases>;
 
 /** Picking a profile photo: cropped square, resized and compressed for upload (§1.4). */
 export const profileMedia = { pickSquareImage };

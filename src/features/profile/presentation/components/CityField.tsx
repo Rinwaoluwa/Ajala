@@ -53,7 +53,7 @@ export function CityField({ label, detected, detecting, onPress }: CityFieldProp
             opacity: pressed ? 0.7 : 1,
           }}
         >
-          <Host matchContents pointerEvents="none">
+          <Host matchContents pointerEvents="none" ignoreSafeArea="all">
             <NativeIcon source={icons.location} size={18} color={palette.ink} />
           </Host>
           <Animated.View key={label ?? 'empty'} entering={FadeIn.duration(200)} style={{ flex: 1 }}>

@@ -65,7 +65,7 @@ export function AvatarPicker({ avatar, onPress }: AvatarPickerProps) {
               transition={200}
             />
           ) : (
-            <Host matchContents pointerEvents="none">
+            <Host matchContents pointerEvents="none" ignoreSafeArea="all">
               <NativeIcon source={icons.person} size={26} color={palette.inkSecondary} />
             </Host>
           )}

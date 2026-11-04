@@ -16,6 +16,12 @@ export type ProfileErrorCode =
   | 'imageNotSupported'
   /** 400 VALIDATION_FAILED on anything else. */
   | 'invalidDetails'
+  /** 404 on another person: suspended, deleted, or they blocked the viewer. */
+  | 'notFound'
+  /** 409 on a report: one about this person is already open. */
+  | 'alreadyReported'
+  /** 400 on a report or block of your own profile. */
+  | 'ownProfile'
   | 'rateLimited'
   | 'network'
   | 'sessionExpired'

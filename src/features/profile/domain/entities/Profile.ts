@@ -46,6 +46,23 @@ export type MyProfile = {
   languages: string[];
   /** Null until first name, last name, date of birth and gender are all set. */
   profileCompletedAt: string | null;
+  /** What the profile page shows beyond setup (GET /me); absent on records built during setup. */
+  about?: ProfileAbout;
+};
+
+/** A photo in the person's gallery (`ProfilePhotoDto`): 1280px and 400px. */
+export type ProfilePhoto = { id: string; url: string; thumbUrl: string };
+
+export type SocialLinks = { instagram: string | null; tiktok: string | null; website: string | null };
+
+/** The profile page's extras: bio, pronouns, tagline, links, gallery, badge. */
+export type ProfileAbout = {
+  bio: string | null;
+  pronouns: string | null;
+  tagline: string | null;
+  socialLinks: SocialLinks;
+  photos: ProfilePhoto[];
+  verified: boolean;
 };
 
 /** What a `PATCH /me` may change. Fields left out are left alone. */

@@ -36,7 +36,17 @@ export interface InterestDto {
 /** Open-ended on purpose: a PATCH sends back every key it was given. */
 export interface ProfileExtrasDto {
   languages?: string[];
+  pronouns?: string | null;
+  tagline?: string | null;
+  socialLinks?: { instagram?: string | null; tiktok?: string | null; website?: string | null };
   [key: string]: unknown;
+}
+
+export interface ProfilePhotoDto {
+  id: string;
+  url: string;
+  thumbUrl: string;
+  position: number;
 }
 
 export interface MeDto {
@@ -51,6 +61,10 @@ export interface MeDto {
   interests: InterestDto[] | null;
   extras: ProfileExtrasDto | null;
   profileCompletedAt: string | null;
+  /** Read by the profile page; may be missing on older answers. */
+  bio?: string | null;
+  photos?: ProfilePhotoDto[] | null;
+  verified?: boolean;
 }
 
 export interface UpdateProfileDto {

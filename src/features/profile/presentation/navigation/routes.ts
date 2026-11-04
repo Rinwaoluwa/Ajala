@@ -17,3 +17,11 @@ export const profileSetupRoutes = {
 
 /** The four numbered steps the indicator counts. */
 export const SETUP_STEPS = 4;
+
+/** The profile pages in the route tree. */
+export const profileRoutes = {
+  saved: '/(app)/saved',
+  achievements: '/(app)/achievements',
+  /** Another traveller: `{ pathname: profileRoutes.user, params: { id } }`. */
+  user: '/(app)/user/[id]',
+} as const;

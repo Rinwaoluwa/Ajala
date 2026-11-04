@@ -37,15 +37,34 @@ export function toMyProfile(dto: MeDto): MyProfile {
     interests: (dto.interests ?? []).map(toInterest),
     languages: Array.isArray(dto.extras?.languages) ? dto.extras.languages : [],
     profileCompletedAt: dto.profileCompletedAt ?? null,
+    about: {
+      bio: dto.bio ?? null,
+      pronouns: typeof dto.extras?.pronouns === 'string' ? dto.extras.pronouns : null,
+      tagline: typeof dto.extras?.tagline === 'string' ? dto.extras.tagline : null,
+      socialLinks: {
+        instagram: dto.extras?.socialLinks?.instagram ?? null,
+        tiktok: dto.extras?.socialLinks?.tiktok ?? null,
+        website: dto.extras?.socialLinks?.website ?? null,
+      },
+      photos: [...(dto.photos ?? [])]
+        .sort((a, b) => a.position - b.position)
+        .map((p) => ({ id: p.id, url: p.url, thumbUrl: p.thumbUrl })),
+      verified: dto.verified ?? false,
+    },
   };
 }
 
 /**
  * Turns whatever a profile call threw into a `ProfileError`, by the API's code
  * (spec §5). `handle` says the call was about the handle, where a 409 CONFLICT
- * means "taken" and a 400 means the server will not have it.
+ * means "taken" and a 400 means the server will not have it. `person` says it
+ * was about someone else: a 404 means they are not available, a 409 that a
+ * report is already open, a 400 that it was the person's own profile.
  */
-export function toProfileError(e: unknown, context: { handle?: boolean } = {}): ProfileError {
+export function toProfileError(
+  e: unknown,
+  context: { handle?: boolean; person?: boolean } = {},
+): ProfileError {
   if (e instanceof ProfileError) return e;
   if (!isApiError(e)) {
     // Auth's session wrapper ends a dead session with its own error type.
@@ -63,6 +82,12 @@ export function toProfileError(e: unknown, context: { handle?: boolean } = {}): 
     UNAUTHORIZED: 'sessionExpired',
   };
   let code = byCode[e.code];
+  // About another person (their profile, a block, a report): spec §2.14, §3.9.
+  if (!code && context.person) {
+    if (e.code === 'NOT_FOUND') code = 'notFound';
+    else if (e.code === 'CONFLICT') code = 'alreadyReported';
+    else if (e.code === 'BAD_REQUEST' || e.code === 'VALIDATION_FAILED') code = 'ownProfile';
+  }
   if (!code && context.handle) {
     if (e.code === 'CONFLICT') code = 'handleTaken';
     else if (e.code === 'VALIDATION_FAILED' || e.code === 'BAD_REQUEST') code = 'handleInvalid';

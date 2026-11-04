@@ -8,4 +8,10 @@ export const profileKeys = {
   citySearch: (query: string) => ['profile', 'cities', query] as const,
   interests: ['profile', 'interests'] as const,
   handle: (handle: string) => ['profile', 'handle', handle] as const,
+  /** The signed-in person's whole attended history (achievements, counters). */
+  myHistory: ['profile', 'history', 'me'] as const,
+  person: (userId: string) => ['profile', 'person', userId] as const,
+  personHistory: (userId: string) => ['profile', 'history', userId] as const,
+  personActivity: (userId: string, tab: 'hosting' | 'attending') =>
+    ['profile', 'activity', userId, tab] as const,
 };
