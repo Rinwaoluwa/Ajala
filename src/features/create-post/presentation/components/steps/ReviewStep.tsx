@@ -1,0 +1,203 @@
+import { Image } from 'expo-image';
+import { View } from 'react-native';
+import Animated, { FadeIn, LinearTransition } from 'react-native-reanimated';
+
+import { Button, Chip, ChipGroup, SkeletonBlock, SkeletonPulse, Text, TextLink } from '@shared/components';
+import { useTheme } from '@shared/hooks/useTheme';
+
+import { STEPS, perPersonAmount, startOf, stepIssues } from '../../../domain/rules/postDraftRules';
+import { fieldNames, kindCopy, wizardCopy } from '../../copy';
+import { formatMoney, formatShortDay, formatTime } from '../../format';
+import type { CreatePostViewModel } from '../../hooks/useCreatePost';
+import { StepIntro } from '../StepIntro';
+
+/**
+ * Step five, "Review your …": the post as travellers will see it (cover, title,
+ * "Lagos · 22 Oct · 5:30 PM", description), the summary rows, then Publish in
+ * coral.
+ *
+ * Interests are required to publish but in no wizard of the design (API map
+ * §12), so they are asked for here, 1 to 3. Anything else still missing is
+ * listed above Publish with a link to its step — along with whatever the server
+ * turned down, if a Publish came back with a validation error.
+ */
+export function ReviewStep({ vm }: { vm: CreatePostViewModel }) {
+  const theme = useTheme();
+  const kind = kindCopy[vm.kind];
+  const copy = kind.review;
+  const participants = kind.participants;
+  const { draft } = vm;
+  const start = startOf(draft);
+  const each = perPersonAmount(draft);
+  const where = draft.city?.name ?? draft.place.trim();
+  const meta = [where, start ? formatShortDay(start) : null, start ? formatTime(start) : null]
+    .filter(Boolean)
+    .join(' · ');
+  const cover = draft.photos[0];
+
+  const costValue =
+    !draft.costOn || each === null
+      ? wizardCopy.free
+      : vm.kind === 'event'
+        ? wizardCopy.entry(formatMoney(each, draft.currency))
+        : wizardCopy.splitEach(formatMoney(each, draft.currency));
+
+  const rows: [string, string][] = [
+    [
+      copy.peopleLabel,
+      draft.capacity === null ? wizardCopy.noLimitPeople : wizardCopy.peopleCount(draft.capacity),
+    ],
+    [
+      wizardCopy.joinSetting,
+      draft.visibility === 'open' ? participants.openTitle : participants.privateTitle,
+    ],
+    [copy.costLabel, costValue],
+    [wizardCopy.meetingPoint, draft.place.trim() || draft.city?.label || '—'],
+  ];
+
+  // Everything not ready, step by step (the review step's own — interests — is shown in place).
+  const missing = STEPS.filter((s) => s !== 'review').flatMap((s) =>
+    Object.keys(stepIssues(draft, s)).map((field) => ({ step: s, field: field as keyof typeof fieldNames })),
+  );
+  const serverErrors =
+    vm.outcome.kind === 'failed' && vm.outcome.error.code === 'invalid' ? vm.outcome.error.fieldErrors : [];
+
+  return (
+    <View style={{ gap: 20 }}>
+      <StepIntro heading={copy.heading} body={copy.body} />
+
+      <View
+        style={{
+          borderRadius: 16,
+          borderWidth: 1,
+          borderColor: theme.border,
+          backgroundColor: theme.card,
+          padding: 12,
+          gap: 10,
+        }}
+      >
+        {cover ? (
+          <Image
+            source={{ uri: cover.uri }}
+            style={{ width: '100%', aspectRatio: 16 / 7, borderRadius: 10 }}
+            contentFit="cover"
+            transition={200}
+            accessibilityIgnoresInvertColors
+          />
+        ) : null}
+        <View style={{ gap: 4, paddingHorizontal: 4, paddingBottom: 4 }}>
+          <Text variant="headingSm">{draft.title.trim()}</Text>
+          {meta ? (
+            <Text variant="bodySm" tone="muted">
+              {meta}
+            </Text>
+          ) : null}
+          {draft.description.trim() ? <Text variant="bodySm">{draft.description.trim()}</Text> : null}
+        </View>
+      </View>
+
+      <View style={{ gap: 14 }}>
+        {rows.map(([label, value]) => (
+          <View key={label} style={{ flexDirection: 'row', flexWrap: 'wrap', columnGap: 12, rowGap: 2 }}>
+            <Text variant="bodySm" tone="muted" style={{ flexGrow: 1 }}>
+              {label}
+            </Text>
+            <Text variant="bodySm" style={{ flexShrink: 1, textAlign: 'right' }}>
+              {value}
+            </Text>
+          </View>
+        ))}
+      </View>
+
+      <Interests vm={vm} />
+
+      {missing.length > 0 || serverErrors.length > 0 ? (
+        <Animated.View
+          entering={FadeIn.duration(200)}
+          layout={LinearTransition.duration(200)}
+          accessibilityLiveRegion="polite"
+          style={{ borderRadius: 12, padding: 16, gap: 8, backgroundColor: theme.dangerSoft }}
+        >
+          <Text variant="labelSm" style={{ color: theme.danger }}>
+            {wizardCopy.fixFirst}
+          </Text>
+          {missing.map(({ step, field }) => (
+            <View key={field} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Text variant="bodySm" style={{ flex: 1, color: theme.chipForeground }}>
+                {field === 'place'
+                  ? kind.schedule.placeLabel
+                  : field === 'city'
+                    ? (kind.basics.city?.label ?? fieldNames.city)
+                    : fieldNames[field]}
+              </Text>
+              <TextLink label={wizardCopy.goFix} onPress={() => vm.goToStep(step)} emphasis="plain" />
+            </View>
+          ))}
+          {serverErrors.map((e) => (
+            <Text key={`${e.field}-${e.message}`} variant="bodySm" style={{ color: theme.chipForeground }}>
+              {e.message}
+            </Text>
+          ))}
+        </Animated.View>
+      ) : null}
+
+      <Button
+        label={copy.publish}
+        variant="cta"
+        size="lg"
+        fullWidth
+        onPress={vm.publish}
+        disabled={!vm.canPublish}
+        loading={vm.publishing}
+        testID="create-publish"
+      />
+    </View>
+  );
+}
+
+function Interests({ vm }: { vm: CreatePostViewModel }) {
+  const full = vm.draft.interestIds.length >= 3;
+  return (
+    <View style={{ gap: 8 }}>
+      <Text variant="labelXs" tone="muted">
+        {wizardCopy.interests.label}
+      </Text>
+      <Text variant="bodySm" tone="muted">
+        {wizardCopy.interests.hint}
+      </Text>
+      {vm.interestsFailed ? (
+        <Text variant="bodySm" tone="destructive" accessibilityLiveRegion="polite">
+          {`${wizardCopy.interests.failed} `}
+          <Text variant="bodySm" tone="link" onPress={vm.retryInterests} accessibilityRole="link">
+            {wizardCopy.interests.retry}
+          </Text>
+        </Text>
+      ) : !vm.interests ? (
+        <SkeletonPulse>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+            {[88, 64, 104, 76, 92].map((w) => (
+              <SkeletonBlock key={w} width={w} height={32} radius={16} />
+            ))}
+          </View>
+        </SkeletonPulse>
+      ) : (
+        <Animated.View entering={FadeIn.duration(200)}>
+          <ChipGroup>
+            {vm.interests.map((interest) => {
+              const selected = vm.draft.interestIds.includes(interest.id);
+              return (
+                <Chip
+                  key={interest.id}
+                  label={interest.emoji ? `${interest.emoji} ${interest.name}` : interest.name}
+                  selected={selected}
+                  disabled={full && !selected}
+                  onPress={() => vm.chooseInterest(interest.id)}
+                />
+              );
+            })}
+          </ChipGroup>
+        </Animated.View>
+      )}
+    </View>
+  );
+}

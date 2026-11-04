@@ -1,0 +1,423 @@
+import type { CreatePostErrorCode } from '../domain/entities/CreatePostError';
+import type { DraftField, DraftIssue } from '../domain/rules/postDraftRules';
+import type { PostKind } from '../domain/postKinds';
+
+/**
+ * The create wizard's words, from the Figma frames (light and dark, all four
+ * types). The four wizards share a shape and differ in wording, so the copy is
+ * one entry per type.
+ */
+
+type KindCopy = {
+  /** "meetup", "group activity": inside sentences. */
+  noun: string;
+  header: { title: string; subtitle: string };
+  basics: {
+    titlePlaceholder: string;
+    descriptionPlaceholder: string;
+    /** Plans and Groups: the city field. */
+    city?: { label: string; placeholder: string };
+    note?: { title: string; body: string };
+  };
+  schedule: {
+    heading: string;
+    body: string;
+    /** Meetups put date and time side by side with one time; the rest stack start and end. */
+    endTime: boolean;
+    placeLabel: string;
+    placePlaceholder: string;
+    notesLabel: string;
+    notePlaceholders: [string, string];
+    addNote: string;
+    tip: string;
+  };
+  participants: {
+    heading: string;
+    body: string;
+    capacityLabel: string;
+    openTitle: string;
+    openBody: string;
+    privateTitle: string;
+    privateBody: string;
+    tip: string;
+  };
+  cost: {
+    heading: string;
+    body: string;
+    toggleTitle: string;
+    toggleBody: string;
+    /** Meetups, Plans and Groups split a total; Events charge per person. */
+    expectedLabel?: string;
+    estimateBody?: (people: number) => string;
+    noteTitle: string;
+    noteBody: string;
+  };
+  review: {
+    heading: string;
+    body: string;
+    peopleLabel: string;
+    costLabel: string;
+    publish: string;
+  };
+  published: { title: string; message: string; action: string };
+};
+
+const sharedNote = {
+  title: 'Good to know',
+};
+
+export const kindCopy: Record<PostKind, KindCopy> = {
+  meetup: {
+    noun: 'meetup',
+    header: { title: 'New meetup', subtitle: 'Casual in-person gathering' },
+    basics: {
+      titlePlaceholder: 'Name your meetup...',
+      descriptionPlaceholder: 'Describe the activity and who it’s for.',
+    },
+    schedule: {
+      heading: 'When and where?',
+      body: 'Set the date, time and meeting point for the meetup.',
+      endTime: false,
+      placeLabel: 'Meeting point',
+      placePlaceholder: 'Enter a public meeting point',
+      notesLabel: 'Meetup details',
+      notePlaceholders: ['Meetup date and time', 'Public meeting point'],
+      addNote: 'Add another detail',
+      tip: 'Choose a clear public meeting point for your first meetup.',
+    },
+    participants: {
+      heading: 'Who can join?',
+      body: 'Choose the meetup capacity and how join requests should work.',
+      capacityLabel: 'Capacity',
+      openTitle: 'Anyone can join',
+      openBody: 'Anyone can join while spots are available',
+      privateTitle: 'Request to join',
+      privateBody: 'You approve attendance requests',
+      tip: 'Meet somewhere public for your first meetup.',
+    },
+    cost: {
+      heading: 'Will there be a shared cost?',
+      body: 'Keep the meetup free or show an estimated shared cost.',
+      toggleTitle: 'Total estimated cost',
+      toggleBody: 'Split estimated meetup costs with travellers',
+      expectedLabel: 'Expected travellers',
+      estimateBody: (n) =>
+        `Based on ${n} traveller${n === 1 ? '' : 's'}. The final amount can change if the group size changes.`,
+      noteTitle: 'Check before paying',
+      noteBody:
+        'Confirm the event and payment details before sending money. Pressure to pay is a red flag. Read safety tips.',
+    },
+    review: {
+      heading: 'Review your meetup',
+      body: 'Make sure everything looks right before you publish.',
+      peopleLabel: 'Travellers',
+      costLabel: 'Estimated split',
+      publish: 'Publish meetup',
+    },
+    published: {
+      title: 'Meetup published!',
+      message: 'Your meetup is live. Travellers can now discover it and request to join.',
+      action: 'View meetup',
+    },
+  },
+  event: {
+    noun: 'event',
+    header: { title: 'New event', subtitle: 'Ticketed or large-scale event' },
+    basics: {
+      titlePlaceholder: 'Name your event...',
+      descriptionPlaceholder: 'Describe the activity and who it’s for.',
+    },
+    schedule: {
+      heading: 'When and where?',
+      body: 'Set the event date, time and venue details.',
+      endTime: true,
+      placeLabel: 'Venue',
+      placePlaceholder: 'Enter the venue name and address',
+      notesLabel: 'Event schedule',
+      notePlaceholders: ['Doors open', 'Main event'],
+      addNote: 'Add schedule item',
+      tip: 'Make sure the venue details are clear before publishing.',
+    },
+    participants: {
+      heading: 'Who can join?',
+      body: 'Set event capacity and how attendees can join.',
+      capacityLabel: 'Capacity',
+      openTitle: 'Anyone can join',
+      openBody: 'Anyone can join while spots are available',
+      privateTitle: 'Request to join',
+      privateBody: 'You approve attendance requests',
+      tip: 'Meet somewhere public for your meetup.',
+    },
+    cost: {
+      heading: 'Ticketing and cost',
+      body: 'Keep the event free or set the amount required to join.',
+      toggleTitle: 'Paid',
+      toggleBody: 'Requires payment to join',
+      noteTitle: sharedNote.title,
+      noteBody:
+        'This is the entry price per person. Payment arrangements stay between the organiser and attendees.',
+    },
+    review: {
+      heading: 'Review your event',
+      body: 'Make sure everything looks right before you publish.',
+      peopleLabel: 'Travellers',
+      costLabel: 'Entry price',
+      publish: 'Publish event',
+    },
+    published: {
+      title: 'Your event is live!',
+      message: 'Travellers can now discover your event and join.',
+      action: 'View event',
+    },
+  },
+  plan: {
+    noun: 'plan',
+    header: { title: 'New plan', subtitle: 'Trip or activity with friends' },
+    basics: {
+      titlePlaceholder: 'Name your plan...',
+      descriptionPlaceholder: 'What’s the plan? Who should come?',
+      city: { label: 'Destination', placeholder: 'Select city or destination' },
+      note: {
+        title: 'Plan visibility',
+        body: 'Your plan can be shown to travellers in the destination you choose.',
+      },
+    },
+    schedule: {
+      heading: 'When and where?',
+      body: 'Set the dates, time and meeting details for the plan.',
+      endTime: true,
+      placeLabel: 'Meeting point',
+      placePlaceholder: 'Enter a public meeting point',
+      notesLabel: 'Itinerary',
+      notePlaceholders: ['Day 1 · Arrival + dinner', 'Day 2 · Explore + activity'],
+      addNote: 'Add stop or activity',
+      tip: 'Choose a clear public meeting point for your first meetup.',
+    },
+    participants: {
+      heading: 'Who can join?',
+      body: 'Choose how many travellers can join and how you want requests handled.',
+      capacityLabel: 'Capacity',
+      openTitle: 'Anyone can join',
+      openBody: 'Anyone can join while spots are available',
+      privateTitle: 'Request to join',
+      privateBody: 'You approve attendance requests',
+      tip: 'Meet somewhere public for your first meetup.',
+    },
+    cost: {
+      heading: 'How will costs work?',
+      body: 'Keep it free, or show travellers an estimated shared cost.',
+      toggleTitle: 'Total estimated cost',
+      toggleBody: 'Split estimated costs with travellers',
+      expectedLabel: 'Expected travellers',
+      estimateBody: (n) =>
+        `Based on ${n} traveller${n === 1 ? '' : 's'}. The final amount can change if the group size changes.`,
+      noteTitle: sharedNote.title,
+      noteBody: 'This estimate helps everyone plan. Payment arrangements stay between travellers.',
+    },
+    review: {
+      heading: 'Review your plan',
+      body: 'Make sure everything looks right before you publish.',
+      peopleLabel: 'Travellers',
+      costLabel: 'Estimated split',
+      publish: 'Publish plan',
+    },
+    published: {
+      title: 'Your plan is live!',
+      message: 'Travellers can now discover your plan and request to join.',
+      action: 'View plan',
+    },
+  },
+  group: {
+    noun: 'group activity',
+    header: { title: 'New group activity', subtitle: 'Recurring activity with travellers' },
+    basics: {
+      titlePlaceholder: 'Name your group activity...',
+      descriptionPlaceholder: 'What’s the activity about? Who is it for?',
+      city: { label: 'Location', placeholder: 'Select city or area' },
+      note: {
+        title: 'Group visibility',
+        body: 'Your group activity can be shown to travellers in the location you choose.',
+      },
+    },
+    schedule: {
+      heading: 'When does the group meet?',
+      body: 'Set the schedule and meeting details for the group activity.',
+      endTime: true,
+      placeLabel: 'Meeting point',
+      placePlaceholder: 'Enter a public meeting point',
+      notesLabel: 'Repeat schedule',
+      notePlaceholders: ['Frequency · Every Saturday', 'Duration · 2 hours'],
+      addNote: 'Add schedule note',
+      tip: 'Choose a clear public meeting point for the first meetup.',
+    },
+    participants: {
+      heading: 'Who can join the group?',
+      body: 'Set the group size and choose how new members can join.',
+      capacityLabel: 'Group size',
+      openTitle: 'Anyone can join',
+      openBody: 'Anyone can join while there’s space',
+      privateTitle: 'Approve join requests',
+      privateBody: 'You approve each new member',
+      tip: 'Meet somewhere public for your first group meetup.',
+    },
+    cost: {
+      heading: 'Will the group share costs?',
+      body: 'Keep it free, or show members an estimated shared cost.',
+      toggleTitle: 'Total estimated cost',
+      toggleBody: 'Split estimated costs with group members',
+      expectedLabel: 'Expected members',
+      estimateBody: (n) =>
+        `Based on ${n} member${n === 1 ? '' : 's'}. The estimate can change as the group size changes.`,
+      noteTitle: sharedNote.title,
+      noteBody: 'This estimate helps members plan. Payment arrangements stay between group members.',
+    },
+    review: {
+      heading: 'Review your group activity',
+      body: 'Make sure the group details look right before you publish.',
+      peopleLabel: 'Members',
+      costLabel: 'Shared cost',
+      publish: 'Publish group activity',
+    },
+    published: {
+      title: 'Your group activity is live!',
+      message: 'Travellers can now discover your group activity and join or request access.',
+      action: 'View group activity',
+    },
+  },
+};
+
+export const wizardCopy = {
+  saveDraft: 'Save draft',
+  loadingDraft: 'Opening your draft',
+  draftLoadFailed: 'This draft didn’t open. Check your connection and try again.',
+  savingDraft: 'Saving…',
+  draftSaved: 'Draft saved',
+  next: 'Next',
+  back: 'Back',
+  close: 'Close',
+  photos: {
+    label: 'Photos',
+    rule: '2–4 photos required',
+    add: 'Add photo',
+    reorder: 'Drag to reorder. The first photo is the cover.',
+    remove: (n: number) => `Remove photo ${n}`,
+    item: (n: number) => `Photo ${n}`,
+    cover: 'Cover photo',
+  },
+  title: 'Title',
+  description: 'Description',
+  safetyTip: 'Safety tip',
+  date: 'Date',
+  time: 'Time',
+  startTime: 'Start time',
+  endTime: 'End time (optional)',
+  selectDate: 'Select a date',
+  selectTime: 'Select a time',
+  findingPlace: 'Finding that place…',
+  removeNote: (n: number) => `Remove line ${n}`,
+  noteItem: (n: number) => `Line ${n}`,
+  people: 'people',
+  noLimit: 'No limit',
+  fewerPeople: 'Fewer people',
+  morePeople: 'More people',
+  eventCapacityHint: 'Events are for more than 100 people, or have no limit.',
+  groupCapacityHint: 'Groups are for 1 to 100 people.',
+  showOnMapTitle: 'Show on map',
+  showOnMapBody: 'Visible on public map',
+  waitlistTitle: 'Waiting list',
+  waitlistBody: 'People can queue for a spot when it’s full',
+  amount: 'Amount',
+  linkLabel: 'Link to pay or book',
+  linkLabelOptional: 'Link to pay or book (optional)',
+  linkPlaceholder: 'https://',
+  capacity: 'Capacity',
+  estimatedSplit: 'Estimated split',
+  about: (amount: string) => `About ${amount} each`,
+  entryCost: 'Entry cost',
+  perPerson: (amount: string) => `${amount} per person`,
+  shownBeforeJoin: 'Shown to travellers before they join.',
+  free: 'Free',
+  noLimitPeople: 'No limit',
+  peopleCount: (n: number) => `${n} ${n === 1 ? 'person' : 'people'}`,
+  splitEach: (amount: string) => `≈ ${amount} each`,
+  entry: (amount: string) => `${amount} entry`,
+  joinSetting: 'Join setting',
+  meetingPoint: 'Meeting point',
+  interests: {
+    label: 'Interests',
+    hint: 'Pick 1 to 3, so the right travellers find it.',
+    loading: 'Loading interests…',
+    failed: 'Interests didn’t load.',
+    retry: 'Try again',
+  },
+  fixFirst: 'A few things need fixing before you publish:',
+  goFix: 'Fix',
+  publishFailed: {
+    title: 'That didn’t go through',
+    message: (noun: string) => `We couldn’t publish your ${noun}. Check your connection and try again.`,
+    action: 'Try again',
+  },
+  leave: {
+    title: (noun: string) => `Leave this ${noun}?`,
+    message: 'Save it as a draft to finish later, or discard what you’ve added.',
+    save: 'Save draft',
+    discard: 'Discard',
+    stay: 'Keep editing',
+  },
+  city: {
+    sheetTitle: 'Choose a city',
+    search: 'Search city',
+    empty: 'No cities match that search.',
+    failed: 'Cities didn’t load. Check your connection.',
+    hint: 'Type at least two letters.',
+  },
+  photoChoice: {
+    title: 'Add photos',
+    library: 'Choose from library',
+    cancel: 'Cancel',
+  },
+};
+
+/** What a field's issue says under it. */
+export const issueCopy: Record<DraftIssue, string> = {
+  required: 'This is needed.',
+  tooFewPhotos: 'Add at least 2 photos.',
+  inPast: 'Pick a time in the future.',
+  endBeforeStart: 'End after the start time.',
+  capacityRange: 'Pick a size this type allows.',
+  amountRange: 'Enter an amount between 1 and 1,000,000.',
+  notHttps: 'Use a link that starts with https://',
+  interestCount: 'Pick 1 to 3 interests.',
+};
+
+/** The review step's list of what is still missing, by field. */
+export const fieldNames: Record<DraftField, string> = {
+  photos: 'Photos (2 to 4)',
+  title: 'Title',
+  description: 'Description',
+  city: 'Destination',
+  date: 'Date',
+  startTime: 'Start time',
+  endTime: 'End time',
+  place: 'Meeting point',
+  notes: 'Details',
+  capacity: 'Capacity',
+  amount: 'Amount',
+  expected: 'Expected travellers',
+  externalUrl: 'Link to pay or book',
+  interests: 'Interests (1 to 3)',
+};
+
+export const createPostErrors: Record<CreatePostErrorCode, string> = {
+  invalid: 'Some details need fixing before this can go live.',
+  eventMonthlyCap: 'You’ve published three events this month, the most allowed.',
+  draftLimit: 'You have 20 drafts already. Publish or delete one to save another.',
+  imageTooLarge: 'A photo is too large. Try a different one.',
+  imageNotSupported: 'Use JPEG, PNG or WebP photos.',
+  suspended: 'Your account can’t publish right now. Contact support if this seems wrong.',
+  placeNotFound: 'We couldn’t find that place. Add the area or city, like “Lekki, Lagos”.',
+  rateLimited: 'Too many tries. Wait a moment and try again.',
+  network: 'You seem to be offline. Check your connection and try again.',
+  sessionExpired: 'Your session ended. Sign in again to continue.',
+  unknown: 'Something went wrong on our side. Try again.',
+};

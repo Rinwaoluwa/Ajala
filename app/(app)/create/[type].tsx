@@ -1,17 +1,22 @@
-import { router, useLocalSearchParams } from 'expo-router';
+import { Redirect, router, useLocalSearchParams } from 'expo-router';
 
-import { POST_KINDS } from '@features/create-post';
-import { PlaceholderScreen } from '@shared/components';
+import { CreatePostScreen, POST_KINDS } from '@features/create-post';
 
-/** PLACEHOLDER — the create wizard (API map §5) is the next piece of `create-post`. */
+/**
+ * The create wizard for the type chosen in "Create something" (API map §5), or,
+ * with `draftId`, a saved draft carried on from Settings / Drafts.
+ */
 export default function CreateWizardRoute() {
-  const { type } = useLocalSearchParams<{ type: string }>();
-  const kind = POST_KINDS.find((k) => k.kind === type);
+  const { type, draftId } = useLocalSearchParams<{ type: string; draftId?: string }>();
+  const kind = POST_KINDS.find((k) => k.kind === type)?.kind;
+  if (!kind) return <Redirect href="/(app)/(tabs)" />;
+
   return (
-    <PlaceholderScreen
-      title={kind ? `New ${kind.title.toLowerCase()}` : 'Create'}
-      body="The create wizard comes next."
-      onBack={() => router.back()}
+    <CreatePostScreen
+      kind={kind}
+      draftId={draftId ?? null}
+      onClose={() => (router.canGoBack() ? router.back() : router.replace('/(app)/(tabs)'))}
+      onPublished={(id) => router.replace({ pathname: '/(app)/post/[id]', params: { id } })}
     />
   );
 }

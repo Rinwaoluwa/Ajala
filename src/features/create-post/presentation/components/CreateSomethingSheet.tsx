@@ -18,19 +18,19 @@ import { POST_KINDS, type PostKind } from '../../domain/postKinds';
  * "Create something" (Figma modal, light and dark): four cards — Meetup, Event,
  * Plan, Group activity — each with its art, a title, a line, and a radio.
  *
- * Each card's art is grey until chosen; picking one turns its art to colour,
- * fills the card mint with a teal outline and ticks the radio, holds for a beat
- * (`CONFIRM_MS`) so the choice is seen, then closes and reports it. Everything
- * cross-fades in 180ms.
+ * Each card shows its art in colour (the supplied `assets/icons/colored_*.svg`,
+ * as the "More" modal draws them). Picking one fills the card mint with a teal
+ * outline and ticks the radio, holds for a beat (`CONFIRM_MS`) so the choice is
+ * seen, then closes and reports it. Everything cross-fades in 180ms.
  */
 
 const CONFIRM_MS = 260;
 
 const ART: Record<PostKind, { name: IllustrationName; width: number }> = {
-  meetup: { name: 'meet', width: 46 },
+  meetup: { name: 'meet', width: 44 },
   event: { name: 'confetti', width: 36 },
   plan: { name: 'calendar', width: 36 },
-  group: { name: 'group', width: 44 },
+  group: { name: 'group', width: 42 },
 };
 
 export type CreateSomethingSheetProps = {
@@ -116,7 +116,7 @@ function KindCard({
         ]}
       >
         <View style={{ width: 48, alignItems: 'center' }}>
-          <Illustration name={art.name} width={art.width} active={selected} />
+          <Illustration name={art.name} width={art.width} active />
         </View>
         <View style={{ flex: 1 }}>
           <Text variant="headingSm" style={selected ? { color: theme.selectedForeground } : undefined}>
@@ -139,7 +139,7 @@ function KindCard({
           }}
         >
           {selected ? (
-            <Host matchContents pointerEvents="none">
+            <Host matchContents pointerEvents="none" ignoreSafeArea="all">
               <NativeIcon source={icons.check} size={11} color={theme.primaryFillForeground} />
             </Host>
           ) : null}
