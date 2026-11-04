@@ -5,6 +5,31 @@
 
 Full gallery, full description with map snippet, attendee strip, host card, threaded comments, share deep link, report, Plan checklist, Event coupon entry.
 
+## What is built
+
+The post page (Figma post detail, light and dark): photos with a glass back button and type tag,
+title, host ("Hosted by …", opens their profile), description, Date & Time, Location (opens Maps),
+Price and Joined tiles, the main button and Share, safety tips, Who's Going, and Comments.
+
+| Element                                                     | API                                                                            |
+| ----------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| The page                                                    | `GET /posts/:id` with `X-Client-Location`                                      |
+| Join / Request to join / waiting list                       | `POST /posts/:id/rsvp` — optimistic, rolled back on a refusal                  |
+| ✓ You're Going / Requested / Waitlisted → leave or withdraw | `DELETE /posts/:id/rsvp` (asks first)                                          |
+| Book a spot (paid Event, `joinMode: external`)              | open `externalUrl`, `POST /posts/:id/link-click`                               |
+| Who's Going                                                 | `GET /posts/:id/attendees?state=going` (paged); the host also sees `requested` |
+| Accept / Decline (host)                                     | `POST /posts/:id/attendees/:userId/accept                                      | decline` |
+| ⋯ → Cancel / Delete (host)                                  | `POST /posts/:id/cancel`, `DELETE /posts/:id` (409 → offer Cancel)             |
+| ⋯ → Report activity                                         | explore's report flow (`ReportPostFlow`), `POST /posts/:id/report`             |
+| Share                                                       | the post link, `https://ajalatrvl.com/posts/<id>` (`LINKS_HOST` in the rules)  |
+
+## Gaps (API map §12)
+
+- **Comments** have no endpoint: the section is its empty state, and the bar at the foot keeps what
+  was typed and says comments are coming.
+- **Message**, **Follow** and **mutual friends** are not in the API, so they are left out.
+- The design labels every type's button "Join event"; it says the type here ("Join plan").
+
 ## Boundary rules
 
 - Everything in this folder is private **except** what `index.ts` exports. Other features import
@@ -16,28 +41,32 @@ Full gallery, full description with map snippet, attendee strip, host card, thre
 - Anything two features both need gets promoted to `src/shared/` in its own PR — never imported
   sideways from another feature folder.
 
-## Expected files
+## Layout
 
 ```
 post-detail/
-├── data/
-│   ├── datasources/remote/     REST services over core/api
-│   ├── datasources/local/      cache + draft/offline persistence
-│   ├── dto/                    wire shapes, generated from contracts/openapi
-│   ├── mappers/                DTO ↔ entity
-│   └── repositories/           implementations of the domain contracts
-├── domain/
-│   ├── entities/               PostDetail, Comment, CommentThread, AttendeeSummary, ReportReason
-│   ├── repositories/           contracts (interfaces) the data layer implements
-│   └── usecases/               ObservePostDetailUseCase, ObserveCommentsUseCase, PostCommentUseCase, …
+├── postDetailModule.ts        composition root
+├── data/                      postDetailApi, DTOs, mappers, PostDetailRepositoryImpl
+├── domain/                    PostDetail, PostDetailError, postDetailRules (button state, optimistic RSVP)
 └── presentation/
-    ├── screens/                PostDetailScreen, AttendeeListScreen, ReportPostSheet, …
-    ├── components/             dumb UI, props in / callbacks out
-    ├── hooks/                  view models: own state, call use cases, emit events
-    ├── state/                  one state type per screen + one-shot event channel
-    └── navigation/             this feature's route list and params
+    ├── screens/               PostDetailScreen
+    ├── components/            PostHero, InfoRow/StatTile, JoinBar, WhoIsGoing, Comments, PostSkeleton
+    ├── hooks/                 usePostDetail (view model)
+    └── state/                 query keys, use-case hook
 ```
 
-## Notes
+## Comments (proposed endpoint)
 
-RSVP transitions are owned by the shared `RsvpRepository` (`shared/domain`) because Home, Map, Chat and this screen all mutate the same state.
+The API has no comments yet (API map §12). The page calls a **proposed** endpoint, for the
+backend to confirm:
+
+| Call                                          | Body / answer                                              |
+| --------------------------------------------- | ---------------------------------------------------------- |
+| `GET /api/v1/posts/:id/comments?cursor&limit` | `{ items: CommentDto[], nextCursor, total }`, oldest first |
+| `POST /api/v1/posts/:id/comments`             | `{ text (1–500), replyToId? }` → `CommentDto`              |
+
+`CommentDto` is `{ id, user: { id, displayName, avatarUrl }, text, createdAt, replyTo: { id, displayName } | null }`.
+
+Until it exists the real API answers 404, which the page reads as "not available yet": the
+section shows its empty state and a send keeps the text and says comments are coming. Demo mode
+answers it (with seeded conversations on a few posts) so the design can be tried end to end.
