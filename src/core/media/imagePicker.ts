@@ -62,3 +62,69 @@ export async function pickSquareImage({
 
   return { uri: saved.uri, name: 'photo.jpg', type: 'image/jpeg' };
 }
+
+export type PickImagesOptions = {
+  /** How many may be chosen at once (the space left in a carousel). */
+  limit: number;
+  /** Long edge in pixels after resizing; the API's guidance is at most 2048 (spec §7). */
+  maxEdge?: number;
+  quality?: number;
+};
+
+/**
+ * Several photos from the library, in the order they were tapped — a post's
+ * carousel. Not cropped: a post keeps each photo's own shape. Each is scaled so
+ * its long edge is at most `maxEdge` and re-encoded as JPEG, which keeps it
+ * comfortably under the API's 5 MB.
+ *
+ * Resolves with `[]` when the person cancels or refuses access.
+ */
+export async function pickImages({
+  limit,
+  maxEdge = 2048,
+  quality = 0.8,
+}: PickImagesOptions): Promise<PickedImage[]> {
+  if (limit <= 0) return [];
+  let result: ImagePicker.ImagePickerResult;
+  try {
+    result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsMultipleSelection: limit > 1,
+      selectionLimit: limit,
+      orderedSelection: true,
+      quality: 1,
+    });
+  } catch {
+    return [];
+  }
+  if (result.canceled) return [];
+
+  const picked: PickedImage[] = [];
+  for (const asset of result.assets.slice(0, limit)) {
+    const longEdge = Math.max(asset.width, asset.height);
+    const context = ImageManipulator.manipulate(asset.uri);
+    if (longEdge > maxEdge) {
+      context.resize(asset.width >= asset.height ? { width: maxEdge } : { height: maxEdge });
+    }
+    const image = await context.renderAsync();
+    const saved = await image.saveAsync({ format: SaveFormat.JPEG, compress: quality });
+    picked.push({ uri: saved.uri, name: `photo-${picked.length + 1}.jpg`, type: 'image/jpeg' });
+  }
+  return picked;
+}
+
+/**
+ * A copy of an image on this phone, for uploading one that is only on the web —
+ * a draft's photo being sent again with the rest of its carousel. Local files
+ * come back as they are. Null when it cannot be fetched.
+ */
+export async function localiseImage(uri: string, quality = 0.85): Promise<PickedImage | null> {
+  if (!/^https?:\/\//i.test(uri)) return { uri, name: 'photo.jpg', type: 'image/jpeg' };
+  try {
+    const image = await ImageManipulator.manipulate(uri).renderAsync();
+    const saved = await image.saveAsync({ format: SaveFormat.JPEG, compress: quality });
+    return { uri: saved.uri, name: 'photo.jpg', type: 'image/jpeg' };
+  } catch {
+    return null;
+  }
+}
