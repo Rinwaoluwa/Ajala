@@ -5,15 +5,15 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button, RoundFlag, SvgIcon, SwirlPattern, Text, enterRise } from '@shared/components';
 import { SCREEN_GUTTER, palette } from '@shared/theme';
 
-import { teleportPaywallCopy } from '../copy';
+import { travelPaywallCopy } from '../copy';
 
 /**
- * "Teleport to London" (Figma Teleport paywall, and its "alternative").
+ * "Travel to London" (Figma Travel paywall, and its "alternative").
  *
  * The design sets it over a photo of the city; there are no city photos in the
  * app or the API, so it is the brand's night gradient with the swirl, which both
  * variants already fade into at the foot. The badge is the design's own
- * (`teleport-badge.svg`), with the home flag and the destination's on its line.
+ * (`travel-badge.svg`), with the home flag and the destination's on its line.
  *
  * The subscription is not built (API map §12): the button says "Coming soon" and
  * does nothing, as agreed with product. "Maybe later" goes back.
@@ -25,16 +25,16 @@ const SEAL = 104;
 /** As drawn: about a third of the badge, centred on each end of its dashed line. */
 const FLAG = 37;
 
-export type TeleportPaywallScreenProps = {
+export type TravelPaywallScreenProps = {
   /** The destination, or null for "anywhere" (from the Pro banner). */
   city: { name: string; countryCode: string } | null;
   homeCountryCode: string;
   onClose: () => void;
 };
 
-export function TeleportPaywallScreen({ city, homeCountryCode, onClose }: TeleportPaywallScreenProps) {
+export function TravelPaywallScreen({ city, homeCountryCode, onClose }: TravelPaywallScreenProps) {
   const insets = useSafeAreaInsets();
-  const copy = teleportPaywallCopy;
+  const copy = travelPaywallCopy;
 
   return (
     <View
@@ -54,11 +54,11 @@ export function TeleportPaywallScreen({ city, homeCountryCode, onClose }: Telepo
         }}
       >
         <Animated.View entering={enterRise(0)} style={{ alignItems: 'center' }}>
-          {/* The design's badge (`teleport-badge.svg`): the seal, its check, and the
+          {/* The design's badge (`travel-badge.svg`): the seal, its check, and the
               dashed line the two flags sit on — home at its left end, the
               destination at its right, overlapping the seal's lower edge. */}
           <View style={{ width: SEAL, height: SEAL }} accessibilityLabel={city ? `${city.name}` : undefined}>
-            <SvgIcon name="teleportBadge" size={SEAL} />
+            <SvgIcon name="travelBadge" size={SEAL} />
             <View style={{ position: 'absolute', left: SEAL * 0.17 - FLAG / 2, top: SEAL * 0.93 - FLAG / 2 }}>
               <RoundFlag countryCode={homeCountryCode} size={FLAG} />
             </View>

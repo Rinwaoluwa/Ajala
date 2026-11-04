@@ -1,11 +1,11 @@
-/** The Teleport paywall's words (Figma "Teleport to London"). */
-export const teleportPaywallCopy = {
-  title: (city: string) => `Teleport to ${city}`,
-  anywhere: 'Teleport anywhere',
+/** The Travel paywall's words (Figma "Travel to London"). */
+export const travelPaywallCopy = {
+  title: (city: string) => `Travel to ${city}`,
+  anywhere: 'Travel anywhere',
   body: (city: string) =>
-    `Explore meetups, events and plans in ${city} before you arrive with a Teleport subscription.`,
+    `Explore meetups, events and plans in ${city} before you arrive with a Travel subscription.`,
   bodyAnywhere:
-    'Explore meetups, events and plans in any city before you arrive with a Teleport subscription.',
+    'Explore meetups, events and plans in any city before you arrive with a Travel subscription.',
   benefits: [
     'Browse any city worldwide',
     'Priority alerts for top events',

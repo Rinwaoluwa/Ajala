@@ -3,7 +3,7 @@
 **FRD coverage:** MOB-160 → MOB-167, MOB-058, MOB-062, MOB-108
 **Owner:** _unassigned_ — put your name here when you pick this feature up.
 
-Weekly-only subscription tier, teleport paywall, StoreKit / Play Billing purchase, restore purchase, receipt validation, renewal state, paid-post checkout and coupon redemption, manage/cancel deep link.
+Weekly-only subscription tier, travel paywall, StoreKit / Play Billing purchase, restore purchase, receipt validation, renewal state, paid-post checkout and coupon redemption, manage/cancel deep link.
 
 ## Boundary rules
 
@@ -40,4 +40,4 @@ payment/
 
 ## Notes
 
-Money mutations never queue silently offline — they prompt (see architecture non-negotiables). Store SDKs are wrapped in `data/datasources/remote`; the domain layer knows nothing about StoreKit or Play Billing. Publishes subscription state to `shared/state` so Home can gate teleport without importing this feature.
+Money mutations never queue silently offline — they prompt (see architecture non-negotiables). Store SDKs are wrapped in `data/datasources/remote`; the domain layer knows nothing about StoreKit or Play Billing. Publishes subscription state to `shared/state` so Home can gate travel without importing this feature.
