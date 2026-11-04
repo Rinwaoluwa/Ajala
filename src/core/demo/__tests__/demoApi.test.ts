@@ -27,6 +27,20 @@ describe('the demo API', () => {
     expect(me.profileCompletedAt).not.toBeNull();
   });
 
+  it('signs in with Apple, using the name and the email in its token', async () => {
+    const claims = Buffer.from(JSON.stringify({ email: 'ada@privaterelay.appleid.com' })).toString('base64url');
+    await demoRequest({
+      method: 'POST',
+      path: '/api/v1/auth/oauth/apple',
+      body: { identityToken: `h.${claims}.s`, authorizationCode: 'c', nonce: 'n', firstName: 'Ada', lastName: 'Bello' },
+    });
+    const me = await demoRequest<{ email: string; firstName: string; lastName: string }>({
+      method: 'GET',
+      path: '/api/v1/me',
+    });
+    expect(me).toMatchObject({ email: 'ada@privaterelay.appleid.com', firstName: 'Ada', lastName: 'Bello' });
+  });
+
   it('serves the Lagos feed by type, soonest first', async () => {
     const all = await demoRequest<Page>({
       method: 'GET',

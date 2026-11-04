@@ -25,6 +25,7 @@
     "@tanstack/react-query": "^5.104.5",
     "country-flag-icons": "^1.6.20",
     "expo": "~57.0.25",
+    "expo-apple-authentication": "~57.0.2",
     "expo-asset": "~57.0.18",
     "expo-build-properties": "~57.0.22",
     "expo-clipboard": "~57.0.2",

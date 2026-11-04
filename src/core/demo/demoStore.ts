@@ -348,6 +348,19 @@ function session(user: DemoMe, isNew: boolean) {
   };
 }
 
+/** The email in an Apple identity token (a JWT), unverified: the demo only shows it. */
+function appleEmail(token: string | undefined): string | null {
+  try {
+    const part = token?.split('.')[1];
+    if (!part) return null;
+    const json = globalThis.atob(part.replace(/-/g, '+').replace(/_/g, '/'));
+    const email = (JSON.parse(json) as { email?: unknown }).email;
+    return typeof email === 'string' ? email : null;
+  } catch {
+    return null;
+  }
+}
+
 /** The text fields and files of a multipart body, as React Native's FormData holds them. */
 function formFields(body: unknown) {
   const parts = ((body as { _parts?: [string, unknown][] } | null)?._parts ?? []) as [string, unknown][];
@@ -478,9 +491,25 @@ export const baseRoutes: DemoRoute[] = [
   ],
   ['POST', /^\/api\/v1\/auth\/password\/(forgot|reset)$/, () => undefined],
   [
+    // Sign in with Apple: the real Apple sheet runs on the phone; the demo takes its
+    // token on trust (the API verifies it) and signs in with Apple's name and email.
+    'POST',
+    /^\/api\/v1\/auth\/oauth\/apple$/,
+    (_m, req) => {
+      const b = req.body as { identityToken?: string; firstName?: string; lastName?: string };
+      const email = appleEmail(b.identityToken) ?? 'apple@ajala.app';
+      me ??= {
+        ...finishedProfile(email),
+        ...(b.firstName ? { firstName: b.firstName } : null),
+        ...(b.lastName ? { lastName: b.lastName } : null),
+      };
+      return session(me, false);
+    },
+  ],
+  [
     'POST',
     /^\/api\/v1\/auth\/oauth\//,
-    () => fail(503, 'SERVICE_UNAVAILABLE', 'Google and Apple sign-in are not in the demo. Use email.'),
+    () => fail(503, 'SERVICE_UNAVAILABLE', 'Google sign-in is not in the demo. Use email or Apple.'),
   ],
 
   // ----- me -----
