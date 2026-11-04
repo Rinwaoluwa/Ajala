@@ -47,6 +47,7 @@ export function CenteredHeader({
             fallbackColor={theme.selectedFill}
             interactive
             shadow={false}
+            onPlainPage
             style={{
               width: BUTTON,
               height: BUTTON,

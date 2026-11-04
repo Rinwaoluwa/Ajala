@@ -2,6 +2,7 @@ import type { GlassColorScheme } from 'expo-glass-effect';
 import { StyleSheet, View, type StyleProp, type ViewProps, type ViewStyle } from 'react-native';
 
 import { useLiquidGlass } from '@shared/hooks/useLiquidGlass';
+import { useTheme } from '@shared/hooks/useTheme';
 
 import { GlassBackdrop } from './GlassBackdrop';
 
@@ -18,6 +19,12 @@ import { GlassBackdrop } from './GlassBackdrop';
  *     `clear` is the see-through glass, for art that must show through.
  *   - `tint` colours it (the chosen pill, the teal "+").
  *   - `appearance="light"` keeps glass on a photo pale, so dark text on it reads.
+ *   - `onPlainPage`: for glass on the page's own background (the header's bell
+ *     and chat, back buttons, filter pills) rather than over a photo or map.
+ *     Frosted glass on a plain page has nothing to frost and barely shows, so it
+ *     sits on a card-coloured shape with a small shadow of its own, as Explore's
+ *     chips look over the map. Each shadow stays small, so a row of them never
+ *     runs together into a grey band.
  * The solid version's shadow is left off: glass has its own depth.
  *
  * Why SwiftUI rather than the UIKit glass view (`expo-glass-effect`'s
@@ -42,9 +49,19 @@ export type GlassSurfaceProps = ViewProps & {
   interactive?: boolean;
   /** Soft shadow under the solid surface. */
   shadow?: boolean;
+  /** Glass on the page's background, not over a photo or map: a card-coloured base and a small shadow. */
+  onPlainPage?: boolean;
   /** Glass appearance: `auto` follows the app; `light` keeps glass on a photo pale. */
   appearance?: GlassColorScheme;
   style?: StyleProp<ViewStyle>;
+};
+
+/** Under glass on a plain page: small, so neighbours' shadows never merge. */
+const PLAIN_PAGE_SHADOW: ViewStyle = {
+  shadowColor: '#000',
+  shadowOpacity: 0.1,
+  shadowRadius: 6,
+  shadowOffset: { width: 0, height: 2 },
 };
 
 const SOFT_SHADOW: ViewStyle = {
@@ -73,11 +90,13 @@ export function GlassSurface({
   interactive: _interactive = false,
   shadow = true,
   appearance = 'auto',
+  onPlainPage = false,
   style,
   children,
   ...props
 }: GlassSurfaceProps) {
   const glass = useLiquidGlass();
+  const theme = useTheme();
 
   if (!glass) {
     return (
@@ -91,7 +110,10 @@ export function GlassSurface({
   }
 
   return (
-    <View style={style} {...props}>
+    <View
+      style={[onPlainPage ? [PLAIN_PAGE_SHADOW, { backgroundColor: theme.card }] : null, style]}
+      {...props}
+    >
       <GlassBackdrop variant={variant} tint={tint} shape={shapeOf(style)} appearance={appearance} />
       {children}
     </View>

@@ -21,10 +21,11 @@ import { GlassSurface } from '../surface/GlassSurface';
  * All / Meetups / Events / Plans / Groups, Trips' Upcoming / Requests / Past, the
  * filters on Saved, Drafts, Notifications and Achievements.
  *
- * Liquid Glass where the phone has it (`GlassSurface`): each pill is glass, the
- * chosen one tinted brand teal with a white label, the others clear with the
- * text colour. Elsewhere the design's solid pills — teal chosen, pale the rest,
- * or outlined (`look="outline"`, the Trips and Drafts frames).
+ * Liquid Glass where the phone has it (`GlassSurface`, `onPlainPage`), styled
+ * like Explore's type chips: each pill is frosted glass on a card-coloured pill
+ * with a small shadow of its own, the chosen one tinted brand teal with a white
+ * label. Elsewhere the design's solid pills — teal chosen, pale the rest, or outlined
+ * (`look="outline"`, the Trips and Drafts frames).
  *
  * Motion: the solid fill and the label cross-fade in 180ms; on glass the tint
  * changes with the system's own transition. Labels grow with the text size; the
@@ -130,6 +131,7 @@ function Pill({
           tint={selected ? theme.primaryFill : null}
           interactive={false}
           shadow={false}
+          onPlainPage
           style={box}
         >
           {text}
@@ -150,3 +152,4 @@ function Pill({
     </Pressable>
   );
 }
+

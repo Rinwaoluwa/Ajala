@@ -35,6 +35,7 @@ export function RoundIconButton({
         fallbackColor={theme.surfaceMuted}
         interactive
         shadow={false}
+        onPlainPage
         style={{
           width: size,
           height: size,

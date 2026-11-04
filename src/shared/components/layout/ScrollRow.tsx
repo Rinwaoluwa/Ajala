@@ -54,6 +54,8 @@ export function ScrollRow({
       {overflows ? (
         <ScrollView
           horizontal
+          // The items' shadows reach past the row; clipped, they end in a hard line.
+          style={{ overflow: 'visible' }}
           showsHorizontalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           accessibilityRole={accessibilityRole}

@@ -99,6 +99,7 @@ export function FeedHeader({
                 fallbackColor={city ? theme.iconButtonFill : theme.skeletonSurface}
                 interactive
                 shadow={false}
+                onPlainPage
                 style={{
                   width: BUTTON,
                   height: BUTTON,
