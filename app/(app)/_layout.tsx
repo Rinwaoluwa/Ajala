@@ -34,10 +34,9 @@ export default function AppLayout() {
     <LocationGate>
       <Stack screenOptions={screenOptions}>
         <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
-        <Stack.Screen
-          name="teleport-paywall"
-          options={{ presentation: 'fullScreenModal', animation: 'fade' }}
-        />
+        {/* Choosing a city slides up over everything and closes back down, like a compose screen. */}
+        <Stack.Screen name="travel" options={{ presentation: 'fullScreenModal' }} />
+        <Stack.Screen name="travel-paywall" options={{ presentation: 'pageSheet', animation: 'fade' }} />
       </Stack>
     </LocationGate>
   );

@@ -3,6 +3,7 @@ import { useFonts } from 'expo-font';
 import { SplashScreen, Stack, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useState } from 'react';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AppLockGate } from '@features/app-lock';
@@ -11,6 +12,7 @@ import { AuthProvider } from '@features/auth';
 import { LaunchOverlay } from '@bootstrap/splash/LaunchOverlay';
 import { queryClient } from '@core/api/queryClient/queryClient';
 import { useStackScreenOptions } from '@shared/hooks/useStackScreenOptions';
+import { restoreAppearance } from '@shared/state/appearance';
 import { LaunchStateProvider } from '@shared/state/LaunchState';
 import { fontAssets } from '@shared/theme';
 
@@ -18,6 +20,8 @@ import '../global.css';
 
 // Called at module load, before React mounts, so the splash never flashes away early.
 void SplashScreen.preventAutoHideAsync();
+// The chosen Light / Dark / System, applied while the splash still covers the app.
+void restoreAppearance();
 
 export default function RootLayout() {
   const screenOptions = useStackScreenOptions();
@@ -40,6 +44,8 @@ export default function RootLayout() {
   if (!fontsLoaded && !fontError) return null;
 
   return (
+    // Gestures (dragging a photo into a new place) need a root to attach to.
+    <GestureHandlerRootView style={{ flex: 1 }}>
     <SafeAreaProvider>
       {/* The API cache, under everything that reads the API. */}
       <QueryClientProvider client={queryClient}>
@@ -72,5 +78,6 @@ export default function RootLayout() {
       </AuthProvider>
       </QueryClientProvider>
     </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }

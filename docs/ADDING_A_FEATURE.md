@@ -37,7 +37,7 @@ Do **not** import it from there. Two options:
   Shared components are dumb: props in, callbacks out, no feature-specific branching.
 - **It is state another feature owns** — read it from `shared/state`. The owning feature
   publishes, you subscribe. Example: `payment` writes `subscriptionStore`; `home` reads it to
-  decide whether teleport opens the city picker or the paywall.
+  decide whether travel opens the city picker or the paywall.
 
 If neither fits, the boundary is probably in the wrong place. Raise it at architecture review
 rather than reaching across.

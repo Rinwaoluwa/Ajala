@@ -2,10 +2,14 @@
 
 React Native + Expo (Expo Router, TypeScript). A location-aware social app where travellers
 and city locals discover and join **Meetups, Events, Plans and Groups** — city-default feed,
-premium teleport to another city, and action-driven participation instead of likes.
+premium travel to another city, and action-driven participation instead of likes.
 
 This repository is **structure only**: every folder, its contract, and the lint rules that keep
 the contract honest. No implementation yet.
+
+## Demo mode
+
+`npm run demo` runs the app against a built-in pretend API with realistic Lagos data — sign in with any email and password. See [docs/DEMO.md](docs/DEMO.md).
 
 ## The shape
 
@@ -44,7 +48,7 @@ not just encouraged:
 1. **Features are sealed.** `index.ts` is the public API. `@features/payment/data/...` fails
    lint; `@features/payment` is fine.
 2. **Features never import each other's internals.** Home does not import Payment to gate
-   teleport — Payment publishes `subscriptionStore` to `shared/state` and Home reads it.
+   travel — Payment publishes `subscriptionStore` to `shared/state` and Home reads it.
 3. **Shared code is promoted, never grabbed.** Code lives in a feature until a second feature
    needs it, then moves to `src/shared/` in its own PR reviewed by a lead.
 4. **Ownership is in `.github/CODEOWNERS`** — one reviewer per feature, leads on `shared/`

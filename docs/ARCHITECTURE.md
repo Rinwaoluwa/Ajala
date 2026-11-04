@@ -80,7 +80,7 @@ export type HomeFeedState = {
 export type HomeFeedEvent =
   | { type: 'navigate'; to: Route }
   | { type: 'toast'; message: string }
-  | { type: 'openPaywall' };       // teleport tapped without a subscription
+  | { type: 'openPaywall' };       // travel tapped without a subscription
 ```
 
 State is durable — what to render right now. Events are consumed once and discarded, which is
@@ -171,7 +171,7 @@ type DomainError =
   | { kind: 'network' } | { kind: 'timeout' }
   | { kind: 'unauthorized' } | { kind: 'notFound' } | { kind: 'conflict' }
   | { kind: 'quotaExceeded'; resetsAt: Date }   // e.g. 4th Event this month (MOB-063)
-  | { kind: 'paymentRequired' }                 // teleport without subscription (MOB-022)
+  | { kind: 'paymentRequired' }                 // travel without subscription (MOB-022)
   | { kind: 'server'; message: string }
   | { kind: 'unknown'; cause: unknown };
 ```
