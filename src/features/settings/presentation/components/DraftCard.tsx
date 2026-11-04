@@ -2,6 +2,7 @@ import { Host } from '@expo/ui';
 import { TouchableOpacity, View, useColorScheme } from 'react-native';
 
 import { NativeIcon, NativeSpinner, Text, icons } from '@shared/components';
+import { useFontScale } from '@shared/hooks/useFontScale';
 import { useTheme } from '@shared/hooks/useTheme';
 import { palette } from '@shared/theme';
 
@@ -12,8 +13,9 @@ import { settingsCopy } from '../copy';
 /**
  * A saved draft (Figma Settings / Drafts): its type in teal (Marigold on dark),
  * the title, "Edited 3 days ago", then Continue editing (a pale pill with a
- * pencil) and Delete (red, outlined). The buttons wrap under each other when
- * the text is large.
+ * pencil) and Delete (red, outlined), side by side. They stack only at large
+ * text sizes: wrapping by width alone dropped Delete under Continue editing on
+ * Android phones whose default text is a little larger.
  */
 const TYPE_LABEL: Record<Draft['type'], string> = {
   meetup: 'Meetup',
@@ -36,6 +38,7 @@ export function DraftCard({
   const theme = useTheme();
   const dark = useColorScheme() === 'dark';
   const copy = settingsCopy.drafts;
+  const stacked = useFontScale() > 1.3;
   return (
     <View
       style={{
@@ -57,9 +60,8 @@ export function DraftCard({
       <View
         style={{
           marginTop: 12,
-          flexDirection: 'row',
-          flexWrap: 'wrap',
-          justifyContent: 'space-between',
+          flexDirection: stacked ? 'column' : 'row',
+          alignItems: stacked ? 'flex-start' : 'center',
           gap: 10,
         }}
       >
@@ -72,6 +74,7 @@ export function DraftCard({
             flexDirection: 'row',
             alignItems: 'center',
             gap: 8,
+            flexShrink: 1,
             paddingHorizontal: 16,
             minHeight: 44,
             borderRadius: 999,
@@ -81,7 +84,7 @@ export function DraftCard({
           <Host matchContents pointerEvents="none" ignoreSafeArea="all">
             <NativeIcon source={icons.edit} size={14} color={palette.ink} />
           </Host>
-          <Text variant="labelMd" style={{ color: palette.ink }}>
+          <Text variant="labelMd" numberOfLines={1} style={{ flexShrink: 1, color: palette.ink }}>
             {copy.continue}
           </Text>
         </TouchableOpacity>
@@ -96,6 +99,7 @@ export function DraftCard({
             flexDirection: 'row',
             alignItems: 'center',
             gap: 8,
+            flexShrink: 1,
             paddingHorizontal: 16,
             minHeight: 44,
             borderRadius: 999,
@@ -111,7 +115,7 @@ export function DraftCard({
               <NativeIcon source={icons.trash} size={14} color={theme.danger} />
             )}
           </Host>
-          <Text variant="labelMd" style={{ color: theme.danger }}>
+          <Text variant="labelMd" numberOfLines={1} style={{ flexShrink: 1, color: theme.danger }}>
             {copy.delete}
           </Text>
         </TouchableOpacity>
