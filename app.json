@@ -15,7 +15,10 @@
         "dark": "./assets/images/app-icon/icon-dark.png",
         "tinted": "./assets/images/app-icon/icon-tinted.png"
       },
-      "appleTeamId": "B33RBL65KK"
+      "appleTeamId": "B33RBL65KK",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "com.ajala.app",
@@ -83,7 +86,7 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Ajala uses your photos so you can choose a profile picture.",
+          "photosPermission": "Ajala uses your photos so you can choose a profile picture and add photos to the activities you host.",
           "cameraPermission": "Ajala uses the camera so you can take a profile picture."
         }
       ],
@@ -100,7 +103,11 @@
     "extra": {
       "router": {
         "root": "app"
+      },
+      "eas": {
+        "projectId": "1b76bc8f-ee56-426d-b281-07c8e3edb682"
       }
-    }
+    },
+    "owner": "ajalatrvl"
   }
 }
