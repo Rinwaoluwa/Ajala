@@ -24,7 +24,11 @@ export default function TabsLayout() {
   return (
     <>
       <Tabs
-        screenOptions={{ headerShown: false, animation: 'fade' }}
+        // No cross-fade between tabs. The fade drives each tab's opacity natively, and
+        // on a phone a tab that was detached while a pushed screen covered the tabs
+        // (Profile → Saved → back → Home → Profile) could return with its opacity
+        // stuck at 0: a blank tab. Instant switching is also how iOS tab bars behave.
+        screenOptions={{ headerShown: false }}
         tabBar={({ state, navigation }) => (
           <FloatingTabBar
             left={LEFT}
