@@ -15,6 +15,7 @@ import { toCatalogCity, toFeedError, toFeedPage } from '../mappers/feedMappers';
 export function createFeedRepository(request: FeedRequest): FeedRepository {
   const api = createFeedApi(request);
   return {
+    // `travelTo` is not sent: the API has no way to choose the feed's city yet.
     async getFeed(filter, cursor, limit) {
       try {
         return toFeedPage(await api.getFeed(filter, cursor, limit, await getClientLocationHeader()));

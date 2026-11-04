@@ -1,9 +1,11 @@
-import { useCallback, useState } from 'react';
-import { FlatList, RefreshControl, ScrollView, View } from 'react-native';
+import { useCallback, useEffect, useState, type ReactElement, type ReactNode } from 'react';
+import { FlatList, RefreshControl, ScrollView, View, useWindowDimensions } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useSubscription } from '@features/payment';
 import { Button, LoadingRing, PostCard as PostCardView, Screen, Text, enterRise } from '@shared/components';
+import { useFontScale } from '@shared/hooks/useFontScale';
 import { useTheme } from '@shared/hooks/useTheme';
 import { SCREEN_GUTTER } from '@shared/theme';
 
@@ -15,6 +17,7 @@ import { FilterPills } from '../components/FilterPills';
 import { LevelCard } from '../components/LevelCard';
 import { homeCopy } from '../copy';
 import { useFeed } from '../hooks/useFeed';
+import { travelStore } from '../state/travelStore';
 
 /**
  * The home feed (Figma "Home Feed", its skeleton, light and dark): the city
@@ -25,6 +28,9 @@ import { useFeed } from '../hooks/useFeed';
  * refresh asks again from the top; nearing the end loads the next page.
  *
  * The list leaves room at its foot for the floating tab bar.
+ *
+ * At a large text size or on a short phone the level card scrolls away with the
+ * cards instead of staying above them, so it can never squeeze the feed out.
  */
 
 /** Clear of the floating tab bar and its overhanging "+". */
@@ -36,7 +42,16 @@ export type HomeScreenProps = {
   onNotifications: () => void;
   onMessages: () => void;
   onViewLevel: () => void;
+  /**
+   * Wraps each card in a link that opens its post (the route supplies it; on
+   * iOS 18+ with the zoom transition, the card growing into the page). When
+   * given, the link does the opening and `onOpenPost` is not called.
+   */
+  linkCard?: (post: PostCard, card: ReactElement) => ReactNode;
 };
+
+/** A card inside a link: the link opens the post, so the card's own press does nothing. */
+const OPENED_BY_LINK = () => undefined;
 
 export function HomeScreen({
   onChooseCity,
@@ -44,21 +59,42 @@ export function HomeScreen({
   onNotifications,
   onMessages,
   onViewLevel,
+  linkCard,
 }: HomeScreenProps) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const feed = useFeed();
+  const { isPro } = useSubscription();
+  // Home stays mounted across the tabs; it unmounts when the person signs out,
+  // and then the next account must not start somewhere else.
+  useEffect(() => () => travelStore.reset(), []);
   // The level card is a placeholder; closing it hides it for this visit.
   const [levelClosed, setLevelClosed] = useState(false);
   const bottom = TAB_BAR_CLEARANCE + insets.bottom;
+  const fontScale = useFontScale();
+  const { height: windowHeight } = useWindowDimensions();
+  const levelScrolls = fontScale > 1.3 || windowHeight < 700;
+  const levelCard =
+    feed.city && !levelClosed ? (
+      <Animated.View
+        entering={enterRise(80)}
+        exiting={FadeOut.duration(180)}
+        className={levelScrolls ? undefined : 'mt-16 px-20'}
+      >
+        <LevelCard onView={onViewLevel} onClose={() => setLevelClosed(true)} />
+      </Animated.View>
+    ) : null;
 
   const renderItem = useCallback(
-    ({ item, index }: { item: PostCard; index: number }) => (
-      <Animated.View entering={index < 3 ? enterRise(index * 60) : undefined}>
-        <PostCardView post={item} onPress={() => onOpenPost(item)} />
-      </Animated.View>
-    ),
-    [onOpenPost],
+    ({ item, index }: { item: PostCard; index: number }) => {
+      const card = <PostCardView post={item} onPress={linkCard ? OPENED_BY_LINK : () => onOpenPost(item)} />;
+      return (
+        <Animated.View entering={index < 3 ? enterRise(index * 60) : undefined}>
+          {linkCard ? linkCard(item, card) : card}
+        </Animated.View>
+      );
+    },
+    [onOpenPost, linkCard],
   );
 
   const typeLabel = FEED_FILTERS.find((f) => f.value === feed.filter)?.label.toLowerCase() ?? 'posts';
@@ -68,16 +104,14 @@ export function HomeScreen({
       <FeedHeader
         city={feed.city}
         citySource={feed.citySource}
+        isPro={isPro}
+        travellingFrom={feed.travellingFrom}
         onChooseCity={() => feed.city && onChooseCity(feed.city)}
         onNotifications={onNotifications}
         onMessages={onMessages}
       />
 
-      {feed.city && !levelClosed ? (
-        <Animated.View entering={enterRise(80)} exiting={FadeOut.duration(180)} className="mt-16 px-20">
-          <LevelCard onView={onViewLevel} onClose={() => setLevelClosed(true)} />
-        </Animated.View>
-      ) : null}
+      {levelScrolls ? null : levelCard}
 
       <View className="mt-16">
         <FilterPills value={feed.filter} onChange={feed.setFilter} disabled={!feed.city && feed.loading} />
@@ -113,6 +147,7 @@ export function HomeScreen({
           keyExtractor={(post) => post.id}
           renderItem={renderItem}
           contentContainerStyle={{ padding: SCREEN_GUTTER, paddingBottom: bottom, gap: 24, flexGrow: 1 }}
+          ListHeaderComponent={levelScrolls ? levelCard : null}
           onEndReached={feed.loadMore}
           onEndReachedThreshold={0.6}
           refreshControl={

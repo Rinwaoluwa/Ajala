@@ -40,5 +40,8 @@ export type FeedPage = {
   nextCursor: string | null;
 };
 
-/** A city the Teleport picker lists. */
+/** A city the Travel picker lists. */
 export type CatalogCity = { id: string; name: string; countryCode: string; countryName: string };
+
+/** Where a Travel Pro member is browsing instead of their own city. */
+export type TravelCity = { id: string; name: string; countryCode: string; countryName?: string };

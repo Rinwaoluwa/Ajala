@@ -3,7 +3,7 @@ import { View } from 'react-native';
 import { SvgIcon, Text } from '@shared/components';
 import { palette } from '@shared/theme';
 
-/** The PRO tag on a Teleport city: the gold coin and "PRO" on a pale Marigold pill. */
+/** The PRO tag on a Travel city: the gold coin and "PRO" on a pale Marigold pill. */
 export function ProTag() {
   return (
     <View

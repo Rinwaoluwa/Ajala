@@ -5,10 +5,10 @@
 
 **Built so far:** the feed (`GET /feed` with `X-Client-Location`, cursor paging, pull to refresh,
 skeleton, empty and error states), the city header, post-type pills (the API's types, agreed with
-product), the level card (a static placeholder — no backend), and the Teleport city picker (`GET
-/cities`). Teleport cannot switch the feed's city yet; other cities open the paywall in `payment`.
+product), the level card (a static placeholder — no backend), and the Travel city picker (`GET
+/cities`). Travel cannot switch the feed's city yet; other cities open the paywall in `payment`.
 
-City-default feed, city selector header, teleport banner, feed ordering, cursor pagination, empty state, post-type filter pills.
+City-default feed, city selector header, travel banner, feed ordering, cursor pagination, empty state, post-type filter pills.
 
 ## Boundary rules
 
@@ -45,4 +45,4 @@ home/
 
 ## Notes
 
-The post card itself lives in `shared/components/post` — Home, Explore, Map, Profile and Chat all render the same card. Teleport only *reads* subscription state from `shared/state`; the paywall belongs to `payment`.
+The post card itself lives in `shared/components/post` — Home, Explore, Map, Profile and Chat all render the same card. Travel only *reads* subscription state from `shared/state`; the paywall belongs to `payment`.

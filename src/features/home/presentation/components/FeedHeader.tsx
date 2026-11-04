@@ -2,17 +2,19 @@ import { Host } from '@expo/ui';
 import { Pressable, View, useColorScheme } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
-import { NativeIcon, SkeletonBlock, Text, VectorIcon, icons } from '@shared/components';
+import { GlassSurface, NativeIcon, SkeletonBlock, Text, VectorIcon, icons } from '@shared/components';
 import { useTheme } from '@shared/hooks/useTheme';
 import { palette } from '@shared/theme';
 
 import type { CitySource, FeedCity } from '../../domain/entities/Feed';
 import { homeCopy } from '../copy';
+import { ProTag } from './ProTag';
 
 /**
  * The top of the home feed: a coral pin, the city (Plus Jakarta 24) with a
- * chevron that opens Teleport, the line under it, and the bell and chat buttons
- * — 44pt pale-Marigold circles on light, Deep on dark.
+ * chevron that opens Travel, the line under it, and the bell and chat buttons
+ * — 44pt pale-Marigold circles on light, Deep on dark; Liquid Glass circles where
+ * the phone has it (`GlassSurface`).
  *
  * Until the feed has answered, the city and its line are skeleton bars, as the
  * skeleton frame draws them; the name fades in when it lands. The bell and chat
@@ -24,12 +26,24 @@ const BUTTON = 44;
 export type FeedHeaderProps = {
   city: FeedCity | null;
   citySource: CitySource;
+  /** Travel Pro: a PRO tag beside the city (Figma "Home Feed / Subscribed User"). */
+  isPro?: boolean;
+  /** The person's own city while Travel has the feed elsewhere. */
+  travellingFrom?: string | null;
   onChooseCity: () => void;
   onNotifications: () => void;
   onMessages: () => void;
 };
 
-export function FeedHeader({ city, citySource, onChooseCity, onNotifications, onMessages }: FeedHeaderProps) {
+export function FeedHeader({
+  city,
+  citySource,
+  isPro = false,
+  travellingFrom = null,
+  onChooseCity,
+  onNotifications,
+  onMessages,
+}: FeedHeaderProps) {
   const theme = useTheme();
   const dark = useColorScheme() === 'dark';
   // Teal (light) / Mist (dark) once loaded; the skeleton's grey before.
@@ -51,12 +65,13 @@ export function FeedHeader({ city, citySource, onChooseCity, onNotifications, on
               <Text variant="headingLg" numberOfLines={1} style={{ flexShrink: 1 }}>
                 {city.name}
               </Text>
-              <Host matchContents pointerEvents="none">
+              {isPro ? <ProTag /> : null}
+              <Host matchContents pointerEvents="none" ignoreSafeArea="all">
                 <NativeIcon source={icons.chevronDown} size={13} color={theme.foreground} />
               </Host>
             </View>
             <Text variant="bodySm" tone="muted" className="mt-2">
-              {homeCopy.citySubtitle[citySource]}
+              {travellingFrom ? homeCopy.travellingFrom(travellingFrom) : homeCopy.citySubtitle[citySource]}
             </Text>
           </Animated.View>
         ) : (
@@ -80,19 +95,21 @@ export function FeedHeader({ city, citySource, onChooseCity, onNotifications, on
         ).map(([icon, label, onPress]) => (
           <Pressable key={icon} onPress={onPress} accessibilityRole="button" accessibilityLabel={label}>
             {({ pressed }) => (
-              <View
+              <GlassSurface
+                fallbackColor={city ? theme.iconButtonFill : theme.skeletonSurface}
+                interactive
+                shadow={false}
                 style={{
                   width: BUTTON,
                   height: BUTTON,
                   borderRadius: BUTTON / 2,
-                  backgroundColor: city ? theme.iconButtonFill : theme.skeletonSurface,
                   alignItems: 'center',
                   justifyContent: 'center',
                   opacity: pressed ? 0.6 : 1,
                 }}
               >
                 <VectorIcon name={icon} size={22} color={iconTint} />
-              </View>
+              </GlassSurface>
             )}
           </Pressable>
         ))}

@@ -7,7 +7,7 @@ import { feedKeys } from '../state/feedQueries';
 import { useHomeUseCases } from '../state/useHomeUseCases';
 
 /**
- * Teleport's city search (`GET /cities?q=`): asked once typing pauses for
+ * Travel's city search (`GET /cities?q=`): asked once typing pauses for
  * 300ms, from two characters. Each query's answer is cached for five minutes —
  * the catalogue barely changes — so retyping or going back is instant.
  */

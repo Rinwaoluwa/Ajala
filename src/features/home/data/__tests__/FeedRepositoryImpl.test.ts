@@ -45,7 +45,7 @@ function fake(answer: () => unknown) {
 describe('feed repository', () => {
   it('asks for a page with the type, cursor and location header', async () => {
     const { request, calls } = fake(() => PAGE);
-    const page = await createFeedRepository(request).getFeed('event', 'c1', 20);
+    const page = await createFeedRepository(request).getFeed('event', 'c1', 20, null);
 
     expect(calls[0]).toEqual({
       method: 'GET',
@@ -62,13 +62,13 @@ describe('feed repository', () => {
 
   it('leaves the cursor out of the first page', async () => {
     const { request, calls } = fake(() => PAGE);
-    await createFeedRepository(request).getFeed('all', null, 20);
+    await createFeedRepository(request).getFeed('all', null, 20, null);
     expect(calls[0]?.path).toBe('/api/v1/feed?type=all&limit=20');
   });
 
   it('reads NO_CITY by its code', async () => {
     const { request } = fake(() => new ApiError({ code: 'NO_CITY', message: 'no city', status: 404 }));
-    await expect(createFeedRepository(request).getFeed('all', null, 20)).rejects.toMatchObject({
+    await expect(createFeedRepository(request).getFeed('all', null, 20, null)).rejects.toMatchObject({
       code: 'noCity',
     });
   });

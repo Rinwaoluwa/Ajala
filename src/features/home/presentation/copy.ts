@@ -10,6 +10,8 @@ export const homeCopy = {
     edge: 'Exploring where you are',
   } satisfies Record<CitySource, string>,
   chooseCity: 'Choose a city',
+  // Not drawn: the header while Travel has the feed in another city.
+  travellingFrom: (home: string) => `Travelling from ${home}`,
   notifications: 'Notifications',
   messages: 'Messages',
   like: 'Save',
@@ -45,14 +47,15 @@ export const homeCopy = {
   },
 } as const;
 
-export const teleportCopy = {
-  title: 'Teleport',
+export const travelCopy = {
+  title: 'Travel',
   subtitle: 'Explore activities in another city',
   search: 'Search city or country...',
-  proTitle: 'Teleport Pro',
+  proTitle: 'Travel Pro',
   proBody: 'Explore activities in cities worldwide',
   pro: 'PRO',
   yourCity: 'Your city',
+  recent: 'Recent',
   popular: 'Popular',
   results: 'Results',
   home: 'Home',

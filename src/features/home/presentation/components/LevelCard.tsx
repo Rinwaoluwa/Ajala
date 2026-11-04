@@ -11,6 +11,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { Button, Text } from '@shared/components';
+import { useFontScale } from '@shared/hooks/useFontScale';
 import { useTheme } from '@shared/hooks/useTheme';
 import { palette } from '@shared/theme';
 
@@ -36,6 +37,7 @@ const BADGE = require('../../../../../assets/images/badges/level-badge.png') as 
 
 export function LevelCard({ onView, onClose }: { onView: () => void; onClose: () => void }) {
   const theme = useTheme();
+  const fontScale = useFontScale();
   const dark = useColorScheme() === 'dark';
   const reduceMotion = useReducedMotion();
   const level = homeCopy.level;
@@ -67,6 +69,8 @@ export function LevelCard({ onView, onClose }: { onView: () => void; onClose: ()
       <View className="flex-row items-start justify-between">
         <View
           style={{
+            flexShrink: 1,
+            marginRight: 8,
             backgroundColor: theme.selectedFill,
             borderRadius: 999,
             paddingHorizontal: 12,
@@ -95,8 +99,9 @@ export function LevelCard({ onView, onClose }: { onView: () => void; onClose: ()
         />
       </View>
 
-      <View className="mt-12 flex-row items-center" style={{ gap: 8 }}>
-        <Text variant="bodySm" tone="muted" style={{ flex: 1 }}>
+      {/* When the text would get narrower than ~120pt (big text, small phone), the buttons wrap under it. */}
+      <View className="mt-12 flex-row flex-wrap items-center" style={{ gap: 8 }}>
+        <Text variant="bodySm" tone="muted" style={{ flex: 1, minWidth: 120 * fontScale }}>
           {level.next}
           <Text variant="bodySm" tone="accent">
             {level.nextLevel}
