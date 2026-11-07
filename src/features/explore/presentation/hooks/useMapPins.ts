@@ -14,8 +14,17 @@ import { useExploreUseCases } from '../state/useExploreUseCases';
  *
  * The last box's pins stay on the map while the next box loads, so pins never
  * blink out during a pan. "Happening today" narrows them on the phone.
+ *
+ * `titleFilter` is the API's `q` (pins whose title contains it). The map has no
+ * box for it yet — its search moves the camera between cities — so the screen
+ * passes nothing; it is here so a pin filter is one prop away.
  */
-export function useMapPins(bbox: Bbox | null, type: PostType | null, todayOnly: boolean) {
+export function useMapPins(
+  bbox: Bbox | null,
+  type: PostType | null,
+  todayOnly: boolean,
+  titleFilter: string | null = null,
+) {
   const { loadPins } = useExploreUseCases();
   // Today's date for the filter; re-read whenever the filter is turned on.
   const [now, setNow] = useState(() => new Date());
@@ -26,8 +35,8 @@ export function useMapPins(bbox: Bbox | null, type: PostType | null, todayOnly: 
   }
 
   const query = useQuery({
-    queryKey: bbox ? exploreKeys.pins(bbox, type) : ['explore', 'pins', 'none'],
-    queryFn: () => loadPins(bbox!, type),
+    queryKey: bbox ? exploreKeys.pins(bbox, type, titleFilter) : ['mapPins', 'none'],
+    queryFn: () => loadPins(bbox!, type, titleFilter),
     enabled: bbox !== null,
     placeholderData: keepPreviousData,
     staleTime: 60_000,

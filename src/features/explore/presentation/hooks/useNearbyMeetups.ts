@@ -5,8 +5,10 @@ import { exploreKeys } from '../state/exploreQueries';
 import { useExploreUseCases } from '../state/useExploreUseCases';
 
 /**
- * "Meetups Near You": `GET /explore/meetups`, meetups only, an interest counting
- * double (spec §2.11). One cache per interest, paged by cursor.
+ * "Meetups Near You". With an interest chosen, a post search by it, meetups
+ * only (`GET /search/posts?interestIds=&type=meetup`); with none, the feed's
+ * meetups (`GET /feed?type=meetup`), since search needs words or interests
+ * (spec §2.11, §2.18). One cache per interest, paged by cursor.
  */
 export function useNearbyMeetups(interestId: string | null) {
   const { loadMeetups } = useExploreUseCases();

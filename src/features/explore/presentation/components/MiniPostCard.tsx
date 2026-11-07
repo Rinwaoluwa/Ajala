@@ -22,7 +22,7 @@ import type { PostPreview } from '../../domain/entities/Explore';
 import type { ExploreErrorCode } from '../../domain/entities/ExploreError';
 import { rsvpAction, spotsLeft, type RsvpAction } from '../../domain/rules/exploreRules';
 import { exploreCopy, exploreErrorMessages, typeEmoji, typeLabels } from '../copy';
-import { formatPrice, formatShortDay } from '../format';
+import { formatCostShare, formatPrice, formatShortDay } from '../format';
 
 /**
  * The card a tapped pin opens (Figma "Map_Overlay_Mini"): the cover photo at the
@@ -31,7 +31,9 @@ import { formatPrice, formatShortDay } from '../format';
  *
  * The button follows the post's own state (spec §2.13): RSVP with its price, or
  * Request to join on a private post, Book on a paid Event; Requested, Going and
- * Waitlisted once done; nothing once declined or removed.
+ * Waitlisted once done; nothing once declined or removed. A Plan or Group that
+ * splits a cost says "About ₦12,000 each" under its counts — the server's
+ * per-person share, not worked out here.
  *
  * Motion: it rises 12pt and fades in over 250ms, and sinks out in 180ms (a fade
  * alone under Reduce Motion). At large text the buttons stack.
@@ -196,6 +198,11 @@ function Loaded({
         <Text variant="bodyXs" tone="muted" className="mt-2">
           {counts}
         </Text>
+        {post.costShare ? (
+          <Text variant="bodyXs" tone="muted" className="mt-2">
+            {exploreCopy.card.costEach(formatCostShare(post.costShare))}
+          </Text>
+        ) : null}
 
         <View
           onLayout={(e) => setColumnWidth(e.nativeEvent.layout.width)}

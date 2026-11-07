@@ -8,16 +8,17 @@ import {
   toExploreError,
   toInterest,
   toMapPins,
-  toMeetupsPage,
   toPlaceResult,
   toPostPreview,
+  toPostsPage,
   toRsvpResult,
 } from '../mappers/exploreMappers';
 
 /**
- * `ExploreRepository` over the API and the phone. Pins, posts and meetups send
- * `X-Client-Location` when the phone can give it (spec §2.11): it picks the city
- * the pins come from and fills each card's distance.
+ * `ExploreRepository` over the API and the phone. Pins, posts, the feed and
+ * search send `X-Client-Location` when the phone can give it (spec §2.11): it
+ * picks the city (unless a Travel teleport outranks it) and fills each card's
+ * distance.
  *
  * Cache policy: none here; the presentation layer's queries cache.
  */
@@ -36,8 +37,10 @@ export function createExploreRepository(
   };
 
   return {
-    getPins: (bbox, type) =>
-      guard(async () => toMapPins(await api.getPins(bboxParam(bbox), type, await getClientLocationHeader()))),
+    getPins: (bbox, type, titleFilter) =>
+      guard(async () =>
+        toMapPins(await api.getPins(bboxParam(bbox), type, titleFilter, await getClientLocationHeader())),
+      ),
     getPost: (postId) =>
       guard(async () => toPostPreview(await api.getPost(postId, await getClientLocationHeader()))),
     rsvp: (postId) => guard(async () => toRsvpResult(await api.rsvp(postId))),
@@ -47,9 +50,18 @@ export function createExploreRepository(
         await api.report(postId, { reason, details });
       }, 'report'),
     listInterests: () => guard(async () => (await api.listInterests()).map(toInterest)),
-    getMeetups: (interestId, cursor, limit) =>
+    getFeed: (type, cursor, limit) =>
+      guard(async () => toPostsPage(await api.getFeed(type, cursor, limit, await getClientLocationHeader()))),
+    searchPosts: (search, cursor, limit) =>
       guard(async () =>
-        toMeetupsPage(await api.getMeetups(interestId, cursor, limit, await getClientLocationHeader())),
+        toPostsPage(
+          await api.searchPosts(
+            { q: search.words, interestIds: search.interestIds, type: search.type },
+            cursor,
+            limit,
+            await getClientLocationHeader(),
+          ),
+        ),
       ),
     searchPlaces: (q, limit) => guard(async () => (await api.searchCities(q, limit)).map(toPlaceResult)),
     hasSeenRsvpNotice: () => notice.seen(),

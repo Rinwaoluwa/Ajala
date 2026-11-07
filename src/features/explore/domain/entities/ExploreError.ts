@@ -13,6 +13,10 @@ export type ExploreErrorCode =
   | 'externalBooking'
   /** 409 on a report: one is already open. */
   | 'alreadyReported'
+  /** 403 REPORTING_PAUSED: a moderator paused this person's reporting (blocking still works). */
+  | 'reportingPaused'
+  /** A plain 409 anywhere else: the post changed under us — re-read it. */
+  | 'conflict'
   /** 400 on a report or RSVP: it is the person's own post. */
   | 'ownPost'
   | 'rateLimited'

@@ -1,7 +1,8 @@
 /**
  * What Explore works with: pins on the map of the feed's city, the post behind
- * a pin (for its mini card), the interests to browse by, and the meetups near
- * the person (spec §6: `MapPinDto`, `PostDetailDto`, `InterestDto`, `PostCardDto`).
+ * a pin (for its mini card), the interests to browse by, and the posts the
+ * Explore list shows — meetups near the person, or search results (spec §6:
+ * `MapPinDto`, `PostDetailDto`, `InterestDto`, `PostCardDto`).
  */
 
 export type PostType = 'meetup' | 'event' | 'plan' | 'group';
@@ -27,6 +28,9 @@ export type JoinMode = 'rsvp' | 'external';
 
 export type PostPrice = { amountCents: number; currency: string; exponent: number };
 
+/** A Plan's or Group's shared cost: each person's share, worked out by the server (rounded up). */
+export type CostShare = { perPersonCents: number; currency: string; exponent: number; expectedCount: number };
+
 /** The post behind a pin, as the mini card shows it. */
 export type PostPreview = {
   id: string;
@@ -39,6 +43,8 @@ export type PostPreview = {
   capacity: number | null;
   goingCount: number;
   price: PostPrice | null;
+  /** Null unless a Plan or Group splits a cost: then the card says "about N each". */
+  costShare: CostShare | null;
   joinMode: JoinMode;
   externalUrl: string | null;
   visibility: 'open' | 'private';
@@ -58,9 +64,10 @@ export type RsvpResult = {
 
 export type Interest = { id: string; name: string; emoji: string | null };
 
-/** A card under "Meetups Near You". */
-export type NearbyMeetup = {
+/** A card in the Explore list: under "Meetups Near You", or a search result (any type). */
+export type ListedPost = {
   id: string;
+  type: PostType;
   title: string;
   imageUrl: string | null;
   startAt: string | null;
@@ -69,7 +76,7 @@ export type NearbyMeetup = {
   distanceKm: number | null;
 };
 
-export type MeetupsPage = { items: NearbyMeetup[]; nextCursor: string | null };
+export type PostsPage = { items: ListedPost[]; nextCursor: string | null };
 
 /** A city the map search finds, with where to move the camera. */
 export type PlaceResult = { id: string; label: string; lat: number; lng: number };

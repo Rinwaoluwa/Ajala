@@ -12,29 +12,43 @@ import { Text, formatDistance } from '@shared/components';
 import { useFontScale } from '@shared/hooks/useFontScale';
 import { useTheme } from '@shared/hooks/useTheme';
 
-import type { NearbyMeetup } from '../../domain/entities/Explore';
-import { exploreCopy } from '../copy';
+import type { ListedPost } from '../../domain/entities/Explore';
+import { exploreCopy, typeLabels } from '../copy';
 import { formatWeekdayTime } from '../format';
 
 /**
- * A card under "Meetups Near You": the cover photo, the title, the place, "Friday ·
- * 7:00 PM", "16 going · 2 km away". It widens with the text-size setting so its
- * lines stay readable, and dips to 98% when pressed.
+ * A card in the Explore list: the cover photo, the title, the place, "Friday ·
+ * 7:00 PM", "16 going · 2 km away". Under "Meetups Near You" it is a fixed-width
+ * card in a sideways row that widens with the text-size setting so its lines
+ * stay readable; as a search result (`fill`) it takes the column's width and
+ * names its type, since results mix meetups, events, plans and groups. It dips
+ * to 98% when pressed.
  */
 
 const BASE_WIDTH = 200;
 
-function MeetupCardComponent({ meetup, onPress }: { meetup: NearbyMeetup; onPress: () => void }) {
+function MeetupCardComponent({
+  meetup,
+  onPress,
+  fill = false,
+}: {
+  meetup: ListedPost;
+  onPress: () => void;
+  /** Full column width, with the type named (search results). */
+  fill?: boolean;
+}) {
   const theme = useTheme();
   const reduceMotion = useReducedMotion();
-  const width = Math.round(BASE_WIDTH * Math.min(useFontScale(), 1.5));
+  const fixedWidth = Math.round(BASE_WIDTH * Math.min(useFontScale(), 1.5));
   const pressed = useSharedValue(0);
   const style = useAnimatedStyle(() => ({
     transform: reduceMotion ? [] : [{ scale: 1 - 0.02 * pressed.value }],
   }));
   const distance = formatDistance(meetup.distanceKm);
   const footer = [exploreCopy.list.going(meetup.goingCount), distance].filter(Boolean).join(' · ');
-  const when = formatWeekdayTime(meetup.startAt);
+  const when = [fill ? typeLabels[meetup.type] : null, formatWeekdayTime(meetup.startAt)]
+    .filter(Boolean)
+    .join(' · ');
 
   return (
     <Pressable
@@ -47,7 +61,7 @@ function MeetupCardComponent({ meetup, onPress }: { meetup: NearbyMeetup; onPres
       <Animated.View
         style={[
           {
-            width,
+            width: fill ? undefined : fixedWidth,
             borderRadius: 14,
             borderWidth: 1,
             borderColor: theme.border,

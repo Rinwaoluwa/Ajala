@@ -43,17 +43,37 @@ const POST = {
   title: 'Lagos Tech Founders Networking',
   images: [{ thumbUrl: 't', cardUrl: 'https://cdn/card.jpg', fullUrl: 'f' }],
   startAt: '2026-10-04T18:00:00+01:00',
+  endAt: null,
+  recurrence: null,
   placeName: 'The Nest',
+  lat: 6.43,
+  lng: 3.42,
+  city: { id: 'los', name: 'Lagos', countryCode: 'NG', label: 'Lagos, NG' },
   capacity: 60,
   price: null,
+  costSplit: null,
   externalUrl: null,
   joinMode: 'rsvp',
   goingCount: 47,
   rsvpState: 'none',
+  saved: false,
   visibility: 'open',
+  host: { id: 'h', displayName: 'Ada O.', avatarUrl: null, verified: false },
+  interests: [],
   distanceKm: 1.2,
   isHost: false,
   waitlistPosition: null,
+};
+
+const LISTED = {
+  id: 'p1',
+  type: 'meetup',
+  title: 'Lagos Tech Founders Networking',
+  imageUrl: 'https://cdn/card.jpg',
+  startAt: '2026-10-04T18:00:00+01:00',
+  placeName: 'The Nest',
+  goingCount: 47,
+  distanceKm: 1.2,
 };
 
 describe('explore repository', () => {
@@ -68,6 +88,7 @@ describe('explore repository', () => {
     const result = await createExploreRepository(request, notice).getPins(
       { west: 3.3, south: 6.4, east: 3.5, north: 6.6 },
       'event',
+      null,
     );
     expect(calls[0]).toEqual({
       method: 'GET',
@@ -84,8 +105,14 @@ describe('explore repository', () => {
 
   it('leaves the type out for all pins', async () => {
     const { request, calls } = fake(() => ({ city: { name: 'Lagos' }, pins: [] }));
-    await createExploreRepository(request, notice).getPins({ west: 1, south: 2, east: 3, north: 4 }, null);
+    await createExploreRepository(request, notice).getPins({ west: 1, south: 2, east: 3, north: 4 }, null, null);
     expect(calls[0].path).toBe('/api/v1/map/pins?bbox=1%2C2%2C3%2C4');
+  });
+
+  it('sends a title filter as q', async () => {
+    const { request, calls } = fake(() => ({ city: { name: 'Lagos' }, pins: [] }));
+    await createExploreRepository(request, notice).getPins({ west: 1, south: 2, east: 3, north: 4 }, null, 'jazz');
+    expect(calls[0].path).toBe('/api/v1/map/pins?bbox=1%2C2%2C3%2C4&q=jazz');
   });
 
   it('maps a post for its mini card', async () => {
@@ -100,7 +127,18 @@ describe('explore repository', () => {
       rsvpState: 'none',
       joinMode: 'rsvp',
       isHost: false,
+      costShare: null,
     });
+  });
+
+  it('carries a cost split for "about N each"', async () => {
+    const { request } = fake(() => ({
+      ...POST,
+      type: 'plan',
+      costSplit: { totalCents: 4800000, currency: 'NGN', exponent: 2, expectedCount: 4, perPersonCents: 1200000 },
+    }));
+    const post = await createExploreRepository(request, notice).getPost('p1');
+    expect(post.costShare).toEqual({ perPersonCents: 1200000, currency: 'NGN', exponent: 2, expectedCount: 4 });
   });
 
   it('joins with a POST and reads the new state', async () => {
@@ -132,6 +170,17 @@ describe('explore repository', () => {
     });
   });
 
+  it('reads a paused reporter by its code, and a plain 409 elsewhere as a conflict', async () => {
+    const paused = fake(() => new ApiError({ code: 'REPORTING_PAUSED', message: 'paused', status: 403 }));
+    await expect(
+      createExploreRepository(paused.request, notice).report('p1', 'other', 'x'),
+    ).rejects.toMatchObject({ code: 'reportingPaused' });
+    const changed = fake(() => new ApiError({ code: 'CONFLICT', message: 'not live', status: 409 }));
+    await expect(createExploreRepository(changed.request, notice).rsvp('p1')).rejects.toMatchObject({
+      code: 'conflict',
+    });
+  });
+
   it('reads a 409 on a report as already reported, a 400 as their own post', async () => {
     const conflict = fake(() => new ApiError({ code: 'CONFLICT', message: 'open', status: 409 }));
     await expect(
@@ -147,24 +196,26 @@ describe('explore repository', () => {
     });
   });
 
-  it('pages meetups by interest', async () => {
-    const { request, calls } = fake(() => ({ items: [POST], nextCursor: 'c2' }));
-    const page = await createExploreRepository(request, notice).getMeetups('i1', 'c1', 20);
-    expect(calls[0].path).toBe('/api/v1/explore/meetups?interestId=i1&cursor=c1&limit=20');
-    expect(page).toEqual({
-      items: [
-        {
-          id: 'p1',
-          title: 'Lagos Tech Founders Networking',
-          imageUrl: 'https://cdn/card.jpg',
-          startAt: '2026-10-04T18:00:00+01:00',
-          placeName: 'The Nest',
-          goingCount: 47,
-          distanceKm: 1.2,
-        },
-      ],
-      nextCursor: 'c2',
+  it('reads the feed of one type', async () => {
+    const { request, calls } = fake(() => ({ items: [POST], nextCursor: 'c2', city: {}, citySource: 'teleport' }));
+    const page = await createExploreRepository(request, notice).getFeed('meetup', null, 20);
+    expect(calls[0]).toEqual({
+      method: 'GET',
+      path: '/api/v1/feed?type=meetup&limit=20',
+      headers: { 'X-Client-Location': '6.453,3.396' },
     });
+    expect(page).toEqual({ items: [LISTED], nextCursor: 'c2' });
+  });
+
+  it('searches posts by words, or by interests repeated once each', async () => {
+    const { request, calls } = fake(() => ({ items: [POST], nextCursor: null }));
+    const repo = createExploreRepository(request, notice);
+    await repo.searchPosts({ words: 'jazz night', interestIds: [], type: null }, null, 20);
+    await repo.searchPosts({ words: null, interestIds: ['i1', 'i2'], type: 'meetup' }, 'c1', 20);
+    expect(calls[0]?.path).toBe('/api/v1/search/posts?q=jazz%20night&limit=20');
+    expect(calls[1]?.path).toBe(
+      '/api/v1/search/posts?interestIds=i1&interestIds=i2&type=meetup&cursor=c1&limit=20',
+    );
   });
 
   it('finds cities with where to move the map', async () => {

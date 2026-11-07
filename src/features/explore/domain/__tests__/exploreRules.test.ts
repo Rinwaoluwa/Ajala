@@ -5,8 +5,8 @@ import {
   REPORT_DETAILS_MAX,
   canSubmitReport,
   isHappeningToday,
-  matchesSearch,
   optimisticJoin,
+  readSearch,
   reportDetailsRoom,
   rsvpAction,
   spotsLeft,
@@ -24,6 +24,7 @@ const POST: PostPreview = {
   capacity: 60,
   goingCount: 47,
   price: null,
+  costShare: null,
   joinMode: 'rsvp',
   externalUrl: null,
   visibility: 'open',
@@ -131,19 +132,10 @@ describe('report reasons', () => {
 });
 
 describe('list search', () => {
-  const meetup = {
-    id: 'm',
-    title: 'Afrobeats after hours',
-    imageUrl: null,
-    startAt: null,
-    placeName: 'The House, Victoria Island',
-    goingCount: 16,
-    distanceKm: 2.4,
-  };
-  it('matches title or place, ignoring case; empty matches all', () => {
-    expect(matchesSearch(meetup, 'afro')).toBe(true);
-    expect(matchesSearch(meetup, 'victoria')).toBe(true);
-    expect(matchesSearch(meetup, 'museum')).toBe(false);
-    expect(matchesSearch(meetup, '  ')).toBe(true);
+  it('goes back to the list when empty, asks for two characters, trims the rest', () => {
+    expect(readSearch('   ')).toEqual({ kind: 'empty' });
+    expect(readSearch(' a ')).toEqual({ kind: 'tooShort' });
+    expect(readSearch('  jazz ')).toEqual({ kind: 'ready', words: 'jazz' });
+    expect(readSearch('x'.repeat(120))).toEqual({ kind: 'ready', words: 'x'.repeat(100) });
   });
 });

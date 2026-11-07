@@ -2,17 +2,16 @@ import { isApiError } from '@core/api/ApiError';
 
 import type {
   Interest,
+  ListedPost,
   MapPins,
-  MeetupsPage,
-  NearbyMeetup,
   PlaceResult,
   PostPreview,
+  PostsPage,
   RsvpResult,
 } from '../../domain/entities/Explore';
 import { ExploreError } from '../../domain/entities/ExploreError';
 import type {
   CityDto,
-  FeedPageDto,
   InterestDto,
   MapPinsDto,
   PostCardDto,
@@ -44,6 +43,14 @@ export const toPostPreview = (dto: PostDetailDto): PostPreview => ({
   price: dto.price
     ? { amountCents: dto.price.amountCents, currency: dto.price.currency, exponent: dto.price.exponent }
     : null,
+  costShare: dto.costSplit
+    ? {
+        perPersonCents: dto.costSplit.perPersonCents,
+        currency: dto.costSplit.currency,
+        exponent: dto.costSplit.exponent,
+        expectedCount: dto.costSplit.expectedCount,
+      }
+    : null,
   joinMode: dto.joinMode ?? 'rsvp',
   externalUrl: dto.externalUrl ?? null,
   visibility: dto.visibility ?? 'open',
@@ -65,8 +72,9 @@ export const toInterest = (dto: InterestDto): Interest => ({
   emoji: dto.emoji ?? null,
 });
 
-const toNearbyMeetup = (dto: PostCardDto): NearbyMeetup => ({
+const toListedPost = (dto: PostCardDto): ListedPost => ({
   id: dto.id,
+  type: dto.type,
   title: dto.title,
   imageUrl: dto.images?.[0]?.cardUrl ?? null,
   startAt: dto.startAt ?? null,
@@ -75,8 +83,9 @@ const toNearbyMeetup = (dto: PostCardDto): NearbyMeetup => ({
   distanceKm: dto.distanceKm ?? null,
 });
 
-export const toMeetupsPage = (dto: FeedPageDto): MeetupsPage => ({
-  items: (dto.items ?? []).map(toNearbyMeetup),
+/** A page of `GET /feed` or `GET /search/posts`: the same cards either way. */
+export const toPostsPage = (dto: { items: PostCardDto[] | null; nextCursor: string | null }): PostsPage => ({
+  items: (dto.items ?? []).map(toListedPost),
   nextCursor: dto.nextCursor ?? null,
 });
 
@@ -90,7 +99,8 @@ export const toPlaceResult = (dto: CityDto): PlaceResult => ({
 /**
  * By the API's code (spec §5), never its message. A plain 409 or 400 means
  * something specific only on a report — one is already open, or it is the
- * person's own post — so `context` says which call failed.
+ * person's own post — so `context` says which call failed. Anywhere else a
+ * plain 409 is the generic "it changed": the caller re-reads the post.
  */
 export function toExploreError(e: unknown, context: 'report' | 'other' = 'other'): ExploreError {
   if (e instanceof ExploreError) return e;
@@ -98,6 +108,10 @@ export function toExploreError(e: unknown, context: 'report' | 'other' = 'other'
     if (context === 'report' && e.code === 'CONFLICT') return new ExploreError('alreadyReported', e.message);
     if (context === 'report' && e.code === 'BAD_REQUEST') return new ExploreError('ownPost', e.message);
     switch (e.code) {
+      case 'REPORTING_PAUSED':
+        return new ExploreError('reportingPaused', e.message);
+      case 'CONFLICT':
+        return new ExploreError('conflict', e.message);
       case 'NO_CITY':
         return new ExploreError('noCity', e.message);
       case 'NETWORK':

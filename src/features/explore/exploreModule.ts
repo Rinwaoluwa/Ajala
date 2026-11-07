@@ -10,6 +10,7 @@ import {
   makeReportPost,
   makeRsvpNotice,
   makeSearchPlaces,
+  makeSearchPosts,
 } from './domain/usecases/ExploreUseCases';
 
 /**
@@ -27,6 +28,7 @@ export function createExploreUseCases(request: ExploreRequest) {
     listInterests: makeListInterests(repo),
     loadMeetups: makeLoadMeetups(repo),
     searchPlaces: makeSearchPlaces(repo),
+    searchPosts: makeSearchPosts(repo),
     rsvpNotice: makeRsvpNotice(repo),
   };
 }

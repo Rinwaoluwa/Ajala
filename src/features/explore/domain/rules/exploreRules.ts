@@ -1,7 +1,7 @@
-import type { MapPin, NearbyMeetup, PostPreview, PostType, ReportReasonCode } from '../entities/Explore';
+import type { MapPin, PostPreview, PostType, ReportReasonCode } from '../entities/Explore';
 
-/** Meetups per page under "Meetups Near You". */
-export const MEETUPS_PAGE_SIZE = 20;
+/** Posts per page in the Explore list: "Meetups Near You" and search results. */
+export const LIST_PAGE_SIZE = 20;
 
 /** The type chips over the map, in the order the design draws them. */
 export const PIN_TYPES: readonly { type: PostType; label: string }[] = [
@@ -132,12 +132,21 @@ export function toReportPayload(
   return { reason, details: text.slice(0, REPORT_DETAILS_MAX) };
 }
 
+/** Post search takes 2 to 100 characters (spec §2.18). */
+export const SEARCH_MIN = 2;
+export const SEARCH_MAX = 100;
+/** The server stops at 100 results a search; past that the person should narrow it. */
+export const SEARCH_RESULT_CAP = 100;
+
 /**
- * The Explore list's search box. There is no search endpoint, so it narrows the
- * meetups already loaded, by title or place.
+ * The Explore list's search box, read on submit (search has no typeahead):
+ * nothing typed goes back to the list; one character asks for more.
  */
-export function matchesSearch(meetup: NearbyMeetup, query: string): boolean {
-  const q = query.trim().toLowerCase();
-  if (!q) return true;
-  return meetup.title.toLowerCase().includes(q) || (meetup.placeName ?? '').toLowerCase().includes(q);
+export type SearchInput = { kind: 'empty' } | { kind: 'tooShort' } | { kind: 'ready'; words: string };
+
+export function readSearch(text: string): SearchInput {
+  const words = text.trim();
+  if (!words) return { kind: 'empty' };
+  if (words.length < SEARCH_MIN) return { kind: 'tooShort' };
+  return { kind: 'ready', words: words.slice(0, SEARCH_MAX) };
 }

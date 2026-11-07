@@ -1,4 +1,4 @@
-import type { PostPrice } from '../domain/entities/Explore';
+import type { CostShare, PostPrice } from '../domain/entities/Explore';
 
 /**
  * Dates and money as Explore's cards write them, in the phone's time zone:
@@ -37,12 +37,25 @@ const SYMBOLS: Record<string, string> = {
   KES: 'KSh',
 };
 
-/** "₦5,000", "$20.50" — whole amounts without decimals. */
-export function formatPrice(price: PostPrice): string {
-  const amount = price.amountCents / 10 ** price.exponent;
-  const fixed = Number.isInteger(amount) ? amount.toFixed(0) : amount.toFixed(price.exponent);
-  const [whole, fraction] = fixed.split('.');
+/**
+ * An amount in its smallest unit, written out: amountCents / 10 ** exponent
+ * (spec §1.5). "₦5,000", "$20.50" — whole amounts without decimals.
+ */
+export function formatMoney(cents: number, exponent: number, currency: string): string {
+  const amount = cents / 10 ** exponent;
+  const fixed = Number.isInteger(amount) ? amount.toFixed(0) : amount.toFixed(exponent);
+  const [whole = '0', fraction] = fixed.split('.');
   const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-  const symbol = SYMBOLS[price.currency] ?? `${price.currency} `;
+  const symbol = SYMBOLS[currency] ?? `${currency} `;
   return `${symbol}${grouped}${fraction ? `.${fraction}` : ''}`;
+}
+
+/** A post's price: "₦5,000". */
+export function formatPrice(price: PostPrice): string {
+  return formatMoney(price.amountCents, price.exponent, price.currency);
+}
+
+/** A shared cost's per-person figure: "₦12,000" (the card adds "About … each"). */
+export function formatCostShare(share: CostShare): string {
+  return formatMoney(share.perPersonCents, share.exponent, share.currency);
 }
