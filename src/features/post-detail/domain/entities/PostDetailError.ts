@@ -4,6 +4,7 @@ export type PostDetailErrorCode =
   | 'notFound'
   | 'postFull'
   | 'postStarted'
+  /** Also what a comment on a cancelled post answers: the composer closes. */
   | 'postCancelled'
   /** A paid Event: book through its link instead. */
   | 'externalBooking'
@@ -11,10 +12,14 @@ export type PostDetailErrorCode =
   | 'hasAttendees'
   /** Own post, declined by the host, or a list the viewer may not see. */
   | 'notAllowed'
-  /** Comments are not in the API yet (the proposed endpoint answered 404 / 405). */
-  | 'commentsUnavailable'
   /** Empty, or longer than `COMMENT_MAX`. */
   | 'commentInvalid'
+  /** A report without a reason, or "other" without details (or one's own comment). */
+  | 'reportInvalid'
+  /** 409 on a report: one is already open. */
+  | 'alreadyReported'
+  /** 403 `REPORTING_PAUSED`: a moderator paused this person's reporting. */
+  | 'reportingPaused'
   | 'rateLimited'
   | 'network'
   | 'sessionExpired'

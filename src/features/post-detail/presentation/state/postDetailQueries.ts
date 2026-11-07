@@ -6,7 +6,9 @@ export const postDetailKeys = {
   attendees: (id: string, state: AttendeeState) => ['postDetail', 'attendees', id, state] as const,
   attendeesOf: (id: string) => ['postDetail', 'attendees', id] as const,
   viewer: ['postDetail', 'viewer'] as const,
+  /** Top-level comments. Replies sit under it, so invalidating this refreshes both. */
   comments: (id: string) => ['postDetail', 'comments', id] as const,
+  replies: (id: string, commentId: string) => ['postDetail', 'comments', id, 'replies', commentId] as const,
 };
 
 /** Lists a post shows up in; refreshed when it is cancelled or deleted. Owned by other features. */

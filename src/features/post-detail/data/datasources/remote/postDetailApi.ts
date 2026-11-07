@@ -2,8 +2,10 @@ import type {
   AttendeesPageDto,
   CommentDto,
   CommentsPageDto,
+  CreateCommentDto,
   MeDto,
   PostDetailDto,
+  ReportCommentDto,
   RsvpStateResponseDto,
 } from '../../dto/postDetailDtos';
 
@@ -29,6 +31,7 @@ const query = (params: Record<string, string | number | null>) =>
     .join('&');
 
 const post = (id: string) => `${V1}/posts/${encodeURIComponent(id)}`;
+const comment = (id: string, commentId: string) => `${post(id)}/comments/${encodeURIComponent(commentId)}`;
 
 export function createPostDetailApi(request: PostDetailRequest) {
   return {
@@ -56,20 +59,24 @@ export function createPostDetailApi(request: PostDetailRequest) {
     remove: (id: string) => request<void>({ method: 'DELETE', path: post(id) }),
     getMe: () => request<MeDto>({ method: 'GET', path: `${V1}/me` }),
 
-    /** PROPOSED — not in the API yet (API map §12); the demo answers it. */
+    /** Top-level comments, oldest first (spec §2.18). */
     getComments: (id: string, cursor: string | null, limit: number) =>
+      request<CommentsPageDto>({ method: 'GET', path: `${post(id)}/comments?${query({ cursor, limit })}` }),
+
+    getReplies: (id: string, commentId: string, cursor: string | null, limit: number) =>
       request<CommentsPageDto>({
         method: 'GET',
-        path: `${post(id)}/comments?${query({ cursor, limit })}`,
-        retry: false,
+        path: `${comment(id, commentId)}/replies?${query({ cursor, limit })}`,
       }),
 
-    /** PROPOSED — not in the API yet (API map §12); the demo answers it. */
-    addComment: (id: string, text: string, replyToId: string | null) =>
-      request<CommentDto>({
-        method: 'POST',
-        path: `${post(id)}/comments`,
-        body: { text, ...(replyToId ? { replyToId } : null) },
-      }),
+    addComment: (id: string, body: CreateCommentDto) =>
+      request<CommentDto>({ method: 'POST', path: `${post(id)}/comments`, body }),
+
+    deleteComment: (id: string, commentId: string) =>
+      request<void>({ method: 'DELETE', path: comment(id, commentId) }),
+
+    /** 202 `ReportFiledDto`; the page needs nothing from it. */
+    reportComment: (id: string, commentId: string, body: ReportCommentDto) =>
+      request<unknown>({ method: 'POST', path: `${comment(id, commentId)}/report`, body }),
   };
 }

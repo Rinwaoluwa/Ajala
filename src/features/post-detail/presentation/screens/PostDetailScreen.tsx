@@ -21,34 +21,44 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ReportPostFlow } from '@features/explore';
 import {
   Avatar,
+  Button,
   EmptyState,
   NoteCard,
+  StatusSheet,
   SvgIcon,
+  Tag,
   Text,
   VectorIcon,
   enterRise,
   type MenuAction,
 } from '@shared/components';
+import { useSavePost } from '@shared/hooks/useSavePost';
 import { useTheme } from '@shared/hooks/useTheme';
 
-import type { PostDetail, PostType } from '../../domain/entities/PostDetail';
+import type { PostComment, PostDetail, PostType } from '../../domain/entities/PostDetail';
 import { isPostDetailError } from '../../domain/entities/PostDetailError';
+import { commentsClosed } from '../../domain/rules/commentRules';
 import { postLink, spotsLeft } from '../../domain/rules/postDetailRules';
 import { postCopy, postErrorMessages } from '../copy';
-import { formatPrice, formatWhen } from '../format';
+import { formatPrice, formatRecurrence, formatWhen } from '../format';
 import { usePostDetail } from '../hooks/usePostDetail';
 import { CommentBar, CommentsSection } from '../components/Comments';
 import { useComments } from '../hooks/useComments';
 import { InfoRow, StatTile } from '../components/InfoRow';
 import { ClosedNote, JoinBar } from '../components/JoinBar';
+import { LineList } from '../components/LineList';
 import { PostHero } from '../components/PostHero';
 import { PostSkeleton } from '../components/PostSkeleton';
+import { ReportCommentDialog } from '../components/ReportCommentDialog';
 import { WhoIsGoing } from '../components/WhoIsGoing';
 
 /**
- * The post page (Figma post detail, API map §6): the photos, title, host and
- * description; when and where; price and how many have joined; the main button
- * (join, request, going, full…) and Share; safety tips; who's going; comments.
+ * The post page (Figma post detail, API map §6): the photos (with the bookmark),
+ * title, host — with Message, or the host's Group chat — and description; when
+ * (and until when, and whether it repeats) and where; price or the shared cost
+ * and how many have joined; the main button (join, request, going, full…) and
+ * Share; an Event's running order or a Plan's itinerary; safety tips; who's
+ * going; comments and their replies.
  *
  * States: a skeleton while it loads; "This post isn't available" for a 404 (a
  * draft, removed, or the host blocked the viewer); a retry when the network
@@ -66,6 +76,10 @@ export type PostDetailScreenProps = {
   postId: string;
   onBack: () => void;
   onOpenProfile: (userId: string) => void;
+  /** A direct chat with the host (`POST /conversations { userId }`, behind the chat route). */
+  onMessageHost?: (hostId: string) => void;
+  /** The host's group chat with everyone going (`POST /conversations { postId }`). */
+  onOpenGroupChat?: (postId: string) => void;
   /**
    * The tapped card's photo, title and type. With it the page opens on its real
    * header (the photo is already in the image cache) rather than a blank or a
@@ -74,7 +88,14 @@ export type PostDetailScreenProps = {
   preview?: PostPreview | null;
 };
 
-export function PostDetailScreen({ postId, onBack, onOpenProfile, preview = null }: PostDetailScreenProps) {
+export function PostDetailScreen({
+  postId,
+  onBack,
+  onOpenProfile,
+  onMessageHost,
+  onOpenGroupChat,
+  preview = null,
+}: PostDetailScreenProps) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const { width, height: screenHeight } = useWindowDimensions();
@@ -88,7 +109,9 @@ export function PostDetailScreen({ postId, onBack, onOpenProfile, preview = null
     opacity: interpolate(scrollY.value, [heroHeight - 40, heroHeight], [0, 1], 'clamp'),
   }));
   const vm = usePostDetail(postId);
-  const talk = useComments(postId, vm.viewer);
+  const talk = useComments(postId, vm.viewer, commentsClosed(vm.post));
+  // The shared save: optimistic, and the same on every card showing this post.
+  const save = useSavePost(postId, vm.post?.saved ?? false);
   const [reporting, setReporting] = useState<string | null>(null);
 
   if (vm.loading) {
@@ -133,9 +156,30 @@ export function PostDetailScreen({ postId, onBack, onOpenProfile, preview = null
 
   const post = vm.post;
   const action = vm.action ?? 'none';
-  const when = formatWhen(post.startAt);
+  const when = formatWhen(post.startAt, post.endAt);
   const where = post.placeName ?? post.cityLabel;
   const left = spotsLeft(post);
+  const priceTile = priceOf(post);
+  // Saving answers 409 on a draft or a cancelled post, so the bookmark shows on live ones only.
+  const canSave = post.status === 'published';
+  const chat =
+    post.isHost && post.status === 'published' && onOpenGroupChat
+      ? { label: postCopy.groupChat, hint: postCopy.groupChatHint, onPress: () => onOpenGroupChat(post.id) }
+      : !post.isHost && onMessageHost
+        ? { label: postCopy.message, hint: postCopy.messageHost(post.host.name), onPress: () => onMessageHost(post.host.id) }
+        : null;
+
+  const confirmDeleteComment = (comment: PostComment) => {
+    const c = postCopy.comments;
+    Alert.alert(c.deleteTitle, c.deleteBody, [
+      { text: c.keep, style: 'cancel' },
+      {
+        text: c.deleteConfirm,
+        style: 'destructive',
+        onPress: () => void talk.deleteComment(comment).catch((e: unknown) => showError(e)),
+      },
+    ]);
+  };
 
   const confirmLeave = () => {
     const withdraw = post.rsvpState !== 'going';
@@ -224,6 +268,7 @@ export function PostDetailScreen({ postId, onBack, onOpenProfile, preview = null
           type={post.type}
           onBack={onBack}
           menu={menu}
+          save={canSave ? { saved: save.saved, onToggle: save.toggle } : null}
           scrollY={scrollY}
           firstPlaceholder={preview?.imageUrl}
         />
@@ -237,18 +282,28 @@ export function PostDetailScreen({ postId, onBack, onOpenProfile, preview = null
             {post.title}
           </Text>
 
-          <TouchableOpacity
-            activeOpacity={0.6}
-            onPress={() => onOpenProfile(post.host.id)}
-            accessibilityRole="button"
-            accessibilityLabel={`${postCopy.hostedBy} ${post.host.name}`}
-            style={{ flexDirection: 'row', alignItems: 'center', gap: 10, alignSelf: 'flex-start' }}
+          {/* Wraps: at large text sizes the chat button drops under the host rather than squeezing them. */}
+          <View
+            style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: 12, rowGap: 8 }}
           >
-            <Avatar name={post.host.name} uri={post.host.avatarUrl} size={32} ring />
-            <Text variant="bodySm" tone="muted">
-              {postCopy.hostedBy} <Text variant="bodySm">{post.host.name}</Text>
-            </Text>
-          </TouchableOpacity>
+            <TouchableOpacity
+              activeOpacity={0.6}
+              onPress={() => onOpenProfile(post.host.id)}
+              accessibilityRole="button"
+              accessibilityLabel={`${postCopy.hostedBy} ${post.host.name}`}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flexShrink: 1, marginRight: 'auto' }}
+            >
+              <Avatar name={post.host.name} uri={post.host.avatarUrl} size={32} ring />
+              <Text variant="bodySm" tone="muted" style={{ flexShrink: 1 }}>
+                {postCopy.hostedBy} <Text variant="bodySm">{post.host.name}</Text>
+              </Text>
+            </TouchableOpacity>
+            {chat ? (
+              <View accessibilityHint={chat.hint}>
+                <Button label={chat.label} variant="secondary" size="sm" onPress={chat.onPress} />
+              </View>
+            ) : null}
+          </View>
 
           {post.description ? (
             <Text variant="bodyMd" tone="muted">
@@ -256,11 +311,23 @@ export function PostDetailScreen({ postId, onBack, onOpenProfile, preview = null
             </Text>
           ) : null}
 
+          {post.interests.length ? (
+            <View
+              accessibilityLabel={`${postCopy.interests}: ${post.interests.map((i) => i.name).join(', ')}`}
+              style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}
+            >
+              {post.interests.map((i) => (
+                <Tag key={i.id} label={i.emoji ? `${i.emoji} ${i.name}` : i.name} />
+              ))}
+            </View>
+          ) : null}
+
           {when ? (
             <InfoRow
               icon={<SvgIcon name="calendar" size={18} tint={theme.selectedForeground} />}
               label={postCopy.dateTime}
               value={when}
+              note={post.recurrence ? formatRecurrence(post.recurrence) : null}
             />
           ) : null}
           {where ? (
@@ -274,7 +341,7 @@ export function PostDetailScreen({ postId, onBack, onOpenProfile, preview = null
           ) : null}
 
           <View style={{ flexDirection: 'row', gap: 12 }}>
-            <StatTile label={postCopy.price} value={post.price ? formatPrice(post.price) : postCopy.free} />
+            <StatTile label={postCopy.price} value={priceTile.value} note={priceTile.note} />
             <StatTile
               label={postCopy.joined}
               value={String(post.goingCount)}
@@ -296,6 +363,11 @@ export function PostDetailScreen({ postId, onBack, onOpenProfile, preview = null
             onShare={share}
             manageMenu={menu}
           />
+          {post.isHost && post.externalUrl && post.linkClickCount !== null ? (
+            <Text variant="bodySm" tone="muted">
+              {postCopy.linkClicks(post.linkClickCount)}
+            </Text>
+          ) : null}
           {vm.rsvpError ? (
             <Text variant="bodySm" tone="destructive" accessibilityLiveRegion="polite">
               {postErrorMessages[vm.rsvpError]}
@@ -309,6 +381,9 @@ export function PostDetailScreen({ postId, onBack, onOpenProfile, preview = null
           ) : action === 'cancelled' ? (
             <ClosedNote title={postCopy.cancelledNote.title} body={postCopy.cancelledNote.body} />
           ) : null}
+
+          <LineList title={postCopy.schedule} lines={post.schedule} numbered={false} />
+          <LineList title={postCopy.itinerary} lines={post.itinerary} numbered lineLabel={postCopy.stop} />
 
           <NoteCard title={postCopy.safety.title} body={postCopy.safety.body} />
 
@@ -327,13 +402,19 @@ export function PostDetailScreen({ postId, onBack, onOpenProfile, preview = null
           />
 
           <CommentsSection
+            postId={post.id}
             comments={talk.comments}
             total={talk.total}
             loading={talk.loading}
-            unavailable={talk.unavailable}
+            failed={talk.failed}
+            onRetry={talk.retry}
             hasMore={talk.hasMore}
             onLoadMore={talk.loadMore}
+            openThreads={talk.openThreads}
+            onToggleThread={talk.toggleThread}
             onReply={talk.reply}
+            onDelete={confirmDeleteComment}
+            onReport={talk.startReport}
             onOpenProfile={onOpenProfile}
           />
         </Animated.View>
@@ -363,11 +444,50 @@ export function PostDetailScreen({ postId, onBack, onOpenProfile, preview = null
         onCancelReply={talk.cancelReply}
         onSend={talk.submit}
         sending={talk.sending}
+        closed={talk.closed}
       />
 
       <ReportPostFlow postId={reporting} onClose={() => setReporting(null)} />
+      <ReportCommentDialog
+        isPresented={talk.reporting !== null}
+        submitting={talk.reportSubmitting}
+        error={talk.reportError}
+        onSubmit={talk.submitReport}
+        onDismiss={talk.cancelReport}
+      />
+      <StatusSheet
+        isPresented={talk.reportSent}
+        tone="success"
+        title={postCopy.reportComment.sentTitle}
+        message={postCopy.reportComment.sentBody}
+        actionLabel={postCopy.reportComment.sentAction}
+        onAction={talk.dismissReportSent}
+        onDismiss={talk.dismissReportSent}
+      />
     </KeyboardAvoidingView>
   );
+}
+
+/**
+ * The Price tile: the ticket price, or a Plan's or Group's shared cost as the
+ * server split it ("About ₦12,000 each", spec §1.5), or Free. With both, the
+ * share is the note under the price.
+ */
+function priceOf(post: PostDetail): { value: string; note: string | null } {
+  const split = post.costSplit;
+  if (post.price) {
+    return {
+      value: formatPrice(post.price),
+      note: split ? postCopy.plusCostEach(formatPrice(split.perPerson)) : null,
+    };
+  }
+  if (split) {
+    return {
+      value: postCopy.costEach(formatPrice(split.perPerson)),
+      note: postCopy.costShared(formatPrice(split.total), split.expectedCount),
+    };
+  }
+  return { value: postCopy.free, note: null };
 }
 
 function showError(e: unknown) {

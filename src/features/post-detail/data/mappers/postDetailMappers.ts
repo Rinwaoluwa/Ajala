@@ -3,6 +3,7 @@ import { isApiError } from '@core/api/ApiError';
 import type {
   AttendeesPage,
   CommentsPage,
+  Money,
   PostComment,
   PostDetail,
   RsvpResult,
@@ -13,10 +14,21 @@ import type {
   CommentDto,
   CommentsPageDto,
   PostDetailDto,
+  PostPriceDto,
   RsvpStateResponseDto,
 } from '../dto/postDetailDtos';
 
+/** Smallest unit to major: 150000 kobo with exponent 2 is ₦1,500 (spec §1.5). */
+const toMoney = (cents: number, currency: string, exponent: number): Money => ({
+  amount: cents / 10 ** exponent,
+  currency,
+  exponent,
+});
+
+const toPrice = (p: PostPriceDto): Money => toMoney(p.amountCents, p.currency, p.exponent);
+
 export function toPostDetail(dto: PostDetailDto): PostDetail {
+  const split = dto.costSplit ?? null;
   return {
     id: dto.id,
     type: dto.type,
@@ -24,14 +36,23 @@ export function toPostDetail(dto: PostDetailDto): PostDetail {
     description: dto.description ?? '',
     images: (dto.images ?? []).map((i) => i.fullUrl || i.cardUrl),
     startAt: dto.startAt ?? null,
+    endAt: dto.endAt ?? null,
+    recurrence: dto.recurrence
+      ? { frequency: dto.recurrence.frequency, endsOn: dto.recurrence.endsOn ?? null }
+      : null,
     placeName: dto.placeName ?? null,
     cityLabel: dto.city?.label ?? dto.city?.name ?? null,
     lat: dto.lat ?? null,
     lng: dto.lng ?? null,
     capacity: dto.capacity ?? null,
     goingCount: dto.goingCount ?? 0,
-    price: dto.price
-      ? { amount: dto.price.amountCents / 10 ** dto.price.exponent, currency: dto.price.currency }
+    price: dto.price ? toPrice(dto.price) : null,
+    costSplit: split
+      ? {
+          total: toMoney(split.totalCents, split.currency, split.exponent),
+          perPerson: toMoney(split.perPersonCents, split.currency, split.exponent),
+          expectedCount: split.expectedCount,
+        }
       : null,
     externalUrl: dto.externalUrl ?? null,
     joinMode: dto.joinMode === 'external' ? 'external' : 'rsvp',
@@ -47,6 +68,12 @@ export function toPostDetail(dto: PostDetailDto): PostDetail {
       avatarUrl: dto.host.avatarUrl ?? null,
       verified: dto.host.verified,
     },
+    saved: dto.saved ?? false,
+    interests: (dto.interests ?? []).map((i) => ({ id: i.id, name: i.name, emoji: i.emoji ?? null })),
+    // The server sends [] on the other types; filtering on type as well keeps a stray list off the page.
+    schedule: dto.type === 'event' ? (dto.schedule ?? []) : [],
+    itinerary: dto.type === 'plan' ? (dto.itinerary ?? []) : [],
+    linkClickCount: dto.isHost ? (dto.linkClickCount ?? null) : null,
   };
 }
 
@@ -75,32 +102,56 @@ export const toRsvpResult = (dto: RsvpStateResponseDto): RsvpResult => ({
   waitlistPosition: dto.waitlistPosition ?? null,
 });
 
-/** By the API's code (spec §5), never its message. */
-export const toComment = (dto: CommentDto): PostComment => ({
-  id: dto.id,
-  author: { userId: dto.user.id, name: dto.user.displayName, avatarUrl: dto.user.avatarUrl ?? null },
-  text: dto.text,
-  createdAt: dto.createdAt,
-  replyTo: dto.replyTo ? { commentId: dto.replyTo.id, name: dto.replyTo.displayName } : null,
-});
+export const toComment = (dto: CommentDto): PostComment => {
+  // The API sends no author or body on a deleted comment; never show half of one.
+  const deleted = dto.deleted || !dto.author;
+  return {
+    id: dto.id,
+    postId: dto.postId,
+    parentId: dto.parentId ?? null,
+    author:
+      deleted || !dto.author
+        ? null
+        : { userId: dto.author.id, name: dto.author.displayName, avatarUrl: dto.author.avatarUrl ?? null },
+    body: deleted ? null : (dto.body ?? ''),
+    deleted,
+    replyCount: dto.replyCount ?? 0,
+    createdAt: dto.createdAt,
+    mine: !deleted && (dto.mine ?? false),
+    canDelete: !deleted && (dto.canDelete ?? false),
+  };
+};
 
 export const toCommentsPage = (dto: CommentsPageDto): CommentsPage => ({
   items: (dto.items ?? []).map(toComment),
-  total: dto.total ?? dto.items?.length ?? 0,
+  total: dto.total ?? 0,
   nextCursor: dto.nextCursor ?? null,
 });
 
 /**
- * Comments are a proposed endpoint: while the API has no such route it answers
- * 404 or 405, which here means "not available yet", not "post not found".
+ * A report's errors read differently from the rest of the page: its 409 is "you
+ * already reported this", its 400 a reason the API refused, and its 403 the
+ * moderators pausing this person's reports (spec §5).
  */
-export function toCommentsError(e: unknown): PostDetailError {
-  if (isApiError(e) && (e.code === 'NOT_FOUND' || e.code === 'METHOD_NOT_ALLOWED')) {
-    return new PostDetailError('commentsUnavailable', e.message);
+export function toReportError(e: unknown): PostDetailError {
+  if (isApiError(e)) {
+    if (e.code === 'REPORTING_PAUSED') return new PostDetailError('reportingPaused', e.message);
+    if (e.code === 'CONFLICT') return new PostDetailError('alreadyReported', e.message);
+    if (e.code === 'VALIDATION_FAILED' || e.code === 'BAD_REQUEST')
+      return new PostDetailError('reportInvalid', e.message);
   }
   return toPostDetailError(e);
 }
 
+/** A comment's 400 is the body the API refused (empty, or over 1000). */
+export function toCommentError(e: unknown): PostDetailError {
+  if (isApiError(e) && (e.code === 'VALIDATION_FAILED' || e.code === 'BAD_REQUEST')) {
+    return new PostDetailError('commentInvalid', e.message);
+  }
+  return toPostDetailError(e);
+}
+
+/** By the API's code (spec §5), never its message. */
 export function toPostDetailError(e: unknown): PostDetailError {
   if (e instanceof PostDetailError) return e;
   if (!isApiError(e)) {
@@ -109,6 +160,7 @@ export function toPostDetailError(e: unknown): PostDetailError {
   }
   const byCode: Partial<Record<string, PostDetailErrorCode>> = {
     NOT_FOUND: 'notFound',
+    REPORTING_PAUSED: 'reportingPaused',
     GONE: 'notFound',
     POST_FULL: 'postFull',
     POST_STARTED: 'postStarted',

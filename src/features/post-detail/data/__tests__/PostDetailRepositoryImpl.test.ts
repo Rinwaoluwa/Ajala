@@ -44,6 +44,14 @@ const DETAIL = {
   status: 'published',
   isHost: false,
   host: { id: 'h1', displayName: 'Fatima B.', avatarUrl: null, verified: true },
+  endAt: '2026-10-25T09:30:00+01:00',
+  recurrence: null,
+  costSplit: { totalCents: 6000000, currency: 'NGN', exponent: 2, expectedCount: 5, perPersonCents: 1200000 },
+  saved: true,
+  interests: [{ id: 'i1', slug: 'hiking', name: 'Hiking', emoji: '🥾' }],
+  schedule: ['Should not show on a Plan'],
+  itinerary: ['Meet at the gate', 'Waterfall', 'Lunch'],
+  linkClickCount: 7,
 };
 
 describe('PostDetailRepository over the API', () => {
@@ -57,6 +65,26 @@ describe('PostDetailRepository over the API', () => {
       price: { amount: 15, currency: 'USD' },
       host: { id: 'h1', name: 'Fatima B.' },
     });
+  });
+
+  it('maps the new detail fields: end, cost split, save, interests, itinerary', async () => {
+    const post = await fake(() => DETAIL).repo.getPost('p1');
+    expect(post).toMatchObject({
+      endAt: '2026-10-25T09:30:00+01:00',
+      costSplit: {
+        perPerson: { amount: 12000, currency: 'NGN', exponent: 2 },
+        total: { amount: 60000 },
+        expectedCount: 5,
+      },
+      saved: true,
+      interests: [{ id: 'i1', name: 'Hiking', emoji: '🥾' }],
+      itinerary: ['Meet at the gate', 'Waterfall', 'Lunch'],
+      // A Plan has no running order, and link clicks are the host's only.
+      schedule: [],
+      linkClickCount: null,
+    });
+    const mine = await fake(() => ({ ...DETAIL, isHost: true })).repo.getPost('p1');
+    expect(mine.linkClickCount).toBe(7);
   });
 
   it('pages attendees by state', async () => {

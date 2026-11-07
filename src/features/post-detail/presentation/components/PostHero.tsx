@@ -1,7 +1,14 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { Host } from '@expo/ui';
-import { useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { TouchableOpacity, View, useWindowDimensions } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, type SharedValue } from 'react-native-reanimated';
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+  type SharedValue,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
@@ -25,7 +32,8 @@ import { TYPE_LABEL, postCopy } from '../copy';
  * The photos at the top of the post (Figma post detail): swipe between them,
  * dots under them, a round back button at the top-left and the type tag at the
  * top-right — floating chrome, so Liquid Glass where the phone has it, kept light
- * so its dark marks read over any photo. A ⋯ beside the tag opens the post's
+ * so its dark marks read over any photo. A bookmark beside the tag saves the
+ * post to the account (the same save as every card's). A ⋯ after it opens the post's
  * options (report, or the host's cancel and delete) — on iOS the native
  * pull-down menu, anchored to the button.
  *
@@ -41,6 +49,7 @@ export function PostHero({
   type,
   onBack,
   menu,
+  save = null,
   scrollY,
   firstPlaceholder,
 }: {
@@ -50,6 +59,8 @@ export function PostHero({
   onBack: () => void;
   /** The ⋯ menu's choices (report; or the host's cancel and delete); none hides it. */
   menu: MenuAction[] | null;
+  /** The bookmark: whether it is saved and how to flip it. None hides it (a draft or cancelled post). */
+  save?: { saved: boolean; onToggle: () => void } | null;
   /**
    * The page's scroll position. Pulled down past the top, the photo stretches
    * to fill the gap (and the buttons stay put) instead of showing the page's
@@ -128,6 +139,7 @@ export function PostHero({
             {TYPE_LABEL[type]}
           </Text>
         </GlassSurface>
+        {save ? <SaveButton saved={save.saved} onToggle={save.onToggle} /> : null}
         {menu?.length ? (
           <MenuButton actions={menu} accessibilityLabel={postCopy.more} cancelLabel={postCopy.close}>
             <RoundFace icon={icons.more} />
@@ -160,8 +172,46 @@ function RoundButton({
   );
 }
 
-/** The round glass face of the hero's buttons. */
-function RoundFace({ icon }: { icon: (typeof icons)[keyof typeof icons] }) {
+/**
+ * The bookmark (Ionicons, as on every post card). Outline and filled cross-fade
+ * in 160ms, so the mark keeps its shape and only fills; the glass never moves.
+ */
+function SaveButton({ saved, onToggle }: { saved: boolean; onToggle: () => void }) {
+  const on = useSharedValue(saved ? 1 : 0);
+  useEffect(() => {
+    on.set(withTiming(saved ? 1 : 0, { duration: 160, easing: Easing.out(Easing.quad) }));
+  }, [saved, on]);
+  const outline = useAnimatedStyle(() => ({ opacity: 1 - on.value }));
+  const filled = useAnimatedStyle(() => ({ opacity: on.value }));
+  return (
+    <TouchableOpacity
+      activeOpacity={0.7}
+      onPress={onToggle}
+      hitSlop={8}
+      accessibilityRole="button"
+      accessibilityLabel={saved ? postCopy.saved : postCopy.save}
+      accessibilityState={{ selected: saved }}
+    >
+      <RoundFace>
+        <Animated.View style={[{ position: 'absolute' }, outline]}>
+          <Ionicons name="bookmark-outline" size={18} color={palette.teal} />
+        </Animated.View>
+        <Animated.View style={filled}>
+          <Ionicons name="bookmark" size={18} color={palette.teal} />
+        </Animated.View>
+      </RoundFace>
+    </TouchableOpacity>
+  );
+}
+
+/** The round glass face of the hero's buttons: a native glyph, or what is passed in. */
+function RoundFace({
+  icon,
+  children,
+}: {
+  icon?: (typeof icons)[keyof typeof icons];
+  children?: ReactNode;
+}) {
   const theme = useTheme();
   const glass = useLiquidGlass();
   return (
@@ -180,9 +230,13 @@ function RoundFace({ icon }: { icon: (typeof icons)[keyof typeof icons] }) {
         justifyContent: 'center',
       }}
     >
-      <Host matchContents pointerEvents="none" ignoreSafeArea="all">
-        <NativeIcon source={icon} size={15} color={palette.teal} />
-      </Host>
+      {icon ? (
+        <Host matchContents pointerEvents="none" ignoreSafeArea="all">
+          <NativeIcon source={icon} size={15} color={palette.teal} />
+        </Host>
+      ) : (
+        children
+      )}
     </GlassSurface>
   );
 }

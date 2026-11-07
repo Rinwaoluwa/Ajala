@@ -4,6 +4,7 @@ import type {
   CommentsPage,
   PostComment,
   PostDetail,
+  ReportReason,
   RsvpResult,
   Viewer,
 } from '../entities/PostDetail';
@@ -27,8 +28,14 @@ export interface PostDetailRepository {
   remove(postId: string): Promise<void>;
   /** `GET /me`, for the comment bar's avatar. */
   getViewer(): Promise<Viewer>;
-  /** Comments, oldest first (proposed `GET /posts/:id/comments`). */
+  /** Top-level comments, oldest first, with `total` for the header (`GET /posts/:id/comments`). */
   getComments(postId: string, cursor: string | null, limit: number): Promise<CommentsPage>;
-  /** Proposed `POST /posts/:id/comments { text, replyToId? }`. */
-  addComment(postId: string, text: string, replyToId: string | null): Promise<PostComment>;
+  /** One comment's replies, oldest first (`GET /posts/:id/comments/:commentId/replies`). */
+  getReplies(postId: string, commentId: string, cursor: string | null, limit: number): Promise<CommentsPage>;
+  /** `POST /posts/:id/comments { body, parentId? }`; a reply to a reply joins the same top-level one. */
+  addComment(postId: string, body: string, parentId: string | null): Promise<PostComment>;
+  /** `DELETE /posts/:id/comments/:commentId` (idempotent). */
+  deleteComment(postId: string, commentId: string): Promise<void>;
+  /** `POST /posts/:id/comments/:commentId/report { reason, details? }`. */
+  reportComment(postId: string, commentId: string, reason: ReportReason, details: string | null): Promise<void>;
 }

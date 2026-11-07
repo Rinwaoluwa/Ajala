@@ -5,10 +5,11 @@ import { createPostDetailApi, type PostDetailRequest } from '../datasources/remo
 import {
   toAttendeesPage,
   toComment,
-  toCommentsError,
+  toCommentError,
   toCommentsPage,
   toPostDetail,
   toPostDetailError,
+  toReportError,
   toRsvpResult,
 } from '../mappers/postDetailMappers';
 
@@ -23,19 +24,31 @@ export function createPostDetailRepository(request: PostDetailRequest): PostDeta
     }
   };
 
-  const comments = async <T>(call: () => Promise<T>): Promise<T> => {
-    try {
-      return await call();
-    } catch (e) {
-      throw toCommentsError(e);
-    }
-  };
+  // The same call wrapper with an endpoint's own reading of the codes (see the mappers).
+  const as =
+    (map: (e: unknown) => Error) =>
+    async <T>(call: () => Promise<T>): Promise<T> => {
+      try {
+        return await call();
+      } catch (e) {
+        throw map(e);
+      }
+    };
+  const writing = as(toCommentError);
+  const reporting = as(toReportError);
 
   return {
     getComments: (id, cursor, limit) =>
-      comments(async () => toCommentsPage(await api.getComments(id, cursor, limit))),
-    addComment: (id, text, replyToId) =>
-      comments(async () => toComment(await api.addComment(id, text, replyToId))),
+      guard(async () => toCommentsPage(await api.getComments(id, cursor, limit))),
+    getReplies: (id, commentId, cursor, limit) =>
+      guard(async () => toCommentsPage(await api.getReplies(id, commentId, cursor, limit))),
+    addComment: (id, body, parentId) =>
+      writing(async () => toComment(await api.addComment(id, parentId ? { body, parentId } : { body }))),
+    deleteComment: (id, commentId) => guard(() => api.deleteComment(id, commentId)),
+    reportComment: (id, commentId, reason, details) =>
+      reporting(async () => {
+        await api.reportComment(id, commentId, details ? { reason, details } : { reason });
+      }),
     getPost: (id) => guard(async () => toPostDetail(await api.getPost(id, await getClientLocationHeader()))),
     getAttendees: (id, state, cursor, limit) =>
       guard(async () => toAttendeesPage(await api.getAttendees(id, state, cursor, limit))),

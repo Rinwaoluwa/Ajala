@@ -1,5 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 
+import { chatRoutes } from '@features/chat';
 import { PostDetailScreen, type PostPreview } from '@features/post-detail';
 import { profileRoutes } from '@features/profile';
 
@@ -9,6 +10,10 @@ const TYPES: readonly PostPreview['type'][] = ['meetup', 'event', 'plan', 'group
  * The post page (`GET /posts/:postId`, API map §6). Opened from a feed card, the
  * card's title, photo and type come along (`title`, `image`, `type`), so the page
  * draws its header straight away while the rest loads.
+ *
+ * Message (a direct chat with the host) and the host's Group chat both open the
+ * chat start route, which asks the API for the conversation (`POST
+ * /conversations { userId }` or `{ postId }`) and moves on to the thread.
  */
 export default function PostRoute() {
   const { id, title, image, type } = useLocalSearchParams<{
@@ -26,6 +31,8 @@ export default function PostRoute() {
       preview={preview}
       onBack={() => (router.canGoBack() ? router.back() : router.replace('/(app)/(tabs)'))}
       onOpenProfile={(userId) => router.push({ pathname: profileRoutes.user, params: { id: userId } })}
+      onMessageHost={(userId) => router.push({ pathname: chatRoutes.start, params: { userId } })}
+      onOpenGroupChat={(postId) => router.push({ pathname: chatRoutes.start, params: { postId } })}
     />
   );
 }

@@ -3,14 +3,17 @@ import { createPostDetailRepository } from './data/repositories/PostDetailReposi
 import {
   makeAddComment,
   makeCancelPost,
+  makeDeleteComment,
   makeDeletePost,
   makeGetAttendees,
   makeGetComments,
   makeGetPost,
+  makeGetReplies,
   makeGetViewer,
   makeJoin,
   makeLeave,
   makeRecordLinkClick,
+  makeReportComment,
   makeRespondToRequest,
 } from './domain/usecases/PostDetailUseCases';
 
@@ -31,7 +34,10 @@ export function createPostDetailUseCases(request: PostDetailRequest) {
     deletePost: makeDeletePost(repo),
     getViewer: makeGetViewer(repo),
     getComments: makeGetComments(repo),
+    getReplies: makeGetReplies(repo),
     addComment: makeAddComment(repo),
+    deleteComment: makeDeleteComment(repo),
+    reportComment: makeReportComment(repo),
   };
 }
 

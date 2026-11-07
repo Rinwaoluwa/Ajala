@@ -9,18 +9,21 @@ import { useTheme } from '@shared/hooks/useTheme';
  * "Date & Time / Sunday, Oct 18 · 6:30 AM" and "Location / Erin-Ijesha, Osun
  * State" (Figma post detail): a pale card with a mint icon square, a muted
  * label and the value. With `onPress` the value is teal and a chevron shows.
+ * `note` is a teal line under the value ("Repeats weekly").
  * `StatTile` is the half-width version for Price and Joined.
  */
 export function InfoRow({
   icon,
   label,
   value,
+  note,
   onPress,
   hint,
 }: {
   icon: ReactNode;
   label: string;
   value: string;
+  note?: string | null;
   onPress?: () => void;
   hint?: string;
 }) {
@@ -55,6 +58,11 @@ export function InfoRow({
         <Text variant="bodyMd" tone={onPress ? 'primary' : 'default'}>
           {value}
         </Text>
+        {note ? (
+          <Text variant="bodyXs" tone="primary">
+            {note}
+          </Text>
+        ) : null}
       </View>
       {onPress ? (
         // A React Native glyph rather than a self-sizing native one: it stays centred in the row
@@ -65,7 +73,7 @@ export function InfoRow({
   );
   if (!onPress)
     return (
-      <View accessible accessibilityLabel={`${label}: ${value}`}>
+      <View accessible accessibilityLabel={[`${label}: ${value}`, note].filter(Boolean).join(', ')}>
         {body}
       </View>
     );

@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Host } from '@expo/ui';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { TouchableOpacity, View } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Avatar,
   EmptyState,
+  MenuButton,
   NativeIcon,
   SkeletonBlock,
   SkeletonPulse,
@@ -16,56 +17,74 @@ import {
   TextLink,
   enterRise,
   icons,
+  type MenuAction,
 } from '@shared/components';
 import { useKeyboardShown } from '@shared/hooks/useKeyboardShown';
 import { useTheme } from '@shared/hooks/useTheme';
 
 import type { PostComment, Viewer } from '../../domain/entities/PostDetail';
 import type { PostDetailErrorCode } from '../../domain/entities/PostDetailError';
+import { canReport } from '../../domain/rules/commentRules';
 import { COMMENT_MAX } from '../../domain/usecases/PostDetailUseCases';
 import { postCopy, postErrorMessages } from '../copy';
 import { formatAgo } from '../format';
+import { useReplies } from '../hooks/useComments';
+
+/** What a comment row can do; the screen asks before deleting and opens the report dialog. */
+export type CommentHandlers = {
+  onReply: (comment: PostComment) => void;
+  onDelete: (comment: PostComment) => void;
+  onReport: (comment: PostComment) => void;
+  /** The commenter's profile, from their photo or name. */
+  onOpenProfile: (userId: string) => void;
+};
 
 /**
  * Comments (Figma post detail): "Comments" with the count, then one row per
- * comment — the person's photo, a pale rounded bubble with their name and what
- * they said, and under it "5h ago · Reply". A reply opens with the name it
- * answers, in teal. Oldest first; new comments rise in (`enterRise`).
+ * top-level comment — the person's photo, a pale rounded bubble with their name
+ * and what they said, and under it "5h ago · Reply · ⋯". The ⋯ is the native
+ * menu with Delete (when `canDelete`) and Report (someone else's comment).
  *
- * Empty, or while the API has no comments (API map §12): "No comments yet /
- * Have a question? Start the conversation."
+ * Replies (one level, spec §2.18) sit indented under their comment behind
+ * "View N replies", loaded when opened. A deleted comment that still has
+ * replies reads "Comment deleted". Oldest first; new rows rise in (`enterRise`).
+ *
+ * Empty: "No comments yet / Have a question? Start the conversation."
  */
 export function CommentsSection({
+  postId,
   comments,
   total,
   loading,
-  unavailable,
+  failed,
+  onRetry,
   hasMore,
   onLoadMore,
-  onReply,
-  onOpenProfile,
+  openThreads,
+  onToggleThread,
+  ...handlers
 }: {
+  postId: string;
   comments: PostComment[];
   total: number;
   loading: boolean;
-  unavailable: boolean;
+  failed: boolean;
+  onRetry: () => void;
   hasMore: boolean;
   onLoadMore: () => void;
-  onReply: (comment: PostComment) => void;
-  /** The commenter's profile, from their photo or name. */
-  onOpenProfile: (userId: string) => void;
-}) {
+  openThreads: ReadonlySet<string>;
+  onToggleThread: (commentId: string) => void;
+} & CommentHandlers) {
   const theme = useTheme();
   const c = postCopy.comments;
-  const empty = unavailable || (!loading && comments.length === 0);
   return (
     <View style={{ gap: 16 }}>
-      <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' }}>
+      <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 12 }}>
         <Text variant="headingMd" accessibilityRole="header">
           {c.title}
         </Text>
         <Text variant="bodySm" tone="muted">
-          {unavailable ? 0 : total}
+          {total}
         </Text>
       </View>
       {loading ? (
@@ -81,7 +100,14 @@ export function CommentsSection({
             ))}
           </View>
         </SkeletonPulse>
-      ) : empty ? (
+      ) : failed && comments.length === 0 ? (
+        <View style={{ gap: 8, alignItems: 'flex-start' }}>
+          <Text variant="bodySm" tone="muted">
+            {c.failed}
+          </Text>
+          <TextLink label={c.retry} onPress={onRetry} emphasis="plain" />
+        </View>
+      ) : comments.length === 0 ? (
         <EmptyState
           art={<Ionicons name="chatbox-ellipses-outline" size={56} color={theme.primary} />}
           title={c.emptyTitle}
@@ -94,10 +120,12 @@ export function CommentsSection({
               key={comment.id}
               entering={i < 6 || comment.pending ? enterRise(i < 6 ? i * 40 : 0) : undefined}
             >
-              <CommentRow
+              <CommentThread
+                postId={postId}
                 comment={comment}
-                onReply={() => onReply(comment)}
-                onOpenProfile={() => onOpenProfile(comment.author.userId)}
+                open={openThreads.has(comment.id)}
+                onToggle={() => onToggleThread(comment.id)}
+                {...handlers}
               />
             </Animated.View>
           ))}
@@ -108,33 +136,116 @@ export function CommentsSection({
   );
 }
 
+/** A top-level comment and, once opened, its replies indented under it. */
+function CommentThread({
+  postId,
+  comment,
+  open,
+  onToggle,
+  ...handlers
+}: { postId: string; comment: PostComment; open: boolean; onToggle: () => void } & CommentHandlers) {
+  const c = postCopy.comments;
+  const thread = useReplies(postId, comment.id, open);
+  const count = comment.replyCount;
+  return (
+    <CommentRow comment={comment} avatar={44} {...handlers}>
+      {count > 0 || (open && thread.replies.length > 0) ? (
+        <View style={{ gap: 14 }}>
+          {open ? (
+            <>
+              {thread.replies.map((reply) => (
+                <Animated.View key={reply.id} entering={enterRise(0)}>
+                  <CommentRow comment={reply} avatar={32} {...handlers} />
+                </Animated.View>
+              ))}
+              {thread.loading ? (
+                <SkeletonPulse label={c.loading}>
+                  <SkeletonBlock height={48} radius={16} />
+                </SkeletonPulse>
+              ) : null}
+              {thread.failed ? (
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: 12 }}>
+                  <Text variant="bodySm" tone="muted">
+                    {c.repliesFailed}
+                  </Text>
+                  <TextLink label={c.retry} onPress={thread.retry} emphasis="plain" />
+                </View>
+              ) : null}
+              {thread.hasMore ? (
+                <TextLink label={c.moreReplies} onPress={thread.loadMore} emphasis="plain" />
+              ) : null}
+            </>
+          ) : null}
+          <TouchableOpacity
+            activeOpacity={0.6}
+            onPress={onToggle}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityState={{ expanded: open }}
+            style={{ alignSelf: 'flex-start', paddingLeft: 8 }}
+          >
+            <Text variant="bodySm" tone="primary">
+              {open ? c.hideReplies : c.viewReplies(count)}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      ) : null}
+    </CommentRow>
+  );
+}
+
 function CommentRow({
   comment,
+  avatar,
+  children,
   onReply,
+  onDelete,
+  onReport,
   onOpenProfile,
 }: {
   comment: PostComment;
-  onReply: () => void;
-  onOpenProfile: () => void;
-}) {
+  avatar: number;
+  /** What sits under it in the same column: the thread's replies. */
+  children?: ReactNode;
+} & CommentHandlers) {
   const theme = useTheme();
   const c = postCopy.comments;
+  const author = comment.author;
+  const live = !comment.deleted && !comment.pending && author !== null;
+  const menu: MenuAction[] = [
+    ...(comment.canDelete && live
+      ? [{ label: c.delete, systemImage: 'trash', destructive: true, onPress: () => onDelete(comment) }]
+      : []),
+    ...(canReport(comment)
+      ? [{ label: c.report, systemImage: 'flag', destructive: true, onPress: () => onReport(comment) }]
+      : []),
+  ];
+  const openProfile = author ? () => onOpenProfile(author.userId) : undefined;
+
   return (
     <View style={{ flexDirection: 'row', gap: 12, opacity: comment.pending ? 0.6 : 1 }}>
-      <TouchableOpacity
-        activeOpacity={0.6}
-        onPress={onOpenProfile}
-        disabled={comment.pending}
-        accessibilityRole="button"
-        accessibilityLabel={c.openProfile(comment.author.name)}
-        style={{ alignSelf: 'flex-start' }}
-      >
-        <Avatar name={comment.author.name} uri={comment.author.avatarUrl} size={44} />
-      </TouchableOpacity>
+      {author ? (
+        <TouchableOpacity
+          activeOpacity={0.6}
+          onPress={openProfile}
+          disabled={comment.pending}
+          accessibilityRole="button"
+          accessibilityLabel={c.openProfile(author.name)}
+          style={{ alignSelf: 'flex-start' }}
+        >
+          <Avatar name={author.name} uri={author.avatarUrl} size={avatar} />
+        </TouchableOpacity>
+      ) : (
+        // The deleted comment's place: a plain disc, so its replies still line up.
+        <View
+          importantForAccessibility="no"
+          style={{ width: avatar, height: avatar, borderRadius: avatar / 2, backgroundColor: theme.skeletonSurface }}
+        />
+      )}
       <View style={{ flex: 1, gap: 8 }}>
         <View
           accessible
-          accessibilityLabel={`${comment.author.name}: ${comment.replyTo ? `@${comment.replyTo.name} ` : ''}${comment.text}`}
+          accessibilityLabel={author ? `${author.name}: ${comment.body ?? ''}` : c.deleted}
           style={{
             borderRadius: 20,
             paddingHorizontal: 16,
@@ -143,34 +254,48 @@ function CommentRow({
             backgroundColor: theme.skeletonSurface,
           }}
         >
-          <Text variant="bodyMd" onPress={comment.pending ? undefined : onOpenProfile} suppressHighlighting>
-            {comment.author.name}
-          </Text>
-          <Text variant="bodyMd" tone="muted">
-            {comment.replyTo ? (
-              <Text variant="bodyMd" tone="primary">{`@${comment.replyTo.name} `}</Text>
-            ) : null}
-            {comment.text}
-          </Text>
+          {author ? (
+            <>
+              <Text variant="bodyMd" onPress={comment.pending ? undefined : openProfile} suppressHighlighting>
+                {author.name}
+              </Text>
+              <Text variant="bodyMd" tone="muted">
+                {comment.body}
+              </Text>
+            </>
+          ) : (
+            <Text variant="bodyMd" tone="muted" style={{ fontStyle: 'italic' }}>
+              {c.deleted}
+            </Text>
+          )}
         </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 20, paddingLeft: 8 }}>
+        {/* Wraps at large text sizes rather than pushing the ⋯ off the row. */}
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: 20, rowGap: 4, paddingLeft: 8 }}>
           <Text variant="bodySm" tone="muted">
             {comment.pending ? c.sending : formatAgo(comment.createdAt)}
           </Text>
-          {comment.pending ? null : (
+          {live ? (
             <TouchableOpacity
               activeOpacity={0.6}
-              onPress={onReply}
+              onPress={() => onReply(comment)}
               hitSlop={10}
               accessibilityRole="button"
-              accessibilityLabel={c.replyTo(comment.author.name)}
+              accessibilityLabel={c.replyTo(author.name)}
             >
               <Text variant="bodySm" tone="muted">
                 {c.reply}
               </Text>
             </TouchableOpacity>
-          )}
+          ) : null}
+          {menu.length && live ? (
+            <MenuButton actions={menu} accessibilityLabel={c.options} cancelLabel={postCopy.close}>
+              <View style={{ minHeight: 28, minWidth: 32, alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name="ellipsis-horizontal" size={16} color={theme.muted} />
+              </View>
+            </MenuButton>
+          ) : null}
         </View>
+        {children}
       </View>
     </View>
   );
@@ -180,8 +305,9 @@ const NOTICE_MS = 3500;
 
 /**
  * The bar at the foot: your photo, "Add a comment…", send. Replying shows
- * "Replying to <name>" above it with a way out. While comments are not in the
- * API, a send keeps the text and says so for a few seconds.
+ * "Replying to <name>" above it with a way out. A refusal (too long, offline)
+ * shows above the field for a few seconds and keeps the text. On a cancelled
+ * post the field gives way to a line saying comments are closed.
  */
 export function CommentBar({
   viewer,
@@ -189,6 +315,7 @@ export function CommentBar({
   onCancelReply,
   onSend,
   sending,
+  closed,
 }: {
   viewer: Viewer | null;
   replyTo: PostComment | null;
@@ -196,6 +323,7 @@ export function CommentBar({
   /** Resolves with null when sent, or why it was not. */
   onSend: (text: string) => Promise<PostDetailErrorCode | null>;
   sending: boolean;
+  closed: boolean;
 }) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
@@ -213,8 +341,10 @@ export function CommentBar({
   }, [notice]);
 
   const send = useCallback(() => {
-    if (!text.trim() || sending) return;
+    if (!text.trim() || sending || closed) return;
     void onSend(text).then((problem) => {
+      // Closed has its own line below; anything else is said for a moment.
+      if (problem === 'postCancelled') return;
       if (problem) {
         setNotice(postErrorMessages[problem]);
         return;
@@ -222,9 +352,10 @@ export function CommentBar({
       setText('');
       setFieldKey((k) => k + 1);
     });
-  }, [text, sending, onSend]);
+  }, [text, sending, closed, onSend]);
 
   const c = postCopy.comments;
+  const replyName = replyTo?.author?.name ?? null;
   return (
     <View
       style={{
@@ -237,69 +368,79 @@ export function CommentBar({
         gap: 8,
       }}
     >
-      {replyTo ? (
-        <Animated.View
-          entering={FadeIn.duration(160)}
-          exiting={FadeOut.duration(120)}
-          style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}
-        >
-          <Text variant="bodyXs" tone="muted" style={{ flex: 1 }}>
-            {c.replyingTo(replyTo.author.name)}
-          </Text>
-          <TouchableOpacity
-            activeOpacity={0.6}
-            onPress={onCancelReply}
-            hitSlop={8}
-            accessibilityRole="button"
-          >
-            <Text variant="bodyXs" tone="primary">
-              {c.cancelReply}
-            </Text>
-          </TouchableOpacity>
-        </Animated.View>
-      ) : null}
-      {notice ? (
-        <Animated.View entering={FadeIn.duration(180)} exiting={FadeOut.duration(150)}>
-          <Text variant="bodyXs" tone="muted" accessibilityLiveRegion="polite">
-            {notice}
+      {closed ? (
+        <Animated.View entering={FadeIn.duration(180)}>
+          <Text variant="bodySm" tone="muted" accessibilityLiveRegion="polite">
+            {c.closed}
           </Text>
         </Animated.View>
-      ) : null}
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-        <Avatar name={viewer?.name ?? postCopy.going.you} uri={viewer?.avatarUrl ?? null} size={40} />
-        <View style={{ flex: 1 }}>
-          <TextField
-            key={fieldKey}
-            label={c.placeholder}
-            labelHidden
-            filled
-            placeholder={replyTo ? c.replyPlaceholder(replyTo.author.name) : c.placeholder}
-            onChangeText={change}
-            onSubmitEditing={send}
-            returnKeyType="send"
-            maxLength={COMMENT_MAX}
-          />
-        </View>
-        <TouchableOpacity
-          activeOpacity={0.6}
-          onPress={send}
-          disabled={sending}
-          accessibilityRole="button"
-          accessibilityLabel={c.send}
-          style={{
-            width: 40,
-            height: 40,
-            borderRadius: 20,
-            backgroundColor: text.trim() ? theme.primaryFill : theme.surfaceMuted,
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <Host matchContents pointerEvents="none" ignoreSafeArea="all">
-            <NativeIcon source={icons.send} size={16} color={text.trim() ? '#FFFFFF' : theme.muted} />
-          </Host>
-        </TouchableOpacity>
-      </View>
+      ) : (
+        <>
+          {replyName ? (
+            <Animated.View
+              entering={FadeIn.duration(160)}
+              exiting={FadeOut.duration(120)}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}
+            >
+              <Text variant="bodyXs" tone="muted" style={{ flex: 1 }}>
+                {c.replyingTo(replyName)}
+              </Text>
+              <TouchableOpacity
+                activeOpacity={0.6}
+                onPress={onCancelReply}
+                hitSlop={8}
+                accessibilityRole="button"
+              >
+                <Text variant="bodyXs" tone="primary">
+                  {c.cancelReply}
+                </Text>
+              </TouchableOpacity>
+            </Animated.View>
+          ) : null}
+          {notice ? (
+            <Animated.View entering={FadeIn.duration(180)} exiting={FadeOut.duration(150)}>
+              <Text variant="bodyXs" tone="muted" accessibilityLiveRegion="polite">
+                {notice}
+              </Text>
+            </Animated.View>
+          ) : null}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <Avatar name={viewer?.name ?? postCopy.going.you} uri={viewer?.avatarUrl ?? null} size={40} />
+            <View style={{ flex: 1 }}>
+              <TextField
+                key={fieldKey}
+                label={c.placeholder}
+                labelHidden
+                filled
+                placeholder={replyName ? c.replyPlaceholder(replyName) : c.placeholder}
+                onChangeText={change}
+                onSubmitEditing={send}
+                returnKeyType="send"
+                maxLength={COMMENT_MAX}
+              />
+            </View>
+            <TouchableOpacity
+              activeOpacity={0.6}
+              onPress={send}
+              disabled={sending}
+              accessibilityRole="button"
+              accessibilityLabel={c.send}
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 20,
+                backgroundColor: text.trim() ? theme.primaryFill : theme.surfaceMuted,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Host matchContents pointerEvents="none" ignoreSafeArea="all">
+                <NativeIcon source={icons.send} size={16} color={text.trim() ? '#FFFFFF' : theme.muted} />
+              </Host>
+            </TouchableOpacity>
+          </View>
+        </>
+      )}
     </View>
   );
 }
