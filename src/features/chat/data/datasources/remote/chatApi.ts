@@ -1,48 +1,98 @@
-import type { ChatThreadDto, MessageDto, MessagesPageDto, ThreadsPageDto } from '../../dto/chatDtos';
+import type { ApiRequest } from '@core/api/apiClient';
+
+import type {
+  AddMemberDto,
+  ChatPostCardDto,
+  ConversationDetailDto,
+  ConversationsPageDto,
+  MessageDto,
+  MessagesPageDto,
+  ReadUpToDto,
+  ReportFiledDto,
+  ReportMessageDto,
+  StartConversationDto,
+} from '../../dto/chatDtos';
 
 /** The API's version prefix, as every other client in the app writes it. */
 const V1 = '/api/v1';
 
-/**
- * Messages' calls as the signed-in person. `request` is auth's `AuthorizedRequest`.
- *
- * Every path here is PROPOSED — chat is not in the API yet. In demo mode the
- * demo API answers them (`src/core/demo/routes/chat.ts`); against the real API
- * they answer 404 until the backend builds them, which the app reads as "not
- * available yet".
- */
-export type ChatRequest = <T>(request: {
-  method: 'GET' | 'POST';
-  path: string;
-  body?: unknown;
-  retry?: boolean;
-}) => Promise<T>;
+/** Calls made as the signed-in person: auth's `AuthorizedRequest`, handed in by the presentation layer. */
+export type ChatRequest = <T>(request: Omit<ApiRequest, 'accessToken'>) => Promise<T>;
 
-const query = (params: Record<string, string | number | null>) =>
-  Object.entries(params)
+/** A picture as React Native's `FormData` carries a file. */
+export type UploadFile = { uri: string; name: string; type: string };
+
+export type SendMessageInput = {
+  clientMsgId: string;
+  body: string;
+  taggedPostId: string | null;
+  images: UploadFile[];
+};
+
+const query = (params: Record<string, string | number | null>) => {
+  const q = Object.entries(params)
     .filter(([, v]) => v !== null && v !== '')
     .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`)
     .join('&');
+  return q ? `?${q}` : '';
+};
 
-const chat = (id: string) => `${V1}/chats/${encodeURIComponent(id)}`;
+const conversation = (id: string) => `${V1}/conversations/${encodeURIComponent(id)}`;
 
+/** The chat endpoints (spec §3.9). */
 export function createChatApi(request: ChatRequest) {
   return {
-    listThreads: (filter: string, q: string, cursor: string | null, limit: number) =>
-      request<ThreadsPageDto>({
+    list: (tab: string, search: string, cursor: string | null, limit: number) =>
+      request<ConversationsPageDto>({
         method: 'GET',
-        path: `${V1}/chats?${query({ filter, q, cursor, limit })}`,
-        retry: false,
+        path: `${V1}/conversations${query({ tab, search, cursor, limit })}`,
       }),
-    getThread: (id: string) => request<ChatThreadDto>({ method: 'GET', path: chat(id), retry: false }),
-    getMessages: (id: string, cursor: string | null, limit: number) =>
+    start: (body: StartConversationDto) =>
+      request<ConversationDetailDto>({ method: 'POST', path: `${V1}/conversations`, body }),
+    detail: (id: string) => request<ConversationDetailDto>({ method: 'GET', path: conversation(id) }),
+    messages: (id: string, before: string | null, limit: number) =>
       request<MessagesPageDto>({
         method: 'GET',
-        path: `${chat(id)}/messages?${query({ cursor, limit })}`,
-        retry: false,
+        path: `${conversation(id)}/messages${query({ before, limit })}`,
       }),
-    sendMessage: (id: string, text: string) =>
-      request<MessageDto>({ method: 'POST', path: `${chat(id)}/messages`, body: { text } }),
-    markRead: (id: string) => request<void>({ method: 'POST', path: `${chat(id)}/read` }),
+    /**
+     * Multipart, as the spec requires for messages. Pictures go as repeated
+     * `images` parts in order. The Content-Type is left to fetch, which adds
+     * the boundary.
+     */
+    send: (id: string, input: SendMessageInput) => {
+      const form = new FormData();
+      form.append('clientMsgId', input.clientMsgId);
+      if (input.body) form.append('body', input.body);
+      if (input.taggedPostId) form.append('taggedPostId', input.taggedPostId);
+      for (const image of input.images) {
+        // React Native's FormData takes `{ uri, name, type }` for a file.
+        form.append('images', image as unknown as Blob);
+      }
+      return request<MessageDto>({ method: 'POST', path: `${conversation(id)}/messages`, body: form });
+    },
+    read: (id: string, body: ReadUpToDto) =>
+      request<void>({ method: 'POST', path: `${conversation(id)}/read`, body }),
+    typing: (id: string) => request<void>({ method: 'POST', path: `${conversation(id)}/typing` }),
+    addMember: (id: string, body: AddMemberDto) =>
+      request<void>({ method: 'POST', path: `${conversation(id)}/members`, body }),
+    removeMember: (id: string, userId: string) =>
+      request<void>({
+        method: 'DELETE',
+        path: `${conversation(id)}/members/${encodeURIComponent(userId)}`,
+      }),
+    report: (id: string, messageId: string, body: ReportMessageDto) =>
+      request<ReportFiledDto>({
+        method: 'POST',
+        path: `${conversation(id)}/messages/${encodeURIComponent(messageId)}/report`,
+        body,
+      }),
+    /** Only the id is read: it tells your own messages apart in a group's list preview. */
+    me: () => request<{ id: string }>({ method: 'GET', path: `${V1}/me` }),
+    /** For the activity card: the post's title, time and place. */
+    post: (postId: string) =>
+      request<ChatPostCardDto>({ method: 'GET', path: `${V1}/posts/${encodeURIComponent(postId)}` }),
   };
 }
+
+export type ChatApi = ReturnType<typeof createChatApi>;

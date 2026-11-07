@@ -1,44 +1,121 @@
 /**
- * PROPOSED — chat is not in the API yet (API map: "Chat is not built yet"). The
- * shapes the app expects, for the backend to confirm (see the README).
+ * The chat API's wire shapes, copied from the client spec
+ * (`docs/api/ajala-api-users-common.md` §6, "chat"), which is the source of truth.
  */
 
-export interface ChatUserDto {
+/** `HostCardDto`: how the API draws a person on a card. */
+export interface HostCardDto {
   id: string;
   displayName: string;
   avatarUrl: string | null;
+  verified: boolean;
 }
 
-export interface ChatThreadDto {
+export interface LastMessageDto {
+  /** 64-bit id as a string: never parse it as a number. */
+  id: string;
+  senderId: string;
+  /** First 120 characters. */
+  preview: string | null;
+  imageCount: number;
+  createdAt: string;
+}
+
+export interface ConversationDto {
   id: string;
   kind: 'direct' | 'group';
-  title: string;
-  avatarUrl: string | null;
-  memberCount: number | null;
-  onlineCount: number | null;
+  title: string | null;
+  postId: string | null;
   /** Direct only. */
-  other: (ChatUserDto & { online: boolean }) | null;
-  lastMessage: { text: string; senderName: string; fromMe: boolean; sentAt: string } | null;
+  other: HostCardDto | null;
+  memberCount: number;
+  lastMessage: LastMessageDto | null;
+  /** Capped at 99. */
   unreadCount: number;
-  post: { id: string; title: string; startAt: string | null; placeName: string | null } | null;
+  activityAt: string;
+}
+
+export interface MemberDto {
+  user: HostCardDto;
+  role: 'owner' | 'member';
+  /** Lags a disconnect by up to 90 s. */
+  online: boolean;
+  /** Null when they hide it. */
+  lastReadMessageId: string | null;
+}
+
+export interface ConversationDetailDto extends ConversationDto {
+  onlineCount: number;
+  /** Host first. */
+  members: MemberDto[];
+}
+
+export interface ConversationsPageDto {
+  items: ConversationDto[];
+  nextCursor: string | null;
+}
+
+export interface MessageImageDto {
+  /** 320px, lasts 1 hour. */
+  thumbUrl: string;
+  /** 1600px, lasts 1 hour. */
+  url: string;
+}
+
+/** The fields of `PostCardDto` the chat reads (a tagged post, the activity card). */
+export interface ChatPostCardDto {
+  id: string;
+  title: string;
+  startAt: string | null;
+  placeName: string | null;
 }
 
 export interface MessageDto {
+  /** 64-bit id as a string. */
   id: string;
-  sender: ChatUserDto;
-  fromMe: boolean;
-  text: string;
-  sentAt: string;
-  status: 'sent' | 'read';
+  conversationId: string;
+  sender: HostCardDto;
+  /** Null once a moderator removed it. */
+  body: string | null;
+  images: MessageImageDto[];
+  taggedPost: ChatPostCardDto | null;
+  taggedPostUnavailable: boolean;
+  clientMsgId: string;
+  removed: boolean;
+  mine: boolean;
+  createdAt: string;
 }
 
-export interface ThreadsPageDto {
-  items: ChatThreadDto[];
-  nextCursor: string | null;
-}
-
-/** Newest first. */
+/** Newest first; `nextCursor` is the value to send as `before`. */
 export interface MessagesPageDto {
   items: MessageDto[];
   nextCursor: string | null;
+}
+
+/** Exactly one of the two. */
+export type StartConversationDto = { userId: string } | { postId: string };
+export interface ReadUpToDto {
+  messageId: string;
+}
+export interface AddMemberDto {
+  userId: string;
+}
+export interface ReportMessageDto {
+  reason: 'harassment' | 'impersonation' | 'spam' | 'inappropriate_content' | 'other';
+  details?: string;
+}
+export interface ReportFiledDto {
+  id: string;
+}
+
+/** Socket `read.update`. */
+export interface ReadUpdateEventDto {
+  conversationId: string;
+  userId: string;
+  messageId: string;
+}
+/** Socket `typing`. */
+export interface TypingEventDto {
+  conversationId: string;
+  userId: string;
 }

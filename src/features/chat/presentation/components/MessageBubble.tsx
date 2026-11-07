@@ -1,4 +1,6 @@
-import { View } from 'react-native';
+import { Image } from 'expo-image';
+import { useState } from 'react';
+import { Pressable, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 
 import { Text, enterRise } from '@shared/components';
@@ -8,6 +10,7 @@ import { palette } from '@shared/theme';
 import type { ChatMessage } from '../../domain/entities/Chat';
 import { chatCopy } from '../copy';
 import { messageTime } from '../format';
+import { PostContextCard } from './PostContextCard';
 
 /**
  * A message (Figma Chat): theirs on the left in a pale bubble with the time
@@ -16,15 +19,46 @@ import { messageTime } from '../format';
  *
  * Bubbles take at most 78% of the width and wrap; a message you just sent rises
  * in and stays dimmed ("Sending…") until the server has it.
+ *
+ * Also drawn here, beyond the frames:
+ * - pictures, above the words, one wide or two to a row. Their links last an
+ *   hour, so they are kept in memory only, never on disk;
+ * - a tagged activity as the same card the chat opens with, or "This activity
+ *   is no longer available";
+ * - a message a moderator removed, as "This message was removed" in grey.
+ *
+ * Someone else's message can be reported with a long press (or the
+ * accessibility action), when `onReport` is given.
  */
-export function MessageBubble({ message, showSender }: { message: ChatMessage; showSender: boolean }) {
+export function MessageBubble({
+  message,
+  showSender,
+  status,
+  onOpenPost,
+  onReport,
+}: {
+  message: ChatMessage;
+  showSender: boolean;
+  status: 'sent' | 'read';
+  onOpenPost: (postId: string) => void;
+  onReport?: () => void;
+}) {
   const theme = useTheme();
-  const mine = message.fromMe;
+  const mine = message.mine;
   const meta = message.pending
     ? chatCopy.thread.sending
     : mine
-      ? `${messageTime(message.sentAt)} · ${message.status === 'read' ? chatCopy.thread.read : chatCopy.thread.sent}`
+      ? `${messageTime(message.sentAt)} · ${status === 'read' ? chatCopy.thread.read : chatCopy.thread.sent}`
       : messageTime(message.sentAt);
+  const text = message.removed ? chatCopy.thread.removed : message.body;
+  const images = message.images;
+  const spoken = [
+    text,
+    images.length ? chatCopy.photos(images.length) : null,
+    message.taggedPost?.title ?? (message.taggedPostUnavailable ? chatCopy.thread.postUnavailable : null),
+  ]
+    .filter(Boolean)
+    .join('. ');
 
   return (
     <Animated.View
@@ -36,21 +70,56 @@ export function MessageBubble({ message, showSender }: { message: ChatMessage; s
           {message.sender.name}
         </Text>
       ) : null}
-      <View
+      <Pressable
+        onLongPress={onReport}
+        disabled={!onReport}
         accessible
-        accessibilityLabel={`${mine ? chatCopy.you : message.sender.name}: ${message.text}. ${meta}`}
+        accessibilityLabel={`${mine ? chatCopy.you : message.sender.name}: ${spoken}. ${meta}`}
+        accessibilityActions={onReport ? [{ name: 'report', label: chatCopy.thread.report }] : undefined}
+        onAccessibilityAction={(e) => {
+          if (e.nativeEvent.actionName === 'report') onReport?.();
+        }}
+        // With pictures the column takes the full 78%, so they have a width to share.
         style={{
-          maxWidth: '78%',
-          paddingHorizontal: 18,
-          paddingVertical: 14,
-          borderRadius: 22,
-          backgroundColor: mine ? theme.primaryFill : theme.skeletonSurface,
+          ...(images.length > 0 && !message.removed ? { width: '78%' } : { maxWidth: '78%' }),
+          gap: 6,
+          alignItems: mine ? 'flex-end' : 'flex-start',
         }}
       >
-        <Text variant="bodyMd" style={{ color: mine ? palette.white : theme.foreground }}>
-          {message.text}
+        {images.length > 0 && !message.removed ? (
+          <PhotoGrid images={images} placeholder={theme.skeletonSurface} />
+        ) : null}
+        {text ? (
+          <View
+            style={{
+              paddingHorizontal: 18,
+              paddingVertical: 14,
+              borderRadius: 22,
+              backgroundColor: mine && !message.removed ? theme.primaryFill : theme.skeletonSurface,
+            }}
+          >
+            <Text
+              variant="bodyMd"
+              tone={message.removed ? 'muted' : undefined}
+              style={[
+                message.removed ? { fontStyle: 'italic' } : null,
+                !message.removed ? { color: mine ? palette.white : theme.foreground } : null,
+              ]}
+            >
+              {text}
+            </Text>
+          </View>
+        ) : null}
+      </Pressable>
+      {message.removed ? null : message.taggedPost ? (
+        <View style={{ maxWidth: '78%' }}>
+          <PostContextCard post={message.taggedPost} onPress={() => onOpenPost(message.taggedPost?.id ?? '')} />
+        </View>
+      ) : message.taggedPostUnavailable ? (
+        <Text variant="bodySm" tone="muted" style={{ maxWidth: '78%', fontStyle: 'italic' }}>
+          {chatCopy.thread.postUnavailable}
         </Text>
-      </View>
+      ) : null}
       <Text variant="bodyXs" tone="muted" importantForAccessibility="no">
         {meta}
       </Text>
@@ -64,5 +133,45 @@ export function DayDivider({ label }: { label: string }) {
     <Text variant="bodySm" tone="muted" accessibilityRole="header" style={{ paddingTop: 4 }}>
       {label}
     </Text>
+  );
+}
+
+const PHOTO_GAP = 4;
+
+/**
+ * A message's photos: one wide (4:3), or two to a row as squares, the last on its
+ * own row when the count is odd.
+ *
+ * Sizes are worked out from the row's measured width. Percentage sizes with an
+ * aspect ratio came out zero wide inside the bubble, leaving a blank gap where
+ * the photos should be.
+ */
+function PhotoGrid({ images, placeholder }: { images: ChatMessage['images']; placeholder: string }) {
+  const [width, setWidth] = useState(0);
+  const half = (width - PHOTO_GAP) / 2;
+
+  return (
+    <View
+      onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
+      style={{ flexDirection: 'row', flexWrap: 'wrap', gap: PHOTO_GAP, alignSelf: 'stretch' }}
+    >
+      {width > 0
+        ? images.map((image, i) => {
+            const alone = images.length === 1 || (i === images.length - 1 && i % 2 === 0);
+            const w = alone ? width : half;
+            const h = images.length === 1 ? (width * 3) / 4 : w;
+            return (
+              <Image
+                key={`${image.thumbUrl}-${i}`}
+                source={{ uri: image.thumbUrl }}
+                cachePolicy="memory"
+                contentFit="cover"
+                accessibilityLabel={chatCopy.thread.photo(i + 1, images.length)}
+                style={{ width: w, height: h, borderRadius: 16, backgroundColor: placeholder }}
+              />
+            );
+          })
+        : null}
+    </View>
   );
 }

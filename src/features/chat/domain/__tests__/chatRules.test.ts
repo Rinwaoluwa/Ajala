@@ -1,91 +1,197 @@
 import { describe, expect, it } from '@jest/globals';
 
-import type { ChatMessage, ChatThread } from '../entities/Chat';
+import type { ChatMember, ChatMessage, ChatThread, ChatThreadDetail, MessageDraft } from '../entities/Chat';
 import { ChatError } from '../entities/ChatError';
 import type { ChatRepository } from '../repositories/ChatRepository';
-import { conversationItems, presence, previewLine } from '../rules/chatRules';
-import { makeListThreads, makeSendMessage } from '../usecases/ChatUseCases';
+import {
+  compareMessageIds,
+  conversationItems,
+  draftProblem,
+  isLaterId,
+  messageStatus,
+  presence,
+  previewLine,
+  threadName,
+  upsertNewest,
+  withReadMark,
+} from '../rules/chatRules';
+import {
+  canSubmitReport,
+  makeListThreads,
+  makePrepareMessage,
+  makeReportMessage,
+  makeSendMessage,
+  makeStartThread,
+} from '../usecases/ChatUseCases';
+
+const person = (id: string, name = id) => ({ id, name, avatarUrl: null, verified: false });
 
 const thread = (over: Partial<ChatThread> = {}): ChatThread => ({
   id: 't1',
   kind: 'direct',
-  title: 'Maya Chen',
-  avatarUrl: null,
-  memberCount: null,
-  onlineCount: null,
-  other: { id: 'u-maya', name: 'Maya Chen', avatarUrl: null, online: true },
+  title: null,
+  postId: null,
+  other: person('u-maya', 'Maya Chen'),
+  memberCount: 2,
   lastMessage: {
-    text: 'Are we still on?',
-    senderName: 'Maya Chen',
-    fromMe: false,
+    id: '101',
+    senderId: 'u-maya',
+    preview: 'Are we still on?',
+    imageCount: 0,
     sentAt: '2026-11-03T10:30:00Z',
   },
   unreadCount: 2,
-  post: null,
+  activityAt: '2026-11-03T10:30:00Z',
   ...over,
 });
 
-const msg = (id: string, senderId: string, sentAt: string, fromMe = false): ChatMessage => ({
+const member = (id: string, lastRead: string | null, online = false): ChatMember => ({
+  person: person(id),
+  role: 'member',
+  online,
+  lastReadMessageId: lastRead,
+});
+
+const detail = (over: Partial<ChatThreadDetail> = {}): ChatThreadDetail => ({
+  ...thread(),
+  onlineCount: 0,
+  members: [member('me', '101'), member('u-maya', '100', true)],
+  ...over,
+});
+
+const msg = (id: string, senderId: string, sentAt: string, mine = false): ChatMessage => ({
   id,
-  sender: { id: senderId, name: senderId, avatarUrl: null },
-  fromMe,
-  text: id,
+  clientMsgId: `c-${id}`,
+  conversationId: 't1',
+  sender: person(senderId),
+  mine,
+  body: id,
+  images: [],
+  taggedPost: null,
+  taggedPostUnavailable: false,
+  removed: false,
   sentAt,
-  status: 'sent',
+});
+
+const opts = (myId: string | null, names: Record<string, string> = {}) => ({
+  myId,
+  senderName: (id: string) => names[id] ?? null,
+  you: 'You',
+  photos: (n: number) => (n === 1 ? 'Photo' : `${n} photos`),
+});
+
+describe('message ids', () => {
+  it('orders 64-bit ids without rounding them', () => {
+    // Both round to the same JS number; as strings they are still told apart.
+    expect(Number('9007199254740993')).toBe(Number('9007199254740992'));
+    expect(compareMessageIds('9007199254740993', '9007199254740992')).toBeGreaterThan(0);
+    expect(compareMessageIds('99', '100')).toBeLessThan(0);
+    expect(compareMessageIds('123', '123')).toBe(0);
+    expect(isLaterId('5', null)).toBe(true);
+    expect(isLaterId('5', '10')).toBe(false);
+  });
 });
 
 describe('previewLine', () => {
   it('shows the text alone in a one-to-one chat', () => {
-    expect(previewLine(thread())).toBe('Are we still on?');
+    expect(previewLine(thread(), opts('me'))).toBe('Are we still on?');
   });
 
   it('starts your own message with "You:"', () => {
-    const t = thread({
-      lastMessage: { text: 'I’ll send the photos', senderName: 'Me', fromMe: true, sentAt: '' },
-    });
-    expect(previewLine(t)).toBe('You: I’ll send the photos');
+    const t = thread({ lastMessage: { ...thread().lastMessage!, senderId: 'me', preview: 'On my way' } });
+    expect(previewLine(t, opts('me'))).toBe('You: On my way');
   });
 
-  it('starts a group message with the sender’s first name', () => {
+  it('tells your message in a direct chat before your id is known', () => {
+    const t = thread({ lastMessage: { ...thread().lastMessage!, senderId: 'me', preview: 'Hi' } });
+    expect(previewLine(t, opts(null))).toBe('You: Hi');
+  });
+
+  it('names a group sender when the members are known, and not otherwise', () => {
     const t = thread({
       kind: 'group',
-      lastMessage: { text: 'See you!', senderName: 'Chioma Obi', fromMe: false, sentAt: '' },
+      other: null,
+      title: 'Crew',
+      lastMessage: { ...thread().lastMessage!, senderId: 'u-chioma', preview: 'See you!' },
     });
-    expect(previewLine(t)).toBe('Chioma: See you!');
+    expect(previewLine(t, opts('me', { 'u-chioma': 'Chioma Obi' }))).toBe('Chioma: See you!');
+    expect(previewLine(t, opts('me'))).toBe('See you!');
   });
 
   it('does not repeat the name when the message already starts with it', () => {
     const t = thread({
       kind: 'group',
-      lastMessage: {
-        text: 'Kofi shared a new spot to try.',
-        senderName: 'Kofi Mensah',
-        fromMe: false,
-        sentAt: '',
-      },
+      other: null,
+      lastMessage: { ...thread().lastMessage!, senderId: 'u-kofi', preview: 'Kofi shared a spot.' },
     });
-    expect(previewLine(t)).toBe('Kofi shared a new spot to try.');
+    expect(previewLine(t, opts('me', { 'u-kofi': 'Kofi Mensah' }))).toBe('Kofi shared a spot.');
+  });
+
+  it('says how many photos when there are no words', () => {
+    const t = thread({ lastMessage: { ...thread().lastMessage!, preview: null, imageCount: 3 } });
+    expect(previewLine(t, opts('me'))).toBe('3 photos');
   });
 
   it('is empty with no messages', () => {
-    expect(previewLine(thread({ lastMessage: null }))).toBe('');
+    expect(previewLine(thread({ lastMessage: null }), opts('me'))).toBe('');
   });
 });
 
-describe('presence', () => {
+describe('names and presence', () => {
+  it('names a direct chat after the person and a group by its title', () => {
+    expect(threadName(thread(), 'Group chat')).toBe('Maya Chen');
+    expect(threadName(thread({ kind: 'group', other: null, title: 'Crew' }), 'Group chat')).toBe('Crew');
+    expect(threadName(thread({ kind: 'group', other: null, title: null }), 'Group chat')).toBe('Group chat');
+  });
+
   it('counts members and who is online in a group', () => {
-    expect(presence(thread({ kind: 'group', other: null, memberCount: 8, onlineCount: 3 }))).toEqual({
+    expect(presence(detail({ kind: 'group', other: null, memberCount: 8, onlineCount: 3 }))).toEqual({
       members: 8,
       online: 3,
     });
   });
 
-  it('says whether the other person is online', () => {
-    expect(presence(thread())).toEqual({ online: true });
+  it('reads the other person’s online state from the members', () => {
+    expect(presence(detail())).toEqual({ online: true });
+  });
+});
+
+describe('Sent and Read', () => {
+  const mine = msg('101', 'me', '', true);
+
+  it('is Read once the other person has read up to it', () => {
+    expect(messageStatus(mine, [member('me', '101'), member('u-maya', '100')])).toBe('sent');
+    expect(messageStatus(mine, [member('me', '101'), member('u-maya', '101')])).toBe('read');
+    expect(messageStatus(mine, [member('me', '101'), member('u-maya', '1000')])).toBe('read');
   });
 
-  it('has nothing to say without the numbers', () => {
-    expect(presence(thread({ kind: 'group', other: null }))).toBeNull();
+  it('stays Sent when they hide read receipts', () => {
+    expect(messageStatus(mine, [member('me', '101'), member('u-maya', null)])).toBe('sent');
+  });
+
+  it('in a group, waits for everyone who shows receipts', () => {
+    const members = [member('me', '101'), member('a', '101'), member('b', '99'), member('c', null)];
+    expect(messageStatus(mine, members)).toBe('sent');
+    expect(messageStatus(mine, withReadMark(members, 'b', '101'))).toBe('read');
+  });
+
+  it('never moves a read mark back', () => {
+    const members = withReadMark([member('a', '200')], 'a', '150');
+    expect(members[0]?.lastReadMessageId).toBe('200');
+  });
+});
+
+describe('upsertNewest', () => {
+  it('replaces the message being sent with the server’s copy, by clientMsgId', () => {
+    const pending = { ...msg('c-9', 'me', '', true), clientMsgId: 'c-9', pending: true };
+    const server = { ...msg('500', 'me', '', true), clientMsgId: 'c-9' };
+    const items = upsertNewest([pending, msg('400', 'x', '')], server);
+    expect(items.map((m) => m.id)).toEqual(['500', '400']);
+  });
+
+  it('adds a new message once, however often it arrives', () => {
+    const once = upsertNewest([msg('400', 'x', '')], msg('401', 'x', ''));
+    expect(upsertNewest(once, msg('401', 'x', '')).map((m) => m.id)).toEqual(['401', '400']);
   });
 });
 
@@ -96,7 +202,7 @@ describe('conversationItems', () => {
   const day2b = new Date(2026, 10, 3, 10).toISOString();
 
   it('puts a divider before each day and the activity card under the first', () => {
-    const items = conversationItems([msg('a', 'u1', day1), msg('b', 'u1', day2a)], {
+    const items = conversationItems([msg('1', 'u1', day1), msg('2', 'u1', day2a)], {
       group: false,
       hasPost: true,
     });
@@ -105,26 +211,10 @@ describe('conversationItems', () => {
 
   it('names the sender once per run in a group, never yourself', () => {
     const items = conversationItems(
-      [
-        msg('a', 'chioma', day2a),
-        msg('b', 'chioma', day2a),
-        msg('c', 'me', day2b, true),
-        msg('d', 'chioma', day2b),
-      ],
+      [msg('1', 'chioma', day2a), msg('2', 'chioma', day2a), msg('3', 'me', day2b, true), msg('4', 'chioma', day2b)],
       { group: true, hasPost: false },
     );
-    const shown = items.flatMap((i) => (i.kind === 'message' ? [[i.key, i.showSender]] : []));
-    expect(shown).toEqual([
-      ['a', true],
-      ['b', false],
-      ['c', false],
-      ['d', true],
-    ]);
-  });
-
-  it('never names senders in a one-to-one chat', () => {
-    const items = conversationItems([msg('a', 'maya', day1)], { group: false, hasPost: false });
-    expect(items.some((i) => i.kind === 'message' && i.showSender)).toBe(false);
+    expect(items.flatMap((i) => (i.kind === 'message' ? [i.showSender] : []))).toEqual([true, false, false, true]);
   });
 
   it('still shows the activity card with no messages', () => {
@@ -132,40 +222,88 @@ describe('conversationItems', () => {
   });
 });
 
-describe('sending', () => {
-  const repo = (sent: string[]): ChatRepository => ({
-    listThreads: async () => ({ items: [], nextCursor: null }),
-    getThread: async () => thread(),
+describe('use cases', () => {
+  const repo = (log: unknown[]): ChatRepository => ({
+    listThreads: async (_f, search) => {
+      log.push(search);
+      return { items: [], nextCursor: null };
+    },
+    startThread: async (target) => {
+      log.push(target);
+      return detail();
+    },
+    getThread: async () => detail(),
     getMessages: async () => ({ items: [], nextCursor: null }),
-    sendMessage: async (_id, text) => {
-      sent.push(text);
-      return msg('new', 'me', '', true);
+    sendMessage: async (_id, draft) => {
+      log.push(draft);
+      return msg('1', 'me', '', true);
     },
     markRead: async () => undefined,
+    sendTyping: async () => undefined,
+    addMember: async () => undefined,
+    removeMember: async () => undefined,
+    reportMessage: async (_t, _m, reason, details) => {
+      log.push([reason, details]);
+    },
+    getMyId: async () => 'me',
+    getPost: async () => null,
   });
 
-  it('trims the text before it goes', async () => {
-    const sent: string[] = [];
-    await makeSendMessage(repo(sent))('t1', '  hello  ');
-    expect(sent).toEqual(['hello']);
+  it('trims the search and cuts it to 60 characters', async () => {
+    const log: unknown[] = [];
+    await makeListThreads(repo(log))('all', `  ${'a'.repeat(80)} `);
+    expect(log).toEqual(['a'.repeat(60)]);
   });
 
-  it('refuses an empty message or one that is too long', async () => {
-    const sent: string[] = [];
-    const send = makeSendMessage(repo(sent));
-    await expect(send('t1', '   ')).rejects.toBeInstanceOf(ChatError);
-    await expect(send('t1', 'x'.repeat(2001))).rejects.toMatchObject({ code: 'invalid' });
-    expect(sent).toEqual([]);
+  it('starts with exactly one of a person or a post', async () => {
+    const log: unknown[] = [];
+    const start = makeStartThread(repo(log));
+    await start({ userId: 'u-1' });
+    await start({ postId: 'p-1' });
+    await expect(start({})).rejects.toMatchObject({ code: 'invalid' });
+    await expect(start({ userId: 'u', postId: 'p' })).rejects.toBeInstanceOf(ChatError);
+    expect(log).toEqual([{ userId: 'u-1' }, { postId: 'p-1' }]);
   });
 
-  it('trims the search before listing', async () => {
-    const queries: string[] = [];
-    const r = repo([]);
-    r.listThreads = async (_f, q) => {
-      queries.push(q);
-      return { items: [], nextCursor: null };
-    };
-    await makeListThreads(r)('all', '  maya ', null);
-    expect(queries).toEqual(['maya']);
+  it('makes one clientMsgId per message and keeps it in the draft for retries', () => {
+    let n = 0;
+    const prepare = makePrepareMessage(() => `uuid-${++n}`);
+    const draft = prepare('  hello  ');
+    expect(draft).toEqual({ clientMsgId: 'uuid-1', body: 'hello', images: [], taggedPostId: null });
+    expect(prepare('again').clientMsgId).toBe('uuid-2');
+  });
+
+  it('sends words, pictures or both, and refuses anything else', async () => {
+    const log: unknown[] = [];
+    const send = makeSendMessage(repo(log));
+    const draft = (body: string, images = 0): MessageDraft => ({
+      clientMsgId: 'c',
+      body,
+      images: Array.from({ length: images }, (_, i) => ({ uri: `f${i}`, name: 'p.jpg', type: 'image/jpeg' })),
+      taggedPostId: null,
+    });
+    await send('t1', draft('', 1));
+    await send('t1', draft(' hi '));
+    await expect(send('t1', draft('   '))).rejects.toMatchObject({ code: 'invalid' });
+    await expect(send('t1', draft('x'.repeat(2001)))).rejects.toMatchObject({ code: 'invalid' });
+    await expect(send('t1', draft('hi', 5))).rejects.toMatchObject({ code: 'invalid' });
+    expect(log).toHaveLength(2);
+    expect((log[1] as MessageDraft).body).toBe('hi');
+    expect(draftProblem('', 0)).toBe('invalid');
+  });
+
+  it('needs a note for "Something else" when reporting', async () => {
+    const log: unknown[] = [];
+    const report = makeReportMessage(repo(log));
+    await expect(report('t1', '5', 'other', ' ')).rejects.toMatchObject({ code: 'invalid' });
+    await report('t1', '5', 'spam', '');
+    await report('t1', '5', 'other', ' rude ');
+    expect(log).toEqual([
+      ['spam', null],
+      ['other', 'rude'],
+    ]);
+    expect(canSubmitReport(null, '')).toBe(false);
+    expect(canSubmitReport('other', '')).toBe(false);
+    expect(canSubmitReport('spam', '')).toBe(true);
   });
 });

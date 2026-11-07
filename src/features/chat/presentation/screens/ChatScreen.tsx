@@ -9,15 +9,18 @@ import {
 } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
-import { EmptyState, LoadingRing, Screen, TextLink } from '@shared/components';
+import { EmptyState, LoadingRing, Screen, StatusSheet, TextLink } from '@shared/components';
 import { useTheme } from '@shared/hooks/useTheme';
 import { SCREEN_GUTTER } from '@shared/theme';
 
+import type { ChatMessage } from '../../domain/entities/Chat';
+import type { ChatErrorCode } from '../../domain/entities/ChatError';
 import type { ConversationItem } from '../../domain/rules/chatRules';
 import { ChatHeader } from '../components/ChatHeader';
 import { Composer } from '../components/Composer';
 import { DayDivider, MessageBubble } from '../components/MessageBubble';
 import { PostContextCard } from '../components/PostContextCard';
+import { ReportMessageDialog } from '../components/ReportMessageDialog';
 import { SafetyBanner } from '../components/SafetyBanner';
 import { SafetyTipsSheet } from '../components/SafetyTipsSheet';
 import { ConversationSkeleton } from '../components/ThreadsSkeleton';
@@ -34,7 +37,7 @@ import { useSafetyBanner } from '../hooks/useSafetyBanner';
  *
  * The list opens at the newest message and follows new ones while you are at
  * the bottom; scrolling to the top loads older messages without moving what is
- * on screen.
+ * on screen. A long press on someone else's message reports it.
  */
 
 export type ChatScreenProps = {
@@ -51,6 +54,9 @@ export function ChatScreen({ threadId, onBack, onOpenPost }: ChatScreenProps) {
   const vm = useConversation(threadId);
   const banner = useSafetyBanner();
   const [tipsOpen, setTipsOpen] = useState(false);
+  const [reporting, setReporting] = useState<ChatMessage | null>(null);
+  const [reportError, setReportError] = useState<ChatErrorCode | null>(null);
+  const [reported, setReported] = useState(false);
   const list = useRef<FlatList<ConversationItem>>(null);
   const atBottom = useRef(true);
   const firstLayout = useRef(true);
@@ -85,20 +91,60 @@ export function ChatScreen({ threadId, onBack, onOpenPost }: ChatScreenProps) {
             />
           );
         case 'post':
-          return vm.thread?.post ? (
-            <PostContextCard post={vm.thread.post} onPress={() => onOpenPost(vm.thread?.post?.id ?? '')} />
+          return vm.post ? (
+            <PostContextCard post={vm.post} onPress={() => onOpenPost(vm.post?.id ?? '')} />
           ) : null;
-        case 'message':
-          return <MessageBubble message={item.message} showSender={item.showSender} />;
+        case 'message': {
+          const m = item.message;
+          const reportable = !m.mine && !m.pending && !m.removed;
+          return (
+            <MessageBubble
+              message={m}
+              showSender={item.showSender}
+              status={vm.statusOf(m)}
+              onOpenPost={onOpenPost}
+              onReport={
+                reportable
+                  ? () => {
+                      setReportError(null);
+                      setReporting(m);
+                    }
+                  : undefined
+              }
+            />
+          );
+        }
       }
     },
-    [vm.thread, onOpenPost],
+    [vm, onOpenPost],
+  );
+
+  const submitReport = useCallback(
+    (reason: Parameters<typeof vm.report>[1], details: string) => {
+      if (!reporting) return;
+      void vm.report(reporting.id, reason, details).then((problem) => {
+        if (problem) {
+          setReportError(problem);
+          return;
+        }
+        setReporting(null);
+        setReported(true);
+      });
+    },
+    [reporting, vm],
   );
 
   return (
     <Screen edges={['top']} padded={false}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ChatHeader thread={vm.thread} onBack={onBack} onSafety={() => setTipsOpen(true)} />
+        <ChatHeader
+          thread={vm.thread}
+          name={vm.name}
+          avatarUrl={vm.avatarUrl}
+          typers={vm.typers}
+          onBack={onBack}
+          onSafety={() => setTipsOpen(true)}
+        />
         {banner.visible ? (
           <View style={{ paddingHorizontal: SCREEN_GUTTER, paddingBottom: 8 }}>
             <SafetyBanner onOpenTips={() => setTipsOpen(true)} onClose={banner.dismiss} />
@@ -115,10 +161,10 @@ export function ChatScreen({ threadId, onBack, onOpenPost }: ChatScreenProps) {
             style={{ flex: 1, justifyContent: 'center', paddingHorizontal: SCREEN_GUTTER }}
           >
             <EmptyState
-              title={vm.error === 'unavailable' ? chatErrorMessages.unavailable : chatCopy.thread.loadFailed}
-              body={vm.error === 'unavailable' ? undefined : chatErrorMessages[vm.error]}
+              title={vm.error === 'notFound' ? chatErrorMessages.notFound : chatCopy.thread.loadFailed}
+              body={vm.error === 'notFound' ? undefined : chatErrorMessages[vm.error]}
             />
-            {vm.error === 'unavailable' ? null : (
+            {vm.error === 'notFound' ? null : (
               <View style={{ alignItems: 'center' }}>
                 <TextLink label={chatCopy.retry} onPress={vm.retry} emphasis="plain" />
               </View>
@@ -160,11 +206,31 @@ export function ChatScreen({ threadId, onBack, onOpenPost }: ChatScreenProps) {
         )}
 
         <View style={{ borderTopWidth: 1, borderTopColor: theme.border }}>
-          <Composer onSend={vm.submit} sending={vm.sending} />
+          <Composer
+            onSend={vm.submit}
+            onTyping={vm.onTyping}
+            onPickPhotos={vm.pickPhotos}
+            sending={vm.sending}
+          />
         </View>
       </KeyboardAvoidingView>
 
       <SafetyTipsSheet isPresented={tipsOpen} onDismiss={() => setTipsOpen(false)} />
+      <ReportMessageDialog
+        isPresented={!!reporting}
+        submitting={vm.reporting}
+        error={reportError}
+        onSubmit={submitReport}
+        onDismiss={() => setReporting(null)}
+      />
+      <StatusSheet
+        isPresented={reported}
+        title={chatCopy.report.doneTitle}
+        message={chatCopy.report.done}
+        actionLabel={chatCopy.tips.action}
+        onAction={() => setReported(false)}
+        onDismiss={() => setReported(false)}
+      />
     </Screen>
   );
 }

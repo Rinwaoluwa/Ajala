@@ -5,33 +5,46 @@ import { TouchableOpacity, View } from 'react-native';
 import { Avatar, NativeIcon, SkeletonBlock, SkeletonPulse, Text, icons } from '@shared/components';
 import { useTheme } from '@shared/hooks/useTheme';
 
-import type { ChatThread } from '../../domain/entities/Chat';
+import type { ChatThreadDetail } from '../../domain/entities/Chat';
 import { presence } from '../../domain/rules/chatRules';
 import { chatCopy } from '../copy';
 
 /**
  * A conversation's top (Figma Chat): back chevron, photo, name, and in teal
- * "Online" or "8 members · 3 online". A shield at the right opens the safety
+ * "Online" or "8 members · 3 online" — or, while someone writes, "typing…"
+ * ("Chioma is typing…" in a group). A shield at the right opens the safety
  * tips. The name wraps to two lines at large text rather than clipping.
+ *
+ * A group has no photo in the API, so it shows its initials.
  */
 export function ChatHeader({
   thread,
+  name,
+  avatarUrl,
+  typers,
   onBack,
   onSafety,
 }: {
-  thread: ChatThread | null;
+  thread: ChatThreadDetail | null;
+  name: string;
+  avatarUrl: string | null;
+  /** Names of the others typing now. */
+  typers: readonly string[];
   onBack: () => void;
   onSafety: () => void;
 }) {
   const theme = useTheme();
   const p = thread ? presence(thread) : null;
-  const line = !p
-    ? null
-    : 'members' in p
-      ? chatCopy.thread.group(p.members, p.online)
-      : p.online
-        ? chatCopy.thread.online
-        : null;
+  const line =
+    typers.length > 0
+      ? chatCopy.thread.typing(typers, thread?.kind === 'group')
+      : !p
+        ? null
+        : 'members' in p
+          ? chatCopy.thread.group(p.members, p.online)
+          : p.online
+            ? chatCopy.thread.online
+            : null;
 
   return (
     <View
@@ -57,13 +70,13 @@ export function ChatHeader({
       </TouchableOpacity>
       {thread ? (
         <>
-          <Avatar name={thread.title} uri={thread.avatarUrl ?? thread.other?.avatarUrl ?? null} size={48} />
+          <Avatar name={name} uri={avatarUrl} size={48} />
           <View style={{ flex: 1 }}>
             <Text variant="headingMd" numberOfLines={2} accessibilityRole="header">
-              {thread.title}
+              {name}
             </Text>
             {line ? (
-              <Text variant="bodySm" tone="primary">
+              <Text variant="bodySm" tone="primary" accessibilityLiveRegion="polite">
                 {line}
               </Text>
             ) : null}

@@ -1,23 +1,41 @@
-import { keepPreviousData, useInfiniteQuery } from '@tanstack/react-query';
+import { keepPreviousData, useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo, useState } from 'react';
 
 import { useDebouncedValue } from '@shared/hooks/useDebouncedValue';
 
-import type { ChatFilter } from '../../domain/entities/Chat';
+import type { ChatFilter, ChatThread, ChatThreadDetail } from '../../domain/entities/Chat';
 import { isChatError, type ChatErrorCode } from '../../domain/entities/ChatError';
+import { previewLine, threadAvatar, threadName } from '../../domain/rules/chatRules';
+import { chatCopy } from '../copy';
 import { chatKeys } from '../state/chatQueries';
 import { useChatUseCases } from '../state/useChatUseCases';
+import { useChatRealtime } from './useChatRealtime';
+import { useMyId } from './useMyId';
+
+export type ThreadRowModel = {
+  thread: ChatThread;
+  name: string;
+  avatarUrl: string | null;
+  preview: string;
+};
 
 /**
- * View model for the Messages list: the conversations for a filter (All /
- * Unread / Groups) and a search, newest activity first, paged.
+ * View model for the Messages list (`GET /conversations`): the conversations
+ * for a tab (All / Unread / Groups) and a search, latest activity first, paged.
  *
  * The search goes out when typing pauses (250ms) and is cached per text, so
- * going back over the same letters answers at once. While chat is not in the
- * API (`unavailable`), the list is the designed empty state.
+ * going back over the same letters answers at once. The live socket is held
+ * while the list is open, so new messages reorder it.
+ *
+ * A group's last line names its sender by id only. The name is looked up among
+ * the members of that conversation when it has been opened (its detail is in
+ * the cache); otherwise the line shows without a name.
  */
 export function useThreads() {
   const { listThreads } = useChatUseCases();
+  const queryClient = useQueryClient();
+  const myId = useMyId();
+  useChatRealtime();
   const [filter, setFilter] = useState<ChatFilter>('all');
   const [search, setSearch] = useState('');
   // Remounting the uncontrolled search field is how it is cleared.
@@ -34,10 +52,31 @@ export function useThreads() {
     staleTime: 15_000,
   });
 
-  const threads = useMemo(() => (list.data?.pages ?? []).flatMap((p) => p.items), [list.data]);
-  const unavailable = isChatError(list.error) && list.error.code === 'unavailable';
-  const error: ChatErrorCode | null =
-    list.error && !unavailable ? (isChatError(list.error) ? list.error.code : 'unknown') : null;
+  const rows = useMemo<ThreadRowModel[]>(() => {
+    const senderName = (threadId: string) => (userId: string) =>
+      queryClient
+        .getQueryData<ChatThreadDetail>(chatKeys.thread(threadId))
+        ?.members.find((m) => m.person.id === userId)?.person.name ?? null;
+    return (list.data?.pages ?? [])
+      .flatMap((p) => p.items)
+      .map((thread) => ({
+        thread,
+        name: threadName(thread, chatCopy.groupFallback),
+        avatarUrl: threadAvatar(thread),
+        preview: previewLine(thread, {
+          myId,
+          senderName: senderName(thread.id),
+          you: chatCopy.you,
+          photos: chatCopy.photos,
+        }),
+      }));
+  }, [list.data, myId, queryClient]);
+
+  const error: ChatErrorCode | null = list.error
+    ? isChatError(list.error)
+      ? list.error.code
+      : 'unknown'
+    : null;
 
   const clearSearch = useCallback(() => {
     setSearch('');
@@ -52,9 +91,8 @@ export function useThreads() {
     setSearch,
     searchKey,
     clearSearch,
-    threads,
-    loading: list.isPending && !unavailable,
-    unavailable,
+    rows,
+    loading: list.isPending,
     error,
     refreshing: pulling && list.isRefetching,
     refresh: () => {

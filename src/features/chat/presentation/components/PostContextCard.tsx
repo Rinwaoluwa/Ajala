@@ -3,7 +3,7 @@ import { TouchableOpacity } from 'react-native';
 import { Text } from '@shared/components';
 import { palette } from '@shared/theme';
 
-import type { ChatThread } from '../../domain/entities/Chat';
+import type { ChatPost } from '../../domain/entities/Chat';
 import { chatCopy } from '../copy';
 import { postMeta } from '../format';
 
@@ -16,7 +16,7 @@ export function PostContextCard({
   post,
   onPress,
 }: {
-  post: NonNullable<ChatThread['post']>;
+  post: ChatPost;
   onPress: () => void;
 }) {
   const meta = postMeta(post.startAt, post.placeName);

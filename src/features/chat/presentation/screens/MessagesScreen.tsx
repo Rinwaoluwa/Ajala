@@ -1,37 +1,28 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Host } from '@expo/ui';
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
 import { FlatList, RefreshControl, TouchableOpacity, View } from 'react-native';
 
-import {
-  Button,
-  EmptyState,
-  NativeIcon,
-  PillTabs,
-  Screen,
-  Sheet,
-  Text,
-  TextField,
-  icons,
-} from '@shared/components';
+import { EmptyState, NativeIcon, PillTabs, Screen, Text, TextField, icons } from '@shared/components';
 import { useTheme } from '@shared/hooks/useTheme';
 import { SCREEN_GUTTER } from '@shared/theme';
 
-import type { ChatThread } from '../../domain/entities/Chat';
+import { SEARCH_MAX } from '../../domain/rules/chatRules';
 import { ThreadRow } from '../components/ThreadRow';
 import { ThreadsSkeleton } from '../components/ThreadsSkeleton';
 import { chatCopy, chatErrorMessages } from '../copy';
-import { useThreads } from '../hooks/useThreads';
+import { useThreads, type ThreadRowModel } from '../hooks/useThreads';
 
 /**
- * Messages (Figma Messages, light and dark): the title with the compose icon,
- * "Search messages", the All / Unread / Groups pills (frosted glass where the
- * phone has it), then the conversations — or the designed empty states: "No
- * messages yet" with "Explore plans", and for a search, "No conversations
- * found" with "Clear search".
+ * Messages (Figma Messages, light and dark): the title, "Search messages", the
+ * All / Unread / Groups pills (frosted glass where the phone has it), then the
+ * conversations — or the designed empty states: "No messages yet" with
+ * "Explore plans", and for a search, "No conversations found" with "Clear
+ * search".
  *
- * Chat is not in the API yet (a proposed endpoint, see the README): until it
- * is, the list is "No messages yet". Demo mode answers it.
+ * The frames' compose icon is left out: there is no design for picking who to
+ * write to. Chats start from a person's profile (Message) or from an activity,
+ * which both open `chatRoutes.start` (see the README).
  *
  * Rows appear at once (no staggered entrance); the skeleton stands in while the
  * list loads. Pull to refresh; nearing the end loads more.
@@ -46,10 +37,11 @@ export type MessagesScreenProps = {
 export function MessagesScreen({ onBack, onOpenThread, onExplore }: MessagesScreenProps) {
   const theme = useTheme();
   const vm = useThreads();
-  const [composeOpen, setComposeOpen] = useState(false);
 
   const renderItem = useCallback(
-    ({ item }: { item: ChatThread }) => <ThreadRow thread={item} onPress={() => onOpenThread(item.id)} />,
+    ({ item }: { item: ThreadRowModel }) => (
+      <ThreadRow row={item} onPress={() => onOpenThread(item.thread.id)} />
+    ),
     [onOpenThread],
   );
 
@@ -63,7 +55,7 @@ export function MessagesScreen({ onBack, onOpenThread, onExplore }: MessagesScre
         />
       );
     }
-    if (vm.q && !vm.unavailable) {
+    if (vm.q) {
       return (
         <EmptyState
           art={<Art name="search-outline" />}
@@ -73,10 +65,10 @@ export function MessagesScreen({ onBack, onOpenThread, onExplore }: MessagesScre
         />
       );
     }
-    if (vm.filter === 'unread' && !vm.unavailable) {
+    if (vm.filter === 'unread') {
       return <EmptyState art={<Art name="checkmark-done-outline" />} {...chatCopy.noUnread} />;
     }
-    if (vm.filter === 'groups' && !vm.unavailable) {
+    if (vm.filter === 'groups') {
       return <EmptyState art={<Art name="people-outline" />} {...chatCopy.noGroups} />;
     }
     return (
@@ -108,15 +100,6 @@ export function MessagesScreen({ onBack, onOpenThread, onExplore }: MessagesScre
           <Text variant="headingXl" accessibilityRole="header" style={{ flex: 1 }}>
             {chatCopy.title}
           </Text>
-          <TouchableOpacity
-            activeOpacity={0.6}
-            onPress={() => setComposeOpen(true)}
-            hitSlop={8}
-            accessibilityRole="button"
-            accessibilityLabel={chatCopy.compose}
-          >
-            <Ionicons name="create-outline" size={28} color={theme.foreground} />
-          </TouchableOpacity>
         </View>
         <TextField
           key={vm.searchKey}
@@ -127,6 +110,7 @@ export function MessagesScreen({ onBack, onOpenThread, onExplore }: MessagesScre
           onChangeText={vm.setSearch}
           autoCorrect={false}
           returnKeyType="search"
+          maxLength={SEARCH_MAX}
           leading={<NativeIcon source={icons.search} size={16} color={theme.muted} />}
         />
       </View>
@@ -135,8 +119,8 @@ export function MessagesScreen({ onBack, onOpenThread, onExplore }: MessagesScre
       </View>
 
       <FlatList
-        data={vm.loading || vm.unavailable ? [] : vm.threads}
-        keyExtractor={(t) => t.id}
+        data={vm.loading ? [] : vm.rows}
+        keyExtractor={(r) => r.thread.id}
         renderItem={renderItem}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
@@ -157,23 +141,6 @@ export function MessagesScreen({ onBack, onOpenThread, onExplore }: MessagesScre
         }
       />
 
-      <Sheet
-        isPresented={composeOpen}
-        title={chatCopy.composeSheet.title}
-        onDismiss={() => setComposeOpen(false)}
-      >
-        <View style={{ gap: 20 }}>
-          <Text variant="bodyMd" tone="muted">
-            {chatCopy.composeSheet.body}
-          </Text>
-          <Button
-            label={chatCopy.composeSheet.action}
-            size="lg"
-            fullWidth
-            onPress={() => setComposeOpen(false)}
-          />
-        </View>
-      </Sheet>
     </Screen>
   );
 }
