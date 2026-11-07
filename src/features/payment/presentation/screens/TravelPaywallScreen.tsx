@@ -1,11 +1,23 @@
+import { useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Button, RoundFlag, SvgIcon, SwirlPattern, Text, enterRise } from '@shared/components';
+import {
+  Button,
+  RoundFlag,
+  StatusSheet,
+  SvgIcon,
+  SwirlPattern,
+  Text,
+  enterRise,
+} from '@shared/components';
 import { SCREEN_GUTTER, palette } from '@shared/theme';
 
+import { subscriptionSummary, type SubscriptionSummary } from '../../domain/rules/subscriptionRules';
 import { travelPaywallCopy } from '../copy';
+import { useManageSubscription } from '../hooks/useManageSubscription';
+import { useSubscription } from '../hooks/useSubscription';
 
 /**
  * "Travel to London" (Figma Travel paywall, and its "alternative").
@@ -15,8 +27,15 @@ import { travelPaywallCopy } from '../copy';
  * variants already fade into at the foot. The badge is the design's own
  * (`travel-badge.svg`), with the home flag and the destination's on its line.
  *
- * The subscription is not built (API map §12): the button says "Coming soon" and
- * does nothing, as agreed with product. "Maybe later" goes back.
+ * It reads the subscription afresh on opening (`GET /me/subscription`): it may
+ * have opened because a teleport just came back 402.
+ *
+ *   - Not subscribed: the benefits and Subscribe. This build cannot buy — that
+ *     needs the App Store / Play products and a store + attestation library the
+ *     app does not have yet (README) — so Subscribe says so in a sheet rather
+ *     than pretending to charge. "Maybe later" goes back.
+ *   - Subscribed: "Travel is on", when it renews or ends, and Manage, which
+ *     opens the store's subscription settings or the web billing portal.
  *
  * The column enters in a short stagger; it scrolls at large text sizes.
  */
@@ -24,6 +43,13 @@ import { travelPaywallCopy } from '../copy';
 const SEAL = 104;
 /** As drawn: about a third of the badge, centred on each end of its dashed line. */
 const FLAG = 37;
+
+const DATE = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+const formatDate = (iso: string | null): string | null => {
+  if (!iso) return null;
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? null : DATE.format(d);
+};
 
 export type TravelPaywallScreenProps = {
   /** The destination, or null for "anywhere" (from the Pro banner). */
@@ -35,6 +61,10 @@ export type TravelPaywallScreenProps = {
 export function TravelPaywallScreen({ city, homeCountryCode, onClose }: TravelPaywallScreenProps) {
   const insets = useSafeAreaInsets();
   const copy = travelPaywallCopy;
+  const { subscription, loading } = useSubscription({ fresh: true });
+  const manage = useManageSubscription(subscription);
+  const [notice, setNotice] = useState(false);
+  const summary = subscriptionSummary(subscription);
 
   return (
     <View
@@ -72,45 +102,137 @@ export function TravelPaywallScreen({ city, homeCountryCode, onClose }: TravelPa
           </View>
         </Animated.View>
 
-        <Animated.View entering={enterRise(60)}>
-          <Text
-            variant="headingXl"
-            className="mt-20 text-center"
-            style={{ color: palette.white }}
-            accessibilityRole="header"
-          >
-            {city ? copy.title(city.name) : copy.anywhere}
-          </Text>
-          <Text variant="bodyMd" className="mt-8 text-center" style={{ color: 'rgba(255,255,255,0.88)' }}>
-            {city ? copy.body(city.name) : copy.bodyAnywhere}
-          </Text>
-        </Animated.View>
-
-        <Animated.View entering={enterRise(120)} className="mt-32" style={{ gap: 18 }}>
-          {copy.benefits.map((benefit) => (
-            <View key={benefit} className="flex-row items-center" style={{ gap: 12 }}>
-              <SvgIcon name="check" size={20} />
-              <Text variant="bodyMd" style={{ color: palette.white, flex: 1 }}>
-                {benefit}
+        {summary ? (
+          <>
+            <Animated.View entering={enterRise(60)}>
+              <Text
+                variant="headingXl"
+                className="mt-20 text-center"
+                style={{ color: palette.white }}
+                accessibilityRole="header"
+              >
+                {copy.subscribed.title}
               </Text>
-            </View>
-          ))}
-        </Animated.View>
-
-        <Animated.View entering={enterRise(180)} className="mt-40 items-center" style={{ gap: 16 }}>
-          <View style={{ alignSelf: 'stretch' }}>
-            <Button label={`${copy.comingSoon} — ${copy.price}`} size="lg" fullWidth disabled />
-          </View>
-          {/* White on the night backdrop in both schemes; a text link's tones follow the scheme. */}
-          <Pressable onPress={onClose} hitSlop={12} accessibilityRole="button">
-            {({ pressed }) => (
-              <Text variant="bodyMd" style={{ color: palette.white, opacity: pressed ? 0.6 : 1 }}>
-                {copy.later}
+              <Text variant="bodyMd" className="mt-8 text-center" style={{ color: 'rgba(255,255,255,0.88)' }}>
+                {copy.subscribed.body}
               </Text>
-            )}
-          </Pressable>
-        </Animated.View>
+              <Text
+                variant="labelMd"
+                className="mt-16 text-center"
+                style={{ color: palette.white }}
+                accessibilityLiveRegion="polite"
+              >
+                {summaryLine(summary)}
+              </Text>
+            </Animated.View>
+
+            <Animated.View entering={enterRise(120)} className="mt-40 items-center" style={{ gap: 16 }}>
+              {manage.available ? (
+                <View style={{ alignSelf: 'stretch' }}>
+                  <Button
+                    label={copy.subscribed.manage}
+                    size="lg"
+                    fullWidth
+                    loading={manage.opening}
+                    onPress={manage.manage}
+                  />
+                </View>
+              ) : null}
+              {manage.error ? (
+                <Text
+                  variant="bodySm"
+                  className="text-center"
+                  style={{ color: palette.white }}
+                  accessibilityLiveRegion="polite"
+                >
+                  {copy.errors[manage.error]}
+                </Text>
+              ) : null}
+              <WhiteLink label={copy.subscribed.done} onPress={onClose} />
+            </Animated.View>
+          </>
+        ) : (
+          <>
+            <Animated.View entering={enterRise(60)}>
+              <Text
+                variant="headingXl"
+                className="mt-20 text-center"
+                style={{ color: palette.white }}
+                accessibilityRole="header"
+              >
+                {city ? copy.title(city.name) : copy.anywhere}
+              </Text>
+              <Text variant="bodyMd" className="mt-8 text-center" style={{ color: 'rgba(255,255,255,0.88)' }}>
+                {city ? copy.body(city.name) : copy.bodyAnywhere}
+              </Text>
+            </Animated.View>
+
+            <Animated.View entering={enterRise(120)} className="mt-32" style={{ gap: 18 }}>
+              {copy.benefits.map((benefit) => (
+                <View key={benefit} className="flex-row items-center" style={{ gap: 12 }}>
+                  <SvgIcon name="check" size={20} />
+                  <Text variant="bodyMd" style={{ color: palette.white, flex: 1 }}>
+                    {benefit}
+                  </Text>
+                </View>
+              ))}
+            </Animated.View>
+
+            <Animated.View entering={enterRise(180)} className="mt-40 items-center" style={{ gap: 16 }}>
+              <View style={{ alignSelf: 'stretch' }}>
+                <Button
+                  label={`${copy.subscribe} — ${copy.price}`}
+                  size="lg"
+                  fullWidth
+                  loading={loading}
+                  onPress={() => setNotice(true)}
+                />
+              </View>
+              <WhiteLink label={copy.later} onPress={onClose} />
+            </Animated.View>
+          </>
+        )}
       </ScrollView>
+
+      {/* TODO(purchase): replace with the store purchase — see the README's "Turning on buying". */}
+      <StatusSheet
+        isPresented={notice}
+        tone="info"
+        title={copy.notInBuild.title}
+        message={copy.notInBuild.body}
+        actionLabel={copy.notInBuild.ok}
+        onAction={() => setNotice(false)}
+        onDismiss={() => setNotice(false)}
+      />
     </View>
+  );
+}
+
+function summaryLine(summary: SubscriptionSummary): string {
+  const c = travelPaywallCopy.subscribed;
+  switch (summary.kind) {
+    case 'renews':
+      return c.renews(formatDate(summary.on) ?? '');
+    case 'ends':
+      return c.ends(formatDate(summary.on) ?? '');
+    case 'grace':
+      return c.grace;
+    case 'complimentary':
+      return c.complimentary(formatDate(summary.until));
+    default:
+      return c.active;
+  }
+}
+
+/** White on the night backdrop in both schemes; a text link's tones follow the scheme. */
+function WhiteLink({ label, onPress }: { label: string; onPress: () => void }) {
+  return (
+    <Pressable onPress={onPress} hitSlop={12} accessibilityRole="button">
+      {({ pressed }) => (
+        <Text variant="bodyMd" style={{ color: palette.white, opacity: pressed ? 0.6 : 1 }}>
+          {label}
+        </Text>
+      )}
+    </Pressable>
   );
 }
