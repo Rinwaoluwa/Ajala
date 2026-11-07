@@ -4,15 +4,16 @@ import { useMemo, useState } from 'react';
 import type { FeedFilter, FeedPage } from '../../domain/entities/Feed';
 import { isFeedError, type FeedErrorCode } from '../../domain/entities/FeedError';
 import { feedKeys } from '../state/feedQueries';
-import { travelStore, useTravel } from '../state/travelStore';
+import { travelMemory } from '../state/travelMemory';
 import { useHomeUseCases } from '../state/useHomeUseCases';
 
 /**
  * View model for the home feed (API map §4): an infinite query over
  * `GET /feed`, one per post-type filter, paged by cursor.
  *
- * Travel Pro points it at another city (`travelStore`); each place has its
- * own cache, so going back home is instant.
+ * The server picks the city — a Travel teleport first (`citySource:
+ * 'teleport'`), then the phone's location — so the key carries only the
+ * filter; teleporting or coming home resets the cache (`useTravelMove`).
  *
  * Cached per filter (TanStack Query): going back to a filter already seen draws
  * its cards at once and refreshes them behind. Pull to refresh refetches from
@@ -30,14 +31,13 @@ export function useFeed() {
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState<FeedFilter>('all');
   const [pulling, setPulling] = useState(false);
-  const { destination, home } = useTravel();
 
   const query = useInfiniteQuery({
-    queryKey: feedKeys.feed(filter, destination?.name ?? null),
+    queryKey: feedKeys.feed(filter),
     queryFn: async ({ pageParam }) => {
-      const page = await loadFeed(filter, pageParam, destination);
-      // At home, the city the server chose is the person's own: Travel lists it as "Your city".
-      if (!destination) travelStore.setHome(page.city);
+      const page = await loadFeed(filter, pageParam);
+      // Without a teleport the city the server chose is the person's own: Travel lists it as "Your city".
+      if (page.citySource !== 'teleport') travelMemory.setHome(page.city);
       return page;
     },
     initialPageParam: null as string | null,
@@ -54,16 +54,13 @@ export function useFeed() {
       .filter((p) => !seen.has(p.id) && !!seen.add(p.id));
   }, [query.data]);
 
-  // A filter not loaded yet still has a city to show: the destination, or any
-  // home feed already cached.
+  // A filter not loaded yet still has a city to show: any feed already cached.
   const first =
     query.data?.pages[0] ??
-    (destination
-      ? undefined
-      : queryClient
-          .getQueriesData<InfiniteData<FeedPage>>({ queryKey: feedKeys.lists })
-          .map(([, data]) => data?.pages[0])
-          .find(Boolean));
+    queryClient
+      .getQueriesData<InfiniteData<FeedPage>>({ queryKey: feedKeys.lists })
+      .map(([, data]) => data?.pages[0])
+      .find(Boolean);
   const error: FeedErrorCode | null = query.error
     ? isFeedError(query.error)
       ? query.error.code
@@ -73,10 +70,8 @@ export function useFeed() {
   return {
     filter,
     items,
-    city: first?.city ?? (destination ? { ...destination, label: destination.name } : null),
+    city: first?.city ?? null,
     citySource: first?.citySource ?? 'home',
-    /** The person's own city while travelling, for "Travelling from Lagos". */
-    travellingFrom: destination ? (home?.name ?? null) : null,
     loading: query.isPending,
     refreshing: pulling && query.isRefetching,
     loadingMore: query.isFetchingNextPage,

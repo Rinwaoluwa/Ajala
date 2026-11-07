@@ -3,6 +3,7 @@ import { Pressable, View, useColorScheme } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
 import { GlassSurface, NativeIcon, SkeletonBlock, Text, VectorIcon, icons } from '@shared/components';
+import { useFontScale } from '@shared/hooks/useFontScale';
 import { useTheme } from '@shared/hooks/useTheme';
 import { palette } from '@shared/theme';
 
@@ -16,9 +17,14 @@ import { ProTag } from './ProTag';
  * — 44pt pale-Marigold circles on light, Deep on dark; Liquid Glass circles where
  * the phone has it (`GlassSurface`).
  *
+ * The bell carries a small coral count while notifications are unread
+ * (`unreadCount`, from the notifications feature via the route); it is said as
+ * "Notifications, 3 unread".
+ *
  * Until the feed has answered, the city and its line are skeleton bars, as the
- * skeleton frame draws them; the name fades in when it lands. The bell and chat
- * have no unread dots: there is no notifications or chat API yet.
+ * skeleton frame draws them; the name fades in when it lands. The line says how
+ * the server picked the city, and "Teleported to London" while a Travel
+ * teleport is in force (spec §2.11).
  */
 
 const BUTTON = 44;
@@ -28,21 +34,59 @@ export type FeedHeaderProps = {
   citySource: CitySource;
   /** Travel Pro: a PRO tag beside the city (Figma "Home Feed / Subscribed User"). */
   isPro?: boolean;
-  /** The person's own city while Travel has the feed elsewhere. */
-  travellingFrom?: string | null;
   onChooseCity: () => void;
   onNotifications: () => void;
   onMessages: () => void;
+  /** Unread notifications; above zero, a badge on the bell. */
+  unreadCount?: number;
 };
+
+/**
+ * The bell's badge: a coral circle for one digit, a pill for more ("12", "99+").
+ *
+ * The size follows the text size (to the label's 1.2× cap), so the number never
+ * outgrows it, and a single digit gets no side padding, which had stretched the
+ * circle into an oval. No outline ring: on the glass it read as a cut edge.
+ */
+function UnreadBadge({ count }: { count: number }) {
+  const scale = Math.min(useFontScale(), 1.2);
+  const label = count > 99 ? '99+' : String(count);
+  const size = Math.round(18 * scale);
+  return (
+    <View
+      pointerEvents="none"
+      style={{
+        position: 'absolute',
+        top: -3,
+        right: -3,
+        height: size,
+        minWidth: size,
+        paddingHorizontal: label.length > 1 ? Math.round(5 * scale) : 0,
+        borderRadius: size / 2,
+        backgroundColor: palette.coral,
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      <Text
+        variant="labelXs"
+        maxFontSizeMultiplier={1.2}
+        style={{ color: palette.white, lineHeight: Math.round(13 * scale), textAlign: 'center' }}
+      >
+        {label}
+      </Text>
+    </View>
+  );
+}
 
 export function FeedHeader({
   city,
   citySource,
   isPro = false,
-  travellingFrom = null,
   onChooseCity,
   onNotifications,
   onMessages,
+  unreadCount = 0,
 }: FeedHeaderProps) {
   const theme = useTheme();
   const dark = useColorScheme() === 'dark';
@@ -71,7 +115,9 @@ export function FeedHeader({
               </Host>
             </View>
             <Text variant="bodySm" tone="muted" className="mt-2">
-              {travellingFrom ? homeCopy.travellingFrom(travellingFrom) : homeCopy.citySubtitle[citySource]}
+              {citySource === 'teleport'
+                ? homeCopy.teleportedTo(city.name)
+                : homeCopy.citySubtitle[citySource]}
             </Text>
           </Animated.View>
         ) : (
@@ -89,28 +135,35 @@ export function FeedHeader({
       <View className="flex-row" style={{ gap: 10 }}>
         {(
           [
-            ['bell', homeCopy.notifications, onNotifications],
+            [
+              'bell',
+              unreadCount > 0 ? `${homeCopy.notifications}, ${unreadCount} unread` : homeCopy.notifications,
+              onNotifications,
+            ],
             ['chat', homeCopy.messages, onMessages],
           ] as const
         ).map(([icon, label, onPress]) => (
           <Pressable key={icon} onPress={onPress} accessibilityRole="button" accessibilityLabel={label}>
             {({ pressed }) => (
-              <GlassSurface
-                fallbackColor={city ? theme.iconButtonFill : theme.skeletonSurface}
-                interactive
-                shadow={false}
-                onPlainPage
-                style={{
-                  width: BUTTON,
-                  height: BUTTON,
-                  borderRadius: BUTTON / 2,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  opacity: pressed ? 0.6 : 1,
-                }}
-              >
-                <VectorIcon name={icon} size={22} color={iconTint} />
-              </GlassSurface>
+              <>
+                <GlassSurface
+                  fallbackColor={city ? theme.iconButtonFill : theme.skeletonSurface}
+                  interactive
+                  shadow={false}
+                  onPlainPage
+                  style={{
+                    width: BUTTON,
+                    height: BUTTON,
+                    borderRadius: BUTTON / 2,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    opacity: pressed ? 0.6 : 1,
+                  }}
+                >
+                  <VectorIcon name={icon} size={22} color={iconTint} />
+                </GlassSurface>
+                {icon === 'bell' && unreadCount > 0 ? <UnreadBadge count={unreadCount} /> : null}
+              </>
             )}
           </Pressable>
         ))}

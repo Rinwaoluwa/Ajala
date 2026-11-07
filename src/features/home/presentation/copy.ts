@@ -8,10 +8,10 @@ export const homeCopy = {
     // Not drawn: the frames only show the home-city case.
     device: 'Exploring where you are',
     edge: 'Exploring where you are',
-  } satisfies Record<CitySource, string>,
+  } satisfies Record<Exclude<CitySource, 'teleport'>, string>,
+  // Not drawn; the spec's wording (§2.11) for a feed a Travel teleport has moved.
+  teleportedTo: (city: string) => `Teleported to ${city}`,
   chooseCity: 'Choose a city',
-  // Not drawn: the header while Travel has the feed in another city.
-  travellingFrom: (home: string) => `Travelling from ${home}`,
   notifications: 'Notifications',
   messages: 'Messages',
   like: 'Save',
@@ -60,4 +60,15 @@ export const travelCopy = {
   results: 'Results',
   home: 'Home',
   noResults: 'No cities match that.',
+  // Not drawn: "Your city" when the app opened already teleported, before the feed has seen home.
+  returnHome: 'Come back home',
+  returnHomeBody: 'Where you are, or your home city',
+  popularFailed: "Couldn't load popular cities.",
+  retry: 'Try again',
+  // Not drawn: why a teleport did not happen (a 402 opens the paywall instead).
+  moveFailed: {
+    cityNotFound: "That city isn't available any more. Pick another.",
+    network: 'No connection. Check your internet and try again.',
+    other: "We couldn't move you there. Try again in a moment.",
+  },
 } as const;

@@ -1,15 +1,16 @@
-import type { CityDto, FeedPageDto, PostTypeDto } from '../../dto/feedDtos';
+import type { CityDto, FeedPageDto, PostTypeDto, TeleportDto } from '../../dto/feedDtos';
 
 /** The API's version prefix, as every other client in the app writes it. */
 const V1 = '/api/v1';
 
 /**
- * The feed's endpoints as the signed-in person (spec §2.11, API map §4).
- * `request` is auth's `AuthorizedRequest`.
+ * The feed's and Travel's endpoints as the signed-in person (spec §2.11, §2.19;
+ * API map §4). `request` is auth's `AuthorizedRequest`.
  */
 export type FeedRequest = <T>(request: {
-  method: 'GET';
+  method: 'GET' | 'POST' | 'DELETE';
   path: string;
+  body?: unknown;
   headers?: Record<string, string>;
 }) => Promise<T>;
 
@@ -36,5 +37,13 @@ export function createFeedApi(request: FeedRequest) {
 
     searchCities: (q: string, limit: number) =>
       request<CityDto[]>({ method: 'GET', path: `${V1}/cities?${query({ q, limit })}` }),
+
+    popularCities: () => request<CityDto[]>({ method: 'GET', path: `${V1}/cities/popular` }),
+
+    /** 204; 402 PAYMENT_REQUIRED without Travel, 404 for a city that does not exist. */
+    teleport: (body: TeleportDto) => request<void>({ method: 'POST', path: `${V1}/me/teleport`, body }),
+
+    /** 204, always. */
+    returnHome: () => request<void>({ method: 'DELETE', path: `${V1}/me/teleport` }),
   };
 }

@@ -1,7 +1,14 @@
-/** Why the feed could not load, in the terms the screen acts on (by `ErrorResponseDto.code`). */
+/** Why a feed or Travel call failed, in the terms the screen acts on (by `ErrorResponseDto.code`). */
 export type FeedErrorCode =
   /** 404 NO_CITY: no location, no network guess, no home city — set a home city. */
-  'noCity' | 'network' | 'sessionExpired' | 'unknown';
+  | 'noCity'
+  /** 402 PAYMENT_REQUIRED on teleport: Travel is not (or no longer) on — show the paywall. */
+  | 'paymentRequired'
+  /** 404 on teleport: the city is not in the catalogue any more. */
+  | 'cityNotFound'
+  | 'network'
+  | 'sessionExpired'
+  | 'unknown';
 
 export class FeedError extends Error {
   readonly code: FeedErrorCode;

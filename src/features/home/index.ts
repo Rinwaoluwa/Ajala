@@ -1,6 +1,6 @@
 /**
- * Public API of the `home` feature: the feed, and Travel (the city picker and
- * its paywall).
+ * Public API of the `home` feature: the feed, and Travel (the city picker that
+ * teleports the feed; its paywall belongs to `payment`).
  */
 
 export { HomeScreen, type HomeScreenProps } from './presentation/screens/HomeScreen';
