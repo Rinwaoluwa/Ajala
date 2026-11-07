@@ -16,7 +16,10 @@ import type {
  */
 export interface ProfileRepository {
   getMyProfile(): Promise<MyProfile>;
-  /** A partial record (`languages`) is merged into what the profile holds, not swapped for it. */
+  /**
+   * The extras in it (`languages`, `travelStyles`, `favouriteCityIds`) are merged
+   * into what the profile already holds, not swapped for it.
+   */
   updateProfile(update: ProfileUpdate): Promise<MyProfile>;
   /** Returns the new avatar URL. */
   uploadAvatar(file: ImageFile): Promise<string | null>;
@@ -24,6 +27,8 @@ export interface ProfileRepository {
   /** The city the phone is in, or null when location is off or unreadable. */
   detectHomeCity(): Promise<City | null>;
   searchCities(query: string, limit: number): Promise<City[]>;
+  /** Up to 12 cities with the most live posts (`GET /cities/popular`), for the destinations chips. */
+  popularCities(): Promise<City[]>;
   listInterests(): Promise<Interest[]>;
   checkHandle(handle: string): Promise<HandleAvailability>;
 }

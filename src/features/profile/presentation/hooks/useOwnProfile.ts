@@ -6,17 +6,20 @@ import { sharedQueryKeys } from '@core/api/queryClient/queryClient';
 import { badgeProgress, profileCounters, topBadges } from '../../domain/rules/achievementRules';
 import { profileKeys } from '../state/profileQueries';
 import { useProfileViewUseCases } from '../state/useProfileViewUseCases';
+import { useMyRsvps } from './useMyRsvps';
 
 /**
  * View model for the Profile tab: `GET /me` (the shared cache profile setup and
- * Edit profile also write) and the attended history the counters and badge
- * preview are worked out from. The history is a separate query, so the page
- * draws as soon as `/me` lands and the numbers fill in after.
+ * Edit profile also write), the attended history the counters and badge
+ * preview are worked out from, and the Going / Requested tabs
+ * (`GET /me/rsvps`). Each is a separate query, so the page draws as soon as
+ * `/me` lands and the rest fill in after.
  */
 export function useOwnProfile() {
   const useCases = useProfileViewUseCases();
   const me = useQuery({ queryKey: sharedQueryKeys.me, queryFn: () => useCases.getMyProfile() });
   const history = useQuery({ queryKey: profileKeys.myHistory, queryFn: () => useCases.loadMyHistory() });
+  const rsvps = useMyRsvps();
 
   const derived = useMemo(() => {
     if (!history.data) return null;
@@ -36,8 +39,10 @@ export function useOwnProfile() {
     retry: () => {
       void me.refetch();
       void history.refetch();
+      void rsvps.refetch();
     },
     refreshing: me.isRefetching || history.isRefetching,
     derived,
+    rsvps,
   };
 }

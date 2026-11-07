@@ -1,12 +1,12 @@
-import type { Gender, MyProfile } from '../entities/Profile';
+import type { Gender, MyProfile, TravelStyle } from '../entities/Profile';
 
 /**
  * The rules of profile setup: the choices each step offers, how many may be
  * picked, and what a step needs before Continue lights up.
  *
- * The lists that are not the server's (languages, genders, travel styles,
- * destinations) are fixed here because the design fixes them. Interests are the
- * server's (`GET /interests`); only their bounds are here.
+ * The lists that are not the server's (languages, genders, travel styles) are
+ * fixed here because the design fixes them. Interests and destinations are the
+ * server's (`GET /interests`, `GET /cities/popular`); only their bounds are here.
  */
 
 export type Option<T extends string = string> = { value: T; label: string };
@@ -27,8 +27,10 @@ export const LANGUAGES: readonly Option[] = [
 export const MAX_LANGUAGES = 10;
 
 /**
- * Not in the design: the API needs a gender before a profile counts as complete
- * (§2.4), so "Set up your profile" asks for it. Agreed with product; flagged to design.
+ * Not in the design. Optional: the `GET /me` description says name and date of
+ * birth complete a profile and gender is never needed, though one field text
+ * still lists it (spec §2.4, §8.1, an open question). So setup offers it and
+ * sends it when picked, but never waits on it. Flagged to design.
  */
 export const GENDERS: readonly Option<Gender>[] = [
   { value: 'woman', label: 'Woman' },
@@ -38,71 +40,62 @@ export const GENDERS: readonly Option<Gender>[] = [
 ];
 
 /**
- * "How do you like to travel?" The backend has no field for these yet (API map
- * §12): the step is shown and the choice is not kept, as agreed with product.
+ * "How do you like to travel?": the design's chips, in its order, as the API's
+ * `TravelStyle` values (`extras.travelStyles`). These 36 chips match the 36
+ * values one to one. The API map counts 40 chips in Figma; any beyond these
+ * have no value to save as, so they are left out until design and backend
+ * settle the difference (API map §12).
  */
-export const TRAVEL_STYLES: readonly string[] = [
-  'Family',
-  'Solo',
-  'Shopping',
-  'Local life',
-  'Rail travel',
-  'Diving',
-  'Art lover',
-  'Backpacker',
-  'Skiing',
-  'Cruise',
-  'Cycling',
-  'Eco travel',
-  'Safari',
-  'Nightlife',
-  'Foodie',
-  'Beach',
-  'Festivals',
-  'Spiritual',
-  'Road trip',
-  'Mountains',
-  'Culture',
-  'Hiking',
-  'Surfing',
-  'Sailing',
-  'Luxury',
-  'Photography',
-  'Adventurer',
-  'Budget',
-  'Staycation',
-  'City break',
-  'History',
-  'Digital nomad',
-  'Snow escape',
-  'Glamping',
-  'Couples',
-  'Camping',
+export const TRAVEL_STYLES: readonly Option<TravelStyle>[] = [
+  { value: 'family', label: 'Family' },
+  { value: 'solo', label: 'Solo' },
+  { value: 'shopping', label: 'Shopping' },
+  { value: 'local_life', label: 'Local life' },
+  { value: 'rail_travel', label: 'Rail travel' },
+  { value: 'diving', label: 'Diving' },
+  { value: 'art_lover', label: 'Art lover' },
+  { value: 'backpacker', label: 'Backpacker' },
+  { value: 'skiing', label: 'Skiing' },
+  { value: 'cruise', label: 'Cruise' },
+  { value: 'cycling', label: 'Cycling' },
+  { value: 'eco_travel', label: 'Eco travel' },
+  { value: 'safari', label: 'Safari' },
+  { value: 'nightlife', label: 'Nightlife' },
+  { value: 'foodie', label: 'Foodie' },
+  { value: 'beach', label: 'Beach' },
+  { value: 'festivals', label: 'Festivals' },
+  { value: 'spiritual', label: 'Spiritual' },
+  { value: 'road_trip', label: 'Road trip' },
+  { value: 'mountains', label: 'Mountains' },
+  { value: 'culture', label: 'Culture' },
+  { value: 'hiking', label: 'Hiking' },
+  { value: 'surfing', label: 'Surfing' },
+  { value: 'sailing', label: 'Sailing' },
+  { value: 'luxury', label: 'Luxury' },
+  { value: 'photography', label: 'Photography' },
+  { value: 'adventurer', label: 'Adventurer' },
+  { value: 'budget', label: 'Budget' },
+  { value: 'staycation', label: 'Staycation' },
+  { value: 'city_break', label: 'City break' },
+  { value: 'history', label: 'History' },
+  { value: 'digital_nomad', label: 'Digital nomad' },
+  { value: 'snow_escape', label: 'Snow escape' },
+  { value: 'glamping', label: 'Glamping' },
+  { value: 'couples', label: 'Couples' },
+  { value: 'camping', label: 'Camping' },
 ];
+/** The API's cap on `extras.travelStyles` (spec §4). */
+export const MAX_TRAVEL_STYLES = 10;
 
-/** "Where do you love to travel?" Also not stored yet (API map §12). */
-export const POPULAR_DESTINATIONS: readonly string[] = [
-  'Oslo',
-  'Amsterdam',
-  'Prague',
-  'London',
-  'Vienna',
-  'Dublin',
-  'Bangkok',
-  'Havana',
-  'Athens',
-  'Bali',
-  'Dubai',
-  'Boston',
-  'Austin',
-  'Madrid',
-  'Berlin',
-  'Zurich',
-  'Miami',
-  'Seoul',
-  'Milan',
-  'Chicago',
-];
+/** A style's chip label; an unknown value (a newer API) shows as itself. */
+export const travelStyleLabel = (value: string): string =>
+  TRAVEL_STYLES.find((s) => s.value === value)?.label ?? value.replace(/_/g, ' ');
+
+/**
+ * "Where do you love to travel?": up to ten cities, by id
+ * (`extras.favouriteCityIds`). The chips are the server's popular cities
+ * (`GET /cities/popular`), not a fixed list.
+ */
 export const MAX_DESTINATIONS = 10;
 
 /** "Choose 5–8 interests". The API accepts 3–8; the screen's own rule is 5. */
@@ -119,10 +112,11 @@ export const canContinueInterests = (count: number): boolean =>
   count >= MIN_INTERESTS && count <= MAX_INTERESTS;
 
 /**
- * What the profile still lacks of the four fields the API completes it on.
- * Gender is never asked at sign-up; a Google or Apple account also arrives
+ * What the profile still lacks of the fields setup must collect: name and date
+ * of birth. Email sign-ups send both; a Google or Apple account may arrive
  * without a date of birth, and Apple may withhold the name. Setup asks only for
- * what is missing.
+ * what is missing. Whether the profile then counts as complete is the server's
+ * call (`profileCompletedAt`), not worked out here.
  */
 export type MissingBasics = { name: boolean; dateOfBirth: boolean };
 
@@ -167,11 +161,11 @@ export type BasicsDraft = {
   dateOfBirth: string | null;
 };
 
+/** Gender is in the draft but never required (see `GENDERS`). */
 export function canContinueBasics(draft: BasicsDraft, missing: MissingBasics): boolean {
   return (
     draft.homeCityId !== null &&
     draft.languages.length > 0 &&
-    draft.gender !== null &&
     (!missing.name || isFullNameValid(draft.fullName)) &&
     (!missing.dateOfBirth || draft.dateOfBirth !== null)
   );

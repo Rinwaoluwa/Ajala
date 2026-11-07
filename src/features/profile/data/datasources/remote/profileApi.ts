@@ -13,7 +13,7 @@ const V1 = '/api/v1';
 
 /**
  * The profile's endpoints, as the signed-in person (docs/api: spec §3.3, §3.4,
- * §3.9; API map §3). `request` is auth's `AuthorizedRequest`, which attaches and
+ * §3.12; API map §3). `request` is auth's `AuthorizedRequest`, which attaches and
  * refreshes the token, so nothing here handles one.
  */
 
@@ -61,6 +61,9 @@ export function createProfileApi(request: ProfileRequest) {
         method: 'GET',
         path: `${V1}/cities?${query({ q, limit })}`,
       }),
+
+    /** Up to 12, most live posts first; the server refreshes it every 10 minutes. */
+    popularCities: () => request<CityDto[]>({ method: 'GET', path: `${V1}/cities/popular` }),
 
     listInterests: () => request<InterestDto[]>({ method: 'GET', path: `${V1}/interests` }),
 

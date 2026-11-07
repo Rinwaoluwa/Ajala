@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 
 import { SavedActivitiesScreen } from '@features/profile';
 
-/** Saved activities: bookmarked posts, kept on this phone (no saves API yet). */
+/** Saved activities: the posts the person bookmarked. */
 export default function SavedRoute() {
   return (
     <SavedActivitiesScreen

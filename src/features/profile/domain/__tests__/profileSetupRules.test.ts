@@ -3,11 +3,13 @@ import { describe, expect, it } from '@jest/globals';
 import { handleFormatProblem, normalizeHandle, suggestHandles } from '../rules/handleRules';
 import {
   MAX_DESTINATIONS,
+  TRAVEL_STYLES,
   canContinueBasics,
   canContinueInterests,
   missingBasics,
   splitFullName,
   toggle,
+  travelStyleLabel,
 } from '../rules/profileSetupRules';
 
 describe('choosing from a list', () => {
@@ -20,6 +22,20 @@ describe('choosing from a list', () => {
     const full = Array.from({ length: MAX_DESTINATIONS }, (_, i) => `city${i}`);
     expect(toggle(full, 'Oslo', MAX_DESTINATIONS)).toEqual(full);
     expect(toggle(full, 'city0', MAX_DESTINATIONS)).toHaveLength(MAX_DESTINATIONS - 1);
+  });
+});
+
+describe('travel styles', () => {
+  it('maps every chip to a distinct API value, all 36 of them', () => {
+    const values = TRAVEL_STYLES.map((s) => s.value);
+    expect(new Set(values).size).toBe(36);
+    expect(values).toContain('local_life');
+    expect(values).toContain('digital_nomad');
+  });
+
+  it('labels a value, and shows one it does not know as words', () => {
+    expect(travelStyleLabel('city_break')).toBe('City break');
+    expect(travelStyleLabel('van_life')).toBe('van life');
   });
 });
 
@@ -42,11 +58,11 @@ describe('basic details', () => {
   };
   const nothingMissing = { name: false, dateOfBirth: false };
 
-  it('needs a city, a language and a gender', () => {
+  it('needs a city and a language; gender is optional', () => {
     expect(canContinueBasics(ready, nothingMissing)).toBe(true);
     expect(canContinueBasics({ ...ready, homeCityId: null }, nothingMissing)).toBe(false);
     expect(canContinueBasics({ ...ready, languages: [] }, nothingMissing)).toBe(false);
-    expect(canContinueBasics({ ...ready, gender: null }, nothingMissing)).toBe(false);
+    expect(canContinueBasics({ ...ready, gender: null }, nothingMissing)).toBe(true);
   });
 
   it('asks for a name and a date of birth only when the account lacks them', () => {

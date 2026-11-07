@@ -20,10 +20,12 @@ import { SCREEN_GUTTER } from '@shared/theme';
 
 import { isProfileError } from '../../domain/entities/ProfileError';
 import type { BadgeProgress } from '../../domain/rules/achievementRules';
+import { travelStyleLabel } from '../../domain/rules/profileSetupRules';
+import type { PersonActivityTab } from '../../domain/usecases/ProfileViewUseCases';
 import { AchievementsPreview } from '../components/AchievementsPreview';
-import { ActivityCard } from '../components/ActivityCard';
+import { ActivityCard, type ActivityStatus } from '../components/ActivityCard';
 import { BadgeSheet } from '../components/BadgeSheet';
-import { ProfileHero } from '../components/ProfileHero';
+import { PillSection, ProfileHero } from '../components/ProfileHero';
 import { ProfileOptionsSheet } from '../components/ProfileOptionsSheet';
 import { ReportProfileDialog } from '../components/ReportProfileDialog';
 import { RoundIconButton } from '../components/RoundIconButton';
@@ -34,9 +36,14 @@ import { copyProfileLink, profileLink, shareProfile } from '../shareProfile';
 
 /**
  * Another traveller's profile (Figma Other User, "@liamexplores"): back and
- * the handle, ⋯ for Profile options; the hero, Message, their achievements, a
- * safety note, and "Public activities" — Hosting / Attending — that loads more
- * as it scrolls.
+ * the handle, ⋯ for Profile options; the hero (with "Open to meet today" when
+ * they said so), their travel style and favourite places, Message, their
+ * achievements, a safety note, and "Public activities" — Hosting / Attending,
+ * plus Upcoming when they share their plans (`GET /users/:id/plans`) — that
+ * loads more as it scrolls.
+ *
+ * Message hands over to the chat feature (the route file opens its start
+ * screen with this person's id). It is not offered on a blocked profile.
  *
  * Profile options: share, copy the link, report (a card over the page) and
  * block (confirmed, then the page closes). Someone already blocked shows a
@@ -48,6 +55,12 @@ import { copyProfileLink, profileLink, shareProfile } from '../shareProfile';
  */
 
 const SHEET_HANDOFF_MS = 260;
+
+const TAB_STATUS: Record<PersonActivityTab, ActivityStatus> = {
+  hosting: 'hosting',
+  attending: 'completed',
+  plans: 'going',
+};
 
 export type PublicProfileScreenProps = {
   userId: string;
@@ -177,11 +190,19 @@ export function PublicProfileScreen({
         avatarUrl={person.avatarUrl}
         pronouns={person.about.pronouns}
         city={person.homeCity?.label}
+        visiting={person.visiting?.label}
+        openToMeetToday={person.openToMeetToday && !person.blockedByMe}
         tagline={person.about.tagline}
         bio={person.about.bio}
         interests={person.interests}
         counters={vm.derived?.counters ?? null}
       />
+      {person.blockedByMe ? null : (
+        <>
+          <PillSection title={copy.travelStyles} labels={person.travelStyles.map(travelStyleLabel)} />
+          <PillSection title={copy.favouriteCities} labels={person.favouriteCities.map((c) => c.name)} />
+        </>
+      )}
       {person.blockedByMe ? (
         <View style={{ gap: 12 }}>
           <NoteCard title={copy.block.blocked(first)} body={copy.options.unblockBody} />
@@ -214,8 +235,9 @@ export function PublicProfileScreen({
           </View>
           <UnderlineTabs
             options={[
-              { value: 'hosting', label: copy.activities.hosting },
-              { value: 'attending', label: copy.activities.attending },
+              { value: 'hosting' as const, label: copy.activities.hosting },
+              { value: 'attending' as const, label: copy.activities.attending },
+              ...(person.sharePlans ? [{ value: 'plans' as const, label: copy.activities.plans }] : []),
             ]}
             value={vm.tab}
             onChange={vm.setTab}
@@ -241,11 +263,7 @@ export function PublicProfileScreen({
         onEndReachedThreshold={0.5}
         renderItem={({ item }) => (
           <Animated.View entering={FadeIn.duration(220)}>
-            <ActivityCard
-              activity={item}
-              status={vm.tab === 'hosting' ? 'hosting' : 'completed'}
-              onPress={() => onOpenPost(item.id)}
-            />
+            <ActivityCard activity={item} status={TAB_STATUS[vm.tab]} onPress={() => onOpenPost(item.id)} />
           </Animated.View>
         )}
         ListEmptyComponent={
@@ -253,11 +271,25 @@ export function PublicProfileScreen({
             <View className="items-center py-24">
               <LoadingRing size={32} accessibilityLabel="Loading activities" />
             </View>
+          ) : vm.activityFailed ? (
+            <View style={{ gap: 12, alignItems: 'center', paddingVertical: 24 }}>
+              <Text variant="bodySm" tone="muted" className="text-center">
+                {copy.activities.failed}
+              </Text>
+              <Button
+                label={copy.activities.retry}
+                variant="secondary"
+                size="sm"
+                onPress={vm.retryActivity}
+              />
+            </View>
           ) : (
             <Text variant="bodySm" tone="muted" className="text-center py-24">
               {vm.tab === 'hosting'
                 ? copy.activities.emptyHosting(first)
-                : copy.activities.emptyAttending(first)}
+                : vm.tab === 'plans'
+                  ? copy.activities.emptyPlans(first)
+                  : copy.activities.emptyAttending(first)}
             </Text>
           )
         }

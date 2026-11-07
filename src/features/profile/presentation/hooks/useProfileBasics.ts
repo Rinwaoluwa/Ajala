@@ -16,9 +16,10 @@ import { useProfileSetup } from '../state/ProfileSetupContext';
 /**
  * View model for "Set up your profile" (step 1 of 4).
  *
- * Continue needs a city, at least one language and a gender — plus a name and a
- * date of birth for the accounts that arrive without them (Google, Apple). The
- * photo is optional and uploads on its own.
+ * Continue needs a city and at least one language — plus a name and a date of
+ * birth for the accounts that arrive without them (Google, Apple). Gender is
+ * offered but optional (spec §2.4, §8.1). The photo is optional and uploads on
+ * its own.
  */
 export function useProfileBasics() {
   const { draft, update, missing, avatar, uploadAvatar, removeAvatar, detectingCity, detectCity, profile } =

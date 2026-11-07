@@ -6,10 +6,11 @@ import { useProfileSetup } from '../state/ProfileSetupContext';
 
 /**
  * The loader after "What are you into?": a mutation that sends the whole setup
- * in one `PATCH /me` as soon as the screen mounts. The answer is the updated
- * profile — with `profileCompletedAt` set, now that gender (and any missing
- * name or date of birth) is in — so it goes straight into the cached `GET /me`
- * and no second request is needed.
+ * in one `PATCH /me` as soon as the screen mounts — city, languages, travel
+ * styles, favourite cities, interests, and gender, name and date of birth when
+ * given. The answer is the updated profile, carrying the server's
+ * `profileCompletedAt`, so it goes straight into the cached `GET /me` and no
+ * second request is needed.
  *
  * Sent once per visit; a failure stays on screen with a retry rather than
  * sending the person back through the steps.
@@ -19,12 +20,14 @@ export function useSaveSetup({ onSaved }: { onSaved: () => void }) {
 
   const save = useMutation({
     mutationFn: () =>
-      // Reached only through the steps, which require both; a deep link could skip them.
-      draft.homeCity && draft.gender
+      // Reached only through the steps, which require a city; a deep link could skip them.
+      draft.homeCity
         ? useCases.saveSetup({
             homeCityId: draft.homeCity.id,
             languages: draft.languages,
             gender: draft.gender,
+            travelStyles: draft.travelStyles,
+            favouriteCityIds: draft.destinations.map((c) => c.id),
             fullName: missing.name ? draft.fullName : undefined,
             dateOfBirth: missing.dateOfBirth ? (draft.dateOfBirth ?? undefined) : undefined,
             interestIds: draft.skippedInterests ? undefined : draft.interestIds,

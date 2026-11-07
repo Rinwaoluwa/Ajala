@@ -8,7 +8,12 @@ jest.mock('@core/location/deviceLocation', () => ({
   getClientLocationHeader: async () => ({ 'X-Client-Location': '6.453,3.396' }),
 }));
 
-type Call = { method: string; path: string; body?: unknown; headers?: Record<string, string> };
+type Call = {
+  method: string;
+  path: string;
+  body?: unknown;
+  headers?: Record<string, string>;
+};
 
 function fake(answer: (call: Call) => unknown) {
   const calls: Call[] = [];
@@ -31,10 +36,27 @@ const PERSON = {
     { id: 'p2', url: 'u2', thumbUrl: 't2', position: 1 },
     { id: 'p1', url: 'u1', thumbUrl: 't1', position: 0 },
   ],
-  homeCity: { id: 'bcn', name: 'Barcelona', countryCode: 'ES', label: 'Barcelona, Spain' },
+  gender: null,
+  homeCity: {
+    id: 'bcn',
+    name: 'Barcelona',
+    countryCode: 'ES',
+    label: 'Barcelona, Spain',
+  },
+  visiting: {
+    city: {
+      id: 'lis',
+      name: 'Lisbon',
+      countryCode: 'PT',
+      label: 'Lisbon, Portugal',
+    },
+  },
   verified: true,
   interests: [{ id: 'i', slug: 'surfing', name: 'Surfing', emoji: null }],
-  extras: { pronouns: 'he/him' },
+  extras: { pronouns: 'he/him', travelStyles: ['surfing', 'city_break'] },
+  favouriteCities: [{ id: 'lis', name: 'Lisbon', countryCode: 'PT', label: 'Lisbon, Portugal' }],
+  openToMeetToday: true,
+  sharePlans: true,
   memberSince: '2025-01-01T00:00:00Z',
   blockedByMe: false,
 };
@@ -49,7 +71,10 @@ const CARD = {
   city: PERSON.homeCity,
   capacity: 10,
   goingCount: 3,
+  saved: true,
+  host: { id: 'u1', displayName: 'Liam T.', avatarUrl: null, verified: true },
   interests: null,
+  distanceKm: 1.2,
 };
 
 describe('ProfileViewRepository over the API', () => {
@@ -59,6 +84,38 @@ describe('ProfileViewRepository over the API', () => {
     expect(calls[0]).toMatchObject({ method: 'GET', path: '/api/v1/users/u1' });
     expect(person).toMatchObject({ displayName: 'Liam T.', about: { pronouns: 'he/him', verified: true } });
     expect(person.about.photos.map((p) => p.id)).toEqual(['p1', 'p2']);
+    expect(person).toMatchObject({
+      travelStyles: ['surfing', 'city_break'],
+      favouriteCities: [{ id: 'lis' }],
+      visiting: { id: 'lis' },
+      openToMeetToday: true,
+      sharePlans: true,
+    });
+  });
+
+  it('pages saved posts by type, Going / Requested, and their plans', async () => {
+    const { repo, calls } = fake(() => ({ items: [CARD], nextCursor: null }));
+    const saved = await repo.getMySaved('event', null, 20);
+    await repo.getMyRsvps('requested', '20', 20);
+    await repo.getPersonPlans('u1', null, 20);
+    expect(calls.map((c) => c.path)).toEqual([
+      '/api/v1/me/saved?type=event&limit=20',
+      '/api/v1/me/rsvps?state=requested&cursor=20&limit=20',
+      '/api/v1/users/u1/plans?limit=20',
+    ]);
+    expect(saved.items[0]).toMatchObject({
+      saved: true,
+      host: { name: 'Liam T.' },
+      distanceKm: 1.2,
+    });
+  });
+
+  it('keeps a card with no city', async () => {
+    const { repo } = fake(() => ({
+      items: [{ ...CARD, city: null }],
+      nextCursor: null,
+    }));
+    expect((await repo.getMyAttended(null, 20)).items[0]?.city).toBeNull();
   });
 
   it('pages their posts with the location header', async () => {

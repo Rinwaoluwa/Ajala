@@ -25,6 +25,10 @@ export function createProfileViewRepository(request: ProfileRequest): ProfileVie
   return {
     getMyAttended: (cursor, limit) =>
       guard(async () => toActivityPage(await api.getMyAttended(cursor, limit, await location()))),
+    getMySaved: (filter, cursor, limit) =>
+      guard(async () => toActivityPage(await api.getMySaved(filter, cursor, limit, await location()))),
+    getMyRsvps: (state, cursor, limit) =>
+      guard(async () => toActivityPage(await api.getMyRsvps(state, cursor, limit, await location()))),
     getPerson: (userId) => guard(async () => toPublicProfile(await api.getPerson(userId)), true),
     getPersonPosts: (userId, cursor, limit) =>
       guard(
@@ -34,6 +38,11 @@ export function createProfileViewRepository(request: ProfileRequest): ProfileVie
     getPersonAttended: (userId, cursor, limit) =>
       guard(
         async () => toActivityPage(await api.getPersonAttended(userId, cursor, limit, await location())),
+        true,
+      ),
+    getPersonPlans: (userId, cursor, limit) =>
+      guard(
+        async () => toActivityPage(await api.getPersonPlans(userId, cursor, limit, await location())),
         true,
       ),
     block: (userId) => guard(() => api.block(userId), true),

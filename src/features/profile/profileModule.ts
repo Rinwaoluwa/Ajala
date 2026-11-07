@@ -9,6 +9,7 @@ import {
   makeDetectHomeCity,
   makeGetMyProfile,
   makeListInterests,
+  makeListPopularCities,
   makeRemoveAvatar,
   makeSaveSetup,
   makeSearchCities,
@@ -18,8 +19,10 @@ import {
   makeBlockPerson,
   makeGetPerson,
   makeLoadMyHistory,
+  makeLoadMyRsvps,
   makeLoadPersonActivity,
   makeLoadPersonHistory,
+  makeLoadSaved,
   makeReportPerson,
   makeUnblockPerson,
 } from './domain/usecases/ProfileViewUseCases';
@@ -41,16 +44,22 @@ export function createProfileUseCases(request: ProfileRequest) {
     detectHomeCity: makeDetectHomeCity(repo),
     searchCities: makeSearchCities(repo),
     listInterests: makeListInterests(repo),
+    listPopularCities: makeListPopularCities(repo),
   };
 }
 
 export type ProfileUseCases = ReturnType<typeof createProfileUseCases>;
 
-/** The profile pages (own, other people's, achievements): `GET /users/…`, `/me/attended`. */
+/**
+ * The profile pages (own, other people's, saved, achievements): `GET /users/…`,
+ * `/me/attended`, `/me/saved`, `/me/rsvps`.
+ */
 export function createProfileViewUseCases(request: ProfileRequest) {
   const repo = createProfileViewRepository(request);
   return {
     loadMyHistory: makeLoadMyHistory(repo),
+    loadSaved: makeLoadSaved(repo),
+    loadMyRsvps: makeLoadMyRsvps(repo),
     loadPersonHistory: makeLoadPersonHistory(repo),
     getPerson: makeGetPerson(repo),
     loadPersonActivity: makeLoadPersonActivity(repo),

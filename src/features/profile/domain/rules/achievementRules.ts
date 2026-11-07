@@ -37,10 +37,17 @@ const withInterest = (slugs: readonly string[]) => (attended: readonly ProfileAc
 const ofType = (type: PostKind) => (attended: readonly ProfileActivity[]) =>
   attended.filter((a) => a.type === type);
 
+/** A post with a city, which is all that can count toward places (a post's city may be null, spec §6). */
+type PlacedActivity = ProfileActivity & {
+  city: NonNullable<ProfileActivity['city']>;
+};
+const placed = (attended: readonly ProfileActivity[]): PlacedActivity[] =>
+  attended.filter((a): a is PlacedActivity => a.city !== null);
+
 /** One post per country, the earliest there. */
 function onePerCountry(attended: readonly ProfileActivity[]): ProfileActivity[] {
   const seen = new Set<string>();
-  return [...attended]
+  return placed(attended)
     .sort(byDate)
     .filter((a) => !seen.has(a.city.countryCode) && !!seen.add(a.city.countryCode));
 }
@@ -179,12 +186,13 @@ export type CityStamp = {
 export const CITY_MILESTONE = 5;
 
 export function cityStamps(attended: readonly ProfileActivity[]): CityStamp[] {
-  const byCity = new Map<string, ProfileActivity[]>();
-  for (const a of attended) byCity.set(a.city.id, [...(byCity.get(a.city.id) ?? []), a]);
+  // A post with no city stamps nowhere.
+  const byCity = new Map<string, PlacedActivity[]>();
+  for (const a of placed(attended)) byCity.set(a.city.id, [...(byCity.get(a.city.id) ?? []), a]);
   return [...byCity.values()]
     .map((list) => {
       const sorted = [...list].sort(byDate);
-      const first = sorted[0] as ProfileActivity;
+      const first = sorted[0] as PlacedActivity;
       const labelCountry = first.city.label.split(',').slice(1).join(',').trim();
       return {
         cityId: first.city.id,
@@ -205,6 +213,6 @@ export function cityStamps(attended: readonly ProfileActivity[]): CityStamp[] {
 export function profileCounters(attended: readonly ProfileActivity[]) {
   return {
     events: attended.length,
-    countries: new Set(attended.map((a) => a.city.countryCode)).size,
+    countries: new Set(placed(attended).map((a) => a.city.countryCode)).size,
   };
 }

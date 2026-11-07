@@ -6,6 +6,7 @@ import {
   Button,
   Chip,
   ChipGroup,
+  LoadingRing,
   NativeIcon,
   NativeSpinner,
   Text,
@@ -16,38 +17,46 @@ import {
 import { useTheme } from '@shared/hooks/useTheme';
 import { palette } from '@shared/theme';
 
-import { MAX_DESTINATIONS, POPULAR_DESTINATIONS, toggle } from '../../domain/rules/profileSetupRules';
+import type { CityRef } from '../../domain/entities/Profile';
+import { MAX_DESTINATIONS } from '../../domain/rules/profileSetupRules';
 import { chipToneFor } from '../chipTones';
 import { SetupHeader } from '../components/SetupHeader';
 import { SetupIntro } from '../components/SetupIntro';
 import { SECTION_GAP, SetupScreen } from '../components/SetupScreen';
 import { setupCopy } from '../copy';
 import { useCitySearch } from '../hooks/useCitySearch';
+import { usePopularCities } from '../hooks/usePopularCities';
 import { useProfileSetup } from '../state/ProfileSetupContext';
 
 /**
  * "Where do you love to travel?", step 3 of 4: up to ten destinations from the
- * popular list or the search (`GET /cities?q=`), with the count beside the list.
+ * server's popular cities (`GET /cities/popular`) or the search
+ * (`GET /cities?q=`), with the count beside the list. Saved with the rest of
+ * setup as `extras.favouriteCityIds`.
  *
  * A searched city joins the chips at the end of the list, chosen. Once ten are
- * chosen the rest dim and stop responding until one is let go.
- *
- * Not saved: there is no favourites field in the backend yet (API map §12), so —
- * as agreed with product — the choices are dropped with the setup draft.
+ * chosen the rest dim and stop responding until one is let go. Chips are keyed
+ * by city id, so two cities with one name stay apart.
  */
 export function DestinationsScreen({ onBack, onContinue }: { onBack: () => void; onContinue: () => void }) {
   const theme = useTheme();
   const { draft, update } = useProfileSetup();
   const search = useCitySearch(5);
+  const popular = usePopularCities();
   // The field keeps its own text; a new key empties it once a result is picked.
   const [fieldKey, setFieldKey] = useState(0);
   const copy = setupCopy.destinations;
   const chosen = draft.destinations;
+  const chosenIds = new Set(chosen.map((c) => c.id));
   const full = chosen.length >= MAX_DESTINATIONS;
-  // Searched picks that are not in the popular list are shown after it.
-  const options = [...POPULAR_DESTINATIONS, ...chosen.filter((d) => !POPULAR_DESTINATIONS.includes(d))];
+  // Picks that are not in the popular list (searched, or saved earlier) are shown after it.
+  const popularIds = new Set(popular.cities.map((c) => c.id));
+  const options: CityRef[] = [...popular.cities, ...chosen.filter((c) => !popularIds.has(c.id))];
 
-  const choose = (name: string) => update({ destinations: toggle(chosen, name, MAX_DESTINATIONS) });
+  const choose = (city: CityRef) => {
+    if (chosenIds.has(city.id)) update({ destinations: chosen.filter((c) => c.id !== city.id) });
+    else if (!full) update({ destinations: [...chosen, city] });
+  };
 
   return (
     <SetupScreen header={<SetupHeader step={2} onBack={onBack} />}>
@@ -78,11 +87,12 @@ export function DestinationsScreen({ onBack, onContinue }: { onBack: () => void;
                 <Pressable
                   key={city.id}
                   onPress={() => {
-                    choose(city.name);
+                    // Picking a city already chosen keeps it chosen rather than letting it go.
+                    if (!chosenIds.has(city.id)) choose(city);
                     search.clear();
                     setFieldKey((k) => k + 1);
                   }}
-                  disabled={full && !chosen.includes(city.name)}
+                  disabled={full && !chosenIds.has(city.id)}
                   accessibilityRole="button"
                   accessibilityLabel={city.label}
                 >
@@ -119,18 +129,40 @@ export function DestinationsScreen({ onBack, onContinue }: { onBack: () => void;
         </View>
         <Animated.View layout={LinearTransition.duration(200)}>
           <ChipGroup>
-            {options.map((name) => (
+            {options.map((city) => (
               <Chip
-                key={name}
-                label={name}
-                selected={chosen.includes(name)}
+                key={city.id}
+                label={city.name}
+                selected={chosenIds.has(city.id)}
                 disabled={full}
-                tone={chipToneFor(name)}
-                onPress={() => choose(name)}
+                tone={chipToneFor(city.id)}
+                onPress={() => choose(city)}
               />
             ))}
           </ChipGroup>
         </Animated.View>
+        {popular.loading ? (
+          <View className="mt-12 items-center">
+            <LoadingRing size={28} accessibilityLabel="Loading popular destinations" />
+          </View>
+        ) : popular.failed ? (
+          <Animated.View
+            entering={FadeIn.duration(180)}
+            className="mt-12 flex-row flex-wrap items-center"
+            style={{ columnGap: 8, rowGap: 4 }}
+          >
+            <Text variant="bodySm" tone="muted">
+              {copy.popularFailed}
+            </Text>
+            <Pressable onPress={popular.retry} accessibilityRole="button" hitSlop={8}>
+              {({ pressed }) => (
+                <Text variant="labelSm" tone="primary" style={{ opacity: pressed ? 0.6 : 1 }}>
+                  {copy.retry}
+                </Text>
+              )}
+            </Pressable>
+          </Animated.View>
+        ) : null}
       </Animated.View>
 
       <View style={{ marginTop: 36 }}>

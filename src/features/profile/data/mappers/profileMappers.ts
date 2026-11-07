@@ -1,8 +1,8 @@
 import { isApiError } from '@core/api/ApiError';
 
-import type { City, CityRef, Interest, MyProfile } from '../../domain/entities/Profile';
+import type { City, CityRef, Interest, MyProfile, TravelStyle } from '../../domain/entities/Profile';
 import { ProfileError, type ProfileErrorCode } from '../../domain/entities/ProfileError';
-import type { CityDto, CityRefDto, InterestDto, MeDto } from '../dto/profileDtos';
+import type { CityDto, CityRefDto, InterestDto, MeDto, ProfileExtrasDto } from '../dto/profileDtos';
 
 export const toCityRef = (dto: CityRefDto): CityRef => ({
   id: dto.id,
@@ -24,6 +24,12 @@ export const toInterest = (dto: InterestDto): Interest => ({
   emoji: dto.emoji ?? null,
 });
 
+/** `extras.travelStyles`, which may be missing or null (null clears them). */
+export const toTravelStyles = (extras: ProfileExtrasDto | null | undefined): TravelStyle[] =>
+  Array.isArray(extras?.travelStyles) ? [...extras.travelStyles] : [];
+
+export const toCityRefs = (list: CityRefDto[] | null | undefined): CityRef[] => (list ?? []).map(toCityRef);
+
 export function toMyProfile(dto: MeDto): MyProfile {
   return {
     id: dto.id,
@@ -36,6 +42,11 @@ export function toMyProfile(dto: MeDto): MyProfile {
     homeCity: dto.homeCity ? toCityRef(dto.homeCity) : null,
     interests: (dto.interests ?? []).map(toInterest),
     languages: Array.isArray(dto.extras?.languages) ? dto.extras.languages : [],
+    travelStyles: toTravelStyles(dto.extras),
+    favouriteCities: toCityRefs(dto.favouriteCities),
+    visiting: dto.visiting?.city ? toCityRef(dto.visiting.city) : null,
+    subscribed: dto.subscribed ?? false,
+    // The server's stamp, as sent: completion is never worked out on the phone (spec §2.4).
     profileCompletedAt: dto.profileCompletedAt ?? null,
     about: {
       bio: dto.bio ?? null,
@@ -82,7 +93,7 @@ export function toProfileError(
     UNAUTHORIZED: 'sessionExpired',
   };
   let code = byCode[e.code];
-  // About another person (their profile, a block, a report): spec §2.14, §3.9.
+  // About another person (their profile, a block, a report): spec §2.14, §3.12.
   if (!code && context.person) {
     if (e.code === 'NOT_FOUND') code = 'notFound';
     else if (e.code === 'CONFLICT') code = 'alreadyReported';

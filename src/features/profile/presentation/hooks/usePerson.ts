@@ -4,15 +4,18 @@ import { useMemo, useState } from 'react';
 import { isProfileError, type ProfileErrorCode } from '../../domain/entities/ProfileError';
 import type { PersonReportReason } from '../../domain/entities/PublicProfile';
 import { badgeProgress, profileCounters, topBadges } from '../../domain/rules/achievementRules';
+import type { PersonActivityTab } from '../../domain/usecases/ProfileViewUseCases';
 import { profileKeys } from '../state/profileQueries';
 import { useProfileViewUseCases } from '../state/useProfileViewUseCases';
 
-type Tab = 'hosting' | 'attending';
-
 /**
  * View model for another traveller's profile (API map §9): `GET /users/:id`,
- * their attended history (counters, badges), the Hosting / Attending lists
- * (infinite queries), and blocking and reporting as mutations.
+ * their attended history (counters, badges), the Hosting / Attending lists and
+ * — when they share their plans — Upcoming (`GET /users/:id/plans`), each an
+ * infinite query, and blocking and reporting as mutations.
+ *
+ * Upcoming is offered only when `sharePlans` is on: the API answers an empty
+ * list otherwise, so there is nothing to ask for.
  *
  * Blocking also refreshes the feed and the map, where the person disappears
  * (spec §2.14), and the blocked list in settings.
@@ -20,7 +23,7 @@ type Tab = 'hosting' | 'attending';
 export function usePerson(userId: string) {
   const useCases = useProfileViewUseCases();
   const queryClient = useQueryClient();
-  const [tab, setTab] = useState<Tab>('hosting');
+  const [chosenTab, setTab] = useState<PersonActivityTab>('hosting');
 
   const person = useQuery({
     queryKey: profileKeys.person(userId),
@@ -31,6 +34,9 @@ export function usePerson(userId: string) {
     queryFn: () => useCases.loadPersonHistory(userId),
     enabled: person.isSuccess && !person.data.blockedByMe,
   });
+  // If they stop sharing plans while Upcoming is open, fall back to Hosting.
+  const tab: PersonActivityTab =
+    chosenTab === 'plans' && person.data && !person.data.sharePlans ? 'hosting' : chosenTab;
   const activity = useInfiniteQuery({
     queryKey: profileKeys.personActivity(userId, tab),
     queryFn: ({ pageParam }) => useCases.loadPersonActivity(userId, tab, pageParam),
@@ -79,6 +85,7 @@ export function usePerson(userId: string) {
     items: activity.data?.pages.flatMap((p) => p.items) ?? [],
     activityLoading: activity.isPending && activity.fetchStatus !== 'idle',
     activityFailed: activity.isError,
+    retryActivity: () => void activity.refetch(),
     loadMore: () => {
       if (activity.hasNextPage && !activity.isFetchingNextPage) void activity.fetchNextPage();
     },

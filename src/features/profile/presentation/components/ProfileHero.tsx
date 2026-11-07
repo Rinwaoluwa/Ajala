@@ -1,14 +1,16 @@
 import { View } from 'react-native';
 import Animated from 'react-native-reanimated';
 
-import { Avatar, Text, enterRise } from '@shared/components';
+import { Avatar, Tag, Text, enterRise } from '@shared/components';
 
 import type { Interest } from '../../domain/entities/Profile';
 import { profileViewCopy } from '../profileViewCopy';
 
 /**
  * The top of a profile (Figma Own Profile, Other User): the photo beside the
- * counters, then name, pronouns, home city, tagline, bio and interests.
+ * counters, then name, pronouns, home city (and the city they are visiting
+ * today, when there is one), "Open to meet today" when they said so, tagline,
+ * bio and interests.
  *
  * Counters: Events and Countries come from the person's attended history; the
  * design's Streak has no data anywhere (API map §12) and is left out. While the
@@ -20,6 +22,8 @@ export function ProfileHero({
   avatarUrl,
   pronouns,
   city,
+  visiting,
+  openToMeetToday = false,
   tagline,
   bio,
   interests,
@@ -29,6 +33,9 @@ export function ProfileHero({
   avatarUrl: string | null;
   pronouns?: string | null;
   city?: string | null;
+  /** Today's trip city, shown after the home city. */
+  visiting?: string | null;
+  openToMeetToday?: boolean;
   tagline?: string | null;
   bio?: string | null;
   interests: Interest[];
@@ -52,10 +59,15 @@ export function ProfileHero({
             {pronouns}
           </Text>
         ) : null}
-        {city ? (
+        {city || visiting ? (
           <Text variant="bodySm" tone="muted">
-            {city}
+            {[city, visiting ? profileViewCopy.visiting(visiting) : null].filter(Boolean).join(' · ')}
           </Text>
+        ) : null}
+        {openToMeetToday ? (
+          <View style={{ flexDirection: 'row', marginTop: 6 }}>
+            <Tag label={profileViewCopy.openToMeet} tone="success" />
+          </View>
         ) : null}
         {tagline ? <Text variant="bodySm">{tagline}</Text> : null}
         {bio ? (
@@ -87,13 +99,27 @@ function Counter({ label, value }: { label: string; value: number | undefined })
   );
 }
 
+/** A small heading over a row of pills (travel style, favourite places); nothing when empty. */
+export function PillSection({ title, labels }: { title: string; labels: string[] }) {
+  if (!labels.length) return null;
+  return (
+    <View style={{ gap: 10 }}>
+      <Text variant="bodySm" tone="muted">
+        {title}
+      </Text>
+      <InterestPills labels={labels} />
+    </View>
+  );
+}
+
 /** Pale pills in rows that wrap (interests, languages). Not buttons. */
 export function InterestPills({ labels }: { labels: string[] }) {
   return (
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-      {labels.map((label) => (
+      {labels.map((label, i) => (
         <View
-          key={label}
+          // Two cities can share a name; the position keeps their keys apart.
+          key={`${i}-${label}`}
           className="bg-surface-muted"
           style={{ borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 }}
         >

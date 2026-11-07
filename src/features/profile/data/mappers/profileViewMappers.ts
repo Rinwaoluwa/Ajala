@@ -1,6 +1,6 @@
 import type { ActivityPage, ProfileActivity, PublicProfile } from '../../domain/entities/PublicProfile';
 import type { ActivityCardDto, ActivityPageDto, PublicProfileDto } from '../dto/profileViewDtos';
-import { toCityRef, toInterest } from './profileMappers';
+import { toCityRef, toCityRefs, toInterest, toTravelStyles } from './profileMappers';
 
 export function toPublicProfile(dto: PublicProfileDto): PublicProfile {
   return {
@@ -8,7 +8,9 @@ export function toPublicProfile(dto: PublicProfileDto): PublicProfile {
     handle: dto.handle ?? null,
     displayName: dto.displayName,
     avatarUrl: dto.avatarUrl ?? null,
+    gender: dto.gender ?? null,
     homeCity: dto.homeCity ? toCityRef(dto.homeCity) : null,
+    visiting: dto.visiting?.city ? toCityRef(dto.visiting.city) : null,
     interests: (dto.interests ?? []).map(toInterest),
     about: {
       bio: dto.bio ?? null,
@@ -19,7 +21,10 @@ export function toPublicProfile(dto: PublicProfileDto): PublicProfile {
         .map((p) => ({ id: p.id, url: p.url, thumbUrl: p.thumbUrl })),
       verified: dto.verified ?? false,
     },
-    ageBand: dto.ageBand ?? null,
+    travelStyles: toTravelStyles(dto.extras),
+    favouriteCities: toCityRefs(dto.favouriteCities),
+    openToMeetToday: dto.openToMeetToday ?? false,
+    sharePlans: dto.sharePlans ?? false,
     memberSince: dto.memberSince,
     blockedByMe: dto.blockedByMe ?? false,
   };
@@ -33,11 +38,18 @@ export function toActivity(dto: ActivityCardDto): ProfileActivity {
     imageUrl: dto.images?.[0]?.cardUrl ?? null,
     startAt: dto.startAt ?? null,
     placeName: dto.placeName ?? null,
-    city: toCityRef(dto.city),
+    city: dto.city ? toCityRef(dto.city) : null,
     goingCount: dto.goingCount ?? 0,
     capacity: dto.capacity ?? null,
     interests: (dto.interests ?? []).map(toInterest),
     photoCount: dto.images?.length ?? 0,
+    host: {
+      id: dto.host?.id ?? '',
+      name: dto.host?.displayName ?? '',
+      avatarUrl: dto.host?.avatarUrl ?? null,
+    },
+    distanceKm: dto.distanceKm ?? null,
+    saved: dto.saved ?? false,
   };
 }
 

@@ -25,8 +25,8 @@ export const setupCopy = {
     cityDetecting: 'Finding your city...',
     autoDetected: 'Auto-detected',
     languages: 'Languages spoken',
-    // Not drawn: the API needs these to complete a profile (§2.4).
-    gender: 'Gender',
+    // Not drawn. Gender is optional; name and date of birth are asked only when missing (§2.4).
+    gender: 'Gender (optional)',
     fullName: { label: 'Full name', placeholder: 'Enter your full name' },
     dateOfBirth: {
       label: 'Date of birth',
@@ -44,7 +44,7 @@ export const setupCopy = {
 
   travelStyle: {
     title: 'How do you like to travel?',
-    body: 'Choose the styles that best describe your trips.',
+    body: 'Choose up to 10 styles that best describe your trips.',
     section: 'Travel style',
   },
 
@@ -54,6 +54,9 @@ export const setupCopy = {
     search: 'Search city or country...',
     section: 'Popular destinations',
     noMatches: 'No cities match that.',
+    // Not drawn: the popular list comes from the server and can fail to load.
+    popularFailed: "We couldn't load popular destinations. Search instead, or",
+    retry: 'try again',
   },
 
   interests: {

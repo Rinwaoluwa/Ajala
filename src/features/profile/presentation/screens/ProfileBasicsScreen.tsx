@@ -29,8 +29,9 @@ import { useProfileBasics } from '../hooks/useProfileBasics';
  * Measured: the avatar 40pt under the paragraph, "Current city" 44pt under the
  * photo link, chips 6pt apart in rows 8pt apart, Continue 36pt under the chips.
  *
- * Added to the design (flagged): Gender, which the API needs before a profile is
- * complete; and — only for accounts that lack them — full name and date of
+ * Added to the design (flagged): Gender, optional (the API's own text disagrees
+ * on whether it completes a profile, spec §8.1, so it is asked but never
+ * required); and — only for accounts that lack them — full name and date of
  * birth. They use the same chips and fields as the rest of the app.
  *
  * Sections enter in a short stagger after the heading.

@@ -18,9 +18,16 @@ const ME = {
   gender: null,
   avatarUrl: null,
   homeCity: null,
+  visiting: null,
   interests: [],
-  extras: { pronouns: 'she/her', languages: ['fr'] },
+  extras: { pronouns: 'she/her', languages: ['fr'], travelStyles: ['solo'] },
+  favouriteCities: [{ id: 'acc', name: 'Accra', countryCode: 'GH', label: 'Accra, Ghana' }],
+  subscribed: true,
+  subscribedUntil: '2026-12-01T00:00:00Z',
   profileCompletedAt: null,
+  bio: null,
+  photos: [],
+  verified: false,
 };
 
 type Call = { method: string; path: string; body?: unknown };
@@ -48,8 +55,68 @@ describe('profile repository', () => {
       path: '/api/v1/me',
       body: {
         gender: 'woman',
-        extras: { pronouns: 'she/her', languages: ['en'] },
+        // Favourite cities come back outside extras; they are carried over so this does not clear them.
+        extras: {
+          pronouns: 'she/her',
+          languages: ['en'],
+          travelStyles: ['solo'],
+          favouriteCityIds: ['acc'],
+        },
       },
+    });
+  });
+
+  it("reads travel styles, favourite cities and the server's completion stamp", async () => {
+    const { request } = fakeRequest(() => ({
+      ...ME,
+      profileCompletedAt: '2026-11-01T10:00:00Z',
+    }));
+    const me = await createProfileRepository(request).getMyProfile();
+    expect(me).toMatchObject({
+      travelStyles: ['solo'],
+      favouriteCities: [{ id: 'acc', label: 'Accra, Ghana' }],
+      subscribed: true,
+      profileCompletedAt: '2026-11-01T10:00:00Z',
+    });
+  });
+
+  it('saves travel styles and favourite cities inside extras', async () => {
+    const { request, calls } = fakeRequest(() => ME);
+    const repo = createProfileRepository(request);
+    await repo.getMyProfile();
+    await repo.updateProfile({
+      travelStyles: ['beach', 'foodie'],
+      favouriteCityIds: ['lis', 'acc'],
+    });
+    expect(calls[1]?.body).toEqual({
+      extras: {
+        pronouns: 'she/her',
+        languages: ['fr'],
+        travelStyles: ['beach', 'foodie'],
+        favouriteCityIds: ['lis', 'acc'],
+      },
+    });
+  });
+
+  it('lists popular cities', async () => {
+    const city = {
+      id: 'lag',
+      name: 'Lagos',
+      countryCode: 'NG',
+      label: 'Lagos, Nigeria',
+      region: 'Lagos',
+      countryName: 'Nigeria',
+      timezone: 'Africa/Lagos',
+      lat: 6.45,
+      lng: 3.39,
+    };
+    const { request, calls } = fakeRequest(() => [city]);
+    expect(await createProfileRepository(request).popularCities()).toEqual([
+      expect.objectContaining({ id: 'lag', label: 'Lagos, Nigeria' }),
+    ]);
+    expect(calls[0]).toMatchObject({
+      method: 'GET',
+      path: '/api/v1/cities/popular',
     });
   });
 

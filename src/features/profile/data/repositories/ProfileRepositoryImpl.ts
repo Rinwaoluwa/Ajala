@@ -9,13 +9,17 @@ import { toCity, toInterest, toMyProfile, toProfileError } from '../mappers/prof
 /**
  * `ProfileRepository` over the API and the phone's location.
  *
- * Extras: `PATCH /me` takes `extras` as one record. Languages live inside it,
- * beside fields this app does not edit yet (pronouns, tagline, social links), so
- * a languages change is merged into the extras the profile already has rather
- * than replacing them. The last `GET /me` (or PATCH answer) is kept for that.
+ * Extras: `PATCH /me` takes `extras` as one record. Languages, travel styles and
+ * favourite cities live inside it, beside fields setup does not edit (pronouns,
+ * tagline, social links), so a change is merged into the extras the profile
+ * already has rather than replacing them. The last `GET /me` (or PATCH answer)
+ * is kept for that. Favourite cities come back as `favouriteCities`, not
+ * always inside `extras`, so their ids are carried over from there: otherwise
+ * a languages-only change could send extras without them and clear them.
  *
  * Cache policy: interests are fetched once per repository (the setup flow);
- * they are a short server-ordered list that changes rarely. Nothing else is cached.
+ * they are a short server-ordered list that changes rarely. Popular cities are
+ * cached by the screen's query. Nothing else is cached.
  */
 export function createProfileRepository(request: ProfileRequest): ProfileRepository {
   const api = createProfileApi(request);
@@ -23,7 +27,11 @@ export function createProfileRepository(request: ProfileRequest): ProfileReposit
   let interests: ReturnType<typeof toInterest>[] | null = null;
 
   const remember = (me: Awaited<ReturnType<typeof api.getMe>>): MyProfile => {
-    extras = me.extras ?? {};
+    const known = me.extras ?? {};
+    extras =
+      known.favouriteCityIds || !me.favouriteCities?.length
+        ? known
+        : { ...known, favouriteCityIds: me.favouriteCities.map((c) => c.id) };
     return toMyProfile(me);
   };
 
@@ -53,11 +61,11 @@ export function createProfileRepository(request: ProfileRequest): ProfileReposit
           homeCityId: update.homeCityId,
           interestIds: update.interestIds,
         };
-        if (update.languages)
-          body.extras = {
-            ...(await currentExtras()),
-            languages: update.languages,
-          };
+        const changed: ProfileExtrasDto = {};
+        if (update.languages) changed.languages = update.languages;
+        if (update.travelStyles) changed.travelStyles = update.travelStyles;
+        if (update.favouriteCityIds) changed.favouriteCityIds = update.favouriteCityIds;
+        if (Object.keys(changed).length) body.extras = { ...(await currentExtras()), ...changed };
         // Leave out what is not being changed: the API treats a sent null as "clear".
         const sent = Object.fromEntries(Object.entries(body).filter(([, v]) => v !== undefined));
         return remember(await api.updateMe(sent));
@@ -97,6 +105,14 @@ export function createProfileRepository(request: ProfileRequest): ProfileReposit
     async searchCities(query, limit) {
       try {
         return (await api.searchCities(query, limit)).map(toCity);
+      } catch (e) {
+        throw toProfileError(e);
+      }
+    },
+
+    async popularCities() {
+      try {
+        return (await api.popularCities()).map(toCity);
       } catch (e) {
         throw toProfileError(e);
       }

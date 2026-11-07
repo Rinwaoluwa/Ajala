@@ -1,7 +1,6 @@
 /**
- * Wire shapes from `contracts/openapi/ajala-api.json`, trimmed to the fields the
- * profile uses. Types the spec marks required but says may be null before
- * onboarding (`gender`, `homeCity`) are nullable here (spec §6).
+ * Wire shapes from the client spec's types (docs/api/ajala-api-users-common.md
+ * §6, the source of truth), trimmed to the fields the profile uses.
  */
 
 export type GenderDto = 'woman' | 'man' | 'non_binary' | 'prefer_not_to_say';
@@ -33,12 +32,66 @@ export interface InterestDto {
   emoji: string | null;
 }
 
-/** Open-ended on purpose: a PATCH sends back every key it was given. */
+export interface VisitingDto {
+  city: CityRefDto;
+}
+
+export type TravelStyleDto =
+  | 'family'
+  | 'solo'
+  | 'shopping'
+  | 'local_life'
+  | 'rail_travel'
+  | 'diving'
+  | 'art_lover'
+  | 'backpacker'
+  | 'skiing'
+  | 'cruise'
+  | 'cycling'
+  | 'eco_travel'
+  | 'safari'
+  | 'nightlife'
+  | 'foodie'
+  | 'beach'
+  | 'festivals'
+  | 'spiritual'
+  | 'road_trip'
+  | 'mountains'
+  | 'culture'
+  | 'hiking'
+  | 'surfing'
+  | 'sailing'
+  | 'luxury'
+  | 'photography'
+  | 'adventurer'
+  | 'budget'
+  | 'staycation'
+  | 'city_break'
+  | 'history'
+  | 'digital_nomad'
+  | 'snow_escape'
+  | 'glamping'
+  | 'couples'
+  | 'camping';
+
+/**
+ * Open-ended on purpose: a PATCH sends back every key the profile already had,
+ * including any this app does not know yet.
+ */
 export interface ProfileExtrasDto {
+  /** ISO 639-1. */
   languages?: string[];
+  /** Up to 10; an empty list or null clears them. */
+  travelStyles?: TravelStyleDto[] | null;
+  /** Up to 10 city ids; read back as `favouriteCities`. */
+  favouriteCityIds?: string[];
   pronouns?: string | null;
   tagline?: string | null;
-  socialLinks?: { instagram?: string | null; tiktok?: string | null; website?: string | null };
+  socialLinks?: {
+    instagram?: string | null;
+    tiktok?: string | null;
+    website?: string | null;
+  };
   [key: string]: unknown;
 }
 
@@ -58,13 +111,20 @@ export interface MeDto {
   gender: GenderDto | null;
   avatarUrl: string | null;
   homeCity: CityRefDto | null;
+  /** The city a trip of mine covers today; read-only (spec §2.8). */
+  visiting: VisitingDto | null;
   interests: InterestDto[] | null;
   extras: ProfileExtrasDto | null;
+  favouriteCities: CityRefDto[] | null;
+  /** Travel is on right now. */
+  subscribed: boolean;
+  /** Re-check after this; null without a subscription. */
+  subscribedUntil: string | null;
+  /** Set by the server; never worked out on the phone (spec §2.4). */
   profileCompletedAt: string | null;
-  /** Read by the profile page; may be missing on older answers. */
-  bio?: string | null;
-  photos?: ProfilePhotoDto[] | null;
-  verified?: boolean;
+  bio: string | null;
+  photos: ProfilePhotoDto[] | null;
+  verified: boolean;
 }
 
 export interface UpdateProfileDto {

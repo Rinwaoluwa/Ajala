@@ -4,7 +4,7 @@ import { createContext, useCallback, useContext, useMemo, useState, type ReactNo
 import { sharedQueryKeys } from '@core/api/queryClient/queryClient';
 import { useAuthorizedRequest } from '@features/auth';
 
-import type { CityRef, Gender, ImageFile, MyProfile } from '../../domain/entities/Profile';
+import type { CityRef, Gender, ImageFile, MyProfile, TravelStyle } from '../../domain/entities/Profile';
 import { isProfileError, type ProfileErrorCode } from '../../domain/entities/ProfileError';
 import { missingBasics, type MissingBasics } from '../../domain/rules/profileSetupRules';
 import { createProfileUseCases, type ProfileUseCases } from '../../profileModule';
@@ -27,8 +27,8 @@ import { profileKeys } from './profileQueries';
  * it is picked (`POST /me/avatar`), shown from the phone while it goes, and the
  * cached profile takes the new URL when it lands.
  *
- * Travel styles and destinations have no backend field (API map §12); they are
- * held here so the steps work, and dropped with the draft.
+ * Travel styles and favourite destinations prefill from the profile too, so a
+ * second run through setup starts from what was saved.
  */
 
 export type SetupDraft = {
@@ -39,8 +39,9 @@ export type SetupDraft = {
   gender: Gender | null;
   fullName: string;
   dateOfBirth: string | null;
-  travelStyles: string[];
-  destinations: string[];
+  travelStyles: TravelStyle[];
+  /** Favourite destinations, as cities (sent as `extras.favouriteCityIds`). */
+  destinations: CityRef[];
   interestIds: string[];
   /** "Skip" on "What are you into?". */
   skippedInterests: boolean;
@@ -130,8 +131,8 @@ export function ProfileSetupProvider({ children }: { children: ReactNode }) {
     gender: edits.gender !== undefined ? edits.gender : (profile?.gender ?? null),
     fullName: edits.fullName ?? '',
     dateOfBirth: edits.dateOfBirth ?? null,
-    travelStyles: edits.travelStyles ?? [],
-    destinations: edits.destinations ?? [],
+    travelStyles: edits.travelStyles ?? profile?.travelStyles ?? [],
+    destinations: edits.destinations ?? profile?.favouriteCities ?? [],
     interestIds: edits.interestIds ?? profile?.interests.map((i) => i.id) ?? [],
     skippedInterests: edits.skippedInterests ?? false,
   };

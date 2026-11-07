@@ -29,6 +29,9 @@ const act = (over: Partial<ProfileActivity> = {}): ProfileActivity => ({
   capacity: null,
   interests: [],
   photoCount: 0,
+  host: { id: 'h', name: 'Host', avatarUrl: null },
+  distanceKm: null,
+  saved: false,
   ...over,
 });
 
@@ -98,5 +101,11 @@ describe('stamps and counters', () => {
       countries: 2,
     });
     expect(profileCounters([])).toEqual({ events: 0, countries: 0 });
+  });
+
+  it('counts a post with no city as an event, but stamps no city or country for it', () => {
+    const attended = [act({ city: null }), act({ city: accra })];
+    expect(cityStamps(attended).map((s) => s.city)).toEqual(['Accra']);
+    expect(profileCounters(attended)).toEqual({ events: 2, countries: 1 });
   });
 });

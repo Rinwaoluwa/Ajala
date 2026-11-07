@@ -11,8 +11,8 @@ const query = (params: Record<string, string | number | null>) =>
     .join('&');
 
 /**
- * The profile pages' endpoints (spec §2.14, §3.6, §3.9; API map §9). Lists send
- * `X-Client-Location` when there is one, so cards carry distances.
+ * The profile pages' endpoints (spec §2.14, §2.16, §3.12; API map §9). Lists
+ * send `X-Client-Location` when there is one, so cards carry distances.
  */
 export function createProfileViewApi(request: ProfileRequest) {
   const id = encodeURIComponent;
@@ -21,6 +21,30 @@ export function createProfileViewApi(request: ProfileRequest) {
       request<ActivityPageDto>({
         method: 'GET',
         path: `${V1}/me/attended?${query({ cursor, limit })}`,
+        headers,
+      }),
+
+    getMySaved: (
+      type: 'all' | 'meetup' | 'event' | 'plan' | 'group',
+      cursor: string | null,
+      limit: number,
+      headers?: Record<string, string>,
+    ) =>
+      request<ActivityPageDto>({
+        method: 'GET',
+        path: `${V1}/me/saved?${query({ type, cursor, limit })}`,
+        headers,
+      }),
+
+    getMyRsvps: (
+      state: 'going' | 'requested',
+      cursor: string | null,
+      limit: number,
+      headers?: Record<string, string>,
+    ) =>
+      request<ActivityPageDto>({
+        method: 'GET',
+        path: `${V1}/me/rsvps?${query({ state, cursor, limit })}`,
         headers,
       }),
 
@@ -51,8 +75,29 @@ export function createProfileViewApi(request: ProfileRequest) {
         headers,
       }),
 
-    block: (userId: string) => request<void>({ method: 'POST', path: `${V1}/users/${id(userId)}/block` }),
-    unblock: (userId: string) => request<void>({ method: 'DELETE', path: `${V1}/users/${id(userId)}/block` }),
+    /** Empty unless they turned on `sharePlans`. */
+    getPersonPlans: (
+      userId: string,
+      cursor: string | null,
+      limit: number,
+      headers?: Record<string, string>,
+    ) =>
+      request<ActivityPageDto>({
+        method: 'GET',
+        path: `${V1}/users/${id(userId)}/plans?${query({ cursor, limit })}`,
+        headers,
+      }),
+
+    block: (userId: string) =>
+      request<void>({
+        method: 'POST',
+        path: `${V1}/users/${id(userId)}/block`,
+      }),
+    unblock: (userId: string) =>
+      request<void>({
+        method: 'DELETE',
+        path: `${V1}/users/${id(userId)}/block`,
+      }),
 
     report: (userId: string, body: ReportUserDto) =>
       request<{ id: string }>({ method: 'POST', path: `${V1}/users/${id(userId)}/report`, body }),

@@ -11,6 +11,7 @@ import {
   NativeIcon,
   Screen,
   Text,
+  UnderlineTabs,
   VectorIcon,
   icons,
 } from '@shared/components';
@@ -18,23 +19,27 @@ import { useTheme } from '@shared/hooks/useTheme';
 import { SCREEN_GUTTER, palette } from '@shared/theme';
 
 import type { MyProfile } from '../../domain/entities/Profile';
-import { LANGUAGES } from '../../domain/rules/profileSetupRules';
+import { LANGUAGES, travelStyleLabel } from '../../domain/rules/profileSetupRules';
 import { AchievementsPreview } from '../components/AchievementsPreview';
-import { InterestPills, ProfileHero } from '../components/ProfileHero';
+import { ActivityCard } from '../components/ActivityCard';
+import { ActivityCardSkeleton } from '../components/ActivityCardSkeleton';
+import { InterestPills, PillSection, ProfileHero } from '../components/ProfileHero';
 import { RoundIconButton } from '../components/RoundIconButton';
 import { useOwnProfile } from '../hooks/useOwnProfile';
+import type { useMyRsvps } from '../hooks/useMyRsvps';
 import { profileViewCopy } from '../profileViewCopy';
 import { profileLink, shareProfile } from '../shareProfile';
 
 /**
  * The Profile tab (Figma Own Profile, "@mayawanders"): the handle with settings
  * and messages, the hero (photo, counters, name, pronouns, city, tagline, bio,
- * interests), Edit profile and share, "A little more about me", Saved
- * activities, Featured photos and the Achievements preview.
+ * interests), Edit profile and share, "A little more about me" (languages,
+ * travel style, favourite places, links), Saved activities, Featured photos,
+ * the Achievements preview, and the Going / Requested tabs.
  *
- * From `GET /me` (shared with Edit profile and setup) and the attended history.
- * Sections with nothing to show are left out rather than drawn empty. Pull to
- * refresh asks again.
+ * From `GET /me` (shared with Edit profile and setup), the attended history and
+ * `GET /me/rsvps`. Sections with nothing to show are left out rather than drawn
+ * empty. Pull to refresh asks again.
  */
 
 const TAB_BAR_CLEARANCE = 120;
@@ -45,6 +50,7 @@ export type OwnProfileScreenProps = {
   onEditProfile: () => void;
   onSaved: () => void;
   onAchievements: () => void;
+  onOpenPost: (postId: string) => void;
 };
 
 export function OwnProfileScreen(props: OwnProfileScreenProps) {
@@ -110,6 +116,7 @@ export function OwnProfileScreen(props: OwnProfileScreenProps) {
           avatarUrl={p.avatarUrl}
           pronouns={p.about?.pronouns}
           city={p.homeCity?.label}
+          visiting={p.visiting?.label}
           tagline={p.about?.tagline}
           bio={p.about?.bio}
           interests={p.interests}
@@ -158,6 +165,8 @@ export function OwnProfileScreen(props: OwnProfileScreenProps) {
             onOpenBadge={props.onAchievements}
           />
         ) : null}
+
+        <MyActivities rsvps={vm.rsvps} onOpenPost={props.onOpenPost} />
       </ScrollView>
     </Screen>
   );
@@ -193,7 +202,9 @@ function AboutMe({ profile }: { profile: MyProfile }) {
       url: site.startsWith('http') ? site : `https://${site}`,
     });
   }
-  if (!languages.length && !rows.length) return null;
+  const styles = profile.travelStyles.map(travelStyleLabel);
+  const places = profile.favouriteCities.map((c) => c.name);
+  if (!languages.length && !rows.length && !styles.length && !places.length) return null;
 
   return (
     <View style={{ gap: 10 }}>
@@ -208,6 +219,8 @@ function AboutMe({ profile }: { profile: MyProfile }) {
           <InterestPills labels={languages} />
         </>
       ) : null}
+      <PillSection title={copy.travelStyles} labels={styles} />
+      <PillSection title={copy.favouriteCities} labels={places} />
       {rows.length ? (
         <>
           <Text variant="bodySm" tone="muted" className="mt-4">
@@ -225,6 +238,70 @@ function AboutMe({ profile }: { profile: MyProfile }) {
           ))}
         </>
       ) : null}
+    </View>
+  );
+}
+
+/**
+ * Going / Requested (`GET /me/rsvps`): the posts the person is going to that
+ * have not ended, and the private ones waiting on a host. A page at a time,
+ * with "Show more" — the screen scrolls as a whole, so the list does not page
+ * itself on scroll.
+ */
+function MyActivities({
+  rsvps,
+  onOpenPost,
+}: {
+  rsvps: ReturnType<typeof useMyRsvps>;
+  onOpenPost: (postId: string) => void;
+}) {
+  const copy = profileViewCopy.myActivities;
+  return (
+    <View style={{ gap: 16 }}>
+      <Text variant="headingSm" accessibilityRole="header">
+        {copy.title}
+      </Text>
+      <UnderlineTabs
+        options={[
+          { value: 'going', label: copy.going },
+          { value: 'requested', label: copy.requested },
+        ]}
+        value={rsvps.tab}
+        onChange={rsvps.setTab}
+      />
+      {rsvps.loading ? (
+        <ActivityCardSkeleton label="Loading your activities" />
+      ) : rsvps.failed ? (
+        <View style={{ gap: 12, alignItems: 'center', paddingVertical: 16 }}>
+          <Text variant="bodySm" tone="muted" className="text-center">
+            {copy.failed}
+          </Text>
+          <Button label={copy.retry} variant="secondary" size="sm" onPress={rsvps.retry} />
+        </View>
+      ) : rsvps.items.length === 0 ? (
+        <Text variant="bodySm" tone="muted" className="py-16 text-center">
+          {rsvps.tab === 'going' ? copy.emptyGoing : copy.emptyRequested}
+        </Text>
+      ) : (
+        <>
+          {rsvps.items.map((item) => (
+            <ActivityCard
+              key={item.id}
+              activity={item}
+              status={rsvps.tab}
+              onPress={() => onOpenPost(item.id)}
+            />
+          ))}
+          {rsvps.hasMore ? (
+            <Button
+              label={copy.more}
+              variant="secondary"
+              loading={rsvps.loadingMore}
+              onPress={rsvps.loadMore}
+            />
+          ) : null}
+        </>
+      )}
     </View>
   );
 }

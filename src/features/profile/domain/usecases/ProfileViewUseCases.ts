@@ -1,4 +1,10 @@
-import type { ActivityPage, PersonReportReason, ProfileActivity } from '../entities/PublicProfile';
+import type {
+  ActivityPage,
+  PersonReportReason,
+  ProfileActivity,
+  RsvpListState,
+  SavedFilter,
+} from '../entities/PublicProfile';
 import type { ProfileViewRepository } from '../repositories/ProfileViewRepository';
 
 /** A page of a profile's activity list. */
@@ -31,11 +37,22 @@ export const makeLoadPersonHistory = (repo: ProfileViewRepository) => (userId: s
 
 export const makeGetPerson = (repo: ProfileViewRepository) => (userId: string) => repo.getPerson(userId);
 
+/** Another traveller's lists: what they host, went to, and (when they share it) are going to. */
+export type PersonActivityTab = 'hosting' | 'attending' | 'plans';
+
 export const makeLoadPersonActivity =
-  (repo: ProfileViewRepository) => (userId: string, tab: 'hosting' | 'attending', cursor: string | null) =>
-    tab === 'hosting'
-      ? repo.getPersonPosts(userId, cursor, PROFILE_PAGE_SIZE)
-      : repo.getPersonAttended(userId, cursor, PROFILE_PAGE_SIZE);
+  (repo: ProfileViewRepository) => (userId: string, tab: PersonActivityTab, cursor: string | null) => {
+    if (tab === 'hosting') return repo.getPersonPosts(userId, cursor, PROFILE_PAGE_SIZE);
+    if (tab === 'plans') return repo.getPersonPlans(userId, cursor, PROFILE_PAGE_SIZE);
+    return repo.getPersonAttended(userId, cursor, PROFILE_PAGE_SIZE);
+  };
+
+export const makeLoadSaved = (repo: ProfileViewRepository) => (filter: SavedFilter, cursor: string | null) =>
+  repo.getMySaved(filter, cursor, PROFILE_PAGE_SIZE);
+
+export const makeLoadMyRsvps =
+  (repo: ProfileViewRepository) => (state: RsvpListState, cursor: string | null) =>
+    repo.getMyRsvps(state, cursor, PROFILE_PAGE_SIZE);
 
 export const makeBlockPerson = (repo: ProfileViewRepository) => (userId: string) => repo.block(userId);
 export const makeUnblockPerson = (repo: ProfileViewRepository) => (userId: string) => repo.unblock(userId);

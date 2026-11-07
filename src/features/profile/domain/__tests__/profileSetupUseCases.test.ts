@@ -15,6 +15,10 @@ const PROFILE: MyProfile = {
   homeCity: null,
   interests: [],
   languages: [],
+  travelStyles: [],
+  favouriteCities: [],
+  visiting: null,
+  subscribed: false,
   profileCompletedAt: null,
 };
 
@@ -31,6 +35,7 @@ function fakeRepo() {
     removeAvatar: async () => undefined,
     detectHomeCity: async () => null,
     searchCities: async () => [],
+    popularCities: async () => [],
     listInterests: async () => [],
     checkHandle: async (handle) => {
       checks.push(handle);
@@ -61,6 +66,26 @@ describe('saving setup', () => {
         interestIds: ['a', 'b', 'c', 'd', 'e'],
       },
     ]);
+  });
+
+  it('sends travel styles and favourite cities, capped at ten each', async () => {
+    const { repo, updates } = fakeRepo();
+    const cities = Array.from({ length: 12 }, (_, i) => `c${i}`);
+    await makeSaveSetup(repo)({
+      ...answers,
+      travelStyles: ['solo', 'foodie'],
+      favouriteCityIds: cities,
+    });
+    expect(updates[0]).toMatchObject({
+      travelStyles: ['solo', 'foodie'],
+      favouriteCityIds: cities.slice(0, 10),
+    });
+  });
+
+  it('leaves gender out when none was picked: it is optional', async () => {
+    const { repo, updates } = fakeRepo();
+    await makeSaveSetup(repo)({ ...answers, gender: null });
+    expect(updates[0]).not.toHaveProperty('gender');
   });
 
   it('leaves interests out when skipped or too few', async () => {

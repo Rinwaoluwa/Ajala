@@ -1,18 +1,28 @@
 import { Image } from 'expo-image';
 import { TouchableOpacity, View } from 'react-native';
 
-import { Tag, Text } from '@shared/components';
+import { Tag, Text, type TagTone } from '@shared/components';
 import { useTheme } from '@shared/hooks/useTheme';
 
 import type { ProfileActivity } from '../../domain/entities/PublicProfile';
 import { formatDay, formatTime } from '../profileFormat';
 import { profileViewCopy } from '../profileViewCopy';
 
+/** How the person stands with the post, as its second tag says. */
+export type ActivityStatus = 'hosting' | 'completed' | 'going' | 'requested';
+
+const STATUS_TAG: Record<ActivityStatus, { label: string; tone: TagTone }> = {
+  hosting: { label: profileViewCopy.hostingTag, tone: 'success' },
+  completed: { label: profileViewCopy.completedTag, tone: 'success' },
+  going: { label: profileViewCopy.goingTag, tone: 'success' },
+  requested: { label: profileViewCopy.requestedTag, tone: 'pending' },
+};
+
 /**
  * A post on a profile (Figma Other User, "A weekend in Barcelona"): the cover,
- * the type and Hosting / Completed tags, the city in caps, the title, the day
- * and start time, the place, how many are joining, and "View plan ›". The whole
- * card opens the post.
+ * the type and status tags (Hosting, Completed, Going, Request sent), the city
+ * in caps when the post has one, the title, the day and start time, the place,
+ * how many are joining, and "View plan ›". The whole card opens the post.
  */
 export function ActivityCard({
   activity,
@@ -20,19 +30,20 @@ export function ActivityCard({
   onPress,
 }: {
   activity: ProfileActivity;
-  status: 'hosting' | 'completed';
+  status: ActivityStatus;
   onPress: () => void;
 }) {
   const theme = useTheme();
   const copy = profileViewCopy.activities;
   const day = formatDay(activity.startAt);
   const time = formatTime(activity.startAt);
+  const tag = STATUS_TAG[status];
   return (
     <TouchableOpacity
       activeOpacity={0.85}
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={[activity.title, activity.city.label, day, activity.placeName]
+      accessibilityLabel={[activity.title, activity.city?.label, day, activity.placeName]
         .filter(Boolean)
         .join(', ')}
       style={{
@@ -56,14 +67,13 @@ export function ActivityCard({
       <View style={{ padding: 16, gap: 6 }}>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
           <Tag label={profileViewCopy.types[activity.type]} tone="outline" />
-          <Tag
-            label={status === 'hosting' ? profileViewCopy.hostingTag : profileViewCopy.completedTag}
-            tone="success"
-          />
+          <Tag label={tag.label} tone={tag.tone} />
         </View>
-        <Text variant="labelXs" tone="muted" style={{ textTransform: 'uppercase', letterSpacing: 0.4 }}>
-          {activity.city.label}
-        </Text>
+        {activity.city ? (
+          <Text variant="labelXs" tone="muted" style={{ textTransform: 'uppercase', letterSpacing: 0.4 }}>
+            {activity.city.label}
+          </Text>
+        ) : null}
         <Text variant="headingSm">{activity.title}</Text>
         {day ? (
           <Text variant="bodySm" tone="muted">

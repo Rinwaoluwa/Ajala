@@ -1,10 +1,19 @@
-import type { City, Gender, HandleAvailability, ImageFile, ProfileUpdate } from '../entities/Profile';
+import type {
+  City,
+  Gender,
+  HandleAvailability,
+  ImageFile,
+  ProfileUpdate,
+  TravelStyle,
+} from '../entities/Profile';
 import { ProfileError } from '../entities/ProfileError';
 import type { ProfileRepository } from '../repositories/ProfileRepository';
 import { handleFormatProblem, normalizeHandle } from '../rules/handleRules';
 import {
+  MAX_DESTINATIONS,
   MAX_INTERESTS,
   MAX_LANGUAGES,
+  MAX_TRAVEL_STYLES,
   MIN_INTERESTS,
   isFullNameValid,
   splitFullName,
@@ -12,10 +21,11 @@ import {
 
 /**
  * Profile setup's use cases. All four setup screens write to the same
- * `PATCH /me` (API map §3); this sends one, at the end, with everything — the
- * server stamps `profileCompletedAt` itself once first name, last name, date of
- * birth and gender are all present (§2.4). The handle is its own `PATCH`
- * afterwards, because it can be refused on its own (409).
+ * `PATCH /me` (API map §3); this sends one, at the end, with everything. The
+ * server stamps `profileCompletedAt` itself when it considers the profile
+ * complete (§2.4); the answer carries it, and nothing here decides it. The
+ * handle is its own `PATCH` afterwards, because it can be refused on its own
+ * (409).
  */
 
 export const makeGetMyProfile = (repo: ProfileRepository) => () => repo.getMyProfile();
@@ -23,7 +33,12 @@ export const makeGetMyProfile = (repo: ProfileRepository) => () => repo.getMyPro
 export type SetupAnswers = {
   homeCityId: string;
   languages: readonly string[];
-  gender: Gender;
+  /** Optional (spec §2.4, §8.1): left out when the person did not pick one. */
+  gender?: Gender | null;
+  /** "How do you like to travel?"; capped at the API's 10. */
+  travelStyles?: readonly TravelStyle[];
+  /** "Where do you love to travel?", as city ids; capped at the API's 10. */
+  favouriteCityIds?: readonly string[];
   /** Only when the profile has no name yet. */
   fullName?: string;
   /** Only when it has no date of birth yet. YYYY-MM-DD. */
@@ -35,9 +50,11 @@ export type SetupAnswers = {
 export const makeSaveSetup = (repo: ProfileRepository) => async (answers: SetupAnswers) => {
   const update: ProfileUpdate = {
     homeCityId: answers.homeCityId,
-    gender: answers.gender,
     languages: answers.languages.slice(0, MAX_LANGUAGES),
   };
+  if (answers.gender) update.gender = answers.gender;
+  if (answers.travelStyles) update.travelStyles = answers.travelStyles.slice(0, MAX_TRAVEL_STYLES);
+  if (answers.favouriteCityIds) update.favouriteCityIds = answers.favouriteCityIds.slice(0, MAX_DESTINATIONS);
   if (answers.fullName !== undefined) {
     if (!isFullNameValid(answers.fullName)) throw new ProfileError('invalidDetails');
     Object.assign(update, splitFullName(answers.fullName));
@@ -81,3 +98,5 @@ export const makeSearchCities =
   };
 
 export const makeListInterests = (repo: ProfileRepository) => () => repo.listInterests();
+
+export const makeListPopularCities = (repo: ProfileRepository) => () => repo.popularCities();
