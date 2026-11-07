@@ -108,13 +108,13 @@ half the app.
 
 ## 5. Dependency injection
 
-`src/bootstrap/di` is the composition root: it builds repositories, injects them into use cases, and
-exposes use cases through a typed context that presentation hooks consume. Constructor
+Each feature's `<name>Module.ts` (e.g. `src/features/auth/authModule.ts`) is its composition
+root: it builds repositories and injects them into use cases, which presentation hooks consume. Constructor
 injection, no service locators, no singletons in feature code — logging, crash reporting and
 analytics are the only exceptions.
 
-This is what makes a feature testable in isolation: a test swaps the repository for a fake from
-`shared/testing/fakes` without touching the network.
+This is what makes a feature testable in isolation: a test swaps the repository for a fake
+without touching the network.
 
 ## 6. Data sources
 
@@ -159,8 +159,8 @@ across repositories.
 | Static content (FAQ, terms) | 24 hours |
 | Chat messages | realtime, no TTL |
 
-**Offline writes** are queued in `core/offline/queue` with a stable client-side UUID per write
-for backend idempotency, and drained when connectivity returns.
+**Offline writes**, when they land, are queued with a stable client-side UUID per write for
+backend idempotency, and drained when connectivity returns.
 
 ## 8. Errors
 
@@ -208,8 +208,10 @@ Architecture review at the end of weeks 2, 4 and 9, to catch pattern drift befor
 
 ## 11. The API layer (as built)
 
-The contract lives at `contracts/openapi/ajala-api.json` — the server's own OpenAPI document.
-Treat it as the source of truth for wire shapes; when it and this file disagree, the spec wins.
+The contract lives in `docs/api/`: `ajala-api-users-common.md` (the client spec; its §6 types
+are the source of truth for wire shapes) and `screen-to-api-map.md` (which screen calls what).
+When they and this file disagree, the spec wins; where the spec and the live Swagger disagree,
+Swagger wins and the difference is flagged.
 
 ```
 core/api/apiConfig.ts   base URL + timeout
@@ -238,14 +240,15 @@ nothing above the data layer knows an HTTP status exists.
 
 The mapping is per endpoint, because **the same code means different things depending on where
 it came from**. A `UNAUTHORIZED` from `/auth/login` is a wrong password; from `/auth/otp/verify`
-it is a wrong code; from `/auth/password/reset` it is an expired link. Those overrides are
+or `/auth/password/verify` it is a wrong or expired code; from `/auth/password/reset` it is a
+reset token that expired or was already used. Those overrides are
 declared at each call site in `AuthRepositoryImpl`, next to the request they qualify.
 
-### Swapping in fixtures
+### Working without a backend
 
-`authModule.ts` is the seam. It wires `createAuthRepository()` (real HTTP) today;
-`FixtureAuthRepository` implements the same port for offline work and demos. Swap the one line —
-no screen, hook or use case changes.
+`authModule.ts` is the seam: it wires `createAuthRepository()` (real HTTP), and only that line
+knows the implementation. For offline work and demos, demo mode answers the same requests one
+level down, in `apiRequest` — see [DEMO.md](DEMO.md). No screen, hook or use case changes.
 
 ### Sessions
 
@@ -280,29 +283,27 @@ needs the same email and password, and keeping them in the hook avoids carrying 
 through navigation params. Editing either field clears a pending code, since the code was
 issued against the pair that was submitted.
 
-### Password reset is link-based, not code-based
+### Password reset is a 6-digit code
 
-`POST /auth/password/forgot` emails a link; there is **no endpoint to verify a 6-digit reset
-code**, so the designed "enter the code" step could not be built. The flow is:
+Three calls, all on screens inside the app — no email link to open:
 
 ```
-forgot-password/index      ask for the email  → 202 (always, even for an unknown address)
-  ↓  user leaves the app and opens their email
-ajala://forgot-password/new-password?token=…  deep link back in
-forgot-password/new-password                  → 204, then back to sign in
+forgot-password/index         POST /auth/password/forgot { email }       → 202, always
+  ↓  a 6-digit code is emailed (valid 10 minutes, at most 3 emails an hour)
+enter the code                POST /auth/password/verify { email, code } → 200 { token }
+  ↓  the token is single use and lasts 15 minutes; it stays in the flow's state, not in a URL
+forgot-password/new-password  POST /auth/password/reset { token, newPassword } → 204, then sign in
 ```
+
+(The code step's screen is new with this contract; the link-based flow before it had none.)
 
 The 202 is deliberate on the server's side: answering identically for a known and an unknown
 address is what stops the endpoint being used to discover who has an account. The screen says
 "if that address is registered" for the same reason — do not "improve" it into a confirmation.
+A Google- or Apple-only account gets an email saying so instead of a code.
 
-**This needs the backend to emit a link the app can open.** A plain `https://` link opens the
-browser instead, and the reset dead-ends. Either the email uses the `ajala://` scheme, or the
-`https://` host is configured as a universal link (iOS `associatedDomains` + AASA, Android
-App Links + assetlinks.json) — neither is set up yet.
-
-Until then the screen can be reached manually for testing:
-
-```
-xcrun simctl openurl booted "ajala://forgot-password/new-password?token=TEST"
-```
+A wrong, expired or used code is the same 401, and the **fifth wrong code burns it**: offer
+"send a new code" (which calls `/forgot` again) rather than letting the person keep guessing.
+A 401 from `/reset` means the token ran out or was used — send them back to ask for a new
+code, not to retype the password. A successful reset signs out every device, this one included,
+so the flow ends on sign in.
