@@ -1,5 +1,6 @@
 import type { DemoRoute } from '../demoStore';
 import { chatRoutes } from './chat';
+import { notificationRoutes } from './notifications';
 import { postDetailRoutes } from './postDetail';
 import { profileRoutes } from './profiles';
 import { settingsRoutes } from './settings';
@@ -16,4 +17,5 @@ export const areaRoutes = (): DemoRoute[] => [
   ...profileRoutes,
   ...settingsRoutes,
   ...chatRoutes,
+  ...notificationRoutes,
 ];

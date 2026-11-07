@@ -79,6 +79,19 @@ export const DEMO_HOSTS = [
   { id: 'h-seun', displayName: 'Seun B.', avatarUrl: 'https://i.pravatar.cc/150?img=59', verified: true },
 ];
 
+/**
+ * What search knows about each host beyond the card: their handle and home city,
+ * for `GET /search/people`. The same as their profiles in `routes/profiles.ts`.
+ */
+export const DEMO_HOST_DETAILS: Record<string, { handle: string; homeCityId: string }> = {
+  'h-tolu': { handle: 'tolu.travels', homeCityId: 'lagos' },
+  'h-kemi': { handle: 'kemi.o', homeCityId: 'lagos' },
+  'h-james': { handle: 'jamesk', homeCityId: 'nairobi' },
+  'h-amara': { handle: 'amara.n', homeCityId: 'lagos' },
+  'h-lena': { handle: 'lena.v', homeCityId: 'amsterdam' },
+  'h-seun': { handle: 'seun.b', homeCityId: 'lagos' },
+};
+
 /** A photo set for a post: the API's three sizes of one picture each. */
 export const images = (seed: string, count = 3) =>
   Array.from({ length: count }, (_, i) => ({
@@ -94,6 +107,8 @@ type Seed = {
   description: string;
   /** Days from today, then the local hour and minute. */
   when: [number, number, number];
+  /** How long it runs, for `endAt`; without it the post has no end time. */
+  hours?: number;
   placeName: string;
   lat: number;
   lng: number;
@@ -107,6 +122,14 @@ type Seed = {
   /** An index into DEMO_HOSTS, or `'me'` for a post the demo person hosts. */
   host: number | 'me';
   interests: string[];
+  /** An Event's running order. */
+  schedule?: string[];
+  /** A Plan's stops, in order. */
+  itinerary?: string[];
+  /** A Plan or Group sharing a cost: the whole bill in naira, split this many ways. */
+  cost?: { totalNgn: number; expectedCount: number };
+  /** A Group that meets again. */
+  recurrence?: 'weekly' | 'biweekly' | 'monthly';
 };
 
 /** The Lagos posts the demo starts with. */
@@ -127,6 +150,7 @@ export const DEMO_POST_SEEDS: Seed[] = [
     visibility: 'open',
     host: 0,
     interests: ['coffee'],
+    hours: 2,
   },
   {
     id: 'p-tech-founders',
@@ -160,6 +184,8 @@ export const DEMO_POST_SEEDS: Seed[] = [
     externalUrl: 'https://tix.africa',
     host: 3,
     interests: ['music', 'nightlife'],
+    hours: 5,
+    schedule: ['7pm Doors and warm-up set', '9pm Live band', '11pm Headline DJ', '1am Last dance'],
   },
   {
     id: 'p-art-stories',
@@ -176,6 +202,8 @@ export const DEMO_POST_SEEDS: Seed[] = [
     visibility: 'open',
     host: 1,
     interests: ['art', 'photography'],
+    hours: 3,
+    schedule: ['11am Welcome and coffee', '11:30am Guided walk', '1pm Q&A with the artists'],
   },
   {
     id: 'p-cultural',
@@ -209,6 +237,8 @@ export const DEMO_POST_SEEDS: Seed[] = [
     visibility: 'open',
     host: 2,
     interests: ['markets', 'food'],
+    hours: 5,
+    itinerary: ['Meet at the market gate', 'Fabrics and beads', 'Woodwork row', 'Lunch at Terra Kulture'],
   },
   {
     id: 'p-tarkwa',
@@ -221,10 +251,18 @@ export const DEMO_POST_SEEDS: Seed[] = [
     lng: 3.3863,
     capacity: 15,
     goingCount: 9,
-    priceNgn: 12000,
+    priceNgn: null,
     visibility: 'open',
     host: 4,
     interests: ['beach'],
+    hours: 7,
+    itinerary: [
+      'Boat from Tarkwa Bay jetty',
+      'Swim and lunch on the beach',
+      'Lighthouse walk',
+      'Boat back before sunset',
+    ],
+    cost: { totalNgn: 180000, expectedCount: 15 },
   },
   {
     id: 'p-sunday-ride',
@@ -242,6 +280,9 @@ export const DEMO_POST_SEEDS: Seed[] = [
     waitlistEnabled: true,
     host: 5,
     interests: ['cycling', 'wellness'],
+    hours: 2,
+    recurrence: 'weekly',
+    cost: { totalNgn: 50000, expectedCount: 25 },
   },
   {
     id: 'p-yoga',
@@ -259,6 +300,8 @@ export const DEMO_POST_SEEDS: Seed[] = [
     waitlistEnabled: true,
     host: 1,
     interests: ['wellness'],
+    hours: 1,
+    recurrence: 'weekly',
   },
   {
     id: 'p-photo-walk',
@@ -292,6 +335,8 @@ export const DEMO_POST_SEEDS: Seed[] = [
     externalUrl: 'https://tix.africa',
     host: 3,
     interests: ['music'],
+    hours: 3,
+    schedule: ['8pm First set', '9:15pm Interval', '9:45pm Second set'],
   },
   {
     id: 'p-suya',

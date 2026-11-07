@@ -2,7 +2,7 @@
  * Where the API lives.
  *
  * `EXPO_PUBLIC_API_URL` overrides the default, which is the deployment named in
- * the OpenAPI document (`contracts/openapi/ajala-api.json`). Anything prefixed
+ * the API spec (`docs/api/ajala-api-users-common.md` §1). Anything prefixed
  * `EXPO_PUBLIC_` is compiled into the bundle and readable by anyone with the app,
  * so a base URL is fine here and a secret never is.
  */

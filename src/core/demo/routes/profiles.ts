@@ -5,9 +5,11 @@ import {
   cityById,
   fail,
   iso,
+  live,
   page,
   ref,
   registerArchive,
+  soonestFirst,
   store,
   traveller,
   type DemoPerson,
@@ -18,11 +20,13 @@ import { DEMO_HOSTS, DEMO_INTERESTS, images } from '../demoData';
 
 /**
  * Demo answers for other travellers' profiles (API map §9, spec §2.14): who they
- * are (`GET /users/:id`), what they host and went to, blocking (also
- * `GET /me/blocks`, which Settings lists) and reporting a person.
+ * are (`GET /users/:id`), what they host, went to and are going to
+ * (`/plans`, only for those who share plans), blocking (also `GET /me/blocks`,
+ * which Settings lists) and reporting a person.
  *
  * Their past activities live here, not in the shared store, so they never show
- * on the feed or the map.
+ * on the feed or the map. Their upcoming plans are real demo posts, so they
+ * open like any other.
  */
 
 type Person = {
@@ -32,6 +36,12 @@ type Person = {
   city: string;
   memberDays: number;
   tagline?: string;
+  travelStyles: string[];
+  favouriteCityIds: string[];
+  openToMeetToday: boolean;
+  /** Ids of open demo posts they are going to, listed by `/plans` only when `sharePlans` is on. */
+  plans: string[];
+  sharePlans: boolean;
 };
 
 const PEOPLE: Record<string, Person> = {
@@ -42,6 +52,11 @@ const PEOPLE: Record<string, Person> = {
     city: 'lagos',
     memberDays: 240,
     tagline: 'Host of the best suya tours',
+    travelStyles: ['foodie', 'culture', 'local_life'],
+    favouriteCityIds: ['accra', 'lisbon', 'cape-town'],
+    openToMeetToday: true,
+    plans: ['p-jazz', 'p-tarkwa'],
+    sharePlans: true,
   },
   'h-kemi': {
     handle: 'kemi.o',
@@ -49,6 +64,11 @@ const PEOPLE: Record<string, Person> = {
     interests: ['wellness', 'coffee'],
     city: 'lagos',
     memberDays: 180,
+    travelStyles: ['spiritual', 'beach'],
+    favouriteCityIds: ['barcelona'],
+    openToMeetToday: false,
+    plans: ['p-photo-walk'],
+    sharePlans: false,
   },
   'h-james': {
     handle: 'jamesk',
@@ -56,6 +76,11 @@ const PEOPLE: Record<string, Person> = {
     interests: ['markets', 'beach', 'photography'],
     city: 'nairobi',
     memberDays: 60,
+    travelStyles: ['backpacker', 'photography', 'safari'],
+    favouriteCityIds: ['nairobi', 'cape-town'],
+    openToMeetToday: true,
+    plans: [],
+    sharePlans: true,
   },
   'h-amara': {
     handle: 'amara.n',
@@ -63,6 +88,11 @@ const PEOPLE: Record<string, Person> = {
     interests: ['music', 'nightlife'],
     city: 'lagos',
     memberDays: 400,
+    travelStyles: ['nightlife', 'festivals'],
+    favouriteCityIds: ['london', 'new-york'],
+    openToMeetToday: false,
+    plans: ['p-coffee-chat'],
+    sharePlans: false,
   },
   'h-lena': {
     handle: 'lena.v',
@@ -70,6 +100,11 @@ const PEOPLE: Record<string, Person> = {
     interests: ['photography', 'hiking', 'art'],
     city: 'amsterdam',
     memberDays: 90,
+    travelStyles: ['photography', 'hiking', 'solo'],
+    favouriteCityIds: ['amsterdam', 'lagos', 'paris'],
+    openToMeetToday: true,
+    plans: ['p-coffee-chat', 'p-sunday-ride'],
+    sharePlans: true,
   },
   'h-seun': {
     handle: 'seun.b',
@@ -77,6 +112,11 @@ const PEOPLE: Record<string, Person> = {
     interests: ['tech', 'cycling'],
     city: 'lagos',
     memberDays: 300,
+    travelStyles: ['cycling', 'digital_nomad'],
+    favouriteCityIds: [],
+    openToMeetToday: false,
+    plans: [],
+    sharePlans: false,
   },
 };
 
@@ -116,7 +156,6 @@ function past(
     images: images(id, 2),
     hostIndex: 0,
     interestIds,
-    checklist: [],
     rsvpState: 'going',
     reported: false,
   };
@@ -150,24 +189,35 @@ const history = (): Record<string, DemoPost[]> =>
 
 const hostIndex = (id: string) => DEMO_HOSTS.findIndex((h) => h.id === id);
 
+const cityRefs = (ids: readonly string[]) =>
+  ids.flatMap((id) => {
+    const c = cityById(id);
+    return c ? [ref(c)] : [];
+  });
+
 function profileDto(id: string) {
   if (id === 'me' || id === store.me?.id) {
     const me = store.me;
     if (!me) return fail(404, 'NOT_FOUND', 'Not available.');
     const home = cityById(me.homeCityId);
+    const favourites = me.extras.favouriteCityIds;
     return {
       id: me.id,
       handle: me.handle,
       displayName: `${me.firstName ?? ''} ${me.lastName?.[0] ?? ''}.`.trim(),
       avatarUrl: me.avatarUrl,
       gender: me.gender,
-      bio: null,
+      bio: me.bio,
       photos: [],
       homeCity: home ? ref(home) : null,
       visiting: null,
       verified: false,
       interests: DEMO_INTERESTS.filter((i) => me.interestIds.includes(i.id)),
       extras: me.extras,
+      favouriteCities: cityRefs(Array.isArray(favourites) ? favourites.map(String) : []),
+      // The demo person's own privacy switches live in Settings; seen from outside they are off.
+      openToMeetToday: false,
+      sharePlans: false,
       memberSince: new Date(Date.now() - 30 * 86_400_000).toISOString(),
       blockedByMe: false,
     };
@@ -193,7 +243,15 @@ function profileDto(id: string) {
     visiting: null,
     verified: host.verified,
     interests: DEMO_INTERESTS.filter((i) => person.interests.includes(i.id)),
-    extras: { tagline: person.tagline ?? null, languages: ['en'] },
+    extras: {
+      tagline: person.tagline ?? null,
+      languages: ['en'],
+      travelStyles: person.travelStyles,
+      favouriteCityIds: person.favouriteCityIds,
+    },
+    favouriteCities: cityRefs(person.favouriteCityIds),
+    openToMeetToday: person.openToMeetToday,
+    sharePlans: person.sharePlans,
     memberSince: new Date(Date.now() - person.memberDays * 86_400_000).toISOString(),
     blockedByMe: blocked.has(id),
   };
@@ -219,7 +277,10 @@ function travellerDto(p: DemoPerson) {
     visiting: null,
     verified: p.verified ?? false,
     interests: DEMO_INTERESTS.filter((i) => interests.includes(i.id)),
-    extras: { tagline: null, languages: ['en'] },
+    extras: { tagline: null, languages: ['en'], travelStyles: [] },
+    favouriteCities: [],
+    openToMeetToday: seed % 3 === 0,
+    sharePlans: false,
     memberSince: new Date(Date.now() - (30 + (seed % 300)) * 86_400_000).toISOString(),
     blockedByMe: blocked.has(p.id),
   };
@@ -258,6 +319,42 @@ export const profileRoutes: DemoRoute[] = [
       profileDto(id);
       const items = [...(history()[id] ?? [])]
         .sort((a, b) => (b.startAt ?? '').localeCompare(a.startAt ?? ''))
+        .map((p) => card(p, req.headers));
+      return page(items, q);
+    },
+  ],
+  [
+    // Upcoming open posts they are going to, soonest first; empty unless they share plans.
+    'GET',
+    /^\/api\/v1\/users\/([^/]+)\/plans$/,
+    (m, req, q) => {
+      const id = m[1] as string;
+      profileDto(id);
+      const person = PEOPLE[id];
+      if (!person?.sharePlans) return page([], q);
+      const now = Date.now();
+      const items = live()
+        .filter((p) => person.plans.includes(p.id) && p.visibility === 'open')
+        .filter((p) => !p.startAt || new Date(p.startAt).getTime() > now)
+        .sort(soonestFirst)
+        .map((p) => card(p, req.headers));
+      return page(items, q);
+    },
+  ],
+  [
+    // Upcoming open posts they are going to, soonest first; empty unless they share plans.
+    'GET',
+    /^\/api\/v1\/users\/([^/]+)\/plans$/,
+    (m, req, q) => {
+      const id = m[1] as string;
+      profileDto(id);
+      const person = PEOPLE[id];
+      if (!person?.sharePlans) return page([], q);
+      const now = Date.now();
+      const items = live()
+        .filter((p) => person.plans.includes(p.id) && p.visibility === 'open')
+        .filter((p) => !p.startAt || new Date(p.startAt).getTime() > now)
+        .sort(soonestFirst)
         .map((p) => card(p, req.headers));
       return page(items, q);
     },

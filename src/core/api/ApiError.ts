@@ -7,12 +7,11 @@
  */
 
 /**
- * Every code the API documents. The first block is the `ErrorResponseDto.code`
- * enum in `contracts/openapi/ajala-api.json`; the second comes from the client
- * spec (`docs/api/ajala-api-users-common.md` §5–§6), which covers the posts,
- * feed and RSVP endpoints the repo's OpenAPI copy does not include yet. Listing
- * them now means a 409 `POST_FULL` reaches its feature as itself rather than as a
- * generic `CONFLICT`.
+ * Every code the API documents: the `ErrorCode` union in the client spec
+ * (`docs/api/ajala-api-users-common.md` §6, what to do with each in §5). Listing
+ * them all means a 409 `POST_FULL` reaches its feature as itself rather than as
+ * a generic `CONFLICT`; a code the API adds later falls back by status (see
+ * `apiClient`).
  */
 export const API_ERROR_CODES = [
   'VALIDATION_FAILED',
@@ -34,11 +33,12 @@ export const API_ERROR_CODES = [
   'PASSWORD_BREACHED',
   'ACCOUNT_LINK_REQUIRED',
   'HANDLE_COOLDOWN',
-  'VERIFICATION_COOLDOWN',
+  'LAST_SIGN_IN_METHOD',
   'TOTP_REQUIRED',
-  'SERVICE_UNAVAILABLE',
-  'INTERNAL',
-  // Spec only, until the OpenAPI copy carries the posts endpoints.
+  'TOTP_CODE_USED',
+  'SIGNUP_REFUSED',
+  'REPORTING_PAUSED',
+  'CHAT_START_LIMIT',
   'EVENT_MONTHLY_CAP',
   'NO_CITY',
   'POST_FULL',
@@ -46,6 +46,8 @@ export const API_ERROR_CODES = [
   'POST_CANCELLED',
   'POST_HAS_ATTENDEES',
   'EXTERNAL_BOOKING',
+  'SERVICE_UNAVAILABLE',
+  'INTERNAL',
 ] as const;
 
 /** A code the API sent, plus the two only the client can raise. */

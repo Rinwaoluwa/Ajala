@@ -4,7 +4,8 @@ import { images } from '../demoData';
 /**
  * Demo answers for the Trips tab: my own posts (`GET /me/posts`, both statuses —
  * the Drafts screen reads the draft branch) and the past posts I went to
- * (`GET /me/attended`).
+ * (`GET /me/attended`). The Upcoming and Requests lists (`GET /me/rsvps`) are
+ * answered by the shared store, since joining a post there changes them.
  *
  * The attended posts live here, not in the shared store, so they never appear
  * on the feed or the map — they are over.
@@ -16,6 +17,8 @@ type AttendedSeed = {
   title: string;
   daysAgo: number;
   hour: number;
+  /** How long it ran; a trip over a night shows as a span of days ("4–5 Oct"). */
+  hours: number;
   placeName: string;
   cityId: string;
   lat: number;
@@ -31,6 +34,7 @@ const ATTENDED: AttendedSeed[] = [
     title: 'Lekki sunset hike',
     daysAgo: 8,
     hour: 17,
+    hours: 3,
     placeName: 'Lekki Conservation Centre',
     cityId: 'lagos',
     lat: 6.4413,
@@ -44,6 +48,7 @@ const ATTENDED: AttendedSeed[] = [
     title: 'Lagos food crawl',
     daysAgo: 20,
     hour: 18,
+    hours: 28,
     placeName: 'Lagos, Nigeria',
     cityId: 'lagos',
     lat: 6.4311,
@@ -57,6 +62,7 @@ const ATTENDED: AttendedSeed[] = [
     title: 'Design week mixer',
     daysAgo: 35,
     hour: 19,
+    hours: 4,
     placeName: 'London, UK',
     cityId: 'london',
     lat: 51.5226,
@@ -70,6 +76,7 @@ const ATTENDED: AttendedSeed[] = [
     title: 'Osu art walk',
     daysAgo: 52,
     hour: 10,
+    hours: 3,
     placeName: 'Osu, Accra',
     cityId: 'accra',
     lat: 5.5571,
@@ -80,13 +87,15 @@ const ATTENDED: AttendedSeed[] = [
 ];
 
 function attendedPost(s: AttendedSeed): DemoPost {
+  const start = at(-s.daysAgo, s.hour, 0);
   return {
     id: s.id,
     type: s.type,
     status: 'published',
     title: s.title,
     description: '',
-    startAt: iso(at(-s.daysAgo, s.hour, 0)),
+    startAt: iso(start),
+    endAt: iso(new Date(start.getTime() + s.hours * 3_600_000)),
     placeName: s.placeName,
     lat: s.lat,
     lng: s.lng,
@@ -102,7 +111,6 @@ function attendedPost(s: AttendedSeed): DemoPost {
     images: images(s.id),
     hostIndex: s.host,
     interestIds: [],
-    checklist: [],
     rsvpState: 'going',
     reported: false,
   };

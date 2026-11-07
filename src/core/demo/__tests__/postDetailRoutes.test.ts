@@ -69,30 +69,132 @@ describe('the demo post page', () => {
   });
 });
 
+type CommentDto = {
+  id: string;
+  parentId: string | null;
+  author: { id: string; displayName: string } | null;
+  body: string | null;
+  deleted: boolean;
+  replyCount: number;
+  mine: boolean;
+  canDelete: boolean;
+};
+type CommentsPage = { items: CommentDto[]; total: number; nextCursor: string | null };
+
+const signIn = () =>
+  demoRequest({ method: 'POST', path: '/api/v1/auth/login', body: { email: 'a@b.c', password: 'x' } });
+const list = (postId: string) =>
+  demoRequest<CommentsPage>({ method: 'GET', path: `/api/v1/posts/${postId}/comments?limit=20` });
+const replies = (postId: string, id: string) =>
+  demoRequest<CommentsPage>({ method: 'GET', path: `/api/v1/posts/${postId}/comments/${id}/replies` });
+const post = (postId: string, body: unknown) =>
+  demoRequest<CommentDto>({ method: 'POST', path: `/api/v1/posts/${postId}/comments`, body });
+const failure = (p: Promise<unknown>) => p.then(() => null).catch((e: unknown) => e);
+
 describe('demo comments', () => {
-  it('starts some posts with a conversation and keeps new comments, with replies', async () => {
+  beforeEach(async () => {
     resetDemo();
-    await demoRequest({
-      method: 'POST',
-      path: '/api/v1/auth/login',
-      body: { email: 'a@b.c', password: 'x' },
+    await signIn();
+  });
+
+  it('lists top-level comments with reply counts, and the replies on their own', async () => {
+    const page = await list('p-tarkwa');
+    // Three top-level comments and one reply.
+    expect(page.items).toHaveLength(3);
+    expect(page.total).toBe(4);
+    const question = page.items.find((c) => c.body === 'Should we bring swimming gear?');
+    expect(question?.replyCount).toBe(1);
+    const thread = await replies('p-tarkwa', question?.id ?? '');
+    expect(thread.total).toBe(0);
+    expect(thread.items[0]).toMatchObject({ parentId: question?.id, author: { displayName: 'Fatima Bello' } });
+  });
+
+  it('shows a deleted comment that still has replies as deleted, with no author or body', async () => {
+    const page = await list('p-cultural');
+    expect(page.items[0]).toMatchObject({ deleted: true, author: null, body: null, replyCount: 1 });
+    expect(page.total).toBe(2);
+  });
+
+  it('takes { body, parentId }, and a reply to a reply joins the same thread', async () => {
+    const top = await post('p-tarkwa', { body: 'See you there!' });
+    expect(top).toMatchObject({ parentId: null, mine: true, canDelete: true, author: { id: 'me' } });
+    const page = await list('p-tarkwa');
+    const question = page.items.find((c) => c.replyCount === 1);
+    const firstReply = (await replies('p-tarkwa', question?.id ?? '')).items[0];
+    const reply = await post('p-tarkwa', { body: 'Me too', parentId: firstReply?.id });
+    expect(reply.parentId).toBe(question?.id);
+    expect((await list('p-tarkwa')).total).toBe(6);
+  });
+
+  it('keeps a body to 1–1000 characters, and refuses a cancelled post', async () => {
+    expect(await failure(post('p-tarkwa', { body: '  ' }))).toMatchObject({ code: 'VALIDATION_FAILED' });
+    expect(await failure(post('p-tarkwa', { body: 'x'.repeat(1001) }))).toMatchObject({
+      code: 'VALIDATION_FAILED',
     });
-    const before = await demoRequest<{ items: { id: string }[]; total: number }>({
-      method: 'GET',
-      path: '/api/v1/posts/p-tarkwa/comments?limit=20',
+    expect(await post('p-tarkwa', { body: 'x'.repeat(1000) })).toMatchObject({ mine: true });
+    await demoRequest({ method: 'POST', path: '/api/v1/posts/p-my-rooftop/cancel' });
+    expect(await failure(post('p-my-rooftop', { body: 'Hello?' }))).toMatchObject({ code: 'POST_CANCELLED' });
+  });
+
+  it('lets you delete your own comments, or any on a post you host', async () => {
+    const others = await list('p-tarkwa');
+    expect(others.items.every((c) => !c.canDelete)).toBe(true);
+    const first = others.items[0]?.id ?? '';
+    expect(
+      await failure(demoRequest({ method: 'DELETE', path: `/api/v1/posts/p-tarkwa/comments/${first}` })),
+    ).toMatchObject({ code: 'NOT_FOUND' });
+
+    const mine = await post('p-tarkwa', { body: 'Oops' });
+    await demoRequest({ method: 'DELETE', path: `/api/v1/posts/p-tarkwa/comments/${mine.id}` });
+    // Idempotent.
+    await demoRequest({ method: 'DELETE', path: `/api/v1/posts/p-tarkwa/comments/${mine.id}` });
+    expect((await list('p-tarkwa')).items.some((c) => c.id === mine.id)).toBe(false);
+
+    const hosted = await list('p-my-rooftop');
+    expect(hosted.items[0]).toMatchObject({ mine: false, canDelete: true });
+  });
+
+  it('turns a deleted comment with replies into "deleted", and drops one without', async () => {
+    const page = await list('p-tarkwa');
+    const question = page.items.find((c) => c.replyCount === 1);
+    // The question is someone else's; the host could delete it, so try on a thread of your own.
+    const mine = await post('p-tarkwa', { body: 'Anyone driving?' });
+    await post('p-tarkwa', { body: 'I am', parentId: mine.id });
+    await demoRequest({ method: 'DELETE', path: `/api/v1/posts/p-tarkwa/comments/${mine.id}` });
+    const after = await list('p-tarkwa');
+    expect(after.items.find((c) => c.id === mine.id)).toMatchObject({ deleted: true, body: null });
+    expect(after.items.find((c) => c.id === question?.id)?.deleted).toBe(false);
+  });
+
+  it('files a report once, needs details with "other", and refuses your own comment', async () => {
+    const id = (await list('p-tarkwa')).items[0]?.id ?? '';
+    const path = `/api/v1/posts/p-tarkwa/comments/${id}/report`;
+    expect(await failure(demoRequest({ method: 'POST', path, body: { reason: 'other' } }))).toMatchObject({
+      code: 'VALIDATION_FAILED',
     });
-    expect(before.total).toBe(4);
-    const reply = await demoRequest<{ replyTo: { displayName: string } | null }>({
-      method: 'POST',
-      path: '/api/v1/posts/p-tarkwa/comments',
-      body: { text: 'See you there!', replyToId: before.items[1]?.id },
+    expect(await demoRequest({ method: 'POST', path, body: { reason: 'spam' } })).toMatchObject({
+      id: expect.any(String),
     });
-    expect(reply.replyTo?.displayName).toBe('Ngozi Obi');
-    const after = await demoRequest<{ total: number }>({
-      method: 'GET',
-      path: '/api/v1/posts/p-tarkwa/comments',
+    expect(await failure(demoRequest({ method: 'POST', path, body: { reason: 'spam' } }))).toMatchObject({
+      code: 'CONFLICT',
     });
-    expect(after.total).toBe(5);
+    const mine = await post('p-tarkwa', { body: 'Mine' });
+    expect(
+      await failure(
+        demoRequest({
+          method: 'POST',
+          path: `/api/v1/posts/p-tarkwa/comments/${mine.id}/report`,
+          body: { reason: 'spam' },
+        }),
+      ),
+    ).toMatchObject({ code: 'BAD_REQUEST' });
+  });
+
+  it('starts again with the demo', async () => {
+    await post('p-tarkwa', { body: 'Gone after a reset' });
+    resetDemo();
+    await signIn();
+    expect((await list('p-tarkwa')).total).toBe(4);
   });
 });
 

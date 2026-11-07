@@ -2,7 +2,10 @@ import { beforeEach, describe, expect, it } from '@jest/globals';
 
 import { demoRequest, resetDemo } from '../demoApi';
 
-type Page = { items: { id: string; status?: string; startAt: string }[]; nextCursor: string | null };
+type Page = {
+  items: { id: string; status?: string; startAt: string; endAt: string | null; rsvpState: string }[];
+  nextCursor: string | null;
+};
 
 const form = (parts: [string, unknown][]) => ({ _parts: parts });
 
@@ -65,5 +68,27 @@ describe('the demo Trips answers', () => {
     });
     const ids = new Set(attended.items.map((p) => p.id));
     expect(map.pins.some((p) => ids.has(p.id))).toBe(false);
+  });
+
+  it('starts the demo person going to two posts and waiting on one, for Upcoming and Requests', async () => {
+    const going = await demoRequest<Page>({ method: 'GET', path: '/api/v1/me/rsvps?state=going&limit=20' });
+    expect(going.items.map((p) => p.id)).toEqual(expect.arrayContaining(['p-photo-walk', 'p-sunday-ride']));
+    expect(going.items.every((p) => p.rsvpState === 'going')).toBe(true);
+
+    const requested = await demoRequest<Page>({
+      method: 'GET',
+      path: '/api/v1/me/rsvps?state=requested&limit=20',
+    });
+    expect(requested.items.map((p) => p.id)).toEqual(['p-cultural']);
+    expect(requested.items[0]?.rsvpState).toBe('requested');
+  });
+
+  it('sends past posts as cards with an end and no checklist', async () => {
+    const attended = await demoRequest<Page>({ method: 'GET', path: '/api/v1/me/attended?limit=20' });
+    for (const p of attended.items) {
+      expect(p.rsvpState).toBe('going');
+      expect(new Date(p.endAt ?? '').getTime()).toBeGreaterThan(new Date(p.startAt).getTime());
+      expect(p).not.toHaveProperty('checklist');
+    }
   });
 });
