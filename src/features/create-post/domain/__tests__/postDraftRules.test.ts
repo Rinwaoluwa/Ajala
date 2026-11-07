@@ -6,9 +6,11 @@ import {
   firstIncompleteStep,
   isHttpsUrl,
   move,
+  costOf,
   parseWhole,
-  perPersonAmount,
+  previewEach,
   priceCentsOf,
+  stepOfField,
   stepCapacity,
   stepIssues,
   toIsoWithOffset,
@@ -32,7 +34,7 @@ function ready(kind: PostDraft['kind'] = 'meetup'): PostDraft {
     description: 'Soul food, jazz and community.',
     city:
       kind === 'plan' || kind === 'group'
-        ? { id: 'ams', name: 'Amsterdam', label: 'Amsterdam, Netherlands', lat: 52.37, lng: 4.9 }
+        ? { id: 'ams', name: 'Amsterdam', label: 'Amsterdam, Netherlands' }
         : null,
     date: new Date(2026, 9, 22),
     startTime: new Date(2026, 0, 1, 17, 30),
@@ -79,6 +81,16 @@ describe('the steps', () => {
     expect(canLeaveStep({ ...paid, externalUrl: 'https://tix.example.com/a' }, 'cost', NOW)).toBe(true);
   });
 
+  it('holds a monthly Group to the 1st to the 28th, and its last date to after the first', () => {
+    const monthly = { ...ready('group'), date: new Date(2026, 9, 30), recurrence: 'monthly' as const };
+    expect(stepIssues(monthly, 'schedule', NOW).recurrence).toBe('monthlyDay');
+    expect(stepIssues({ ...monthly, recurrence: 'weekly' }, 'schedule', NOW).recurrence).toBeUndefined();
+    expect(
+      stepIssues({ ...ready('group'), recurrence: 'weekly', recurrenceEndsOn: new Date(2026, 9, 21) }, 'schedule', NOW)
+        .recurrenceEndsOn,
+    ).toBe('endsBeforeStart');
+  });
+
   it('needs 1 to 3 interests to publish', () => {
     expect(stepIssues({ ...ready(), interestIds: [] }, 'review', NOW).interests).toBe('interestCount');
     expect(firstIncompleteStep(ready(), NOW)).toBeNull();
@@ -110,21 +122,44 @@ describe('money', () => {
     expect(parseWhole('12.5')).toBeNull();
   });
 
-  it('splits a shared total between the expected travellers, rounding up', () => {
-    const draft = { ...ready(), costOn: true, amount: '60000', expected: '4' };
-    expect(perPersonAmount(draft)).toBe(15000);
-    expect(priceCentsOf(draft)).toBe(1_500_000);
-    expect(perPersonAmount({ ...draft, amount: '100', expected: '3' })).toBe(34);
+  it("sends a Plan's total and head count, never a per-person price", () => {
+    const draft = { ...ready('plan'), costOn: true, amount: '60000', expected: '4' };
+    expect(costOf(draft)).toEqual({ totalCents: 6_000_000, currency: 'NGN', expectedCount: 4 });
+    expect(priceCentsOf(draft)).toBeNull();
+    // Only a preview for the screen; the server does the real split.
+    expect(previewEach({ ...draft, amount: '100', expected: '3' })).toBe(34);
   });
 
-  it('takes an Event amount as already per person', () => {
+  it('takes a Meetup or Event amount as a price per person', () => {
     expect(priceCentsOf({ ...ready('event'), costOn: true, amount: '5000' })).toBe(500_000);
+    expect(priceCentsOf({ ...ready('meetup'), costOn: true, amount: '5000' })).toBe(500_000);
+    expect(costOf({ ...ready('meetup'), costOn: true, amount: '5000' })).toBeNull();
+  });
+
+  it('keeps a shared total and head count within the API limits', () => {
+    const plan = { ...ready('plan'), costOn: true, amount: '20000000', expected: '4' };
+    expect(stepIssues(plan, 'cost', NOW).amount).toBe('totalRange');
+    expect(stepIssues({ ...plan, amount: '100', expected: '200000' }, 'cost', NOW).expected).toBe(
+      'expectedRange',
+    );
+  });
+});
+
+describe('server errors', () => {
+  it('sends each field the server turned down to its step', () => {
+    expect(stepOfField('itinerary[2]')).toBe('schedule');
+    expect(stepOfField('recurrence')).toBe('schedule');
+    expect(stepOfField('endAt')).toBe('schedule');
+    expect(stepOfField('cityId')).toBe('basics');
+    expect(stepOfField('costTotalCents')).toBe('cost');
+    expect(stepOfField('interestIds')).toBe('review');
+    expect(stepOfField('somethingNew')).toBe('review');
   });
 });
 
 describe('what is sent', () => {
   it('builds the form, leaving blank fields out', () => {
-    const s = toSubmission({ ...ready(), costOn: true, amount: '60000', expected: '4' });
+    const s = toSubmission({ ...ready(), costOn: true, amount: '15000', expected: '4' });
     expect(s).toMatchObject({
       type: 'meetup',
       title: 'Black American Cultural Celebration',
@@ -139,11 +174,20 @@ describe('what is sent', () => {
       interestIds: ['food'],
     });
     expect(s.startAt).toMatch(/^2026-10-22T17:30:00[+-]\d{2}:\d{2}$/);
-    expect(s).not.toHaveProperty('checklist');
-    expect(s).not.toHaveProperty('externalUrl');
+    // A Meetup has no lines, cost split or repeat in the API, whatever the draft holds.
+    for (const key of ['schedule', 'itinerary', 'cost', 'recurrence', 'cityId', 'endAt', 'externalUrl'])
+      expect(s).not.toHaveProperty(key);
   });
 
-  it("uses a Plan's city as its pin without a meeting point, and sends its lines as the checklist", () => {
+  it('sends the end time as endAt when it is after the start', () => {
+    const s = toSubmission({ ...ready('event'), endTime: new Date(2026, 0, 1, 22, 0) });
+    expect(s.endAt).toMatch(/^2026-10-22T22:00:00[+-]\d{2}:\d{2}$/);
+    expect(
+      toSubmission({ ...ready('event'), endTime: new Date(2026, 0, 1, 16, 0) }),
+    ).not.toHaveProperty('endAt');
+  });
+
+  it("names a Plan's city when it has no pin, and sends its lines as the itinerary", () => {
     const plan = {
       ...ready('plan'),
       place: '',
@@ -153,12 +197,30 @@ describe('what is sent', () => {
         { key: 'b', text: '  ' },
       ],
     };
-    expect(toSubmission(plan)).toMatchObject({
-      lat: 52.37,
-      lng: 4.9,
-      placeName: 'Amsterdam, Netherlands',
-      checklist: ['Day 1 · Arrival + dinner'],
-    });
+    const s = toSubmission(plan);
+    expect(s).toMatchObject({ cityId: 'ams', itinerary: ['Day 1 · Arrival + dinner'] });
+    for (const key of ['lat', 'lng', 'placeName', 'schedule']) expect(s).not.toHaveProperty(key);
+  });
+
+  it('lets the pin decide the city when there is one', () => {
+    expect(toSubmission(ready('plan'))).toMatchObject({ lat: 6.44, lng: 3.47 });
+    expect(toSubmission(ready('plan'))).not.toHaveProperty('cityId');
+  });
+
+  it("sends an Event's lines as its schedule and a Group's repeat", () => {
+    const event = { ...ready('event'), notes: [{ key: 'a', text: 'Doors open' }] };
+    expect(toSubmission(event)).toMatchObject({ schedule: ['Doors open'] });
+    expect(toSubmission(event)).not.toHaveProperty('itinerary');
+    const group = {
+      ...ready('group'),
+      notes: [{ key: 'a', text: 'Every Saturday' }],
+      recurrence: 'biweekly' as const,
+      recurrenceEndsOn: new Date(2027, 0, 9),
+    };
+    const s = toSubmission(group);
+    expect(s.recurrence).toEqual({ frequency: 'biweekly', endsOn: '2027-01-09' });
+    expect(s).not.toHaveProperty('schedule');
+    expect(s).not.toHaveProperty('itinerary');
   });
 
   it('sends no price while the cost is off, whatever was typed', () => {

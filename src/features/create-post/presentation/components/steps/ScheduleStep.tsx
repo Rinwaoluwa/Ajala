@@ -9,18 +9,24 @@ import { formatDay, formatTime } from '../../format';
 import type { CreatePostViewModel } from '../../hooks/useCreatePost';
 
 import { NotesList } from '../NotesList';
+import { RepeatField } from '../RepeatField';
 import { StepIntro } from '../StepIntro';
 
 /**
  * Step two, "When and where?": the day and time, the meeting point (an Event's
- * venue), the list of details, and a safety tip.
+ * venue), an Event's schedule or a Plan's itinerary, a Group's "Repeats", and a
+ * safety tip.
+ *
+ * The design also draws "Meetup details" and a Group's "Repeat schedule" as free
+ * lines. The API has no field for either, so they are not shown: a Group's
+ * repeat is the "Repeats" choice instead (`recurrence`).
  *
  * A Meetup puts Date and Time side by side, as drawn, while there is room for
  * both at the current text size; otherwise, and for the other types (which add
  * an end time), they stack.
  */
 
-type Picker = 'date' | 'start' | 'end' | null;
+type Picker = 'date' | 'start' | 'end' | 'endsOn' | null;
 
 const at = (h: number, m = 0) => {
   const d = new Date();
@@ -97,26 +103,43 @@ export function ScheduleStep({ vm }: { vm: CreatePostViewModel }) {
         error={placeError}
         testID="create-place"
       />
-      <NotesList
-        label={copy.notesLabel}
-        notes={draft.notes}
-        placeholders={copy.notePlaceholders}
-        addLabel={copy.addNote}
-        onChange={vm.setNote}
-        onRemove={vm.removeNote}
-        onMove={vm.moveNote}
-        onAdd={vm.addNote}
-      />
+      {copy.lines ? (
+        <NotesList
+          label={copy.lines.label}
+          notes={draft.notes}
+          placeholders={copy.lines.placeholders}
+          addLabel={copy.lines.add}
+          onChange={vm.setNote}
+          onRemove={vm.removeNote}
+          onMove={vm.moveNote}
+          onAdd={vm.addNote}
+        />
+      ) : null}
+      {copy.repeat ? (
+        <RepeatField
+          value={draft.recurrence}
+          onChange={(recurrence) =>
+            update(recurrence ? { recurrence } : { recurrence: null, recurrenceEndsOn: null })
+          }
+          endsOn={draft.recurrenceEndsOn ? formatDay(draft.recurrenceEndsOn) : null}
+          onPickEndsOn={() => setPicker('endsOn')}
+          onClearEndsOn={() => update({ recurrenceEndsOn: null })}
+          error={issues.recurrence ? issueCopy[issues.recurrence] : null}
+          endsOnError={issues.recurrenceEndsOn ? issueCopy[issues.recurrenceEndsOn] : null}
+        />
+      ) : null}
       <NoteCard title={wizardCopy.safetyTip} body={copy.tip} />
 
-      {/* One sheet for all three pickers: two native sheets side by side fight over presentation. */}
+      {/* One sheet for every picker: two native sheets side by side fight over presentation. */}
       <DatePickerSheet
         isPresented={picker !== null}
-        mode={picker === 'date' ? 'date' : 'time'}
+        mode={picker === 'date' || picker === 'endsOn' ? 'date' : 'time'}
         title={
           picker === 'date'
             ? wizardCopy.date
-            : picker === 'end'
+            : picker === 'endsOn'
+              ? wizardCopy.repeat.endsOn
+              : picker === 'end'
               ? wizardCopy.endTime
               : copy.endTime
                 ? wizardCopy.startTime
@@ -125,16 +148,20 @@ export function ScheduleStep({ vm }: { vm: CreatePostViewModel }) {
         value={
           picker === 'date'
             ? (draft.date ?? today)
-            : ((picker === 'end' ? draft.endTime : draft.startTime) ?? at(picker === 'end' ? 20 : 18))
+            : picker === 'endsOn'
+              ? (draft.recurrenceEndsOn ?? draft.date ?? today)
+              : ((picker === 'end' ? draft.endTime : draft.startTime) ?? at(picker === 'end' ? 20 : 18))
         }
-        minimumDate={picker === 'date' ? today : undefined}
+        minimumDate={picker === 'date' ? today : picker === 'endsOn' ? (draft.date ?? today) : undefined}
         onConfirm={(value) => {
           update(
             picker === 'date'
               ? { date: value }
-              : picker === 'end'
-                ? { endTime: value }
-                : { startTime: value },
+              : picker === 'endsOn'
+                ? { recurrenceEndsOn: new Date(value.getFullYear(), value.getMonth(), value.getDate()) }
+                : picker === 'end'
+                  ? { endTime: value }
+                  : { startTime: value },
           );
           close();
         }}

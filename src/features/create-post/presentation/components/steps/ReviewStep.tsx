@@ -5,7 +5,14 @@ import Animated, { FadeIn, LinearTransition } from 'react-native-reanimated';
 import { Button, Chip, ChipGroup, SkeletonBlock, SkeletonPulse, Text, TextLink } from '@shared/components';
 import { useTheme } from '@shared/hooks/useTheme';
 
-import { STEPS, perPersonAmount, startOf, stepIssues } from '../../../domain/rules/postDraftRules';
+import {
+  STEPS,
+  previewEach,
+  sharesCost,
+  startOf,
+  stepIssues,
+  stepOfField,
+} from '../../../domain/rules/postDraftRules';
 import { fieldNames, kindCopy, wizardCopy } from '../../copy';
 import { formatMoney, formatShortDay, formatTime } from '../../format';
 import type { CreatePostViewModel } from '../../hooks/useCreatePost';
@@ -19,7 +26,8 @@ import { StepIntro } from '../StepIntro';
  * Interests are required to publish but in no wizard of the design (API map
  * §12), so they are asked for here, 1 to 3. Anything else still missing is
  * listed above Publish with a link to its step — along with whatever the server
- * turned down, if a Publish came back with a validation error.
+ * turned down, if a Publish came back with a validation error, each linked to
+ * the step that holds its field (`errors[].field`).
  */
 export function ReviewStep({ vm }: { vm: CreatePostViewModel }) {
   const theme = useTheme();
@@ -28,7 +36,8 @@ export function ReviewStep({ vm }: { vm: CreatePostViewModel }) {
   const participants = kind.participants;
   const { draft } = vm;
   const start = startOf(draft);
-  const each = perPersonAmount(draft);
+  // A shared cost's share is a preview until the server splits it on Publish.
+  const each = previewEach(draft);
   const where = draft.city?.name ?? draft.place.trim();
   const meta = [where, start ? formatShortDay(start) : null, start ? formatTime(start) : null]
     .filter(Boolean)
@@ -38,9 +47,9 @@ export function ReviewStep({ vm }: { vm: CreatePostViewModel }) {
   const costValue =
     !draft.costOn || each === null
       ? wizardCopy.free
-      : vm.kind === 'event'
-        ? wizardCopy.entry(formatMoney(each, draft.currency))
-        : wizardCopy.splitEach(formatMoney(each, draft.currency));
+      : sharesCost(vm.kind)
+        ? wizardCopy.splitEach(formatMoney(each, draft.currency))
+        : wizardCopy.entry(formatMoney(each, draft.currency));
 
   const rows: [string, string][] = [
     [
@@ -133,11 +142,22 @@ export function ReviewStep({ vm }: { vm: CreatePostViewModel }) {
               <TextLink label={wizardCopy.goFix} onPress={() => vm.goToStep(step)} emphasis="plain" />
             </View>
           ))}
-          {serverErrors.map((e) => (
-            <Text key={`${e.field}-${e.message}`} variant="bodySm" style={{ color: theme.chipForeground }}>
-              {e.message}
-            </Text>
-          ))}
+          {serverErrors.map((e) => {
+            const step = stepOfField(e.field);
+            return (
+              <View
+                key={`${e.field}-${e.message}`}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}
+              >
+                <Text variant="bodySm" style={{ flex: 1, color: theme.chipForeground }}>
+                  {e.message}
+                </Text>
+                {step === 'review' ? null : (
+                  <TextLink label={wizardCopy.goFix} onPress={() => vm.goToStep(step)} emphasis="plain" />
+                )}
+              </View>
+            );
+          })}
         </Animated.View>
       ) : null}
 

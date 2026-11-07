@@ -5,6 +5,7 @@
  */
 
 export type PostTypeDto = 'meetup' | 'event' | 'plan' | 'group';
+export type RecurrenceDto = 'weekly' | 'biweekly' | 'monthly';
 
 /** `POST /posts` is multipart; this is its text fields before they go into the form. */
 export interface CreatePostFieldsDto {
@@ -12,6 +13,9 @@ export interface CreatePostFieldsDto {
   title: string;
   description?: string;
   startAt?: string;
+  endAt?: string;
+  /** A Plan or Group with no pin. */
+  cityId?: string;
   lat?: number;
   lng?: number;
   placeName?: string;
@@ -23,14 +27,29 @@ export interface CreatePostFieldsDto {
   visibility?: 'open' | 'private';
   showOnMap?: boolean;
   interestIds?: string[];
-  checklist?: string[];
+  /** Events only; one form field per line. */
+  schedule?: string[];
+  /** Plans only; one form field per line. */
+  itinerary?: string[];
+  /** Plans and Groups: all three or none. */
+  costTotalCents?: number;
+  costCurrency?: string;
+  expectedCount?: number;
+  /** Groups only. */
+  recurrence?: RecurrenceDto;
+  /** Groups only, YYYY-MM-DD. */
+  recurrenceEndsOn?: string;
   status?: 'draft' | 'published';
 }
 
+/** `PATCH /posts/:id` (JSON): only what is sent changes; null clears. */
 export interface UpdatePostDto {
   title?: string;
   description?: string;
   startAt?: string;
+  endAt?: string | null;
+  /** Refused while the post has a pin; null means the host's home city. */
+  cityId?: string | null;
   lat?: number | null;
   lng?: number | null;
   placeName?: string | null;
@@ -42,6 +61,16 @@ export interface UpdatePostDto {
   visibility?: 'open' | 'private';
   showOnMap?: boolean;
   interestIds?: string[];
+  /** The whole list; null clears it. */
+  schedule?: string[] | null;
+  itinerary?: string[] | null;
+  /** All three, or null on all three. */
+  costTotalCents?: number | null;
+  costCurrency?: string | null;
+  expectedCount?: number | null;
+  /** Null stops it repeating. */
+  recurrence?: RecurrenceDto | null;
+  recurrenceEndsOn?: string | null;
 }
 
 /** What the wizard reads from the answer: only the id. */
@@ -57,18 +86,31 @@ export interface SavedPostDto {
   title: string;
   description: string | null;
   startAt: string | null;
+  endAt: string | null;
   placeName: string | null;
   lat: number | null;
   lng: number | null;
   city: { id: string; name: string; label: string } | null;
   capacity: number | null;
   price: { amountCents: number; currency: string; exponent: number } | null;
+  /** Plans and Groups splitting a cost; the server works out `perPersonCents`. */
+  costSplit: {
+    totalCents: number;
+    currency: string;
+    exponent: number;
+    expectedCount: number;
+    perPersonCents: number;
+  } | null;
+  recurrence: { frequency: RecurrenceDto; endsOn: string | null } | null;
   externalUrl: string | null;
   waitlistEnabled: boolean;
   visibility: 'open' | 'private';
   showOnMap: boolean;
   interests: { id: string }[] | null;
-  checklist: { text: string; position: number }[] | null;
+  /** Events only; [] otherwise. */
+  schedule: string[] | null;
+  /** Plans only; [] otherwise. */
+  itinerary: string[] | null;
   images: { thumbUrl: string; cardUrl: string; fullUrl: string }[] | null;
 }
 

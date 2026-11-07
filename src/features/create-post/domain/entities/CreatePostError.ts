@@ -11,6 +11,8 @@ export type CreatePostErrorCode =
   | 'eventMonthlyCap'
   /** 409 CONFLICT on the 21st draft. */
   | 'draftLimit'
+  /** 409 on an edit or publish: the post was cancelled, taken down or is already live. */
+  | 'conflict'
   /** 413: a photo is over 5 MB even after compression. */
   | 'imageTooLarge'
   /** 415: a photo is not a JPEG, PNG or WebP. */

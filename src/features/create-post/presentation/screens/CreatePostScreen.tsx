@@ -231,6 +231,10 @@ function failureMessage(error: CreatePostError | null, noun: string): string {
   if (!error || error.code === 'network' || error.code === 'unknown') {
     return wizardCopy.publishFailed.message(noun);
   }
+  // Save draft has no review list to show them on, so what the server turned down is said here.
+  if (error.code === 'invalid' && error.fieldErrors.length) {
+    return [createPostErrors.invalid, ...error.fieldErrors.map((e) => e.message)].join('\n');
+  }
   if (error.code === 'eventMonthlyCap' && error.resetsAt) {
     const when = new Date(error.resetsAt);
     if (!Number.isNaN(when.getTime())) {

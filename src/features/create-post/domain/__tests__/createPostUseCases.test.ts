@@ -22,7 +22,6 @@ function fakeRepo() {
     },
     update: async (id) => void calls.push(`update:${id}`),
     replaceImages: async (id, photos) => void calls.push(`images:${id}:${photos.length}`),
-    replaceChecklist: async (id, lines) => void calls.push(`checklist:${id}:${lines.length}`),
     publish: async (id) => void calls.push(`publish:${id}`),
     listInterests: async () => [],
     searchCities: async (q) => {
@@ -50,7 +49,8 @@ describe('publish', () => {
   it('brings a saved draft up to date, then publishes it', async () => {
     const { repo, calls } = fakeRepo();
     await makePublishPost(repo)({ draft, postId: 'd1', photosChanged: true });
-    expect(calls).toEqual(['update:d1', 'images:d1:1', 'checklist:d1:1', 'publish:d1']);
+    // A Plan's itinerary goes in the PATCH; there is no checklist call any more.
+    expect(calls).toEqual(['update:d1', 'images:d1:1', 'publish:d1']);
   });
 
   it('skips the photos when they have not changed', async () => {
@@ -67,7 +67,7 @@ describe('save draft', () => {
     await save({ draft, postId: null, photosChanged: true });
     await save({ draft: { ...draft, photos: [] }, postId: 'post-1', photosChanged: true });
     // A draft with no photos does not call the images endpoint, which needs one.
-    expect(calls).toEqual(['create:draft', 'update:post-1', 'checklist:post-1:1']);
+    expect(calls).toEqual(['create:draft', 'update:post-1']);
   });
 });
 

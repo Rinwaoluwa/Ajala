@@ -76,11 +76,119 @@ describe('PostRepository over the API', () => {
     expect(parts.find(([k]) => k === 'priceCents')?.[1]).toBe('1500000');
   });
 
-  it('clears blank fields with null when updating', async () => {
+  it('repeats a Plan\'s itinerary and sends its cost split as three fields', async () => {
+    const { repo, calls } = fake(() => ({ id: 'p9', status: 'draft' }));
+    await repo.create(
+      {
+        ...submission,
+        type: 'plan',
+        lat: undefined,
+        lng: undefined,
+        priceCents: undefined,
+        currency: undefined,
+        cityId: 'ams',
+        endAt: '2026-10-22T22:00:00+01:00',
+        itinerary: ['Day 1', 'Day 2'],
+        cost: { totalCents: 6_000_000, currency: 'NGN', expectedCount: 4 },
+      },
+      'draft',
+    );
+    const parts = entries(calls[0]?.body as FormData);
+    const value = (k: string) => parts.find(([key]) => key === k)?.[1];
+    expect(parts.filter(([k]) => k === 'itinerary').map(([, v]) => v)).toEqual(['Day 1', 'Day 2']);
+    expect([value('costTotalCents'), value('costCurrency'), value('expectedCount')]).toEqual([
+      '6000000',
+      'NGN',
+      '4',
+    ]);
+    expect([value('cityId'), value('endAt')]).toEqual(['ams', '2026-10-22T22:00:00+01:00']);
+    expect(value('priceCents')).toBeUndefined();
+    expect(value('lat')).toBeUndefined();
+  });
+
+  it('clears blank fields with null when updating, and only the fields the type takes', async () => {
     const { repo, calls } = fake(() => ({ id: 'p9', status: 'draft' }));
     await repo.update('p9', { ...submission, priceCents: undefined, currency: undefined });
     expect(calls[0]).toMatchObject({ method: 'PATCH', path: '/api/v1/posts/p9' });
-    expect(calls[0]?.body).toMatchObject({ priceCents: null, currency: null, lat: 6.44 });
+    const body = calls[0]?.body as Record<string, unknown>;
+    expect(body).toMatchObject({ priceCents: null, currency: null, endAt: null, lat: 6.44 });
+    // A Meetup is sent nothing it would be refused for, not even a null.
+    for (const key of ['schedule', 'itinerary', 'costTotalCents', 'recurrence', 'cityId'])
+      expect(body).not.toHaveProperty(key);
+  });
+
+  it('clears a Plan\'s pin, split and itinerary and names its city', async () => {
+    const { repo, calls } = fake(() => ({ id: 'p9', status: 'draft' }));
+    await repo.update('p9', {
+      ...submission,
+      type: 'plan',
+      lat: undefined,
+      lng: undefined,
+      priceCents: undefined,
+      currency: undefined,
+      cityId: 'ams',
+    });
+    expect(calls[0]?.body).toMatchObject({
+      lat: null,
+      lng: null,
+      cityId: 'ams',
+      itinerary: null,
+      costTotalCents: null,
+      costCurrency: null,
+      expectedCount: null,
+    });
+    expect(calls[0]?.body).not.toHaveProperty('schedule');
+    expect(calls[0]?.body).not.toHaveProperty('recurrence');
+  });
+
+  it("sends a Group's repeat, or null to stop it", async () => {
+    const { repo, calls } = fake(() => ({ id: 'p9', status: 'draft' }));
+    await repo.update('p9', { ...submission, type: 'group', recurrence: { frequency: 'monthly' } });
+    await repo.update('p9', { ...submission, type: 'group' });
+    expect(calls[0]?.body).toMatchObject({ recurrence: 'monthly', recurrenceEndsOn: null });
+    expect(calls[1]?.body).toMatchObject({ recurrence: null, recurrenceEndsOn: null });
+  });
+
+  it('reads a 409 as the draft cap only when creating a draft', async () => {
+    const conflict = new ApiError({ code: 'CONFLICT', message: 'x', status: 409 });
+    const { repo } = fake(() => conflict);
+    expect(await repo.create(submission, 'draft').catch((e: unknown) => e)).toMatchObject({
+      code: 'draftLimit',
+    });
+    expect(await repo.publish('p9').catch((e: unknown) => e)).toMatchObject({ code: 'conflict' });
+  });
+
+  it('reads back the new fields of a saved post', async () => {
+    const { repo } = fake(() => ({
+      id: 'p9',
+      type: 'group',
+      title: 'Run club',
+      description: null,
+      startAt: null,
+      endAt: '2026-10-22T09:00:00Z',
+      placeName: null,
+      lat: null,
+      lng: null,
+      city: { id: 'lagos', name: 'Lagos', label: 'Lagos, Nigeria' },
+      capacity: 20,
+      price: null,
+      costSplit: { totalCents: 500000, currency: 'NGN', exponent: 2, expectedCount: 5, perPersonCents: 100000 },
+      recurrence: { frequency: 'weekly', endsOn: null },
+      externalUrl: null,
+      waitlistEnabled: false,
+      visibility: 'open',
+      showOnMap: true,
+      interests: [],
+      schedule: [],
+      itinerary: [],
+      images: [],
+    }));
+    expect(await repo.getPost('p9')).toMatchObject({
+      endAt: '2026-10-22T09:00:00Z',
+      city: { id: 'lagos' },
+      costSplit: { totalCents: 500000, currency: 'NGN', expectedCount: 5 },
+      recurrence: { frequency: 'weekly', endsOn: null },
+    });
   });
 
   it('maps the publish errors by code', async () => {
@@ -119,7 +227,7 @@ describe('PostRepository over the API', () => {
     });
   });
 
-  it('reads cities with their pin', async () => {
+  it('reads cities by id and name', async () => {
     const { repo, calls } = fake(() => [
       {
         id: 'ams',
@@ -133,7 +241,7 @@ describe('PostRepository over the API', () => {
       },
     ]);
     expect(await repo.searchCities('Ams', 10)).toEqual([
-      { id: 'ams', name: 'Amsterdam', label: 'Amsterdam, NL', lat: 52.37, lng: 4.9 },
+      { id: 'ams', name: 'Amsterdam', label: 'Amsterdam, NL' },
     ]);
     expect(calls[0]?.path).toBe('/api/v1/cities?q=Ams&limit=10');
   });

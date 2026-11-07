@@ -7,8 +7,9 @@ import { draftFromSaved, toSubmission } from '../rules/postDraftRules';
  * The wizard's two ways out (API map §5):
  *
  *   - Publish: a first send is one `POST /posts` with `status=published`. A post
- *     already saved as a draft is brought up to date (`PATCH`, its photos and a
- *     Plan's checklist) and then published.
+ *     already saved as a draft is brought up to date (`PATCH`, which carries
+ *     a Plan's itinerary and an Event's schedule, then its photos) and then
+ *     published.
  *   - Save draft: the same, with `status=draft` the first time and updates after.
  *
  * Photos are sent again only when they changed since the last save.
@@ -27,7 +28,6 @@ async function bringUpToDate(repo: PostRepository, postId: string, { draft, phot
   await repo.update(postId, submission);
   // A draft may have no photos; the images call needs at least one.
   if (photosChanged && submission.photos.length > 0) await repo.replaceImages(postId, submission.photos);
-  if (draft.kind === 'plan') await repo.replaceChecklist(postId, submission.checklist ?? []);
 }
 
 export const makePublishPost =

@@ -20,11 +20,11 @@ import {
  */
 export function createPostRepository(request: PostRequest): PostRepository {
   const api = createPostApi(request);
-  const guard = async <T>(call: () => Promise<T>): Promise<T> => {
+  const guard = async <T>(call: () => Promise<T>, creatingDraft = false): Promise<T> => {
     try {
       return await call();
     } catch (e) {
-      throw toCreatePostError(e);
+      throw toCreatePostError(e, creatingDraft);
     }
   };
 
@@ -46,11 +46,10 @@ export function createPostRepository(request: PostRequest): PostRepository {
   return {
     getPost: (postId) => guard(async () => toSavedPost(await api.getPost(postId))),
     create: (s, status) =>
-      guard(async () => (await api.create(toCreateFields(s, status), toUploadFiles(s))).id),
+      guard(async () => (await api.create(toCreateFields(s, status), toUploadFiles(s))).id, status === 'draft'),
     update: (postId, s) => guard(async () => void (await api.update(postId, toUpdateBody(s)))),
     replaceImages: (postId, photos) =>
       guard(async () => void (await api.replaceImages(postId, await asFiles(photos)))),
-    replaceChecklist: (postId, lines) => guard(async () => void (await api.replaceChecklist(postId, lines))),
     publish: (postId) => guard(async () => void (await api.publish(postId))),
     listInterests: () => guard(async () => (await api.listInterests()).map(toInterest)),
     searchCities: (query, limit) =>

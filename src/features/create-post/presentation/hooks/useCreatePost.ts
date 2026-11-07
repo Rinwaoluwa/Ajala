@@ -154,7 +154,7 @@ export function useCreatePost(kind: PostKind, draftId: string | null = null) {
   const next = useCallback(async () => {
     if (!canLeaveStep(draft, step)) return;
     // The pin comes from the meeting point. Meetups and Events need it; Plans and
-    // Groups use it when it can be found, and their city when not.
+    // Groups use it when it can be found, and send their city (`cityId`) when not.
     if (step === 'schedule' && draft.place.trim() && !draft.placeCoords) {
       try {
         const coords = await locate.mutateAsync(draft.place);

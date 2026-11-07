@@ -6,7 +6,7 @@ import { icons, NoteCard, SelectField, TextField } from '@shared/components';
 import { useTheme } from '@shared/hooks/useTheme';
 import { textStyles } from '@shared/theme';
 
-import { needsExternalUrl, parseWhole, perPersonAmount } from '../../../domain/rules/postDraftRules';
+import { needsExternalUrl, parseWhole, previewEach, sharesCost } from '../../../domain/rules/postDraftRules';
 import { issueCopy, kindCopy, wizardCopy } from '../../copy';
 import { formatMoney } from '../../format';
 import type { CreatePostViewModel } from '../../hooks/useCreatePost';
@@ -18,11 +18,14 @@ import { StepIntro } from '../StepIntro';
 /**
  * Step four, cost (Figma Cost Sharing / Ticketing and cost).
  *
- * A Meetup, Plan or Group can show a total estimated cost split between the
- * travellers expected — the split is worked out here, and the per-person share
- * is what is sent as the price (flagged: API map §12 asks product to confirm).
- * An Event is free or paid per person, and a paid Event needs a link to pay or
- * book (not drawn; the API requires it). The others may add one.
+ * A Plan or Group can show a total estimated cost and how many it is split
+ * between (`costTotalCents`, `costCurrency`, `expectedCount`). The server works
+ * out each share; the "About N each" here is a preview, labelled as one.
+ *
+ * A Meetup or Event is free or has a price per person (`priceCents`). The API
+ * refuses a shared cost on either, so the design's shared cost for a Meetup is
+ * asked as a price per person instead. A paid Event needs a link to pay or book
+ * (not drawn; the API requires it). The others may add one.
  *
  * An Event's capacity is shown as drawn, and tapping it goes back to set it.
  */
@@ -31,7 +34,8 @@ export function CostStep({ vm }: { vm: CreatePostViewModel }) {
   const copy = kindCopy[vm.kind].cost;
   const { draft, update, issues } = vm;
   const isEvent = vm.kind === 'event';
-  const each = perPersonAmount(draft);
+  const split = sharesCost(vm.kind);
+  const each = previewEach(draft);
   const people = parseWhole(draft.expected);
 
   const setAmount = useCallback((amount: string) => update({ amount }), [update]);
@@ -50,7 +54,7 @@ export function CostStep({ vm }: { vm: CreatePostViewModel }) {
         onCurrency={(currency) => update({ currency })}
         amount={draft.amount}
         onAmount={setAmount}
-        error={issues.amount === 'amountRange' ? issueCopy.amountRange : null}
+        error={issues.amount && issues.amount !== 'required' ? issueCopy[issues.amount] : null}
       />
 
       {isEvent ? (
@@ -61,7 +65,7 @@ export function CostStep({ vm }: { vm: CreatePostViewModel }) {
           icon={icons.chevronLeft}
           onPress={() => vm.goToStep('participants')}
         />
-      ) : draft.costOn && copy.expectedLabel ? (
+      ) : draft.costOn && split && copy.expectedLabel ? (
         <TextField
           label={copy.expectedLabel}
           defaultValue={draft.expected}
@@ -79,12 +83,13 @@ export function CostStep({ vm }: { vm: CreatePostViewModel }) {
               {wizardCopy.people}
             </ExpoText>
           }
+          error={issues.expected === 'expectedRange' ? issueCopy.expectedRange : null}
           testID="create-expected"
         />
       ) : null}
 
       {draft.costOn && each !== null ? (
-        isEvent ? (
+        !split ? (
           <EstimateCard
             label={wizardCopy.entryCost}
             amount={wizardCopy.perPerson(formatMoney(each, draft.currency))}

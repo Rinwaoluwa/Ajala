@@ -26,9 +26,10 @@ type KindCopy = {
     endTime: boolean;
     placeLabel: string;
     placePlaceholder: string;
-    notesLabel: string;
-    notePlaceholders: [string, string];
-    addNote: string;
+    /** An Event's schedule or a Plan's itinerary; Meetups and Groups have no list in the API. */
+    lines?: { label: string; placeholders: [string, string]; add: string };
+    /** A Group's "Repeats" choice. */
+    repeat?: boolean;
     tip: string;
   };
   participants: {
@@ -46,7 +47,7 @@ type KindCopy = {
     body: string;
     toggleTitle: string;
     toggleBody: string;
-    /** Meetups, Plans and Groups split a total; Events charge per person. */
+    /** Plans and Groups split a total; Meetups and Events charge per person. */
     expectedLabel?: string;
     estimateBody?: (people: number) => string;
     noteTitle: string;
@@ -80,9 +81,6 @@ export const kindCopy: Record<PostKind, KindCopy> = {
       endTime: false,
       placeLabel: 'Meeting point',
       placePlaceholder: 'Enter a public meeting point',
-      notesLabel: 'Meetup details',
-      notePlaceholders: ['Meetup date and time', 'Public meeting point'],
-      addNote: 'Add another detail',
       tip: 'Choose a clear public meeting point for your first meetup.',
     },
     participants: {
@@ -96,13 +94,12 @@ export const kindCopy: Record<PostKind, KindCopy> = {
       tip: 'Meet somewhere public for your first meetup.',
     },
     cost: {
-      heading: 'Will there be a shared cost?',
-      body: 'Keep the meetup free or show an estimated shared cost.',
-      toggleTitle: 'Total estimated cost',
-      toggleBody: 'Split estimated meetup costs with travellers',
-      expectedLabel: 'Expected travellers',
-      estimateBody: (n) =>
-        `Based on ${n} traveller${n === 1 ? '' : 's'}. The final amount can change if the group size changes.`,
+      // A Meetup cannot split a cost in the API (only Plans and Groups can), so it
+      // takes a price per person, as an Event does.
+      heading: 'Will there be a cost?',
+      body: 'Keep the meetup free or set what each person pays.',
+      toggleTitle: 'Cost per person',
+      toggleBody: 'What each traveller pays to join',
       noteTitle: 'Check before paying',
       noteBody:
         'Confirm the event and payment details before sending money. Pressure to pay is a red flag. Read safety tips.',
@@ -111,7 +108,7 @@ export const kindCopy: Record<PostKind, KindCopy> = {
       heading: 'Review your meetup',
       body: 'Make sure everything looks right before you publish.',
       peopleLabel: 'Travellers',
-      costLabel: 'Estimated split',
+      costLabel: 'Cost',
       publish: 'Publish meetup',
     },
     published: {
@@ -133,9 +130,7 @@ export const kindCopy: Record<PostKind, KindCopy> = {
       endTime: true,
       placeLabel: 'Venue',
       placePlaceholder: 'Enter the venue name and address',
-      notesLabel: 'Event schedule',
-      notePlaceholders: ['Doors open', 'Main event'],
-      addNote: 'Add schedule item',
+      lines: { label: 'Event schedule', placeholders: ['Doors open', 'Main event'], add: 'Add schedule item' },
       tip: 'Make sure the venue details are clear before publishing.',
     },
     participants: {
@@ -188,9 +183,11 @@ export const kindCopy: Record<PostKind, KindCopy> = {
       endTime: true,
       placeLabel: 'Meeting point',
       placePlaceholder: 'Enter a public meeting point',
-      notesLabel: 'Itinerary',
-      notePlaceholders: ['Day 1 · Arrival + dinner', 'Day 2 · Explore + activity'],
-      addNote: 'Add stop or activity',
+      lines: {
+        label: 'Itinerary',
+        placeholders: ['Day 1 · Arrival + dinner', 'Day 2 · Explore + activity'],
+        add: 'Add stop or activity',
+      },
       tip: 'Choose a clear public meeting point for your first meetup.',
     },
     participants: {
@@ -210,7 +207,7 @@ export const kindCopy: Record<PostKind, KindCopy> = {
       toggleBody: 'Split estimated costs with travellers',
       expectedLabel: 'Expected travellers',
       estimateBody: (n) =>
-        `Based on ${n} traveller${n === 1 ? '' : 's'}. The final amount can change if the group size changes.`,
+        `A preview based on ${n} traveller${n === 1 ? '' : 's'}. The split is worked out when you publish, and changes if the group size does.`,
       noteTitle: sharedNote.title,
       noteBody: 'This estimate helps everyone plan. Payment arrangements stay between travellers.',
     },
@@ -245,9 +242,7 @@ export const kindCopy: Record<PostKind, KindCopy> = {
       endTime: true,
       placeLabel: 'Meeting point',
       placePlaceholder: 'Enter a public meeting point',
-      notesLabel: 'Repeat schedule',
-      notePlaceholders: ['Frequency · Every Saturday', 'Duration · 2 hours'],
-      addNote: 'Add schedule note',
+      repeat: true,
       tip: 'Choose a clear public meeting point for the first meetup.',
     },
     participants: {
@@ -267,7 +262,7 @@ export const kindCopy: Record<PostKind, KindCopy> = {
       toggleBody: 'Split estimated costs with group members',
       expectedLabel: 'Expected members',
       estimateBody: (n) =>
-        `Based on ${n} member${n === 1 ? '' : 's'}. The estimate can change as the group size changes.`,
+        `A preview based on ${n} member${n === 1 ? '' : 's'}. The split is worked out when you publish, and changes if the group size does.`,
       noteTitle: sharedNote.title,
       noteBody: 'This estimate helps members plan. Payment arrangements stay between group members.',
     },
@@ -314,6 +309,19 @@ export const wizardCopy = {
   selectDate: 'Select a date',
   selectTime: 'Select a time',
   findingPlace: 'Finding that place…',
+  repeat: {
+    label: 'Repeats',
+    hint: 'Each time it meets, the date moves on and everyone going stays going.',
+    options: [
+      { value: null, label: 'Doesn’t repeat' },
+      { value: 'weekly', label: 'Weekly' },
+      { value: 'biweekly', label: 'Every 2 weeks' },
+      { value: 'monthly', label: 'Monthly' },
+    ] as const,
+    endsOn: 'Last time (optional)',
+    untilStopped: 'Until you stop it',
+    clearEndsOn: 'Remove last date',
+  },
   removeNote: (n: number) => `Remove line ${n}`,
   noteItem: (n: number) => `Line ${n}`,
   people: 'people',
@@ -386,6 +394,10 @@ export const issueCopy: Record<DraftIssue, string> = {
   endBeforeStart: 'End after the start time.',
   capacityRange: 'Pick a size this type allows.',
   amountRange: 'Enter an amount between 1 and 1,000,000.',
+  totalRange: 'Enter a total up to 10,000,000.',
+  expectedRange: 'Enter up to 100,000 people.',
+  monthlyDay: 'A monthly group starts on the 1st to the 28th. Pick an earlier date, or repeat weekly.',
+  endsBeforeStart: 'Pick a last date on or after the first.',
   notHttps: 'Use a link that starts with https://',
   interestCount: 'Pick 1 to 3 interests.',
 };
@@ -401,6 +413,8 @@ export const fieldNames: Record<DraftField, string> = {
   endTime: 'End time',
   place: 'Meeting point',
   notes: 'Details',
+  recurrence: 'Repeats',
+  recurrenceEndsOn: 'Last time it repeats',
   capacity: 'Capacity',
   amount: 'Amount',
   expected: 'Expected travellers',
@@ -412,6 +426,7 @@ export const createPostErrors: Record<CreatePostErrorCode, string> = {
   invalid: 'Some details need fixing before this can go live.',
   eventMonthlyCap: 'You’ve published three events this month, the most allowed.',
   draftLimit: 'You have 20 drafts already. Publish or delete one to save another.',
+  conflict: 'This post can’t be changed any more. It may have been cancelled, taken down or already published.',
   imageTooLarge: 'A photo is too large. Try a different one.',
   imageNotSupported: 'Use JPEG, PNG or WebP photos.',
   suspended: 'Your account can’t publish right now. Contact support if this seems wrong.',

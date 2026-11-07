@@ -27,8 +27,9 @@ const query = (params: Record<string, string | number>) =>
     .join('&');
 
 /**
- * The multipart form (spec §2.12): repeated fields once per value, booleans as
- * the text "true"/"false", photos as repeated `images` in carousel order.
+ * The multipart form (spec §2.12): lists (`interestIds`, `schedule`,
+ * `itinerary`) as one field per value, booleans as the text "true"/"false",
+ * photos as repeated `images` in carousel order.
  */
 export function toPostForm(fields: CreatePostFieldsDto, images: UploadFile[]): FormData {
   const form = new FormData();
@@ -62,13 +63,6 @@ export function createPostApi(request: PostRequest) {
         body: form,
       });
     },
-
-    replaceChecklist: (postId: string, lines: string[]) =>
-      request<unknown>({
-        method: 'PUT',
-        path: `${V1}/posts/${encodeURIComponent(postId)}/checklist`,
-        body: { items: lines.map((text) => ({ text })) },
-      }),
 
     publish: (postId: string) =>
       request<PostDetailDto>({ method: 'POST', path: `${V1}/posts/${encodeURIComponent(postId)}/publish` }),

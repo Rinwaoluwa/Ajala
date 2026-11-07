@@ -10,12 +10,12 @@ import { NOTE_MAX, NOTES_MAX } from '../../domain/rules/postDraftRules';
 import { wizardCopy } from '../copy';
 
 /**
- * The step-two list: "Meetup details", "Event schedule", "Itinerary", "Repeat
- * schedule". One line per row with the grip at its left — hold and drag to move
- * it — and a × to remove it; "+ Add another detail" below. The first two rows'
- * placeholders are the design's examples ("Doors open", "Main event").
+ * The step-two list: an Event's "Event schedule" or a Plan's "Itinerary". One
+ * line per row with the grip at its left — hold and drag to move it — and a × to
+ * remove it; "+ Add schedule item" below. The first two rows' placeholders are
+ * the design's examples ("Doors open", "Main event").
  *
- * A Plan's lines are sent as its checklist; see the feature README for the rest.
+ * The lines are sent in this order as `schedule` or `itinerary`.
  */
 
 export type NotesListProps = {
