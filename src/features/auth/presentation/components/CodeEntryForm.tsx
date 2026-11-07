@@ -20,7 +20,8 @@ import { AuthIntro, type AuthIntroTone } from './AuthIntro';
  * screens.
  *
  * Every code the API asks for uses this one layout — sign-up verification,
- * sign-in step-up, and linking Google or Apple to an existing account — as the
+ * sign-in step-up, linking Google or Apple to an existing account, and the
+ * password-reset code — as the
  * screen-to-API map directs ("reuse the Verification screen").
  */
 

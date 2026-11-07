@@ -9,6 +9,7 @@ export {
   AuthProvider,
   useAuthState,
   useAuthorizedRequest,
+  useFreshAccessToken,
   useSignOut,
 } from './presentation/state/AuthContext';
 export type { AuthorizedRequest } from './authModule';
@@ -29,6 +30,10 @@ export {
 export { LinkAccountScreen, type LinkAccountScreenProps } from './presentation/screens/LinkAccountScreen';
 export { AcceptTermsScreen, type AcceptTermsScreenProps } from './presentation/screens/AcceptTermsScreen';
 export { ForgotPasswordScreen, type ForgotPasswordScreenProps } from './presentation/screens/ForgotPasswordScreen';
+export {
+  PasswordResetCodeScreen,
+  type PasswordResetCodeScreenProps,
+} from './presentation/screens/PasswordResetCodeScreen';
 export { NewPasswordScreen, type NewPasswordScreenProps } from './presentation/screens/NewPasswordScreen';
 
 export { SignUpStepHeader } from './presentation/components/SignUpStepHeader';

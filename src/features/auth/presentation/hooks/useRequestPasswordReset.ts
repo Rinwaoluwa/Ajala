@@ -13,9 +13,9 @@ import { useBackoff } from './useBackoff';
  * Succeeds for any well-formed address. The screen must not say whether an account
  * exists — see the repository contract.
  *
- * The API emails a LINK, not a code, so there is no code step after this: the
- * screen confirms that mail is on its way and the link re-enters the app at the
- * new-password screen.
+ * On success the address is kept in the flow — the code screen shows it masked
+ * and sends it back with the code — and any token from an earlier attempt is
+ * dropped, since a new code is on its way.
  *
  * `POST /auth/password/forgot` always answers 202, so the only failures here
  * are a malformed address, the network, and a 429 — which holds the button off
@@ -29,7 +29,7 @@ export type UseRequestPasswordResetOptions = {
 };
 
 export function useRequestPasswordReset({ onCodeSent }: UseRequestPasswordResetOptions) {
-  const { useCases, setEmail: keepEmail } = usePasswordResetFlow();
+  const { useCases, setEmail: keepEmail, setToken } = usePasswordResetFlow();
 
   const [email, setEmail] = useState('');
   const [emailTouched, setEmailTouched] = useState(false);
@@ -61,6 +61,7 @@ export function useRequestPasswordReset({ onCodeSent }: UseRequestPasswordResetO
     try {
       await useCases.requestPasswordReset(email);
       keepEmail(email);
+      setToken(null);
       onCodeSent();
     } catch (e) {
       if (backOffIfLimited(e)) return;
@@ -77,7 +78,7 @@ export function useRequestPasswordReset({ onCodeSent }: UseRequestPasswordResetO
       inFlight.current = false;
       setSubmitting(false);
     }
-  }, [useCases, email, keepEmail, onCodeSent, backOffIfLimited]);
+  }, [useCases, email, keepEmail, setToken, onCodeSent, backOffIfLimited]);
 
   return {
     fields: {

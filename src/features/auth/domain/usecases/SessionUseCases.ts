@@ -153,15 +153,26 @@ export const makeEndLocalSession =
  * Never rejects: the local session is cleared either way, so a dead network
  * leaves one stale server-side session rather than a user stuck signed in.
  *
- * PUSH: the spec has `POST /me/devices/unregister { token }` go first, so the
- * phone stops getting this account's pushes. Push registration is not built yet
- * ("still in works"); when it is, unregister here, before the logout, with the
- * same `withSession`.
+ * `beforeSignOut` runs first, while the session still works: other features'
+ * last calls as this person, chiefly `POST /me/devices/unregister` so the phone
+ * stops getting this account's pushes (spec §2.10 has it go before the logout).
+ * It is handed in rather than imported because those features import auth. The
+ * composition root gives it a time limit; a failure here is ignored too.
  */
 export const makeSignOut =
-  (repo: AuthRepository, store: SessionStore, withSession: WithSession) =>
+  (
+    repo: AuthRepository,
+    store: SessionStore,
+    withSession: WithSession,
+    beforeSignOut: () => Promise<void> = async () => undefined,
+  ) =>
   async (): Promise<void> => {
     if (await store.read()) {
+      try {
+        await beforeSignOut();
+      } catch {
+        // Never a reason to stay signed in.
+      }
       try {
         await withSession((token) => repo.signOut(token));
       } catch {

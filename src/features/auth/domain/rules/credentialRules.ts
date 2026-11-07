@@ -26,6 +26,13 @@ export const VERIFICATION_CODE_LENGTH = 6;
  */
 export const RESEND_COOLDOWN_SECONDS = 60;
 
+/**
+ * The API burns a password-reset code on its fifth wrong try (spec §2.2), after
+ * which even the right code fails. Counting them lets the screen stop inviting
+ * another guess and ask for a new code instead.
+ */
+export const RESET_CODE_MAX_ATTEMPTS = 5;
+
 export type PasswordRuleId = 'minLength' | 'uppercase' | 'digit';
 
 /** In the order the checklist shows them. */

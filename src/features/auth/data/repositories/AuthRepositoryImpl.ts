@@ -155,11 +155,21 @@ export const createAuthRepository = (): AuthRepository => ({
     }
   },
 
+  async verifyPasswordResetCode(email: string, code: string): Promise<string> {
+    try {
+      return (await authApi.verifyResetCode({ email, code })).token;
+    } catch (e) {
+      // A wrong, expired or used code is one indistinguishable 401.
+      throw toCodeError(e, 'invalidCode');
+    }
+  },
+
   async resetPassword(token: string, newPassword: string): Promise<void> {
     try {
       await authApi.resetPassword({ token, newPassword });
     } catch (e) {
-      // Here a 401 means the link expired or was already used, not bad credentials.
+      // Here a 401 means the reset token ran out (15 minutes) or was already
+      // used, not bad credentials: the reset has to start again.
       throw toAuthError(e, { UNAUTHORIZED: 'expiredCode' });
     }
   },

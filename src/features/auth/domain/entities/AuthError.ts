@@ -4,7 +4,16 @@
  */
 export type AuthErrorCode =
   | 'invalidCode'
+  /**
+   * The code, or the reset token a code bought, ran out or was already used.
+   * Only a new code fixes it.
+   */
   | 'expiredCode'
+  /**
+   * Too many wrong tries: the API burns a password-reset code on the fifth
+   * wrong one, so even the right code will now fail. Only a new code fixes it.
+   */
+  | 'codeUsedUp'
   | 'invalidCredentials'
   | 'invalidDetails'
   /** The account exists but its address has not been confirmed; a code was re-sent. */
@@ -34,6 +43,11 @@ export type AuthErrorCode =
   | 'cancelled'
   /** The stored session is gone and cannot be refreshed; sign in again. */
   | 'sessionExpired'
+  /**
+   * The API will not create an account from these details, and does not say
+   * why. Kept vague on purpose; nothing the person retypes will change it.
+   */
+  | 'signUpRefused'
   /** The API refused the password because it appears in a known breach. */
   | 'passwordBreached'
   /**

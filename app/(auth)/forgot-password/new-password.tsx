@@ -1,20 +1,17 @@
-import { router, useLocalSearchParams } from 'expo-router';
+import { router } from 'expo-router';
 
 import { NewPasswordScreen, passwordResetRoutes } from '@features/auth';
 
 /**
- * Reached from the link the API emails:
- * `ajala://forgot-password/new-password?token=…`.
- *
- * The token is a one-time capability, so it stays in the URL only long enough to
- * be read here and is never written anywhere else.
+ * The last step of the reset. The reset token comes from the flow's memory, put
+ * there by the code step — it is never read from, or written to, a URL.
  */
 export default function NewPasswordRoute() {
-  const { token } = useLocalSearchParams<{ token?: string }>();
   return (
     <NewPasswordScreen
-      token={token ?? null}
+      // Every device, this one included, is now signed out: sign in afresh.
       onReset={() => router.dismissTo(passwordResetRoutes.signIn)}
+      onRestart={() => router.dismissTo(passwordResetRoutes.email)}
     />
   );
 }

@@ -6,9 +6,8 @@ export default function ForgotPasswordRoute() {
   return (
     <ForgotPasswordScreen
       onBack={() => router.back()}
-      // The API emails a link, so the flow ends here; the link re-enters the app
-      // at the new-password screen.
-      onDone={() => router.dismissTo(passwordResetRoutes.signIn)}
+      // The address is in the flow's memory; the code screen reads it from there.
+      onCodeSent={() => router.push(passwordResetRoutes.code)}
       onSignIn={() => router.dismissTo(passwordResetRoutes.signIn)}
     />
   );

@@ -17,15 +17,16 @@ import {
   signUpFieldErrorMessages,
 } from '../copy';
 import { sortFieldErrors } from '../formErrors';
-import { useAuthUseCases } from '../state/AuthContext';
+import { usePasswordResetFlow } from '../state/PasswordResetFlowContext';
 import { useBackoff } from './useBackoff';
 
 /**
  * View model for the last step of the password reset: the new password (MOB-006).
  *
- * `token` comes from the link the API emailed, which re-enters the app as a deep
- * link. Without one there is nothing to spend, so the form stays disabled and
- * says so rather than failing on submit.
+ * `token` is what the emailed code bought on the step before, held in the flow's
+ * memory. Without one (the app was restarted mid-reset, say) there is nothing to
+ * spend: `hasToken` is false and the screen sends the person back to ask for a
+ * new code, rather than letting them fill in a form that cannot succeed.
  *
  * The checklist and the button both read the shared rules, so they cannot
  * disagree. The mismatch complaint waits until the confirmation has been left
@@ -33,21 +34,22 @@ import { useBackoff } from './useBackoff';
  *
  * The API's answers (`POST /auth/password/reset`, spec §3.2): 204 signs every
  * device out — the use case drops this one's session too; 400
- * PASSWORD_BREACHED is said under the password; a 401 means the link expired or
- * was used, which only a new link fixes, so the copy says where to get one.
+ * PASSWORD_BREACHED is said under the password; a 401 means the token ran out
+ * (15 minutes) or was used, which only a new code fixes, so it raises a sheet
+ * that starts the reset again.
  */
 
 /** `ResetPasswordDto.newPassword` is the first box. */
 const FIELD_BY_API_NAME = { newPassword: 'password', password: 'password' } as const;
 
 export type UseNewPasswordOptions = {
-  /** The one-time token from the emailed link. */
-  token: string | null;
   onReset: () => void;
+  /** Back to the start, to ask for a new code. */
+  onRestart: () => void;
 };
 
-export function useNewPassword({ token, onReset }: UseNewPasswordOptions) {
-  const useCases = useAuthUseCases();
+export function useNewPassword({ onReset, onRestart }: UseNewPasswordOptions) {
+  const { useCases, token } = usePasswordResetFlow();
 
   const [password, setPassword] = useState('');
   const [confirmation, setConfirmation] = useState('');
@@ -56,6 +58,7 @@ export function useNewPassword({ token, onReset }: UseNewPasswordOptions) {
   const [formError, setFormError] = useState<string | null>(null);
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+  const [expired, setExpired] = useState(false);
 
   const inFlight = useRef(false);
   const continued = useRef(false);
@@ -102,7 +105,7 @@ export function useNewPassword({ token, onReset }: UseNewPasswordOptions) {
       if (backOffIfLimited(e)) return;
       const code = isAuthError(e) ? e.code : 'unknown';
       if (code === 'expiredCode') {
-        setFormError(passwordResetCopy.newPassword.linkExpired);
+        setExpired(true);
         return;
       }
       const { fields, rest } = sortFieldErrors(
@@ -127,6 +130,13 @@ export function useNewPassword({ token, onReset }: UseNewPasswordOptions) {
     onReset();
   }, [onReset]);
 
+  const restart = useCallback(() => {
+    if (continued.current) return;
+    continued.current = true;
+    setExpired(false);
+    onRestart();
+  }, [onRestart]);
+
   return {
     fields: {
       password: {
@@ -145,5 +155,7 @@ export function useNewPassword({ token, onReset }: UseNewPasswordOptions) {
     formError: blocked ? rateLimitedMessage(waitSeconds) : formError,
     submit: () => void submit(),
     sheet: { isPresented: done, onContinue: proceed },
+    expiredSheet: { isPresented: expired, onRestart: restart },
+    hasToken: Boolean(token),
   };
 }

@@ -61,42 +61,45 @@ export const verifyEmailCopy = {
   },
 } as const;
 
-/** The password reset (Figma "Forgot password" and "Create a new password"). */
+/** The password reset (Figma "Forgot password", "Verification" and "Create a new password"). */
 export const passwordResetCopy = {
   header: 'Forgot password',
   request: {
     title: 'Forgot password?',
-    // The design says "a verification code" and "Send code". The API emails a
-    // link instead (see docs/ARCHITECTURE.md), and promising a code that never
-    // comes would strand the user, so the copy names what actually arrives.
-    body: "Enter your email and we'll send you a link to reset your password.",
-    submit: 'Send link',
+    body: "Enter your email and we'll send you a code to reset your password.",
+    submit: 'Send code',
     footerPrompt: 'Remember your password?',
     footerLink: 'Sign in',
   },
-  sent: {
-    title: 'Check your email',
+  verify: {
     // "If that address has an account": the API answers the same either way, so
-    // the screen must not confirm that an account exists.
-    message:
-      'If that address has an account, we have sent a link for setting a new password. It expires shortly.',
-    action: 'Back to sign in',
+    // the screen must not confirm that an account exists. Followed by the masked
+    // address, which the design sets apart.
+    body: (length: number) => `If that address has an account, we sent a ${length}-digit code to`,
+    fallbackRecipient: 'your email',
   },
   newPassword: {
     title: 'Create a new password',
     body: "Choose a strong password you haven't used before.",
-    missingLink: 'Open the link we emailed you to set a new password. This one is missing its link.',
     password: { label: 'New password', placeholder: 'Enter your new password' },
     confirmation: { label: 'Confirm password', placeholder: 'Re-enter your new password' },
     mismatch: 'Both passwords need to match.',
-    // The API's 401 here (spec §3.2): the link expired (15 minutes) or was used.
-    linkExpired:
-      'This reset link has expired or has already been used. Ask for a new one from Forgot password.',
     submit: 'Reset password',
+  },
+  // The API's 401 on the reset (spec §3.2): the token the code bought lasts 15
+  // minutes and works once. Retyping the password cannot fix that; a new code can.
+  expired: {
+    title: 'Your reset timed out',
+    message:
+      'For your security, a new password has to be set within 15 minutes of entering the code. Ask for a new code to try again.',
+    action: 'Get a new code',
   },
   done: {
     title: 'Password reset successful',
-    message: 'Your password has been updated successfully. You can now sign in with your new password.',
+    // A reset signs out every device (spec §2.2), so say so: someone signed in
+    // on a tablet should not be surprised to find it signed out.
+    message:
+      "Your password has been updated and you've been signed out on all your devices. Sign in with your new password.",
     action: 'Sign in',
   },
 } as const;
@@ -129,6 +132,7 @@ export const authErrorMessages: Record<AuthErrorCode, string> = {
   // The API answers a wrong code and an expired one identically, so this covers both.
   invalidCode: "That code didn't work. Check the email, or send yourself a new code.",
   expiredCode: 'That code has expired. Send yourself a new one.',
+  codeUsedUp: "That's too many wrong tries, so this code no longer works. Send yourself a new one.",
   // Deliberately vague about which half is wrong: saying "no account with that
   // email" would let anyone test which addresses are registered.
   invalidCredentials: "Invalid email or password. Please try again.",
@@ -142,6 +146,9 @@ export const authErrorMessages: Record<AuthErrorCode, string> = {
   providerUnavailable: "That sign-in option isn't available on this device. Use your email address instead.",
   cancelled: '',
   sessionExpired: 'Your session has ended. Please sign in again.',
+  // The API gives no reason, and guessing one could reveal why an account was
+  // refused (a ban, say), so this says only that it cannot be done.
+  signUpRefused: "We can't create an account with these details. If you think this is a mistake, contact support.",
   passwordBreached:
     'That password has appeared in a known data breach. Please choose a different one.',
   termsOutdated: 'Our terms were updated a moment ago. Please try again.',

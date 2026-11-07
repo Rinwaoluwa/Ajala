@@ -14,22 +14,25 @@ import type {
   OtpVerifyRequestDto,
   RefreshRequestDto,
   ResetPasswordRequestDto,
+  ResetTokenDto,
   SessionDto,
   SignUpEmailRequestDto,
   VerifiedSessionDto,
+  VerifyResetCodeDto,
 } from '../../dto/authDtos';
 
 /**
  * The `User / Auth` endpoints, plus the two `/me` calls sign-in needs, one
  * function per operation.
  *
- * Paths and shapes come from `contracts/openapi/ajala-api.json` and the
- * screen-to-API map. This layer only calls; turning failures into the app's own
+ * Paths and shapes come from the client spec (`docs/api/ajala-api-users-common.md`)
+ * and the screen-to-API map. This layer only calls; turning failures into the app's own
  * errors is the repository's job.
  *
  * Endpoints that create a session also carry this device's id and name, so the
  * API can replace the previous session for the same install and show the person
- * a meaningful list of where they are signed in.
+ * a meaningful list of where they are signed in. The optional `deviceCheck`
+ * token is not sent: the app has no native DeviceCheck or Play Integrity module.
  */
 
 const AUTH = '/api/v1/auth';
@@ -76,9 +79,8 @@ export const authApi = {
   /**
    * 200: verifying a code also signs the person in.
    *
-   * `password` is not in the repo's OpenAPI copy of `OtpVerifyDto`, but the
-   * client spec (§2.2, §6) requires it when the code completes a sign-up, and
-   * the API answers 401 without it. Sent only then — see `AuthRepository`.
+   * `password` is required when the code completes a sign-up (spec §2.2) — the
+   * API answers 401 without it — and left out otherwise. See `AuthRepository`.
    */
   async verifyOtp(body: Omit<OtpVerifyRequestDto, DeviceFields>) {
     return apiRequest<VerifiedSessionDto>({
@@ -151,9 +153,21 @@ export const authApi = {
     });
   },
 
-  /** 202, no body: the answer is the same whether or not the address has an account. */
+  /**
+   * 202, no body: the answer is the same whether or not the address has an
+   * account. When it has a password, a 6-digit code is emailed (10 minutes,
+   * 3 emails an hour).
+   */
   async forgotPassword(body: ForgotPasswordRequestDto): Promise<void> {
     await apiRequest<void>({ method: 'POST', path: `${AUTH}/password/forgot`, body });
+  },
+
+  /**
+   * 200 with a one-time reset token (15 minutes). A wrong, expired or used code
+   * is a 401, and the fifth wrong code burns it.
+   */
+  async verifyResetCode(body: VerifyResetCodeDto) {
+    return apiRequest<ResetTokenDto>({ method: 'POST', path: `${AUTH}/password/verify`, body });
   },
 
   /** 204: the password is set and every device is signed out. */

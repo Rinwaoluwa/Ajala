@@ -1,8 +1,7 @@
-import { useState } from 'react';
 import { ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Button, Screen, StatusSheet, Text, TextField } from '@shared/components';
+import { Button, Screen, Text, TextField } from '@shared/components';
 import { layout } from '@shared/theme';
 
 import { AuthFooterPrompt } from '../components/AuthFooterPrompt';
@@ -18,10 +17,9 @@ import { useRequestPasswordReset } from '../hooks/useRequestPasswordReset';
  * Sending succeeds whether or not the address has an account, so the screen never
  * reveals which addresses are registered — see the repository contract.
  *
- * The API emails a LINK rather than a code, so this step ends in a confirmation
- * and the link re-enters the app at the new-password screen. The designed
- * six-digit step in between has no endpoint behind it, and the copy says "link"
- * where the design says "code" — see `passwordResetCopy`.
+ * "Send code" asks the API to email a 6-digit code, then moves on to the
+ * Verification step. That screen, not this one, says where the code went — and
+ * only "if that address has an account".
  *
  * Measured: "Remember your password? Sign in" sits 24pt under the button.
  */
@@ -34,15 +32,15 @@ const FOOTER_GAP = 24;
 
 export type ForgotPasswordScreenProps = {
   onBack: () => void;
-  onDone: () => void;
+  /** The code is on its way: go to the Verification step. */
+  onCodeSent: () => void;
   onSignIn: () => void;
 };
 
-export function ForgotPasswordScreen({ onBack, onDone, onSignIn }: ForgotPasswordScreenProps) {
+export function ForgotPasswordScreen({ onBack, onCodeSent, onSignIn }: ForgotPasswordScreenProps) {
   const insets = useSafeAreaInsets();
-  const [sent, setSent] = useState(false);
   const { fields, canSubmit, submitting, formError, submit } = useRequestPasswordReset({
-    onCodeSent: () => setSent(true),
+    onCodeSent,
   });
 
   return (
@@ -109,17 +107,6 @@ export function ForgotPasswordScreen({ onBack, onDone, onSignIn }: ForgotPasswor
           />
         </View>
       </ScrollView>
-
-      <StatusSheet
-        isPresented={sent}
-        tone="success"
-        titleTone="default"
-        title={passwordResetCopy.sent.title}
-        message={passwordResetCopy.sent.message}
-        actionLabel={passwordResetCopy.sent.action}
-        onAction={onDone}
-        onDismiss={onDone}
-      />
     </Screen>
   );
 }

@@ -1,6 +1,7 @@
 import { apiRequest, type ApiRequest } from '@core/api/apiClient';
 import { isApiError } from '@core/api/ApiError';
 import { getAppConfig } from '@core/config/appConfig';
+import { runBeforeSignOut } from '@core/session/beforeSignOut';
 
 import { sessionStorage } from './data/datasources/local/sessionStorage';
 import { passwordVault } from './data/datasources/native/passwordVault';
@@ -29,6 +30,7 @@ import {
 import { makeSignIn } from './domain/usecases/SignInUseCase';
 import { makeStartEmailSignUp } from './domain/usecases/StartEmailSignUpUseCase';
 import { makeVerifyEmail } from './domain/usecases/VerifyEmailUseCase';
+import { makeVerifyPasswordResetCode } from './domain/usecases/VerifyPasswordResetCodeUseCase';
 import { AuthError } from './domain/entities/AuthError';
 import type { WithSession } from './domain/usecases/SessionUseCases';
 
@@ -56,9 +58,9 @@ function makeAuthorizedRequest(withSession: WithSession): AuthorizedRequest {
  * The feature's composition root: the one place that knows which repository
  * implementation backs the use cases.
  *
- * It is the real API (`data/repositories/AuthRepositoryImpl`, over
- * `contracts/openapi/ajala-api.json`). `FixtureAuthRepository` is still here for
- * working offline — swap it in on this line and nothing above notices.
+ * It is the real API (`data/repositories/AuthRepositoryImpl`, over the client
+ * spec in `docs/api/`). Demo mode (`src/core/demo`) stands in for the API
+ * below this line, so working offline needs no other repository.
  *
  * `onSessionEnded` runs when the stored session has been cleared without the
  * person signing out — a refresh refused, or a password reset that signed every
@@ -66,6 +68,10 @@ function makeAuthorizedRequest(withSession: WithSession): AuthorizedRequest {
  *
  * ONE `withSession` for everything: it holds the single in-flight refresh, and a
  * second instance would race it with the same single-use refresh token.
+ *
+ * Sign-out first runs the tasks other features registered in
+ * `@core/session/beforeSignOut` (notifications unregisters the push token there),
+ * bounded by a short time limit so a dead network never holds it up.
  */
 export function createAuthUseCases({ onSessionEnded }: { onSessionEnded?: () => void } = {}) {
   const repo = createAuthRepository();
@@ -84,11 +90,19 @@ export function createAuthUseCases({ onSessionEnded }: { onSessionEnded?: () => 
     getCurrentTerms: makeGetCurrentTerms(repo),
     acceptTerms: makeAcceptTerms(repo, withSession),
     requestPasswordReset: makeRequestPasswordReset(repo),
+    verifyPasswordResetCode: makeVerifyPasswordResetCode(repo),
     resetPassword: makeResetPassword(repo, endLocalSession),
     restoreSession: makeRestoreSession(store),
     keepSession: makeKeepSession(store),
-    signOut: makeSignOut(repo, store, withSession),
+    // Other features' last calls as this person (push unregister) go first, time-limited.
+    signOut: makeSignOut(repo, store, withSession, () => runBeforeSignOut()),
     authorizedRequest: makeAuthorizedRequest(withSession),
+    /**
+     * The signed-in person's access token, refreshed first when it is about to
+     * expire. For connections that carry the token themselves rather than per
+     * request: the chat socket asks for it on every (re)connect.
+     */
+    freshAccessToken: () => withSession(async (accessToken) => accessToken),
     offerPasswordSave: makeOfferPasswordSave(passwordVault),
     forgetPasswordSaveOffers: makeForgetPasswordSaveOffers(passwordVault),
     /**

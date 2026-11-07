@@ -14,7 +14,8 @@ import { authErrorMessages, resendLimitedMessage, resendSentMessage } from '../c
  * The part every six-digit-code screen shares: collect the digits, submit once,
  * explain a failure, and optionally send another code.
  *
- * Used by sign-up verification, sign-in step-up and Google/Apple account linking.
+ * Used by sign-up verification, sign-in step-up, Google/Apple account linking and
+ * the password-reset code.
  * Each passes `verify`, which does the screen's own call and throws an
  * `AuthError` on failure; this hook owns everything else.
  *
@@ -103,6 +104,10 @@ export function useCodeEntry({
       if (errorCode === 'invalidCode' || errorCode === 'expiredCode') {
         otpRef.current?.clear();
         otpRef.current?.focus();
+      } else if (errorCode === 'codeUsedUp') {
+        // No digits will work now, so the keyboard stays down: the way on is
+        // "Resend code", and a resend focuses the boxes itself.
+        otpRef.current?.clear();
       }
     } finally {
       inFlight.current = false;

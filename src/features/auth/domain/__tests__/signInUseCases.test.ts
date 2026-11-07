@@ -3,6 +3,7 @@ import { describe, expect, it, jest } from '@jest/globals';
 import { makeRequestPasswordReset } from '../usecases/RequestPasswordResetUseCase';
 import { makeResendEmailCode } from '../usecases/ResendEmailCodeUseCase';
 import { makeResetPassword } from '../usecases/ResetPasswordUseCase';
+import { makeVerifyPasswordResetCode } from '../usecases/VerifyPasswordResetCodeUseCase';
 import { makeSignIn } from '../usecases/SignInUseCase';
 import {
   makeEndLocalSession,
@@ -119,6 +120,32 @@ describe('request password reset', () => {
   });
 });
 
+describe('verify password reset code', () => {
+  it('trades the code, with the normalised email, for a reset token', async () => {
+    const { repo, calls } = createFakeAuthRepository();
+    await expect(makeVerifyPasswordResetCode(repo)(' Sarah@Gmail.com ', '123456')).resolves.toBe(
+      'reset-token-1',
+    );
+    expect(calls.resetCode).toEqual([['sarah@gmail.com', '123456']]);
+  });
+
+  it('refuses a malformed code or email without spending one of the five tries', async () => {
+    const { repo, calls } = createFakeAuthRepository();
+    const verify = makeVerifyPasswordResetCode(repo);
+    await expect(verify('sarah@gmail.com', '12345')).rejects.toMatchObject({ code: 'invalidCode' });
+    await expect(verify('sarah@gmail.com', 'abcdef')).rejects.toMatchObject({ code: 'invalidCode' });
+    await expect(verify('nope', '123456')).rejects.toMatchObject({ code: 'invalidDetails' });
+    expect(calls.resetCode).toHaveLength(0);
+  });
+
+  it('passes a wrong code back as invalidCode', async () => {
+    const { repo } = createFakeAuthRepository();
+    await expect(makeVerifyPasswordResetCode(repo)('sarah@gmail.com', '000000')).rejects.toMatchObject({
+      code: 'invalidCode',
+    });
+  });
+});
+
 describe('reset password', () => {
   it('sends the token and the new password once both fields agree', async () => {
     const { repo, calls } = createFakeAuthRepository();
@@ -134,13 +161,14 @@ describe('reset password', () => {
       code: 'invalidDetails',
     });
     await expect(reset('token-1', 'weak', 'weak')).rejects.toMatchObject({ code: 'invalidDetails' });
+    // No token means the code step never finished: only a new code helps.
     await expect(reset('', 'Travel2026', 'Travel2026')).rejects.toMatchObject({
-      code: 'invalidCode',
+      code: 'expiredCode',
     });
     expect(calls.reset).toHaveLength(0);
   });
 
-  it('reports an expired link', async () => {
+  it('reports a reset token that ran out or was used', async () => {
     const { repo } = createFakeAuthRepository();
     await expect(makeResetPassword(repo)('expired', 'Travel2026', 'Travel2026')).rejects.toMatchObject({
       code: 'expiredCode',
@@ -229,6 +257,41 @@ describe('the session store', () => {
     expect(calls.refresh).toEqual(['refresh-1']);
     expect(calls.signOut).toEqual(['expired-access', 'access-2']);
     expect(fake.held).toBeNull();
+  });
+
+  it('runs the before-sign-out work first, while the session still works', async () => {
+    // Push unregister needs the session, so it must go before the logout ends it.
+    const fake = createFakeStore(TEST_SESSION);
+    const { repo, calls } = createFakeAuthRepository();
+    const order: string[] = [];
+    const before = async () => {
+      order.push(`before:${calls.signOut.length}:${fake.held ? 'held' : 'cleared'}`);
+    };
+    await makeSignOut(repo, fake.store, makeWithSession(repo, fake.store), before)();
+    expect(order).toEqual(['before:0:held']);
+    expect(calls.signOut).toHaveLength(1);
+    expect(fake.held).toBeNull();
+  });
+
+  it('signs out even when the before-sign-out work fails', async () => {
+    const fake = createFakeStore(TEST_SESSION);
+    const { repo, calls } = createFakeAuthRepository();
+    const before = async () => {
+      throw new Error('network down');
+    };
+    await expect(
+      makeSignOut(repo, fake.store, makeWithSession(repo, fake.store), before)(),
+    ).resolves.toBeUndefined();
+    expect(calls.signOut).toHaveLength(1);
+    expect(fake.held).toBeNull();
+  });
+
+  it('skips the before-sign-out work when no one is signed in', async () => {
+    const fake = createFakeStore(null);
+    const { repo } = createFakeAuthRepository();
+    const before = jest.fn(async () => undefined);
+    await makeSignOut(repo, fake.store, makeWithSession(repo, fake.store), before)();
+    expect(before).not.toHaveBeenCalled();
   });
 
   it('still clears when there was no session to end', async () => {

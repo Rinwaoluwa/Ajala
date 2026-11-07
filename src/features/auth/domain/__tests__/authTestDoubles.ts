@@ -67,6 +67,7 @@ export function createFakeAuthRepository(
     provider: [] as string[],
     link: [] as [string, string][],
     forgot: [] as string[],
+    resetCode: [] as [string, string][],
     reset: [] as [string, string][],
     refresh: [] as string[],
     account: [] as string[],
@@ -111,6 +112,11 @@ export function createFakeAuthRepository(
     },
     requestPasswordReset: async (email) => {
       calls.forgot.push(email);
+    },
+    verifyPasswordResetCode: async (email, code) => {
+      calls.resetCode.push([email, code]);
+      if (code === '000000') throw new AuthError('invalidCode');
+      return 'reset-token-1';
     },
     resetPassword: async (token, password) => {
       calls.reset.push([token, password]);

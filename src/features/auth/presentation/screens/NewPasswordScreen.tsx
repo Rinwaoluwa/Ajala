@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -13,10 +14,13 @@ import { useNewPassword } from '../hooks/useNewPassword';
  * Password reset, step 3 of 3: the new password (Figma "Create a new password"
  * and modal-8 "Password reset successful", FRD MOB-006).
  *
- * Reached from the link the API emails, which carries the one-time token this
- * screen spends. The design drops the title and back arrow here — there is
- * nowhere useful to go back to. The checklist reads the same rules the button
- * does, so they cannot disagree.
+ * Reached from the code step, which left the one-time reset token in the flow's
+ * memory for this screen to spend. The design drops the title and back arrow
+ * here — the code has been spent, so there is nowhere useful to go back to. The
+ * checklist reads the same rules the button does, so they cannot disagree.
+ *
+ * A token that ran out raises the "Your reset timed out" sheet, whose action
+ * starts again from the email step.
  */
 
 const copy = passwordResetCopy.newPassword;
@@ -25,17 +29,22 @@ const SECTION_GAP = 28;
 const BUTTON_GAP = 20;
 
 export type NewPasswordScreenProps = {
-  /** The one-time token from the emailed link. */
-  token: string | null;
+  /** The password is set; every device, this one included, is signed out. */
   onReset: () => void;
+  /** The reset token is missing or ran out: back to the email step for a new code. */
+  onRestart: () => void;
 };
 
-export function NewPasswordScreen({ token, onReset }: NewPasswordScreenProps) {
+export function NewPasswordScreen({ onReset, onRestart }: NewPasswordScreenProps) {
   const insets = useSafeAreaInsets();
-  const { fields, rules, canSubmit, submitting, formError, submit, sheet } = useNewPassword({
-    token,
-    onReset,
-  });
+  const { fields, rules, canSubmit, submitting, formError, submit, sheet, expiredSheet, hasToken } =
+    useNewPassword({ onReset, onRestart });
+
+  // Reached with nothing to spend (restored after the app was killed): the token
+  // is held in memory only, by design, so the only way on is a new code.
+  useEffect(() => {
+    if (!hasToken) onRestart();
+  }, [hasToken, onRestart]);
 
   return (
     <Screen edges={['top']} padded={false}>
@@ -51,7 +60,7 @@ export function NewPasswordScreen({ token, onReset }: NewPasswordScreenProps) {
           paddingBottom: Math.max(insets.bottom, 16) + 16,
         }}
       >
-        <AuthIntro tone="inkOnLight" title={copy.title} body={token ? copy.body : copy.missingLink} />
+        <AuthIntro tone="inkOnLight" title={copy.title} body={copy.body} />
 
         <View style={{ marginTop: SECTION_GAP, gap: layout.input.fieldGap }}>
           <PasswordField
@@ -109,6 +118,16 @@ export function NewPasswordScreen({ token, onReset }: NewPasswordScreenProps) {
         actionLabel={passwordResetCopy.done.action}
         onAction={sheet.onContinue}
         onDismiss={sheet.onContinue}
+      />
+
+      <StatusSheet
+        isPresented={expiredSheet.isPresented}
+        tone="error"
+        title={passwordResetCopy.expired.title}
+        message={passwordResetCopy.expired.message}
+        actionLabel={passwordResetCopy.expired.action}
+        onAction={expiredSheet.onRestart}
+        onDismiss={expiredSheet.onRestart}
       />
     </Screen>
   );

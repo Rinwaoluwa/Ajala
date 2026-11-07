@@ -8,7 +8,7 @@ import { AuthError, type AuthErrorCode } from '../../domain/entities/AuthError';
  * says so, and its messages are worded for developers and may change.
  *
  * The same code means different things from different endpoints (a 401 from
- * login is a wrong password, from the reset a dead link), so each call site in
+ * login is a wrong password, from the reset an expired reset token), so each call site in
  * `AuthRepositoryImpl` passes its own overrides; this table is only the default.
  */
 
@@ -18,6 +18,9 @@ const ERROR_BY_API_CODE: Partial<Record<ApiErrorCode, AuthErrorCode>> = {
   STEP_UP_REQUIRED: 'stepUpRequired',
   ACCOUNT_LINK_REQUIRED: 'accountLinkRequired',
   PASSWORD_BREACHED: 'passwordBreached',
+  // In the API's error list, but no endpoint documents which call returns it
+  // (spec §8). Mapped here so whichever does gets the right words.
+  SIGNUP_REFUSED: 'signUpRefused',
   VALIDATION_FAILED: 'invalidDetails',
   BAD_REQUEST: 'invalidDetails',
   UNPROCESSABLE: 'invalidDetails',
@@ -26,7 +29,6 @@ const ERROR_BY_API_CODE: Partial<Record<ApiErrorCode, AuthErrorCode>> = {
   // who is registered. A 409 from an auth call is unexpected and reads as one.
   CONFLICT: 'unknown',
   RATE_LIMITED: 'rateLimited',
-  VERIFICATION_COOLDOWN: 'rateLimited',
   NETWORK: 'network',
   TIMEOUT: 'network',
   SERVICE_UNAVAILABLE: 'network',
@@ -57,12 +59,11 @@ export function toAuthError(e: unknown, overrides: AuthErrorOverrides = {}): Aut
 }
 
 /**
- * `POST /auth/otp/verify` and `POST /auth/oauth/link`: a wrong, expired or used
- * code is a 401 (`contracts/openapi/ajala-api.json`). The screen-to-API map says
- * a wrong code is a 400; the OpenAPI document wins, so 401 is the contract — but
- * a 400 that is only about `code` (a malformed one slipping past) is still about
- * the code. Any other 400 is left as itself: reporting "property password should
- * not exist" as "wrong code" would send someone retyping a right code forever.
+ * `POST /auth/otp/verify`, `POST /auth/oauth/link` and `POST /auth/password/verify`:
+ * a wrong, expired or used code is a 401 (spec §3.2). A 400 that is only about
+ * `code` (a malformed one slipping past) is still about the code. Any other 400
+ * is left as itself: reporting "property password should not exist" as "wrong
+ * code" would send someone retyping a right code forever.
  */
 export function toCodeError(e: unknown, unauthorized: AuthErrorCode): AuthError {
   if (isApiError(e) && e.code === 'VALIDATION_FAILED' && onlyAbout(e, 'code')) {

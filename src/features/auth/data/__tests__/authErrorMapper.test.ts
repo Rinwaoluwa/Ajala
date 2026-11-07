@@ -53,6 +53,11 @@ describe('toAuthError', () => {
     expect(toAuthError(e)).toMatchObject({ code: 'rateLimited', retryAfterSeconds: 42 });
   });
 
+  it('maps SIGNUP_REFUSED to its own vague message, not a generic failure', () => {
+    const e = apiError({ code: 'SIGNUP_REFUSED', message: 'Email taken', status: 403 });
+    expect(toAuthError(e).code).toBe('signUpRefused');
+  });
+
   it('never turns a conflict into "that email is taken"', () => {
     // Sign-up must not reveal whether an address has an account (spec §2.2).
     expect(toAuthError(apiError({ code: 'CONFLICT', message: 'x', status: 409 })).code).toBe('unknown');

@@ -33,7 +33,9 @@ export const accountRoutes = {
 
 export const passwordResetRoutes = {
   email: '/(auth)/forgot-password',
-  /** The emailed link lands here carrying `?token=…`. */
+  /** The Verification screen for the emailed 6-digit code. */
+  code: '/(auth)/forgot-password/verify',
+  /** Spends the reset token the code bought, which the flow holds — never a URL param. */
   newPassword: '/(auth)/forgot-password/new-password',
   signIn: '/(auth)/sign-in',
 } as const;

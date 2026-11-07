@@ -11,8 +11,9 @@ export type Account = {
   firstName: string | null;
   lastName: string | null;
   /**
-   * Null until first name, last name, date of birth and gender are all present.
-   * Gender is never asked at sign-up, so every new account starts without it.
+   * Null until the server judges the profile complete. Which fields that takes
+   * is the server's call — the spec disagrees with itself about gender (§8) —
+   * so it is read from `GET /me` and never worked out here.
    */
   profileCompletedAt: string | null;
   /** False when the terms changed since the person last accepted them. */

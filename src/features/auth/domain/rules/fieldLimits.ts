@@ -1,8 +1,6 @@
 /**
  * The API's length limits for what the auth flows send, from
- * `docs/api/ajala-api-users-common.md` §4 and the matching `maxLength` /
- * `minLength` in `contracts/openapi/ajala-api.json` (they agree for every field
- * here).
+ * `docs/api/ajala-api-users-common.md` §4.
  *
  * The API rejects the whole request when one field is over, with a
  * `VALIDATION_FAILED` worded for developers. Checking first keeps that round

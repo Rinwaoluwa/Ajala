@@ -1,7 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
-import { savedPosts } from '@shared/state/savedPosts';
+import { postSaves } from '@shared/state/postSaves';
 
 import { createAuthUseCases, type AuthUseCases } from '../../authModule';
 import type { AuthSession } from '../../domain/entities/AuthSession';
@@ -57,7 +57,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         onSessionEnded: () => {
           // Nothing cached for the account may outlive its session (spec §7).
           queryClient.clear();
-          savedPosts.clear();
+          postSaves.reset();
           setState({ status: 'signedOut' });
         },
       }),
@@ -108,7 +108,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // the person out on this device.
     await useCases.signOut();
     queryClient.clear();
-    savedPosts.clear();
+    postSaves.reset();
     setState({ status: 'signedOut' });
   }, [useCases, queryClient]);
 
@@ -147,6 +147,11 @@ export function useSignOut() {
 /** Makes API calls as the signed-in person; see `AuthorizedRequest`. */
 export function useAuthorizedRequest() {
   return useAuth().useCases.authorizedRequest;
+}
+
+/** A current access token, refreshed when needed; see `freshAccessToken`. */
+export function useFreshAccessToken() {
+  return useAuth().useCases.freshAccessToken;
 }
 
 export function useCompleteEntryCheck() {

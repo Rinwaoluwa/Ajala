@@ -5,8 +5,8 @@ import type { EmailVerification } from '../entities/EmailVerification';
 import type { SignUpDetails } from '../entities/SignUpDetails';
 
 /**
- * What the auth feature needs from a backend, shaped by
- * `contracts/openapi/ajala-api.json` (the `User / Auth` endpoints) and the
+ * What the auth feature needs from a backend, shaped by the client spec
+ * (`docs/api/ajala-api-users-common.md`, the `User / Auth` endpoints) and the
  * screen-to-API map.
  *
  * Methods reject with an `AuthError`, never a raw transport error.
@@ -62,18 +62,27 @@ export interface AuthRepository {
   completeAccountLink(challengeId: string, code: string): Promise<AuthSession>;
 
   /**
-   * Starts a password reset (MOB-006). The API emails a LINK carrying a token,
-   * not a code, so the reset is completed by `resetPassword` with that token.
+   * Starts a password reset (MOB-006): the API emails a 6-digit code, which
+   * `verifyPasswordResetCode` exchanges for a reset token. Calling it again sends
+   * a new code.
    *
    * Resolves whether or not the address has an account, for the same reason as
-   * sign-up.
+   * sign-up. Capped at 3 emails an hour per address (then `rateLimited`).
    */
   requestPasswordReset(email: string): Promise<void>;
 
   /**
-   * Sets a new password from the token in the emailed link. Ends every session,
-   * this device's included. Rejects with `expiredCode` when the link has expired
-   * or was already used, and `passwordBreached` like sign-up.
+   * Exchanges the emailed reset code for a one-time reset token, which lasts 15
+   * minutes. Rejects with `invalidCode` for a wrong, expired or used code — the
+   * API does not say which, and burns the code on the fifth wrong try.
+   */
+  verifyPasswordResetCode(email: string, code: string): Promise<string>;
+
+  /**
+   * Sets a new password with the token from `verifyPasswordResetCode`. Ends every
+   * session, this device's included. Rejects with `expiredCode` when the token
+   * ran out or was already used (the reset must start again), and
+   * `passwordBreached` like sign-up.
    */
   resetPassword(token: string, newPassword: string): Promise<void>;
 

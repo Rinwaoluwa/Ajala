@@ -3,8 +3,10 @@ import type { AuthRepository } from '../repositories/AuthRepository';
 import { isEmailValid, normalizeEmail } from '../rules/credentialRules';
 
 /**
- * Starts a password reset (FRD MOB-006). The API emails a link; the reset is
- * finished by `ResetPasswordUseCase` with the token that link carries.
+ * Starts a password reset (FRD MOB-006, `POST /auth/password/forgot`). The API
+ * emails a 6-digit code; `VerifyPasswordResetCodeUseCase` trades it for a reset
+ * token and `ResetPasswordUseCase` spends that. Called again, it sends a new
+ * code — which is how the code screen's "Resend code" works.
  *
  * Succeeds for any well-formed address, registered or not — see the repository
  * contract for why the answer must not depend on whether the account exists.

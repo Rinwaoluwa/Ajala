@@ -16,6 +16,7 @@ jest.mock('../datasources/remote/authApi', () => ({
     verifyOtp: jest.fn(),
     acceptTerms: jest.fn(),
     resetPassword: jest.fn(),
+    verifyResetCode: jest.fn(),
   },
 }));
 jest.mock('../datasources/native/googleIdentity', () => ({
@@ -30,6 +31,7 @@ const api = authApi as unknown as {
   verifyOtp: jest.Mock<(...args: unknown[]) => Promise<unknown>>;
   acceptTerms: jest.Mock<(...args: unknown[]) => Promise<void>>;
   resetPassword: jest.Mock<(...args: unknown[]) => Promise<void>>;
+  verifyResetCode: jest.Mock<(...args: unknown[]) => Promise<unknown>>;
 };
 
 const VERIFIED = {
@@ -139,7 +141,31 @@ describe('terms and reset', () => {
     });
   });
 
-  it('reads a 401 on the reset as a dead link', async () => {
+  it('sends the email and code to /password/verify and returns the token', async () => {
+    api.verifyResetCode.mockResolvedValue({ token: 'reset-token' });
+    await expect(
+      createAuthRepository().verifyPasswordResetCode('sarah@gmail.com', '123456'),
+    ).resolves.toBe('reset-token');
+    expect(api.verifyResetCode).toHaveBeenCalledWith({ email: 'sarah@gmail.com', code: '123456' });
+  });
+
+  it('reads a 401 on the reset code as a wrong code', async () => {
+    api.verifyResetCode.mockRejectedValue(new ApiError({ code: 'UNAUTHORIZED', message: 'x', status: 401 }));
+    await expect(
+      createAuthRepository().verifyPasswordResetCode('sarah@gmail.com', '123456'),
+    ).rejects.toMatchObject({ code: 'invalidCode' });
+  });
+
+  it('reads a breached password on the reset as passwordBreached', async () => {
+    api.resetPassword.mockRejectedValue(
+      new ApiError({ code: 'PASSWORD_BREACHED', message: 'x', status: 400 }),
+    );
+    await expect(createAuthRepository().resetPassword('token', 'Travel2026')).rejects.toMatchObject({
+      code: 'passwordBreached',
+    });
+  });
+
+  it('reads a 401 on the reset as a reset token that ran out', async () => {
     api.resetPassword.mockRejectedValue(new ApiError({ code: 'UNAUTHORIZED', message: 'x', status: 401 }));
     await expect(createAuthRepository().resetPassword('token', 'Travel2026')).rejects.toMatchObject({
       code: 'expiredCode',
