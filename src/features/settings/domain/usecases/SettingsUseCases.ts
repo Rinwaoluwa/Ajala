@@ -1,9 +1,11 @@
 import { SettingsError } from '../entities/SettingsError';
-import type { Account, ProfileEdit, SettingsPatch } from '../entities/Settings';
+import type { Account, LinkedProvider, ProfileEdit, ReauthProof, SettingsPatch } from '../entities/Settings';
 import type { SettingsRepository } from '../repositories/SettingsRepository';
 import {
   BIO_MAX,
   DELETE_REASON_MAX,
+  FAVOURITE_CITIES_MAX,
+  TRAVEL_STYLES_MAX,
   diffProfile,
   isEmailLike,
   isHandleFormatValid,
@@ -28,6 +30,9 @@ export const makeSaveProfile =
     if (edit.handle !== undefined && !isHandleFormatValid(edit.handle))
       throw new SettingsError('invalidDetails');
     if (edit.bio && edit.bio.length > BIO_MAX) throw new SettingsError('invalidDetails');
+    if ((edit.travelStyles?.length ?? 0) > TRAVEL_STYLES_MAX) throw new SettingsError('invalidDetails');
+    if ((edit.favouriteCityIds?.length ?? 0) > FAVOURITE_CITIES_MAX)
+      throw new SettingsError('invalidDetails');
     if (Object.keys(edit).length === 0) return account;
     return repo.updateAccount(edit, account);
   };
@@ -48,19 +53,30 @@ export const makeSearchCities = (repo: SettingsRepository) => async (query: stri
   return q.length < 2 ? [] : repo.searchCities(q, 10);
 };
 
+export const makePopularCities = (repo: SettingsRepository) => () => repo.popularCities();
+
 export const makeGetSettings = (repo: SettingsRepository) => () => repo.getSettings();
 export const makeUpdateSettings = (repo: SettingsRepository) => (patch: SettingsPatch) =>
   repo.updateSettings(patch);
+/** Usage analytics on (true) or off; stored as `analyticsOptOut`, the other way round. */
+export const makeSetAnalytics = (repo: SettingsRepository) => (enabled: boolean) =>
+  repo.setAnalytics(enabled);
 
 export const makeListSessions = (repo: SettingsRepository) => async () =>
   sortSessions(await repo.listSessions());
 export const makeEndSession = (repo: SettingsRepository) => (id: string) => repo.endSession(id);
+export const makeSignOutEverywhere = (repo: SettingsRepository) => () => repo.signOutEverywhere();
 
 export const makeChangePassword =
   (repo: SettingsRepository) => async (currentPassword: string, newPassword: string) => {
     if (!currentPassword || !isPasswordValid(newPassword)) throw new SettingsError('invalidDetails');
     return repo.changePassword(currentPassword, newPassword);
   };
+
+export const makeSetPassword = (repo: SettingsRepository) => async (newPassword: string) => {
+  if (!isPasswordValid(newPassword)) throw new SettingsError('invalidDetails');
+  return repo.setPassword(newPassword);
+};
 
 export const makeStartEmailChange = (repo: SettingsRepository) => async (newEmail: string) => {
   if (!isEmailLike(newEmail)) throw new SettingsError('invalidDetails');
@@ -72,11 +88,26 @@ export const makeConfirmEmailChange = (repo: SettingsRepository) => async (code:
   return repo.confirmEmailChange(code);
 };
 
-export const makeReauthenticate = (repo: SettingsRepository) => (password: string) =>
-  repo.reauthenticate(password);
+export const makeSendReauthCode = (repo: SettingsRepository) => () => repo.sendReauthCode();
+
+/** A code that is not six digits is wrong without asking; an empty password is never sent. */
+export const makeReauthenticate = (repo: SettingsRepository) => async (proof: ReauthProof) => {
+  if ('code' in proof && !/^\d{6}$/.test(proof.code)) throw new SettingsError('badCode');
+  if ('password' in proof && !proof.password) throw new SettingsError('wrongPassword');
+  return repo.reauthenticate(proof);
+};
+
+export const makeUnlinkIdentity = (repo: SettingsRepository) => (provider: LinkedProvider) =>
+  repo.unlinkIdentity(provider);
 
 export const makeDeleteAccount = (repo: SettingsRepository) => (reason: string) =>
   repo.deleteAccount(reason.trim() ? reason.trim().slice(0, DELETE_REASON_MAX) : null);
+
+export const makeRequestExport = (repo: SettingsRepository) => () => repo.requestExport();
+export const makeGetExport = (repo: SettingsRepository) => () => repo.getExport();
+
+export const makeListReports = (repo: SettingsRepository) => (cursor: string | null) =>
+  repo.listReports(cursor);
 
 export const makeListDrafts = (repo: SettingsRepository) => async () => sortDrafts(await repo.listDrafts());
 export const makeDeleteDraft = (repo: SettingsRepository) => (id: string) => repo.deleteDraft(id);

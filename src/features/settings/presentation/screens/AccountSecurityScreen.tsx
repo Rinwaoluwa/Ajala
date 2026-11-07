@@ -1,13 +1,16 @@
 import { ListGroup, ListRow } from '@shared/components';
 
+import { hasPassword } from '../../domain/rules/settingsRules';
 import { SettingsFrame } from '../components/SettingsFrame';
 import { settingsCopy } from '../copy';
 import { useAccount } from '../hooks/useSettingsData';
 import type { SettingsDestination } from '../navigation/routes';
 
 /**
- * Account & security (Figma, light and dark): Email, Change password, Connected
- * accounts; then Sign-in activity and Delete account (red).
+ * Account & security (Figma, light and dark): Email, Change password (or "Set a
+ * password" for a Google- or Apple-only account), Connected accounts; then
+ * Sign-in activity, Download my data (not drawn; API map §10 suggests it here)
+ * and Delete account (red).
  */
 export function AccountSecurityScreen({
   onBack,
@@ -31,7 +34,15 @@ export function AccountSecurityScreen({
           subtitle={account.data ? (account.data.email ?? copy.noEmail) : undefined}
           onPress={() => onNavigate('changeEmail')}
         />
-        <ListRow title={copy.changePassword} onPress={() => onNavigate('changePassword')} />
+        {account.data && !hasPassword(account.data) ? (
+          <ListRow
+            title={copy.setPassword}
+            subtitle={copy.setPasswordBody}
+            onPress={() => onNavigate('changePassword')}
+          />
+        ) : (
+          <ListRow title={copy.changePassword} onPress={() => onNavigate('changePassword')} />
+        )}
         <ListRow
           title={copy.connected}
           subtitle={providers || undefined}
@@ -43,6 +54,11 @@ export function AccountSecurityScreen({
           title={copy.signInActivity}
           subtitle={copy.signInActivityBody}
           onPress={() => onNavigate('sessions')}
+        />
+        <ListRow
+          title={copy.exportData}
+          subtitle={copy.exportDataBody}
+          onPress={() => onNavigate('dataExport')}
         />
         <ListRow title={copy.deleteAccount} destructive onPress={() => onNavigate('deleteAccount')} />
       </ListGroup>

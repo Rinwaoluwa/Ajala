@@ -5,10 +5,12 @@ import { ActionSheetIOS, Alert, Platform } from 'react-native';
 import { useDebouncedValue } from '@shared/hooks/useDebouncedValue';
 
 import { settingsMedia } from '../../settingsModule';
-import type { Account, AccountCity, SocialLinks } from '../../domain/entities/Settings';
+import type { Account, AccountCity, SocialLinks, TravelStyle } from '../../domain/entities/Settings';
 import { isSettingsError } from '../../domain/entities/SettingsError';
 import {
   BIO_MAX,
+  FAVOURITE_CITIES_MAX,
+  TRAVEL_STYLES_MAX,
   diffProfile,
   displayNameOf,
   hasChanges,
@@ -16,6 +18,7 @@ import {
   isHandleFormatValid,
   normaliseHandle,
   splitDisplayName,
+  toggleIn,
 } from '../../domain/rules/settingsRules';
 import { settingsCopy } from '../copy';
 import { settingsKeys } from '../state/settingsQueries';
@@ -25,8 +28,10 @@ import { errorCodeOf, useAccountChanged } from './useSettingsData';
 /**
  * View model for Edit profile (API map §10): the form over the account, a live
  * username check (`GET /handles/availability`, after a 400ms pause), the city
- * search (`GET /cities`), the photo (`POST /me/avatar`, saved at once), and Save
- * (`PATCH /me` with only what changed; languages and links merged into extras).
+ * search (`GET /cities`), favourite destinations (picked from
+ * `GET /cities/popular` or searched), the photo (`POST /me/avatar`, saved at
+ * once), and Save (`PATCH /me` with only what changed; languages, links, travel
+ * styles and favourite city ids merged into extras).
  */
 export function useEditProfile(account: Account) {
   const useCases = useSettingsUseCases();
@@ -39,6 +44,8 @@ export function useEditProfile(account: Account) {
   const [city, setCity] = useState<AccountCity | null>(account.homeCity);
   const [languages, setLanguages] = useState<string[]>(account.languages);
   const [links, setLinks] = useState<SocialLinks>(account.socialLinks);
+  const [travelStyles, setTravelStyles] = useState<TravelStyle[]>(account.travelStyles);
+  const [favourites, setFavourites] = useState<AccountCity[]>(account.favouriteCities);
 
   // ---------- username ----------
   const cleanHandle = normaliseHandle(handle);
@@ -71,6 +78,23 @@ export function useEditProfile(account: Account) {
     queryKey: settingsKeys.cities(settledCity.toLowerCase()),
     queryFn: () => useCases.searchCities(settledCity),
     enabled: settledCity.length >= 2,
+    staleTime: 10 * 60_000,
+  });
+
+  // ---------- favourite destinations ----------
+  const [destQuery, setDestQuery] = useState('');
+  const settledDest = useDebouncedValue(destQuery.trim(), 300);
+  // Same key as the home-city search: one answer per query, whichever field asked.
+  const destinations = useQuery({
+    queryKey: settingsKeys.cities(settledDest.toLowerCase()),
+    queryFn: () => useCases.searchCities(settledDest),
+    enabled: settledDest.length >= 2,
+    staleTime: 10 * 60_000,
+  });
+  const popular = useQuery({
+    queryKey: settingsKeys.popularCities,
+    queryFn: () => useCases.popularCities(),
+    // The server refreshes the list every 10 minutes.
     staleTime: 10 * 60_000,
   });
 
@@ -136,8 +160,10 @@ export function useEditProfile(account: Account) {
         homeCityId: city?.id ?? null,
         languages,
         socialLinks: links,
+        travelStyles,
+        favouriteCityIds: favourites.map((c) => c.id),
       }),
-    [account, firstName, lastName, cleanHandle, bio, city, languages, links],
+    [account, firstName, lastName, cleanHandle, bio, city, languages, links, travelStyles, favourites],
   );
   const save = useMutation({
     mutationFn: () => useCases.saveProfile(account, edit),
@@ -173,8 +199,27 @@ export function useEditProfile(account: Account) {
       setCityQuery('');
     },
     languages,
-    toggleLanguage: (code: string) =>
-      setLanguages((list) => (list.includes(code) ? list.filter((l) => l !== code) : [...list, code])),
+    toggleLanguage: (code: string) => setLanguages((list) => toggleIn(list, code)),
+    travelStyles,
+    travelStylesFull: travelStyles.length >= TRAVEL_STYLES_MAX,
+    toggleTravelStyle: (style: TravelStyle) =>
+      setTravelStyles((list) => toggleIn(list, style, TRAVEL_STYLES_MAX)),
+    favourites,
+    favouritesFull: favourites.length >= FAVOURITE_CITIES_MAX,
+    /** Adds the city, or takes it out if already there; a full list takes nothing more. */
+    toggleFavourite: (c: AccountCity) =>
+      setFavourites((list) =>
+        list.some((f) => f.id === c.id)
+          ? list.filter((f) => f.id !== c.id)
+          : list.length >= FAVOURITE_CITIES_MAX
+            ? list
+            : [...list, c],
+      ),
+    destQuery,
+    setDestQuery: useCallback((t: string) => setDestQuery(t), []),
+    destResults: settledDest.length >= 2 ? (destinations.data ?? []) : [],
+    destSearching: settledDest.length >= 2 && destinations.isFetching,
+    popularCities: popular.data ?? [],
     links,
     /** One stable setter per link, so the native fields are not rebuilt on each keystroke. */
     linkSetters: linkSetters,
@@ -187,6 +232,7 @@ export function useEditProfile(account: Account) {
     saving: save.isPending,
     saved: save.isSuccess,
     saveError: saveError && saveError !== 'handleTaken' && saveError !== 'handleCooldown' ? saveError : null,
+    /** When the username can change again, only if the server said (it is no longer documented). */
     cooldownUntil: isSettingsError(save.error) ? save.error.availableAt : null,
     save: () => save.mutate(),
   };

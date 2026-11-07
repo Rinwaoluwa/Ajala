@@ -8,6 +8,7 @@ import { useTheme } from '@shared/hooks/useTheme';
 import { LoadFailed } from '../components/LoadFailed';
 import { SettingsFrame } from '../components/SettingsFrame';
 import { settingsCopy, settingsErrors } from '../copy';
+import { useSignOutEverywhere } from '../hooks/useAccountFlows';
 import { useSessions } from '../hooks/useSettingsData';
 
 /**
@@ -15,6 +16,9 @@ import { useSessions } from '../hooks/useSettingsData';
  * other device with where and when it was last used, and Sign out
  * (`DELETE /me/sessions/:id`) after a confirmation. This device has no Sign out
  * here — Log out in Settings does that (spec §2.6).
+ *
+ * "Sign out everywhere" (`POST /auth/logout/all`) ends every session, this one
+ * included, so after it this phone signs out the way Log out does.
  */
 const when = (iso: string) =>
   new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
@@ -24,11 +28,18 @@ export function SessionsScreen({ onBack }: { onBack: () => void }) {
   const stacked = useFontScale() > 1.3;
   const copy = settingsCopy.sessions;
   const sessions = useSessions();
+  const everywhere = useSignOutEverywhere();
 
   const confirm = (id: string) =>
     Alert.alert(copy.signOutTitle, copy.signOutBody, [
       { text: settingsCopy.hub.cancel, style: 'cancel' },
       { text: copy.signOut, style: 'destructive', onPress: () => sessions.end(id) },
+    ]);
+
+  const confirmEverywhere = () =>
+    Alert.alert(copy.signOutAllTitle, copy.signOutAllConfirm, [
+      { text: settingsCopy.hub.cancel, style: 'cancel' },
+      { text: copy.signOutAll, style: 'destructive', onPress: everywhere.submit },
     ]);
 
   return (
@@ -88,6 +99,23 @@ export function SessionsScreen({ onBack }: { onBack: () => void }) {
           {settingsErrors[sessions.error]}
         </Text>
       ) : null}
+      <View style={{ gap: 8 }}>
+        <Button
+          label={copy.signOutAll}
+          variant="secondary"
+          fullWidth
+          loading={everywhere.busy}
+          onPress={confirmEverywhere}
+        />
+        <Text variant="bodySm" tone="muted">
+          {copy.signOutAllBody}
+        </Text>
+        {everywhere.error ? (
+          <Text variant="bodySm" tone="destructive" accessibilityLiveRegion="polite">
+            {settingsErrors[everywhere.error]}
+          </Text>
+        ) : null}
+      </View>
     </SettingsFrame>
   );
 }

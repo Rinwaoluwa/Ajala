@@ -17,8 +17,19 @@ export type SettingsErrorCode =
   | 'emailTaken'
   /** 409 on a handle: someone has it. */
   | 'handleTaken'
-  /** 409 HANDLE_COOLDOWN: changed in the last 30 days; `availableAt` says when. */
+  /**
+   * 409 HANDLE_COOLDOWN: changed in the last 30 days. `availableAt` carries when,
+   * only if the server happens to send it (the spec no longer documents it).
+   */
   | 'handleCooldown'
+  /** 409 LAST_SIGN_IN_METHOD: unlinking would leave no way in; set a password first. */
+  | 'lastSignInMethod'
+  /** 403 EMAIL_NOT_VERIFIED on setting a password or exporting data. */
+  | 'emailNotVerified'
+  /** 409 on setting a first password: the account already has one. */
+  | 'alreadyHasPassword'
+  /** 409 on a data export: one is being built, or the last was under a day ago. */
+  | 'exportTooSoon'
   /** 409 POST_HAS_ATTENDEES on deleting a draft (it went live and people joined). */
   | 'hasAttendees'
   | 'imageTooLarge'

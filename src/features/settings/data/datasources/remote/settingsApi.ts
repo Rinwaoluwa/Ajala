@@ -1,13 +1,18 @@
 import type {
+  AnalyticsOptDto,
   CityDto,
+  DataExportDto,
   DeletionScheduledDto,
   HandleAvailabilityDto,
   MeDto,
   MyPostDto,
+  MyReportDto,
   Page,
   PublicProfileDto,
+  ReauthDto,
   SessionDto,
   UpdateProfileDto,
+  UpdateUserSettingsDto,
   UserSettingsDto,
 } from '../../dto/settingsDtos';
 
@@ -15,7 +20,7 @@ import type {
 const V1 = '/api/v1';
 
 /**
- * Settings' endpoints as the signed-in person (spec §3.3–§3.9; API map §10).
+ * Settings' endpoints as the signed-in person (spec §3.2–§3.5, §3.12; API map §10).
  * `request` is auth's `AuthorizedRequest`.
  */
 export type SettingsRequest = <T>(request: {
@@ -51,27 +56,46 @@ export function createSettingsApi(request: SettingsRequest) {
       }),
     searchCities: (q: string, limit: number) =>
       request<CityDto[]>({ method: 'GET', path: `${V1}/cities?${query({ q, limit })}` }),
+    popularCities: () => request<CityDto[]>({ method: 'GET', path: `${V1}/cities/popular` }),
 
     getSettings: () => request<UserSettingsDto>({ method: 'GET', path: `${V1}/me/settings` }),
-    updateSettings: (body: Partial<UserSettingsDto>) =>
+    updateSettings: (body: UpdateUserSettingsDto) =>
       request<UserSettingsDto>({ method: 'PATCH', path: `${V1}/me/settings`, body }),
+    setAnalytics: (body: AnalyticsOptDto) =>
+      request<UserSettingsDto>({ method: 'PATCH', path: `${V1}/me/analytics`, body }),
 
     listSessions: () => request<SessionDto[]>({ method: 'GET', path: `${V1}/me/sessions` }),
     endSession: (sessionId: string) =>
       request<void>({ method: 'DELETE', path: `${V1}/me/sessions/${id(sessionId)}` }),
+    /** Ends every session, this one too; 204. */
+    logoutAll: () => request<void>({ method: 'POST', path: `${V1}/auth/logout/all` }),
     changePassword: (currentPassword: string, newPassword: string) =>
       request<void>({ method: 'POST', path: `${V1}/me/password`, body: { currentPassword, newPassword } }),
+    setPassword: (newPassword: string) =>
+      request<void>({ method: 'POST', path: `${V1}/me/password/set`, body: { newPassword } }),
     startEmailChange: (newEmail: string) =>
       request<void>({ method: 'POST', path: `${V1}/me/email/change`, body: { newEmail } }),
     confirmEmailChange: (code: string) =>
       request<void>({ method: 'POST', path: `${V1}/me/email/change/confirm`, body: { code } }),
-    reauth: (password: string) =>
-      request<void>({ method: 'POST', path: `${V1}/me/reauth`, body: { password } }),
+    /** 202, no body: a code is emailed to the account's address. */
+    sendReauthCode: () => request<void>({ method: 'POST', path: `${V1}/me/reauth/code` }),
+    reauth: (body: ReauthDto) => request<void>({ method: 'POST', path: `${V1}/me/reauth`, body }),
+    unlinkIdentity: (provider: 'google' | 'apple') =>
+      request<void>({ method: 'DELETE', path: `${V1}/me/identities/${id(provider)}` }),
     deleteAccount: (reason: string | null) =>
       request<DeletionScheduledDto>({
         method: 'DELETE',
         path: `${V1}/me`,
         body: reason ? { reason } : {},
+      }),
+
+    requestExport: () => request<DataExportDto>({ method: 'POST', path: `${V1}/me/export` }),
+    getExport: () => request<DataExportDto>({ method: 'GET', path: `${V1}/me/export` }),
+
+    listReports: (cursor: string | null) =>
+      request<Page<MyReportDto>>({
+        method: 'GET',
+        path: `${V1}/me/reports?${query({ limit: 20, ...(cursor ? { cursor } : null) })}`,
       }),
 
     listDrafts: () =>

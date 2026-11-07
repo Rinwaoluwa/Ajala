@@ -4,15 +4,21 @@ import type {
   Account,
   AccountCity,
   BlockedUser,
+  DataExport,
   Draft,
+  MyReport,
   Session,
   UserSettings,
 } from '../../domain/entities/Settings';
 import { SettingsError, type SettingsErrorCode } from '../../domain/entities/SettingsError';
+import { isTravelStyle } from '../../domain/rules/travelStyles';
 import type {
   CityDto,
+  CityRefDto,
+  DataExportDto,
   MeDto,
   MyPostDto,
+  MyReportDto,
   PublicProfileDto,
   SessionDto,
   UserSettingsDto,
@@ -29,28 +35,28 @@ export function toAccount(dto: MeDto): Account {
     email: dto.email ?? null,
     bio: dto.bio ?? null,
     avatarUrl: dto.avatarUrl ?? null,
-    homeCity: dto.homeCity
-      ? { id: dto.homeCity.id, name: dto.homeCity.name, label: dto.homeCity.label }
-      : null,
+    homeCity: dto.homeCity ? toCityRef(dto.homeCity) : null,
     languages: Array.isArray(extras.languages) ? extras.languages : [],
     socialLinks: {
       instagram: links.instagram ?? null,
       tiktok: links.tiktok ?? null,
       website: links.website ?? null,
     },
-    identities: (dto.identities ?? []).map((i) => ({
-      provider: i.provider,
-      verifiedAt: i.verifiedAt ?? null,
-    })),
+    // A slug outside the API's fixed list could not be saved back, so it is dropped here.
+    travelStyles: Array.isArray(extras.travelStyles) ? extras.travelStyles.filter(isTravelStyle) : [],
+    favouriteCities: (dto.favouriteCities ?? []).map(toCityRef),
+    identities: (dto.identities ?? []).map((i) => ({ provider: i.provider })),
     extras,
   };
 }
 
-export const toCity = (dto: CityDto): AccountCity => ({
+const toCityRef = (dto: CityRefDto): AccountCity => ({
   id: dto.id,
   name: dto.name,
   label: dto.label || dto.name,
 });
+
+export const toCity = (dto: CityDto): AccountCity => toCityRef(dto);
 
 export function toSettings(dto: UserSettingsDto): UserSettings {
   return {
@@ -61,12 +67,32 @@ export function toSettings(dto: UserSettingsDto): UserSettings {
     notifyNewComment: dto.notifyNewComment,
     notifySubscription: dto.notifySubscription,
     readReceipts: dto.readReceipts,
+    dmPermission: dto.dmPermission === 'shared_only' ? 'shared_only' : 'anyone',
     hiddenFromSearch: dto.hiddenFromSearch,
-    marketingEmails: dto.marketingEmails,
-    dmPermission: dto.dmPermission,
-    showAge: dto.showAge,
+    analyticsOptOut: dto.analyticsOptOut,
+    showCurrentCity: dto.showCurrentCity,
+    openToMeetToday: dto.openToMeetToday,
+    sharePlans: dto.sharePlans,
   };
 }
+
+export const toReport = (dto: MyReportDto): MyReport => ({
+  id: dto.id,
+  targetType: dto.targetType,
+  reason: dto.reason,
+  status: dto.status,
+  createdAt: dto.createdAt,
+  resolvedAt: dto.resolvedAt ?? null,
+});
+
+export const toDataExport = (dto: DataExportDto): DataExport => ({
+  id: dto.id,
+  status: dto.status,
+  requestedAt: dto.requestedAt,
+  readyAt: dto.readyAt ?? null,
+  expiresAt: dto.expiresAt ?? null,
+  downloadUrl: dto.downloadUrl ?? null,
+});
 
 export const toSession = (dto: SessionDto): Session => ({
   id: dto.id,
@@ -92,7 +118,16 @@ export const toBlockedUser = (dto: PublicProfileDto): BlockedUser => ({
 });
 
 /** Which call failed: the same status means different things to different calls. */
-export type ErrorContext = 'password' | 'reauth' | 'emailChange' | 'emailConfirm' | 'handle' | 'deleteDraft';
+export type ErrorContext =
+  | 'password'
+  | 'reauth'
+  | 'reauthCode'
+  | 'setPassword'
+  | 'emailChange'
+  | 'emailConfirm'
+  | 'handle'
+  | 'deleteDraft'
+  | 'export';
 
 /** By the API's code (spec §5), never its message. */
 export function toSettingsError(e: unknown, context?: ErrorContext): SettingsError {
@@ -104,7 +139,7 @@ export function toSettingsError(e: unknown, context?: ErrorContext): SettingsErr
     const code = (e as { code?: unknown } | null)?.code;
     if (code === 'sessionExpired') {
       if (context === 'password' || context === 'reauth') return new SettingsError('wrongPassword');
-      if (context === 'emailConfirm') return new SettingsError('badCode');
+      if (context === 'emailConfirm' || context === 'reauthCode') return new SettingsError('badCode');
       return new SettingsError('sessionExpired');
     }
     return new SettingsError('unknown');
@@ -114,6 +149,8 @@ export function toSettingsError(e: unknown, context?: ErrorContext): SettingsErr
     REAUTH_REQUIRED: 'reauthRequired',
     PASSWORD_BREACHED: 'passwordBreached',
     HANDLE_COOLDOWN: 'handleCooldown',
+    LAST_SIGN_IN_METHOD: 'lastSignInMethod',
+    EMAIL_NOT_VERIFIED: 'emailNotVerified',
     POST_HAS_ATTENDEES: 'hasAttendees',
     PAYLOAD_TOO_LARGE: 'imageTooLarge',
     UNSUPPORTED_MEDIA_TYPE: 'imageNotSupported',
@@ -127,7 +164,7 @@ export function toSettingsError(e: unknown, context?: ErrorContext): SettingsErr
     code =
       context === 'password' || context === 'reauth'
         ? 'wrongPassword'
-        : context === 'emailConfirm'
+        : context === 'emailConfirm' || context === 'reauthCode'
           ? 'badCode'
           : 'sessionExpired';
   }
@@ -139,10 +176,15 @@ export function toSettingsError(e: unknown, context?: ErrorContext): SettingsErr
           ? 'emailTaken'
           : context === 'deleteDraft'
             ? 'hasAttendees'
-            : 'unknown';
+            : context === 'setPassword'
+              ? 'alreadyHasPassword'
+              : context === 'export'
+                ? 'exportTooSoon'
+                : 'unknown';
   }
   if (!code && (e.code === 'VALIDATION_FAILED' || e.code === 'BAD_REQUEST')) code = 'invalidDetails';
 
+  // No longer documented with HANDLE_COOLDOWN; used only when the server still sends it.
   const availableAt = typeof e.details?.availableAt === 'string' ? e.details.availableAt : null;
   return new SettingsError(code ?? 'unknown', { message: e.message, availableAt });
 }

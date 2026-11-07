@@ -11,6 +11,9 @@ export const settingsKeys = {
   drafts: ['settings', 'drafts'] as const,
   blocked: ['settings', 'blocked'] as const,
   support: ['settings', 'support'] as const,
+  reports: ['settings', 'reports'] as const,
+  dataExport: ['settings', 'export'] as const,
+  popularCities: ['settings', 'popularCities'] as const,
   handle: (handle: string) => ['settings', 'handle', handle] as const,
   cities: (query: string) => ['settings', 'cities', query] as const,
 };

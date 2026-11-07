@@ -2,9 +2,11 @@ import { describe, expect, it } from '@jest/globals';
 
 import type { Account } from '../entities/Settings';
 import {
+  canRequestExport,
   diffProfile,
   editedAgo,
   filterDrafts,
+  hasPassword,
   isDisplayNameValid,
   isHandleFormatValid,
   mergeExtras,
@@ -12,7 +14,9 @@ import {
   passwordChecks,
   sortSessions,
   splitDisplayName,
+  toggleIn,
 } from '../rules/settingsRules';
+import { isTravelStyle, travelStyleLabel, TRAVEL_STYLES } from '../rules/travelStyles';
 
 const account: Account = {
   id: 'me',
@@ -25,7 +29,9 @@ const account: Account = {
   homeCity: { id: 'london', name: 'London', label: 'London, UK' },
   languages: ['en', 'zh'],
   socialLinks: { instagram: '@mayawanders', tiktok: null, website: null },
-  identities: [{ provider: 'email', verifiedAt: '2026-01-01T00:00:00Z' }],
+  travelStyles: ['solo', 'foodie'],
+  favouriteCities: [{ id: 'accra', name: 'Accra', label: 'Accra, Ghana' }],
+  identities: [{ provider: 'email' }],
   extras: { languages: ['en', 'zh'], pronouns: 'she/her', socialLinks: { instagram: '@mayawanders' } },
 };
 
@@ -62,6 +68,53 @@ describe('profile edits', () => {
       pronouns: 'she/her',
       socialLinks: { instagram: '@m', tiktok: null, website: 'https://maya.com' },
     });
+  });
+});
+
+describe('travel style and favourite destinations', () => {
+  it('sends them only when they changed, in the order picked', () => {
+    expect(diffProfile(account, { travelStyles: ['solo', 'foodie'], favouriteCityIds: ['accra'] })).toEqual(
+      {},
+    );
+    expect(
+      diffProfile(account, { travelStyles: ['foodie', 'solo'], favouriteCityIds: ['accra', 'lisbon'] }),
+    ).toEqual({ travelStyles: ['foodie', 'solo'], favouriteCityIds: ['accra', 'lisbon'] });
+  });
+
+  it('merges them into extras, and an empty list clears', () => {
+    expect(mergeExtras(account.extras, { travelStyles: [], favouriteCityIds: ['lisbon'] })).toMatchObject({
+      pronouns: 'she/her',
+      travelStyles: [],
+      favouriteCityIds: ['lisbon'],
+    });
+  });
+
+  it('knows the API’s 36 styles and their words', () => {
+    expect(TRAVEL_STYLES).toHaveLength(36);
+    expect(new Set(TRAVEL_STYLES.map((s) => s.value)).size).toBe(36);
+    expect(travelStyleLabel('digital_nomad')).toBe('Digital nomad');
+    expect(isTravelStyle('foodie')).toBe(true);
+    expect(isTravelStyle('space_tourism')).toBe(false);
+  });
+
+  it('stops adding at the cap but always lets one go', () => {
+    expect(toggleIn(['a', 'b'], 'c', 2)).toEqual(['a', 'b']);
+    expect(toggleIn(['a', 'b'], 'a', 2)).toEqual(['b']);
+  });
+});
+
+describe('account', () => {
+  it('has a password only with an email identity', () => {
+    expect(hasPassword(account)).toBe(true);
+    expect(hasPassword({ identities: [{ provider: 'google' }, { provider: 'apple' }] })).toBe(false);
+  });
+
+  it('lets a new export be asked for unless one is being built', () => {
+    const base = { id: 'x', requestedAt: '', readyAt: null, expiresAt: null, downloadUrl: null };
+    expect(canRequestExport(null)).toBe(true);
+    expect(canRequestExport({ ...base, status: 'queued' })).toBe(false);
+    expect(canRequestExport({ ...base, status: 'ready' })).toBe(true);
+    expect(canRequestExport({ ...base, status: 'failed' })).toBe(true);
   });
 });
 

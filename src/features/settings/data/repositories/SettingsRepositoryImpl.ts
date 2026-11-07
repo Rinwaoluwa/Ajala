@@ -1,13 +1,15 @@
 import { getAppConfig } from '@core/config/appConfig';
 
 import type { SettingsRepository } from '../../domain/repositories/SettingsRepository';
-import { cleanLinks, mergeExtras } from '../../domain/rules/settingsRules';
+import { cleanLinks, editsExtras, mergeExtras } from '../../domain/rules/settingsRules';
 import { createSettingsApi, type SettingsRequest } from '../datasources/remote/settingsApi';
 import {
   toAccount,
   toBlockedUser,
   toCity,
+  toDataExport,
   toDraft,
+  toReport,
   toSession,
   toSettings,
   toSettingsError,
@@ -40,7 +42,7 @@ export function createSettingsRepository(request: SettingsRequest): SettingsRepo
               ...(edit.handle !== undefined ? { handle: edit.handle } : null),
               ...(edit.bio !== undefined ? { bio: edit.bio } : null),
               ...(edit.homeCityId !== undefined ? { homeCityId: edit.homeCityId } : null),
-              ...(edit.languages || edit.socialLinks
+              ...(editsExtras(edit)
                 ? {
                     extras: mergeExtras(current.extras, {
                       ...edit,
@@ -59,17 +61,45 @@ export function createSettingsRepository(request: SettingsRequest): SettingsRepo
         return { available: r.available, reason: r.reason ?? null };
       }),
     searchCities: (q, limit) => guard(async () => (await api.searchCities(q, limit)).map(toCity)),
+    popularCities: () => guard(async () => (await api.popularCities()).map(toCity)),
 
     getSettings: () => guard(async () => toSettings(await api.getSettings())),
     updateSettings: (patch) => guard(async () => toSettings(await api.updateSettings(patch))),
+    setAnalytics: (enabled) => guard(async () => toSettings(await api.setAnalytics({ enabled }))),
 
     listSessions: () => guard(async () => (await api.listSessions()).map(toSession)),
     endSession: (sessionId) => guard(() => api.endSession(sessionId)),
+    signOutEverywhere: () => guard(() => api.logoutAll()),
     changePassword: (current, next) => guard(() => api.changePassword(current, next), 'password'),
+    setPassword: (next) => guard(() => api.setPassword(next), 'setPassword'),
     startEmailChange: (email) => guard(() => api.startEmailChange(email), 'emailChange'),
     confirmEmailChange: (code) => guard(() => api.confirmEmailChange(code), 'emailConfirm'),
-    reauthenticate: (password) => guard(() => api.reauth(password), 'reauth'),
+    sendReauthCode: () => guard(() => api.sendReauthCode()),
+    reauthenticate: (proof) =>
+      'code' in proof
+        ? guard(() => api.reauth({ code: proof.code }), 'reauthCode')
+        : guard(() => api.reauth({ password: proof.password }), 'reauth'),
+    unlinkIdentity: (provider) => guard(() => api.unlinkIdentity(provider)),
     deleteAccount: (reason) => guard(async () => (await api.deleteAccount(reason))?.purgeAt ?? null),
+
+    requestExport: () => guard(async () => toDataExport(await api.requestExport()), 'export'),
+    getExport: () =>
+      guard(async () => {
+        try {
+          return toDataExport(await api.getExport());
+        } catch (e) {
+          // 404 is "never asked for", an ordinary state rather than a failure.
+          const mapped = toSettingsError(e, 'export');
+          if (mapped.code === 'notFound') return null;
+          throw mapped;
+        }
+      }),
+
+    listReports: (cursor) =>
+      guard(async () => {
+        const page = await api.listReports(cursor);
+        return { items: page.items.map(toReport), nextCursor: page.nextCursor ?? null };
+      }),
 
     listDrafts: () =>
       guard(async () => (await api.listDrafts()).items.filter((p) => p.status === 'draft').map(toDraft)),

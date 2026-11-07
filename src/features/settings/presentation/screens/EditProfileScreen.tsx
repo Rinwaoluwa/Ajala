@@ -21,9 +21,15 @@ import {
 } from '@shared/components';
 import { useTheme } from '@shared/hooks/useTheme';
 
-import type { Account } from '../../domain/entities/Settings';
-import { BIO_MAX, HANDLE_MAX } from '../../domain/rules/settingsRules';
+import type { Account, AccountCity } from '../../domain/entities/Settings';
+import {
+  BIO_MAX,
+  FAVOURITE_CITIES_MAX,
+  HANDLE_MAX,
+  TRAVEL_STYLES_MAX,
+} from '../../domain/rules/settingsRules';
 import { LANGUAGES, languageName } from '../../domain/rules/languages';
+import { TRAVEL_STYLES, travelStyleLabel } from '../../domain/rules/travelStyles';
 import { LoadFailed } from '../components/LoadFailed';
 import { ProfileChip } from '../components/ProfileChip';
 import { SettingsFrame } from '../components/SettingsFrame';
@@ -34,11 +40,10 @@ import { useAccount } from '../hooks/useSettingsData';
 /**
  * Edit profile (Figma, light and dark): the photo card ("Change photo", saved at
  * once), Display name, Username (checked as you type), Current city (searched
- * in place), Social links ("Add More"), Bio, and Languages spoken ("Manage").
+ * in place), Social links ("Add More"), Bio, Languages spoken, Travel style
+ * (up to 10 of the API's 36) and Favourite destinations (up to 10 cities,
+ * popular ones offered, any searchable), each behind "Manage".
  * Save sends only what changed; leaving with unsaved changes asks first.
- *
- * Travel style and Favourite locations are in the design but not in the API
- * (API map §12), so they are not shown — flagged in the README.
  */
 export function EditProfileScreen({ onBack }: { onBack: () => void }) {
   const account = useAccount();
@@ -139,6 +144,8 @@ function EditProfileForm({ account, onBack }: { account: Account; onBack: () => 
         helper={`${vm.bio.length}/${BIO_MAX}`}
       />
       <LanguagesSection vm={vm} />
+      <TravelStyleSection vm={vm} />
+      <FavouritesSection vm={vm} />
 
       {vm.saveError ? (
         <Text variant="bodySm" tone="destructive" accessibilityLiveRegion="polite">
@@ -166,7 +173,12 @@ function UsernameField({ vm }: { vm: EditProfileViewModel }) {
     handleTaken: copy.usernameTaken,
     format: copy.usernameFormat,
     reserved: copy.usernameReserved,
-    handleCooldown: settingsErrors.handleCooldown,
+    // The date only when the server sent one; the spec no longer promises it.
+    handleCooldown: vm.cooldownUntil
+      ? copy.cooldownUntil(
+          new Date(vm.cooldownUntil).toLocaleDateString(undefined, { day: 'numeric', month: 'long' }),
+        )
+      : settingsErrors.handleCooldown,
   };
   return (
     <TextField
@@ -306,21 +318,46 @@ function SocialLinksFields({ vm }: { vm: EditProfileViewModel }) {
   );
 }
 
+/**
+ * A section's label with "Manage" / "Done" at the right, and a count while
+ * managing a capped list. Wraps rather than overlapping at large text sizes.
+ */
+function SectionHeader({
+  title,
+  managing,
+  onToggle,
+  count,
+}: {
+  title: string;
+  managing: boolean;
+  onToggle: () => void;
+  count?: string;
+}) {
+  const copy = settingsCopy.edit;
+  return (
+    <View
+      style={{
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        columnGap: 12,
+      }}
+    >
+      <Text variant="labelXs" tone="muted" style={{ flexShrink: 1 }}>
+        {count && managing ? `${title} · ${count}` : title}
+      </Text>
+      <TextLink label={managing ? copy.done : copy.manage} onPress={onToggle} emphasis="plain" />
+    </View>
+  );
+}
+
 function LanguagesSection({ vm }: { vm: EditProfileViewModel }) {
   const copy = settingsCopy.edit;
   const [managing, setManaging] = useState(false);
   return (
     <Animated.View layout={LinearTransition.duration(220)} style={{ gap: 10 }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Text variant="labelXs" tone="muted">
-          {copy.languages}
-        </Text>
-        <TextLink
-          label={managing ? copy.done : copy.manage}
-          onPress={() => setManaging((m) => !m)}
-          emphasis="plain"
-        />
-      </View>
+      <SectionHeader title={copy.languages} managing={managing} onToggle={() => setManaging((m) => !m)} />
       {managing ? (
         <Animated.View entering={FadeIn.duration(180)}>
           <ChipGroup>
@@ -345,6 +382,174 @@ function LanguagesSection({ vm }: { vm: EditProfileViewModel }) {
           {copy.noLanguages}
         </Text>
       )}
+    </Animated.View>
+  );
+}
+
+function TravelStyleSection({ vm }: { vm: EditProfileViewModel }) {
+  const copy = settingsCopy.edit;
+  const [managing, setManaging] = useState(false);
+  return (
+    <Animated.View layout={LinearTransition.duration(220)} style={{ gap: 10 }}>
+      <SectionHeader
+        title={copy.travelStyle}
+        managing={managing}
+        onToggle={() => setManaging((m) => !m)}
+        count={copy.pickedCount(vm.travelStyles.length, TRAVEL_STYLES_MAX)}
+      />
+      {managing ? (
+        <Animated.View entering={FadeIn.duration(180)}>
+          <ChipGroup>
+            {TRAVEL_STYLES.map((s) => {
+              const selected = vm.travelStyles.includes(s.value);
+              return (
+                <Chip
+                  key={s.value}
+                  label={s.label}
+                  selected={selected}
+                  disabled={vm.travelStylesFull && !selected}
+                  onPress={() => vm.toggleTravelStyle(s.value)}
+                />
+              );
+            })}
+          </ChipGroup>
+        </Animated.View>
+      ) : vm.travelStyles.length ? (
+        <ChipGroup>
+          {vm.travelStyles.map((style) => (
+            <Chip
+              key={style}
+              label={travelStyleLabel(style)}
+              selected={false}
+              onPress={() => setManaging(true)}
+            />
+          ))}
+        </ChipGroup>
+      ) : (
+        <Text variant="bodySm" tone="muted">
+          {copy.noTravelStyles}
+        </Text>
+      )}
+    </Animated.View>
+  );
+}
+
+/**
+ * Favourite destinations: the chosen cities, and while managing, the popular
+ * ones (`GET /cities/popular`) to tap plus a search (`GET /cities?q=`) for the
+ * rest. Tapping a chosen city takes it out.
+ */
+function FavouritesSection({ vm }: { vm: EditProfileViewModel }) {
+  const theme = useTheme();
+  const copy = settingsCopy.edit;
+  const [managing, setManaging] = useState(false);
+  const chosen = (c: AccountCity) => vm.favourites.some((f) => f.id === c.id);
+  const popular = vm.popularCities.filter((c) => !chosen(c));
+
+  return (
+    <Animated.View layout={LinearTransition.duration(220)} style={{ gap: 10 }}>
+      <SectionHeader
+        title={copy.favouriteLocations}
+        managing={managing}
+        onToggle={() => setManaging((m) => !m)}
+        count={copy.pickedCount(vm.favourites.length, FAVOURITE_CITIES_MAX)}
+      />
+      {vm.favourites.length ? (
+        <ChipGroup>
+          {vm.favourites.map((c) => (
+            <Chip
+              key={c.id}
+              label={c.name}
+              selected={managing}
+              onPress={() => (managing ? vm.toggleFavourite(c) : setManaging(true))}
+            />
+          ))}
+        </ChipGroup>
+      ) : managing ? null : (
+        <Text variant="bodySm" tone="muted">
+          {copy.noFavourites}
+        </Text>
+      )}
+      {managing ? (
+        <Animated.View entering={FadeIn.duration(180)} style={{ gap: 10 }}>
+          <TextField
+            label={copy.favouriteLocations}
+            labelHidden
+            placeholder={copy.destinationPlaceholder}
+            onChangeText={vm.setDestQuery}
+            autoCorrect={false}
+            trailing={
+              vm.destSearching ? (
+                <NativeSpinner size={14} color={theme.muted} />
+              ) : (
+                <NativeIcon source={icons.search} size={16} color={theme.muted} />
+              )
+            }
+          />
+          {vm.destResults.length > 0 ? (
+            <View
+              style={{
+                borderRadius: 12,
+                borderWidth: 1,
+                borderColor: theme.border,
+                backgroundColor: theme.card,
+                overflow: 'hidden',
+              }}
+            >
+              {vm.destResults.slice(0, 6).map((c, i) => {
+                const picked = chosen(c);
+                const blocked = vm.favouritesFull && !picked;
+                return (
+                  <TouchableOpacity
+                    key={c.id}
+                    activeOpacity={0.6}
+                    disabled={blocked}
+                    onPress={() => vm.toggleFavourite(c)}
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: picked, disabled: blocked }}
+                    accessibilityLabel={c.label}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 8,
+                      paddingHorizontal: 12,
+                      paddingVertical: 12,
+                      borderTopWidth: i === 0 ? 0 : 1,
+                      borderTopColor: theme.border,
+                      opacity: blocked ? 0.4 : 1,
+                    }}
+                  >
+                    <Text variant="bodySm" style={{ flex: 1 }}>
+                      {c.label}
+                    </Text>
+                    {picked ? (
+                      <NativeIcon source={icons.checkCircle} size={16} color={theme.success} />
+                    ) : null}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          ) : null}
+          {popular.length ? (
+            <>
+              <Text variant="labelXs" tone="muted">
+                {copy.popular}
+              </Text>
+              <ChipGroup>
+                {popular.map((c) => (
+                  <Chip
+                    key={c.id}
+                    label={c.name}
+                    selected={false}
+                    disabled={vm.favouritesFull}
+                    onPress={() => vm.toggleFavourite(c)}
+                  />
+                ))}
+              </ChipGroup>
+            </>
+          ) : null}
+        </Animated.View>
+      ) : null}
     </Animated.View>
   );
 }

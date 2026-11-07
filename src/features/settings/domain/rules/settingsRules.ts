@@ -1,4 +1,4 @@
-import type { Account, Draft, PostType, ProfileEdit, SocialLinks } from '../entities/Settings';
+import type { Account, DataExport, Draft, PostType, ProfileEdit, SocialLinks } from '../entities/Settings';
 
 /**
  * The Settings screens' rules: field limits from the API (spec §4) and the small
@@ -11,6 +11,29 @@ export const HANDLE_MIN = 3;
 export const HANDLE_MAX = 20;
 export const DELETE_REASON_MAX = 500;
 export const SOCIAL_LINK_MAX = 200;
+/** `extras.travelStyles` and `extras.favouriteCityIds` each take up to 10 (spec §4). */
+export const TRAVEL_STYLES_MAX = 10;
+export const FAVOURITE_CITIES_MAX = 10;
+
+/**
+ * Whether the account can sign in with a password. Google- and Apple-only
+ * accounts cannot: they re-authenticate with an emailed code, and "Change
+ * password" sets a first one instead (spec §2.5, §2.6).
+ */
+export const hasPassword = (account: Pick<Account, 'identities'>) =>
+  account.identities.some((i) => i.provider === 'email');
+
+/** Adds `value`, or takes it out if present. A full list is left as it is. */
+export function toggleIn<T>(list: readonly T[], value: T, max = Infinity): T[] {
+  if (list.includes(value)) return list.filter((v) => v !== value);
+  return list.length >= max ? [...list] : [...list, value];
+}
+
+/**
+ * Whether asking for an export again could work now. One that is still being
+ * built blocks a new one; otherwise the server decides (one a day, 409).
+ */
+export const canRequestExport = (current: DataExport | null) => current?.status !== 'queued';
 
 /** Letters, digits, "." and "_", 3–20 long (spec §2.4). */
 export function isHandleFormatValid(handle: string): boolean {
@@ -66,6 +89,13 @@ export function diffProfile(account: Account, next: ProfileEdit): ProfileEdit {
   if (next.languages && next.languages.join() !== account.languages.join()) out.languages = next.languages;
   if (next.socialLinks && !sameLinks(next.socialLinks, account.socialLinks))
     out.socialLinks = next.socialLinks;
+  if (next.travelStyles && next.travelStyles.join() !== account.travelStyles.join())
+    out.travelStyles = next.travelStyles;
+  if (
+    next.favouriteCityIds &&
+    next.favouriteCityIds.join() !== account.favouriteCities.map((c) => c.id).join()
+  )
+    out.favouriteCityIds = next.favouriteCityIds;
   return out;
 }
 
@@ -76,12 +106,22 @@ const sameLinks = (a: SocialLinks, b: SocialLinks) =>
 
 export const hasChanges = (edit: ProfileEdit) => Object.keys(edit).length > 0;
 
-/** The extras record with this edit's languages and links merged in (extras is replaced whole). */
+/** Whether this edit touches `extras`, which then has to be sent. */
+export const editsExtras = (edit: ProfileEdit) =>
+  !!(edit.languages || edit.socialLinks || edit.travelStyles || edit.favouriteCityIds);
+
+/**
+ * The extras record with this edit's fields merged in. `PATCH /me` may replace
+ * extras whole, so everything else the server sent (pronouns, tagline…) goes
+ * back unchanged rather than being wiped.
+ */
 export function mergeExtras(extras: Record<string, unknown>, edit: ProfileEdit): Record<string, unknown> {
   return {
     ...extras,
     ...(edit.languages ? { languages: edit.languages } : null),
     ...(edit.socialLinks ? { socialLinks: cleanLinks(edit.socialLinks) } : null),
+    ...(edit.travelStyles ? { travelStyles: edit.travelStyles } : null),
+    ...(edit.favouriteCityIds ? { favouriteCityIds: edit.favouriteCityIds } : null),
   };
 }
 

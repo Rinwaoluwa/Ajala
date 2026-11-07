@@ -31,8 +31,18 @@ export interface MeDto {
   bio: string | null;
   avatarUrl: string | null;
   homeCity: CityRefDto | null;
-  extras: (Record<string, unknown> & { languages?: string[]; socialLinks?: SocialLinksDto }) | null;
-  identities: { provider: 'email' | 'google' | 'apple'; verifiedAt: string | null }[] | null;
+  extras:
+    | (Record<string, unknown> & {
+        languages?: string[];
+        socialLinks?: SocialLinksDto;
+        travelStyles?: string[] | null;
+        favouriteCityIds?: string[];
+      })
+    | null;
+  /** The cities behind `extras.favouriteCityIds`, in order. */
+  favouriteCities: CityRefDto[] | null;
+  /** Provider only: `verifiedAt` left the API (spec §8). */
+  identities: { provider: 'email' | 'google' | 'apple' }[] | null;
 }
 
 export interface UpdateProfileDto {
@@ -48,16 +58,24 @@ export interface UserSettingsDto {
   notifyJoinRequest: boolean;
   notifyRequestAccepted: boolean;
   notifyPostReminder: boolean;
-  notifyNewMessage: boolean;
   notifyNewComment: boolean;
+  notifyNewMessage: boolean;
   notifySubscription: boolean;
   readReceipts: boolean;
+  dmPermission: 'anyone' | 'shared_only';
   hiddenFromSearch: boolean;
   analyticsOptOut: boolean;
-  marketingEmails: boolean;
-  dmPermission: 'anyone' | 'shared_only';
-  showAge: boolean;
-  marketingEmailsChangedAt: string | null;
+  showCurrentCity: boolean;
+  openToMeetToday: boolean;
+  sharePlans: boolean;
+}
+
+/** Only the changed fields. Analytics is not in it: it has `PATCH /me/analytics`. */
+export type UpdateUserSettingsDto = Partial<Omit<UserSettingsDto, 'analyticsOptOut'>>;
+
+export interface AnalyticsOptDto {
+  /** False stops usage analytics. */
+  enabled: boolean;
 }
 
 export interface SessionDto {
@@ -97,4 +115,28 @@ export interface HandleAvailabilityDto {
 
 export interface DeletionScheduledDto {
   purgeAt: string | null;
+}
+
+export interface ReauthDto {
+  password?: string;
+  code?: string;
+}
+
+export interface MyReportDto {
+  id: string;
+  targetType: 'user' | 'post' | 'comment' | 'message';
+  targetId: string;
+  reason: 'harassment' | 'impersonation' | 'spam' | 'inappropriate_content' | 'other';
+  status: 'open' | 'resolved' | 'dismissed';
+  createdAt: string;
+  resolvedAt: string | null;
+}
+
+export interface DataExportDto {
+  id: string;
+  status: 'queued' | 'ready' | 'failed';
+  requestedAt: string;
+  readyAt: string | null;
+  expiresAt: string | null;
+  downloadUrl: string | null;
 }

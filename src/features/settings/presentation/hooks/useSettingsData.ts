@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { sharedQueryKeys } from '@core/api/queryClient/queryClient';
 
@@ -33,25 +33,40 @@ export function useAccountChanged() {
 
 /**
  * Stored preferences (`GET /me/settings`), changed optimistically (spec §2.15):
- * a switch moves at once and moves back if the server says no.
+ * a switch moves at once and moves back if the server says no. Usage analytics
+ * goes through its own call (`PATCH /me/analytics`) but is shown and rolled
+ * back the same way, since both answer the whole settings object.
  */
 export function usePreferences() {
-  const { getSettings, updateSettings } = useSettingsUseCases();
+  const { getSettings, updateSettings, setAnalytics } = useSettingsUseCases();
   const queryClient = useQueryClient();
   const query = useQuery({ queryKey: settingsKeys.preferences, queryFn: getSettings });
 
-  const mutation = useMutation({
-    mutationFn: (patch: SettingsPatch) => updateSettings(patch),
-    onMutate: async (patch) => {
+  // Shared by both writes: show the change now, remember what to put back.
+  const optimistic = {
+    onMutate: async (change: Partial<UserSettings>) => {
       await queryClient.cancelQueries({ queryKey: settingsKeys.preferences });
       const before = queryClient.getQueryData<UserSettings>(settingsKeys.preferences);
-      if (before) queryClient.setQueryData<UserSettings>(settingsKeys.preferences, { ...before, ...patch });
+      if (before) queryClient.setQueryData<UserSettings>(settingsKeys.preferences, { ...before, ...change });
       return { before };
     },
-    onError: (_e, _patch, context) => {
+    onError: (_e: unknown, _change: unknown, context?: { before?: UserSettings }) => {
       if (context?.before) queryClient.setQueryData(settingsKeys.preferences, context.before);
     },
-    onSuccess: (next) => queryClient.setQueryData(settingsKeys.preferences, next),
+    onSuccess: (next: UserSettings) => queryClient.setQueryData(settingsKeys.preferences, next),
+  };
+
+  const mutation = useMutation({
+    mutationFn: (patch: SettingsPatch) => updateSettings(patch),
+    onMutate: (patch) => optimistic.onMutate(patch),
+    onError: optimistic.onError,
+    onSuccess: optimistic.onSuccess,
+  });
+  const analytics = useMutation({
+    mutationFn: (enabled: boolean) => setAnalytics(enabled),
+    onMutate: (enabled) => optimistic.onMutate({ analyticsOptOut: !enabled }),
+    onError: optimistic.onError,
+    onSuccess: optimistic.onSuccess,
   });
 
   return {
@@ -60,7 +75,8 @@ export function usePreferences() {
     failed: query.isError,
     retry: () => void query.refetch(),
     update: (patch: SettingsPatch) => mutation.mutate(patch),
-    error: errorCodeOf(mutation.error),
+    setAnalytics: (enabled: boolean) => analytics.mutate(enabled),
+    error: errorCodeOf(mutation.error ?? analytics.error),
   };
 }
 
@@ -133,6 +149,31 @@ export function useBlocked() {
     unblock: (id: string) => mutation.mutate(id),
     unblocking: mutation.isPending ? (mutation.variables ?? null) : null,
     error: errorCodeOf(mutation.error),
+  };
+}
+
+/**
+ * What the person reported (`GET /me/reports`), newest first, a page at a time.
+ * "Show more" fetches the next page; the list is short enough not to need
+ * scrolling-driven loading.
+ */
+export function useReports() {
+  const { listReports } = useSettingsUseCases();
+  const query = useInfiniteQuery({
+    queryKey: settingsKeys.reports,
+    queryFn: ({ pageParam }) => listReports(pageParam),
+    initialPageParam: null as string | null,
+    getNextPageParam: (last) => last.nextCursor ?? undefined,
+  });
+  return {
+    reports: query.data ? query.data.pages.flatMap((p) => p.items) : null,
+    loading: query.isPending,
+    failed: query.isError,
+    retry: () => void query.refetch(),
+    hasMore: query.hasNextPage,
+    loadMore: () => void query.fetchNextPage(),
+    loadingMore: query.isFetchingNextPage,
+    moreFailed: query.isFetchNextPageError,
   };
 }
 
