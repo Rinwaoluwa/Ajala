@@ -6,18 +6,18 @@ import { useTheme } from '@shared/hooks/useTheme';
 
 import type { TripCard } from '../../domain/entities/Trip';
 import { tripsCopy } from '../copy';
-import { tripDay } from '../format';
+import { tripDates } from '../format';
 import { TravellerDots } from './TravellerDots';
 
 /**
  * Somewhere I went (Figma Trips / Past): a compact card without a photo — the
- * type and "Completed" tags, the title, "5 Oct · Completed", the place, and how
- * many travellers went. Tapping it opens the post.
+ * type and "Completed" tags, the title, "5 Oct · Completed" ("4–6 Oct" for a
+ * trip over several days), the place, and how many travellers went. Tapping it opens the post.
  */
 function PastTripCardComponent({ trip, onOpen }: { trip: TripCard; onOpen: () => void }) {
   const theme = useTheme();
   const dark = useColorScheme() === 'dark';
-  const when = [tripDay(trip.startAt), tripsCopy.completed].filter(Boolean).join(' · ');
+  const when = [tripDates(trip.startAt, trip.endAt), tripsCopy.completed].filter(Boolean).join(' · ');
 
   return (
     <TouchableOpacity
@@ -57,7 +57,15 @@ function PastTripCardComponent({ trip, onOpen }: { trip: TripCard; onOpen: () =>
           {trip.placeName ?? trip.cityLabel}
         </Text>
       ) : null}
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 10, marginTop: 4 }}>
+      <View
+        style={{
+          flexDirection: 'row',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          gap: 10,
+          marginTop: 4,
+        }}
+      >
         <TravellerDots count={Math.max(trip.goingCount, 1)} />
         <Text variant="bodySm" tone="muted">
           {tripsCopy.travellers(trip.goingCount)}

@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 
 import { TripsScreen } from '@features/trips';
 
-/** The Trips tab: what I host and what I went to (API map §8). */
+/** The Trips tab: what I'm going to or host, what I asked to join, and what I went to (API map §8). */
 export default function TripsRoute() {
   return (
     <TripsScreen

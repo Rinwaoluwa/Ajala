@@ -3,6 +3,7 @@ import { describe, expect, it } from '@jest/globals';
 import { ApiError } from '@core/api/ApiError';
 
 import { TripsError } from '../../domain/entities/TripsError';
+import type { MyPostDto, PostCardDto } from '../dto/tripsDtos';
 import { createTripsRepository } from '../repositories/TripsRepositoryImpl';
 
 type Call = { method: string; path: string };
@@ -18,23 +19,34 @@ function fake(answer: () => unknown) {
   return { repo: createTripsRepository(request), calls };
 }
 
-const ITEM = {
+const CARD: PostCardDto = {
   id: 'p1',
   type: 'plan',
   title: 'Weekend in Accra',
   images: [{ thumbUrl: 't', cardUrl: 'https://cdn/card.jpg', fullUrl: 'f' }],
   startAt: '2026-11-18T10:00:00+00:00',
+  endAt: '2026-11-20T18:00:00+00:00',
+  recurrence: null,
   placeName: 'Osu, Accra',
   city: { id: 'accra', name: 'Accra', countryCode: 'GH', label: 'Accra, Ghana' },
+  price: null,
+  costSplit: { totalCents: 90000, currency: 'GHS', exponent: 2, expectedCount: 3, perPersonCents: 30000 },
   goingCount: 3,
+  rsvpState: 'going',
+  saved: false,
+};
+
+const MINE: MyPostDto = {
+  ...CARD,
+  rsvpState: 'none',
   status: 'published',
   publishedAt: '2026-10-01T10:00:00Z',
   updatedAt: '2026-10-01T10:00:00Z',
 };
 
 describe('TripsRepository over the API', () => {
-  it('lists my published posts as trip cards', async () => {
-    const { repo, calls } = fake(() => ({ items: [ITEM], nextCursor: 'c2' }));
+  it('lists my published posts as trip cards I host', async () => {
+    const { repo, calls } = fake(() => ({ items: [MINE], nextCursor: 'c2' }));
     const page = await repo.listHosted(null, 20);
     expect(calls[0]).toEqual({ method: 'GET', path: '/api/v1/me/posts?status=published&limit=20' });
     expect(page).toEqual({
@@ -46,21 +58,46 @@ describe('TripsRepository over the API', () => {
           title: 'Weekend in Accra',
           imageUrl: 'https://cdn/card.jpg',
           startAt: '2026-11-18T10:00:00+00:00',
+          endAt: '2026-11-20T18:00:00+00:00',
+          recurrence: null,
           placeName: 'Osu, Accra',
           cityLabel: 'Accra, Ghana',
           goingCount: 3,
           status: 'published',
+          role: 'hosting',
         },
       ],
     });
   });
 
+  it('lists what I am going to and what I asked to join, tagged by list', async () => {
+    const weekly: PostCardDto = {
+      ...CARD,
+      type: 'group',
+      city: null,
+      recurrence: { frequency: 'weekly', endsOn: null },
+    };
+    const { repo, calls } = fake(() => ({ items: [weekly], nextCursor: null }));
+    const going = await repo.listRsvps('going', null, 20);
+    const requested = await repo.listRsvps('requested', 'c3', 20);
+    expect(calls.map((c) => c.path)).toEqual([
+      '/api/v1/me/rsvps?state=going&limit=20',
+      '/api/v1/me/rsvps?state=requested&cursor=c3&limit=20',
+    ]);
+    expect(going.items[0]).toMatchObject({
+      role: 'going',
+      recurrence: 'weekly',
+      cityLabel: '',
+      status: 'published',
+    });
+    expect(requested.items[0]?.role).toBe('requested');
+  });
+
   it('pages what I attended by cursor, and reads them as published', async () => {
-    const { status: _status, publishedAt: _p, updatedAt: _u, ...card } = ITEM;
-    const { repo, calls } = fake(() => ({ items: [card], nextCursor: null }));
+    const { repo, calls } = fake(() => ({ items: [CARD], nextCursor: null }));
     const page = await repo.listAttended('c2', 20);
     expect(calls[0]?.path).toBe('/api/v1/me/attended?cursor=c2&limit=20');
-    expect(page.items[0]?.status).toBe('published');
+    expect(page.items[0]).toMatchObject({ status: 'published', role: 'attended' });
   });
 
   it('maps failures by code', async () => {
@@ -70,7 +107,7 @@ describe('TripsRepository over the API', () => {
     expect(offline).toBeInstanceOf(TripsError);
     expect(offline).toMatchObject({ code: 'network' });
     const expired = await fake(() => new ApiError({ code: 'UNAUTHORIZED', message: 'no', status: 401 }))
-      .repo.listAttended(null, 20)
+      .repo.listRsvps('going', null, 20)
       .catch((e: unknown) => e);
     expect(expired).toMatchObject({ code: 'sessionExpired' });
   });

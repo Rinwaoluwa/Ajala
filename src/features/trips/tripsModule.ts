@@ -1,6 +1,11 @@
 import type { TripsRequest } from './data/datasources/remote/tripsApi';
 import { createTripsRepository } from './data/repositories/TripsRepositoryImpl';
-import { makeLoadPast, makeLoadUpcoming } from './domain/usecases/TripsUseCases';
+import {
+  makeLoadGoing,
+  makeLoadHostedUpcoming,
+  makeLoadPast,
+  makeLoadRequested,
+} from './domain/usecases/TripsUseCases';
 
 /**
  * The feature's composition root. `request` makes calls as the signed-in person
@@ -9,7 +14,9 @@ import { makeLoadPast, makeLoadUpcoming } from './domain/usecases/TripsUseCases'
 export function createTripsUseCases(request: TripsRequest) {
   const repo = createTripsRepository(request);
   return {
-    loadUpcoming: makeLoadUpcoming(repo),
+    loadGoing: makeLoadGoing(repo),
+    loadHostedUpcoming: makeLoadHostedUpcoming(repo),
+    loadRequested: makeLoadRequested(repo),
     loadPast: makeLoadPast(repo),
   };
 }

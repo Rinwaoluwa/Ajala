@@ -1,4 +1,4 @@
-import type { TripType, TripsTab } from '../domain/entities/Trip';
+import type { TripRecurrence, TripRole, TripType, TripsTab } from '../domain/entities/Trip';
 import type { TripsErrorCode } from '../domain/entities/TripsError';
 
 /** The Trips tab's words, from the Figma frames (light and dark). */
@@ -14,13 +14,26 @@ export const tripsCopy = {
     { value: 'requests', label: 'Requests' },
     { value: 'past', label: 'Past' },
   ] as const,
-  types: { meetup: 'Meetup', event: 'Event', plan: 'Plan', group: 'Group' } satisfies Record<
-    TripType,
-    string
-  >,
-  hosting: 'Hosting',
+  types: {
+    meetup: 'Meetup',
+    event: 'Event',
+    plan: 'Plan',
+    group: 'Group',
+  } satisfies Record<TripType, string>,
+  /** The status tag on each card, by how I relate to the post. */
+  roles: {
+    hosting: 'Hosting',
+    going: 'Going',
+    requested: 'Request sent',
+    attended: 'Completed',
+  } satisfies Record<TripRole, string>,
   cancelled: 'Cancelled',
   completed: 'Completed',
+  recurrence: {
+    weekly: 'Weekly',
+    biweekly: 'Every two weeks',
+    monthly: 'Monthly',
+  } satisfies Record<TripRecurrence, string>,
   starts: (time: string) => `Starts ${time}`,
   joining: (n: number) => (n === 0 ? 'No one has joined yet' : `${n} joining`),
   travellers: (n: number) => `${n} traveller${n === 1 ? '' : 's'}`,

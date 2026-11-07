@@ -1,7 +1,11 @@
-import type { TripsTab } from '../../domain/entities/Trip';
+/**
+ * The Trips feature's TanStack Query keys, under `trips`. Upcoming is two
+ * lists (going and hosted) merged on the phone, so each source has its own
+ * key. Post detail invalidates `['trips']` after an RSVP, which refreshes all.
+ */
+export type TripsSource = 'going' | 'hosted' | 'requested' | 'past';
 
-/** The Trips feature's TanStack Query keys, under `trips`. */
 export const tripsKeys = {
   all: ['trips'] as const,
-  list: (tab: Exclude<TripsTab, 'requests'>) => ['trips', tab] as const,
+  list: (source: TripsSource) => ['trips', source] as const,
 };

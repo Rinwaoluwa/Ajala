@@ -29,10 +29,11 @@ import { useTripList } from '../hooks/useTripList';
  * a line that changes with the tab, the Upcoming / Requests / Past pills, then
  * the list.
  *
- *   - Upcoming: what I host that is still to come (`GET /me/posts`). Posts I
- *     joined are not listed — the API has no `GET /me/rsvps` (API map §12).
- *   - Requests: no endpoint (API map §12); an empty state and the
- *     "Still waiting?" note until there is one.
+ *   - Upcoming: posts I'm going to and posts I host that haven't ended, soonest
+ *     first, tagged Going or Hosting (`GET /me/rsvps`, `GET /me/posts`).
+ *   - Requests: private posts I asked to join, tagged Request sent
+ *     (`GET /me/rsvps?state=requested`), with the "Still waiting?" note under
+ *     them (or under the empty state).
  *   - Past: what I went to (`GET /me/attended`), with the passport note under it.
  *
  * Each list pulls to refresh and loads more near its end; the first cards rise
@@ -71,6 +72,16 @@ export function TripsScreen({ onOpenTrip, onExplore }: TripsScreenProps) {
   const passportNote = (
     <NoteCard title={tripsCopy.notes.passport.title} body={tripsCopy.notes.passport.body} />
   );
+  const waitingNote = (
+    <NoteCard
+      title={tripsCopy.notes.waiting.title}
+      body={tripsCopy.notes.waiting.body}
+      tone={dark ? 'accent' : 'neutral'}
+    />
+  );
+  // The note under each list once it has cards; an empty list carries it in its empty state.
+  const footerNote =
+    list.items.length === 0 ? null : tab === 'past' ? passportNote : tab === 'requests' ? waitingNote : null;
 
   const empty =
     tab === 'upcoming' ? (
@@ -91,8 +102,17 @@ export function TripsScreen({ onOpenTrip, onExplore }: TripsScreenProps) {
         }
         title={tripsCopy.empty.upcoming.title}
         body={tripsCopy.empty.upcoming.body}
-        action={{ label: tripsCopy.empty.upcoming.action, onPress: onExplore, variant: 'cta' }}
+        action={{
+          label: tripsCopy.empty.upcoming.action,
+          onPress: onExplore,
+          variant: 'cta',
+        }}
       />
+    ) : tab === 'requests' ? (
+      <View style={{ gap: 8 }}>
+        <EmptyState title={tripsCopy.empty.requests.title} body={tripsCopy.empty.requests.body} />
+        <Animated.View entering={enterRise(80)}>{waitingNote}</Animated.View>
+      </View>
     ) : (
       <View style={{ gap: 8 }}>
         <EmptyState title={tripsCopy.empty.past.title} body={tripsCopy.empty.past.body} />
@@ -116,23 +136,15 @@ export function TripsScreen({ onOpenTrip, onExplore }: TripsScreenProps) {
         <PillTabs options={tripsCopy.tabs} value={tab} onChange={setTab} look="outline" />
       </View>
 
-      {tab === 'requests' ? (
-        <ScrollView contentContainerStyle={{ padding: SCREEN_GUTTER, paddingBottom: bottom, gap: 8 }}>
-          <EmptyState title={tripsCopy.empty.requests.title} body={tripsCopy.empty.requests.body} />
-          <Animated.View entering={enterRise(80)}>
-            <NoteCard
-              title={tripsCopy.notes.waiting.title}
-              body={tripsCopy.notes.waiting.body}
-              tone={dark ? 'accent' : 'neutral'}
-            />
-          </Animated.View>
-        </ScrollView>
-      ) : list.loading ? (
+      {list.loading ? (
         <ScrollView
           scrollEnabled={false}
-          contentContainerStyle={{ padding: SCREEN_GUTTER, paddingBottom: bottom }}
+          contentContainerStyle={{
+            padding: SCREEN_GUTTER,
+            paddingBottom: bottom,
+          }}
         >
-          <TripsSkeleton withImage={tab === 'upcoming'} />
+          <TripsSkeleton withImage={tab !== 'past'} />
         </ScrollView>
       ) : list.error && list.items.length === 0 ? (
         <Animated.View entering={FadeIn.duration(220)} className="flex-1 items-center justify-center px-20">
@@ -152,7 +164,12 @@ export function TripsScreen({ onOpenTrip, onExplore }: TripsScreenProps) {
           data={list.items}
           keyExtractor={(t) => t.id}
           renderItem={renderItem}
-          contentContainerStyle={{ padding: SCREEN_GUTTER, paddingBottom: bottom, gap: 16, flexGrow: 1 }}
+          contentContainerStyle={{
+            padding: SCREEN_GUTTER,
+            paddingBottom: bottom,
+            gap: 16,
+            flexGrow: 1,
+          }}
           onEndReached={list.loadMore}
           onEndReachedThreshold={0.6}
           refreshControl={
@@ -164,9 +181,9 @@ export function TripsScreen({ onOpenTrip, onExplore }: TripsScreenProps) {
               <View className="items-center py-8">
                 <LoadingRing size={28} accessibilityLabel={tripsCopy.loadingMore} />
               </View>
-            ) : tab === 'past' && list.items.length > 0 ? (
-              passportNote
-            ) : null
+            ) : (
+              footerNote
+            )
           }
         />
       )}

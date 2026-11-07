@@ -8,14 +8,21 @@ export function createTripsRepository(request: TripsRequest): TripsRepository {
   return {
     async listHosted(cursor, limit) {
       try {
-        return toTripsPage(await api.listMyPosts('published', cursor, limit));
+        return toTripsPage(await api.listMyPosts('published', cursor, limit), 'hosting');
+      } catch (e) {
+        throw toTripsError(e);
+      }
+    },
+    async listRsvps(state, cursor, limit) {
+      try {
+        return toTripsPage(await api.listRsvps(state, cursor, limit), state);
       } catch (e) {
         throw toTripsError(e);
       }
     },
     async listAttended(cursor, limit) {
       try {
-        return toTripsPage(await api.listAttended(cursor, limit));
+        return toTripsPage(await api.listAttended(cursor, limit), 'attended');
       } catch (e) {
         throw toTripsError(e);
       }
