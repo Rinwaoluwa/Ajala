@@ -1,0 +1,13 @@
+{
+  "Simulator Target Bundle": "com.ajala.app",
+  "aps": {
+    "alert": {
+      "title": "New comment",
+      "body": "Someone commented on Coffee & Chat: “Grab the window seats!”"
+    },
+    "sound": "default"
+  },
+  "kind": "new_comment",
+  "postId": "p-coffee-chat",
+  "notificationId": "n-new-comment"
+}

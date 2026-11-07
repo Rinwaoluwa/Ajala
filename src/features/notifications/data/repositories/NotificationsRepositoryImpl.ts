@@ -1,14 +1,28 @@
 import type { NotificationsRepository } from '../../domain/repositories/NotificationsRepository';
+import { createNotificationsApi, type NotificationsRequest } from '../datasources/remote/notificationsApi';
+import { toNotificationsError, toNotificationsPage } from '../mappers/notificationsMappers';
 
 /**
- * The notifications list — EMPTY until the API has one.
- *
- * Today the backend only pushes (spec §2.10, API map §11): request accepted,
- * removed, cancelled, reminders. There is no endpoint to list past
- * notifications or mark them read, so this answers an empty list and the screen
- * shows its empty state. When `GET /me/notifications` (or similar) exists, call
- * it here; nothing above this file needs to change.
+ * `NotificationsRepository` over the API. Nothing is cached here: the screen's
+ * queries cache, and the inbox should be fresh each time it is opened anyway.
  */
-export function createNotificationsRepository(): NotificationsRepository {
-  return { list: async () => [] };
+export function createNotificationsRepository(request: NotificationsRequest): NotificationsRepository {
+  const api = createNotificationsApi(request);
+  return {
+    async list(unread, cursor, limit) {
+      try {
+        return toNotificationsPage(await api.list(unread, cursor, limit));
+      } catch (e) {
+        throw toNotificationsError(e);
+      }
+    },
+    async markRead(ids) {
+      try {
+        // Leaving `ids` out is how the API says "everything"; an empty list would mark nothing.
+        await api.markRead(ids ? { ids: [...ids] } : {});
+      } catch (e) {
+        throw toNotificationsError(e);
+      }
+    },
+  };
 }

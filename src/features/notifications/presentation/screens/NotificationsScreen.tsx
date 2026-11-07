@@ -1,60 +1,112 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { FlatList, RefreshControl, View } from 'react-native';
-import Animated from 'react-native-reanimated';
+import { FlatList, RefreshControl, TouchableOpacity, View } from 'react-native';
+import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   CenteredHeader,
   EmptyState,
+  GlassSurface,
+  LoadingRing,
   PillTabs,
   Screen,
   SkeletonBlock,
   SkeletonPulse,
+  VectorIcon,
   enterRise,
 } from '@shared/components';
+import { useLiquidGlass } from '@shared/hooks/useLiquidGlass';
 import { useTheme } from '@shared/hooks/useTheme';
 import { SCREEN_GUTTER } from '@shared/theme';
 
-import type { NotificationFilter } from '../../domain/entities/Notification';
+import type { AppNotification, NotificationFilter } from '../../domain/entities/Notification';
+import { targetOf } from '../../domain/rules/notificationRules';
 import { NotificationRow } from '../components/NotificationRow';
+import { notificationsCopy as copy } from '../copy';
 import { useNotifications } from '../hooks/useNotifications';
 
 /**
  * Notifications (Figma, opened from the home bell): the centred title with a
- * round back button, All / Unread, then the list, newest first.
+ * round back button, All / Unread, then the inbox, newest first (spec §2.17).
  *
- * There is no notifications API yet (only pushes, API map §11), so today this
- * shows its empty state; the list drops in when an endpoint exists (README).
+ * All and Unread are filtered by the server. Tapping a row marks it read and
+ * opens what it is about: the post, the conversation, or the Travel paywall.
+ * While anything is unread, a round button at the header's right marks it all
+ * read; nothing is marked read just by opening the screen.
  */
 const FILTERS: readonly { value: NotificationFilter; label: string }[] = [
-  { value: 'all', label: 'All' },
-  { value: 'unread', label: 'Unread' },
+  { value: 'all', label: copy.all },
+  { value: 'unread', label: copy.unread },
 ];
 
-const copy = {
-  title: 'Notifications',
-  emptyAll: 'You’re all caught up',
-  emptyAllBody: 'Updates about your requests, activities and messages will show up here.',
-  emptyUnread: 'No unread notifications',
-  emptyUnreadBody: 'You’ve seen everything new.',
-  failed: 'Notifications didn’t load.',
-  retry: 'Try again',
-};
+/** The header's round buttons are 40pt, as `CenteredHeader` draws its back button. */
+const BUTTON = 40;
 
 export type NotificationsScreenProps = {
   onBack: () => void;
   onOpenPost: (postId: string) => void;
+  /** A message: its conversation when the server says which, otherwise the Messages list. */
+  onOpenMessages: (conversationId: string | null) => void;
+  /** A subscription notice: the Travel paywall. */
+  onOpenPaywall: () => void;
 };
 
-export function NotificationsScreen({ onBack, onOpenPost }: NotificationsScreenProps) {
+export function NotificationsScreen({
+  onBack,
+  onOpenPost,
+  onOpenMessages,
+  onOpenPaywall,
+}: NotificationsScreenProps) {
   const theme = useTheme();
+  const glass = useLiquidGlass();
   const insets = useSafeAreaInsets();
   const vm = useNotifications();
+
+  const open = (n: AppNotification) => {
+    vm.markRead(n);
+    const target = targetOf(n);
+    if (target?.to === 'post') onOpenPost(target.postId);
+    else if (target?.to === 'messages') onOpenMessages(target.conversationId);
+    else if (target?.to === 'paywall') onOpenPaywall();
+  };
+
+  const markAll =
+    vm.unreadCount > 0 ? (
+      <Animated.View entering={FadeIn.duration(160)} exiting={FadeOut.duration(160)}>
+        <TouchableOpacity
+          activeOpacity={0.6}
+          onPress={vm.markAllRead}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel={copy.markAllRead}
+        >
+          <GlassSurface
+            fallbackColor={theme.selectedFill}
+            interactive
+            shadow={false}
+            onPlainPage
+            style={{
+              width: BUTTON,
+              height: BUTTON,
+              borderRadius: BUTTON / 2,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Ionicons
+              name="checkmark-done"
+              size={20}
+              color={glass ? theme.foreground : theme.selectedForeground}
+            />
+          </GlassSurface>
+        </TouchableOpacity>
+      </Animated.View>
+    ) : undefined;
 
   return (
     <Screen edges={['top']} padded={false}>
       <View style={{ paddingHorizontal: SCREEN_GUTTER, paddingVertical: 8 }}>
-        <CenteredHeader title={copy.title} onBack={onBack} />
+        <CenteredHeader title={copy.title} onBack={onBack} trailing={markAll} />
       </View>
       <View style={{ paddingVertical: 12 }}>
         <PillTabs options={FILTERS} value={vm.filter} onChange={vm.setFilter} />
@@ -75,29 +127,39 @@ export function NotificationsScreen({ onBack, onOpenPost }: NotificationsScreenP
         </SkeletonPulse>
       ) : (
         <FlatList
-          data={vm.items ?? []}
+          data={vm.items}
           keyExtractor={(n) => n.id}
           contentContainerStyle={{
             paddingHorizontal: SCREEN_GUTTER,
             paddingBottom: Math.max(insets.bottom, 16) + 16,
             flexGrow: 1,
           }}
+          onEndReached={vm.loadMore}
+          onEndReachedThreshold={0.6}
           refreshControl={
-            <RefreshControl refreshing={false} onRefresh={vm.refresh} tintColor={theme.primary} />
+            <RefreshControl refreshing={vm.refreshing} onRefresh={vm.refresh} tintColor={theme.primary} />
           }
           renderItem={({ item, index }) => (
             <Animated.View entering={index < 8 ? enterRise(index * 40) : undefined}>
-              <NotificationRow
-                item={item}
-                onPress={item.postId ? () => onOpenPost(item.postId as string) : undefined}
-              />
+              <NotificationRow item={item} onPress={() => open(item)} />
             </Animated.View>
           )}
+          ListFooterComponent={
+            vm.loadingMore ? (
+              <View style={{ alignItems: 'center', paddingVertical: 8 }}>
+                <LoadingRing size={28} accessibilityLabel={copy.loadingMore} />
+              </View>
+            ) : null
+          }
           ListEmptyComponent={
             vm.failed ? (
               <EmptyState
                 title={copy.failed}
-                action={{ label: copy.retry, onPress: vm.retry, variant: 'primary' }}
+                action={{
+                  label: copy.retry,
+                  onPress: vm.retry,
+                  variant: 'primary',
+                }}
               />
             ) : (
               <View style={{ flex: 1, justifyContent: 'center' }}>
@@ -113,7 +175,7 @@ export function NotificationsScreen({ onBack, onOpenPost }: NotificationsScreenP
                         justifyContent: 'center',
                       }}
                     >
-                      <Ionicons name="notifications-outline" size={36} color={theme.selectedForeground} />
+                      <VectorIcon name="bell" size={36} color={theme.selectedForeground} />
                     </View>
                   }
                   title={vm.filter === 'all' ? copy.emptyAll : copy.emptyUnread}

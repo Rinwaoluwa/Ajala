@@ -1,28 +1,57 @@
-import { useQuery } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 
-import { createNotificationsUseCases } from '../../notificationsModule';
-import type { NotificationFilter } from '../../domain/entities/Notification';
-import { visibleNotifications } from '../../domain/rules/notificationRules';
-import { notificationKeys } from '../state/notificationsQueries';
+import type { AppNotification, NotificationFilter } from '../../domain/entities/Notification';
+import { isNotificationsError, type NotificationsErrorCode } from '../../domain/entities/NotificationsError';
+import { useInboxQuery, useMarkRead } from './useInbox';
 
-const useCases = createNotificationsUseCases();
-
-/** View model for the Notifications list: the list, All or Unread, newest first. */
+/**
+ * View model for the Notifications list: All or Unread (filtered by the
+ * server, each its own cached list), newest first as the server sends them,
+ * paged as the person scrolls. Tapping marks read; "mark all" marks the lot.
+ */
 export function useNotifications() {
   const [filter, setFilter] = useState<NotificationFilter>('all');
-  const query = useQuery({ queryKey: notificationKeys.list, queryFn: useCases.list });
-  const items = useMemo(
-    () => (query.data ? visibleNotifications(query.data, filter) : null),
-    [query.data, filter],
-  );
+  const [pulling, setPulling] = useState(false);
+  const query = useInboxQuery(filter === 'unread');
+  const mark = useMarkRead();
+
+  const items: AppNotification[] = useMemo(() => {
+    // A row can move between pages while the inbox changes; show it once.
+    const seen = new Set<string>();
+    return (query.data?.pages ?? [])
+      .flatMap((p) => p.items)
+      .filter((n) => !seen.has(n.id) && !!seen.add(n.id));
+  }, [query.data]);
+
+  const unreadCount = query.data?.pages[0]?.unreadCount ?? 0;
+  const error: NotificationsErrorCode | null = query.error
+    ? isNotificationsError(query.error)
+      ? query.error.code
+      : 'unknown'
+    : null;
+
   return {
     filter,
     setFilter,
     items,
+    unreadCount,
     loading: query.isPending,
-    failed: query.isError,
+    // A list that loaded keeps showing when a later refresh fails.
+    failed: !!error && items.length === 0,
+    refreshing: pulling && query.isRefetching,
+    loadingMore: query.isFetchingNextPage,
     retry: () => void query.refetch(),
-    refresh: () => void query.refetch(),
+    refresh: () => {
+      setPulling(true);
+      void query.refetch().finally(() => setPulling(false));
+    },
+    loadMore: () => {
+      if (query.hasNextPage && !query.isFetchingNextPage) void query.fetchNextPage();
+    },
+    /** Marks one read; already-read rows send nothing. */
+    markRead: (n: AppNotification) => {
+      if (!n.read) mark.mutate(n.id);
+    },
+    markAllRead: () => mark.mutate(null),
   };
 }

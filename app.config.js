@@ -31,6 +31,25 @@
  * For EAS builds, set it as an EAS environment variable, not only in .env:
  *
  *   GOOGLE_MAPS_ANDROID_API_KEY=<Maps SDK for Android key, restricted to com.ajala.app>
+ *
+ * PUSH NOTIFICATIONS — expo-notifications, with the app's own token (FCM on
+ * Android, APNs on iOS), not Expo's push service. Adding or changing this needs
+ * a new native build.
+ *
+ * iOS: the plugin adds the `aps-environment` entitlement (the App ID needs Push
+ * Notifications, which EAS turns on with the profile). EAS builds are signed
+ * for distribution (TestFlight, the App Store, ad hoc), which use production
+ * APNs, so they say `production`; a local `expo run:ios` build says
+ * `development` and gets sandbox tokens. The API must send each to the matching
+ * APNs environment.
+ *
+ * Android: FCM needs the Firebase project's google-services.json for
+ * `com.ajala.app`. It is not committed (.gitignore). Point GOOGLE_SERVICES_JSON
+ * at it — for EAS, a "file" environment variable, whose value is the file's
+ * path on the build machine. Without it the app builds and runs, and simply
+ * has no push token on Android.
+ *
+ *   GOOGLE_SERVICES_JSON=./google-services.json
  */
 module.exports = ({ config }) => {
   // Xcode 26 rejects expo-modules-core 57.0.23 in Swift 6 mode; see the plugin.
@@ -62,6 +81,30 @@ module.exports = ({ config }) => {
     extra: { ...next.extra, googleMapsAndroid: Boolean(mapsKey) },
     plugins: [...(next.plugins ?? []), ['react-native-maps', { androidGoogleMapsApiKey: mapsKey }]],
   };
+
+  // The small icon is the "A" mark from the adaptive monochrome icon, white on
+  // clear as Android requires; the colour tints it. `default` is the channel the
+  // app creates (src/core/push/pushNotifications.ts).
+  next = {
+    ...next,
+    plugins: [
+      ...(next.plugins ?? []),
+      [
+        'expo-notifications',
+        {
+          icon: './assets/images/notifications/notification-icon.png',
+          color: '#0E6F69',
+          defaultChannel: 'default',
+          mode: process.env.EAS_BUILD ? 'production' : 'development',
+        },
+      ],
+    ],
+  };
+
+  const googleServicesFile = process.env.GOOGLE_SERVICES_JSON;
+  if (googleServicesFile) {
+    next = { ...next, android: { ...next.android, googleServicesFile } };
+  }
 
   const iosUrlScheme = process.env.GOOGLE_IOS_URL_SCHEME;
   if (iosUrlScheme) {
