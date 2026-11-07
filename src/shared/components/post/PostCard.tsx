@@ -12,8 +12,8 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { useMeasuredWidth } from '@shared/hooks/useMeasuredWidth';
+import { useSavePost } from '@shared/hooks/useSavePost';
 import { useTheme } from '@shared/hooks/useTheme';
-import { savedPosts, useIsSaved } from '@shared/state/savedPosts';
 import { palette } from '@shared/theme';
 
 import { GlassSurface } from '../surface/GlassSurface';
@@ -38,6 +38,11 @@ export type PostCardModel = {
   host: { name: string; avatarUrl: string | null };
   /** Null without the phone's location. */
   distanceKm: number | null;
+  /**
+   * The server's `saved` for this person (spec §6 `PostCardDto.saved`). Optional
+   * while every feature maps it; missing reads as not saved.
+   */
+  saved?: boolean;
 };
 
 const TYPE_LABEL: Record<PostCardModel['type'], string> = {
@@ -61,9 +66,10 @@ const TYPE_LABEL: Record<PostCardModel['type'], string> = {
  * Elsewhere they are the design's solid white. The type tag stays solid
  * Marigold in both, as designed.
  *
- * The bookmark saves the post on this phone (`savedPosts`) — there is no save
- * endpoint yet (API map §12). Tapped, it fills (Ionicons `bookmark-outline` →
- * `bookmark`, cross-faded) and pops; "Saved activities" lists what was kept.
+ * The bookmark saves the post to the account (`useSavePost`: `POST`/`DELETE
+ * /posts/{id}/save`). Tapped, it fills at once (Ionicons `bookmark-outline` →
+ * `bookmark`, cross-faded) and pops, and goes back if the server refuses;
+ * "Saved activities" lists what was kept.
  *
  * Square, at the content width. Motion: a press dips the card to 98%; the photo
  * fades in over 250ms as it loads; the bookmark pops to 120% and settles.
@@ -74,7 +80,7 @@ const RADIUS = 24;
 function PostCardComponent({ post, onPress }: { post: PostCardModel; onPress: () => void }) {
   const theme = useTheme();
   const reduceMotion = useReducedMotion();
-  const saved = useIsSaved(post.id);
+  const { saved, toggle } = useSavePost(post.id, post.saved);
   const press = useSharedValue(0);
   const pop = useSharedValue(1);
   const on = useSharedValue(saved ? 1 : 0);
@@ -92,7 +98,7 @@ function PostCardComponent({ post, onPress }: { post: PostCardModel; onPress: ()
   const filledStyle = useAnimatedStyle(() => ({ opacity: on.value }));
 
   const toggleSave = () => {
-    savedPosts.toggle(post);
+    toggle();
     if (!reduceMotion) {
       pop.set(
         withSequence(

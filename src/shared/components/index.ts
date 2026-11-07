@@ -53,6 +53,7 @@ export { Pager, type PagerProps } from './layout/Pager';
 export { SortableGrid, type SortableGridProps } from './layout/SortableGrid';
 export { ScrollRow } from './layout/ScrollRow';
 export { CenteredHeader } from './layout/CenteredHeader';
+export { BackButton, BACK_BUTTON_SIZE, type BackButtonProps } from './navigation/BackButton';
 export { Avatar, AvatarStack, type AvatarProps } from './display/Avatar';
 export { EmptyState, type EmptyStateProps } from './display/EmptyState';
 export { NoteCard } from './display/NoteCard';
