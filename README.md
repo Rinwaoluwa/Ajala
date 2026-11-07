@@ -4,9 +4,6 @@ React Native + Expo (Expo Router, TypeScript). A location-aware social app where
 and city locals discover and join **Meetups, Events, Plans and Groups** — city-default feed,
 premium travel to another city, and action-driven participation instead of likes.
 
-This repository is **structure only**: every folder, its contract, and the lint rules that keep
-the contract honest. No implementation yet.
-
 ## Demo mode
 
 `npm run demo` runs the app against a built-in pretend API with realistic Lagos data — sign in with any email and password. See [docs/DEMO.md](docs/DEMO.md).
@@ -17,13 +14,13 @@ the contract honest. No implementation yet.
 Ajala/
 ├── app/                    Expo Router routes — thin, they just render feature screens
 ├── src/
-│   ├── bootstrap/                composition root: bootstrap, providers, DI container, navigation
-│   ├── core/               infrastructure: HTTP, sockets, push, cache, storage, maps, analytics
-│   ├── shared/             the global object: shared components, global stores, shared domain
+│   ├── bootstrap/          the launch splash
+│   ├── core/               infrastructure: HTTP, sockets, push, storage, maps, demo mode
+│   ├── shared/             the global object: shared components, hooks, global stores, theme
 │   └── features/           one folder per feature — the unit of ownership
-│       ├── auth/  onboarding/  home/  explore/  create-post/  map/
-│       └── post-detail/  chat/  profile/  payment/  notifications/  settings/
-├── contracts/              OpenAPI, socket events, push payloads, analytics, design tokens
+│       ├── auth/  onboarding/  home/  explore/  create-post/  post-detail/  chat/  trips/
+│       └── profile/  payment/  notifications/  settings/  app-lock/  app-update/  location-access/
+├── contracts/              design tokens (the API spec is in docs/api)
 ├── e2e/                    Maestro flows
 └── scripts/                boundary checker used in CI
 ```

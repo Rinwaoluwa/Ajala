@@ -52,7 +52,6 @@ export { GlassSurface, type GlassSurfaceProps } from './surface/GlassSurface';
 export { Pager, type PagerProps } from './layout/Pager';
 export { SortableGrid, type SortableGridProps } from './layout/SortableGrid';
 export { ScrollRow } from './layout/ScrollRow';
-export { PlaceholderScreen } from './layout/PlaceholderScreen';
 export { CenteredHeader } from './layout/CenteredHeader';
 export { Avatar, AvatarStack, type AvatarProps } from './display/Avatar';
 export { EmptyState, type EmptyStateProps } from './display/EmptyState';
@@ -68,7 +67,6 @@ export { StepProgress, type StepProgressProps, type StepProgressTone } from './f
 // Reanimated
 export { ProgressReveal, type ProgressRevealProps } from './motion/ProgressReveal';
 export { enterRise, ENTER_MS } from './motion/enter';
-export { ProgressBar, type ProgressBarProps } from './feedback/ProgressBar';
 export { LoadingRing, type LoadingRingProps } from './feedback/LoadingRing';
 export { SkeletonBlock, SkeletonPulse, type SkeletonBlockProps } from './feedback/Skeleton';
 export { Sheet, type SheetProps } from './overlay/Sheet';

@@ -13,11 +13,8 @@ place a feature may import from besides `@core`.
 | `components/form` | inputs and validation display | TextField, DateTimeField, LocationField, CharCounter |
 | `hooks` | cross-feature React hooks | useDebounce, useAppState, useConnectivity |
 | `state` | **global data** — one store per concern | session, activeCity (travel), subscription, connectivity, feature flags |
-| `domain` | entities and use cases used by 2+ features | Post, User, City, Interest, RsvpState, Money, ObserveRsvpUseCase |
-| `data` | repositories backing those shared entities | PostRepositoryImpl, UserRepositoryImpl, RsvpRepositoryImpl |
 | `theme` | design tokens from `contracts/design-tokens` | colors, spacing, typography, radii |
-| `utils` / `constants` / `types` | pure helpers, no feature knowledge | formatRelativeDate, distanceKm |
-| `testing` | fixtures and fakes every feature's tests reuse | aPost(), FakePostRepository |
+| `utils` | pure helpers, no feature knowledge | cn, flagEmoji |
 
 ## The promotion rule
 

@@ -19,8 +19,8 @@ mkdir -p src/features/$FEATURE/{data/{datasources/{remote,local},dto,mappers,rep
    to entities in `mappers/` — an entity never carries a wire field name.
 4. **Presentation.** State type, hook (view model), screen, components. The hook owns state
    and calls use cases; the screen renders state and forwards callbacks.
-5. **Register.** Add the repository and use cases to `src/bootstrap/di`, add a route file under
-   `app/`, export the screen from the feature's `index.ts`.
+5. **Register.** Wire the repository into the use cases in the feature's `<name>Module.ts`, add
+   a route file under `app/`, export the screen from the feature's `index.ts`.
 6. **Own it.** Add yourself to `.github/CODEOWNERS`.
 
 ## 3. Before you open the PR

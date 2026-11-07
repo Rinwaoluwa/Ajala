@@ -23,7 +23,7 @@ onboarding/
 ├── data/
 │   ├── datasources/remote/     REST services over core/api
 │   ├── datasources/local/      cache + draft/offline persistence
-│   ├── dto/                    wire shapes, generated from contracts/openapi
+│   ├── dto/                    wire shapes, from the spec in docs/api
 │   ├── mappers/                DTO ↔ entity
 │   └── repositories/           implementations of the domain contracts
 ├── domain/

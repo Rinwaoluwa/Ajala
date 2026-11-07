@@ -1,16 +1,12 @@
-# app — composition root
+# bootstrap — composition root
 
-The only place that knows how the pieces fit together.
+The app's start-up pieces that belong to no feature.
 
-- `bootstrap/` — startup sequence: config, Sentry, analytics, storage, push registration,
-  deep-link handling, splash retention.
-- `providers/` — the provider tree wrapped around the route tree (theme, query client,
-  session, safe area, error boundary).
-- `di/` — the container that constructs repositories, injects them into use cases, and
-  exposes use cases to presentation hooks. Constructor injection everywhere; no singletons
-  in feature code beyond logging, crash reporting and analytics.
-- `navigation/` — root route typing, tab configuration, guards (auth gate, onboarding gate),
-  and the deep-link map.
+- `splash/` — the launch screen that takes over from the native splash while startup
+  finishes (`AppSplash`, drawn over the navigator by `LaunchOverlay`; timing in
+  `useSplashTimeline`, the bar in `SplashLoader`).
 
-Features are registered here and nowhere else. Adding a feature is one import in `di/`
-and one route file in `app/`.
+Each feature wires its own use cases in `src/features/<name>/<name>Module.ts` — the one place
+that knows which repository implementation backs them. The provider tree and the app-lock and
+force-update gates live in the root layout, `app/_layout.tsx`; `app/index.tsx` routes a cold
+start by the onboarding and auth state.

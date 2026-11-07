@@ -9,8 +9,7 @@ import { makeHasCompletedOnboarding } from './domain/usecases/HasCompletedOnboar
  *
  * Presentation imports from here, never from `data/` — so a hook can be tested
  * against a fake by swapping this wiring, and the repository can change without
- * touching a screen. When `src/bootstrap/di` exists, the app container calls this
- * instead of the hooks doing so directly.
+ * touching a screen.
  */
 export function createOnboardingUseCases() {
   const repo = createOnboardingRepository();
