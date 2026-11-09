@@ -1,10 +1,11 @@
 import { Host } from '@expo/ui';
 import { useEffect, useState } from 'react';
-import { Alert, FlatList, TouchableOpacity, View, useWindowDimensions } from 'react-native';
+import { Alert, FlatList, View, useWindowDimensions } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
+  BackButton,
   Button,
   EmptyState,
   LoadingRing,
@@ -109,17 +110,7 @@ export function PublicProfileScreen({
         paddingVertical: 8,
       }}
     >
-      <TouchableOpacity
-        activeOpacity={0.6}
-        onPress={onBack}
-        hitSlop={10}
-        accessibilityRole="button"
-        accessibilityLabel="Back"
-      >
-        <Host matchContents pointerEvents="none" ignoreSafeArea="all">
-          <NativeIcon source={icons.chevronLeft} size={18} color={theme.primary} />
-        </Host>
-      </TouchableOpacity>
+      <BackButton onPress={onBack} label="Back" />
       <Text variant="headingSm" tone="primary" style={{ flex: 1 }} numberOfLines={1}>
         {title}
       </Text>
@@ -189,8 +180,7 @@ export function PublicProfileScreen({
         name={person.displayName}
         avatarUrl={person.avatarUrl}
         pronouns={person.about.pronouns}
-        city={person.homeCity?.label}
-        visiting={person.visiting?.label}
+        city={person.homePlace?.label}
         openToMeetToday={person.openToMeetToday && !person.blockedByMe}
         tagline={person.about.tagline}
         bio={person.about.bio}
@@ -200,7 +190,10 @@ export function PublicProfileScreen({
       {person.blockedByMe ? null : (
         <>
           <PillSection title={copy.travelStyles} labels={person.travelStyles.map(travelStyleLabel)} />
-          <PillSection title={copy.favouriteCities} labels={person.favouriteCities.map((c) => c.name)} />
+          <PillSection
+            title={copy.favouriteDestinations}
+            labels={person.favouriteDestinations.map((c) => c.label)}
+          />
         </>
       )}
       {person.blockedByMe ? (

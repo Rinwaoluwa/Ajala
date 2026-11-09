@@ -13,7 +13,6 @@ export {
   ProfileBasicsScreen,
   type ProfileBasicsScreenProps,
 } from './presentation/screens/ProfileBasicsScreen';
-export { CitySearchScreen } from './presentation/screens/CitySearchScreen';
 export { TravelStyleScreen } from './presentation/screens/TravelStyleScreen';
 export { DestinationsScreen } from './presentation/screens/DestinationsScreen';
 export { InterestsScreen } from './presentation/screens/InterestsScreen';

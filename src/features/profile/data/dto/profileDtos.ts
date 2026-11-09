@@ -5,24 +5,12 @@
 
 export type GenderDto = 'woman' | 'man' | 'non_binary' | 'prefer_not_to_say';
 
-export interface CityRefDto {
-  id: string;
-  name: string;
-  countryCode: string;
+/** A place the API holds by its Google place id (spec §1.6). Cities are no longer a catalogue. */
+export interface PlaceRefDto {
+  placeId: string;
+  /** "Lagos, Nigeria". */
   label: string;
-}
-
-export interface CityDto extends CityRefDto {
-  region: string;
-  countryName: string;
-  timezone: string;
-  lat: number;
-  lng: number;
-}
-
-export interface CityResolveDto {
-  city: CityDto;
-  distanceKm: number;
+  countryCode: string | null;
 }
 
 export interface InterestDto {
@@ -30,10 +18,6 @@ export interface InterestDto {
   slug: string;
   name: string;
   emoji: string | null;
-}
-
-export interface VisitingDto {
-  city: CityRefDto;
 }
 
 export type TravelStyleDto =
@@ -83,8 +67,8 @@ export interface ProfileExtrasDto {
   languages?: string[];
   /** Up to 10; an empty list or null clears them. */
   travelStyles?: TravelStyleDto[] | null;
-  /** Up to 10 city ids; read back as `favouriteCities`. */
-  favouriteCityIds?: string[];
+  /** Up to 10 Google place ids of cities (an 11th is a 400); read back as `favouriteDestinations`. */
+  favouriteDestinationIds?: string[];
   pronouns?: string | null;
   tagline?: string | null;
   socialLinks?: {
@@ -110,12 +94,14 @@ export interface MeDto {
   dob: string | null;
   gender: GenderDto | null;
   avatarUrl: string | null;
-  homeCity: CityRefDto | null;
-  /** The city a trip of mine covers today; read-only (spec §2.8). */
-  visiting: VisitingDto | null;
+  /** The home city; null until set. */
+  homePlace: PlaceRefDto | null;
+  // `visiting` and `teleport` are left out on purpose: trips are parked, so `visiting` is
+  // always null (spec §2.8), and teleport belongs to the feed, not the profile.
   interests: InterestDto[] | null;
   extras: ProfileExtrasDto | null;
-  favouriteCities: CityRefDto[] | null;
+  /** The cities behind `extras.favouriteDestinationIds`, in order. */
+  favouriteDestinations: PlaceRefDto[] | null;
   /** Travel is on right now. */
   subscribed: boolean;
   /** Re-check after this; null without a subscription. */
@@ -124,6 +110,7 @@ export interface MeDto {
   profileCompletedAt: string | null;
   bio: string | null;
   photos: ProfilePhotoDto[] | null;
+  /** An admin badge: the Ajala team reviewed this profile. Not an identity check (backend answers A9). */
   verified: boolean;
 }
 
@@ -133,9 +120,12 @@ export interface UpdateProfileDto {
   dob?: string;
   gender?: GenderDto;
   handle?: string;
-  homeCityId?: string | null;
+  /** A city's Google place id; a venue or street address is a 400. Null clears it. */
+  homePlaceId?: string | null;
   interestIds?: string[];
   extras?: ProfileExtrasDto;
+  /** IANA, at most 64 characters. */
+  timezone?: string;
 }
 
 export interface AvatarDto {

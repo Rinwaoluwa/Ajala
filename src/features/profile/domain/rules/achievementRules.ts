@@ -37,19 +37,29 @@ const withInterest = (slugs: readonly string[]) => (attended: readonly ProfileAc
 const ofType = (type: PostKind) => (attended: readonly ProfileActivity[]) =>
   attended.filter((a) => a.type === type);
 
-/** A post with a city, which is all that can count toward places (a post's city may be null, spec §6). */
+/** A post with a place, which is all that can count toward places (`localityLabel` may be null, spec §6). */
 type PlacedActivity = ProfileActivity & {
-  city: NonNullable<ProfileActivity['city']>;
+  locality: NonNullable<ProfileActivity['locality']>;
 };
 const placed = (attended: readonly ProfileActivity[]): PlacedActivity[] =>
-  attended.filter((a): a is PlacedActivity => a.city !== null);
+  attended.filter((a): a is PlacedActivity => a.locality !== null);
+
+/** "Lagos, Nigeria" → "Nigeria": everything after the city. */
+const countryOfLabel = (label: string) => label.split(',').slice(1).join(',').trim();
+
+/**
+ * Which country a post is in: its country code, or the country in its label
+ * when the server sent no code. Never empty for a placed post.
+ */
+const countryKey = (a: PlacedActivity) =>
+  a.locality.countryCode ?? (countryOfLabel(a.locality.label) || a.locality.label);
 
 /** One post per country, the earliest there. */
 function onePerCountry(attended: readonly ProfileActivity[]): ProfileActivity[] {
   const seen = new Set<string>();
   return placed(attended)
     .sort(byDate)
-    .filter((a) => !seen.has(a.city.countryCode) && !!seen.add(a.city.countryCode));
+    .filter((a) => !seen.has(countryKey(a)) && !!seen.add(countryKey(a)));
 }
 
 const byDate = (a: ProfileActivity, b: ProfileActivity) => (a.startAt ?? '').localeCompare(b.startAt ?? '');
@@ -169,6 +179,7 @@ export function badgeFilter(progress: readonly BadgeProgress[], category: BadgeC
 
 /** A city's passport stamp: one per city the person attended something in. */
 export type CityStamp = {
+  /** The post's `localityLabel` ("Lagos, Nigeria"): cards carry no city id, so this tells cities apart. */
   cityId: string;
   city: string;
   /** "Nigeria" — from the city's label ("Lagos, Nigeria"); the code when the label has none. */
@@ -186,18 +197,21 @@ export type CityStamp = {
 export const CITY_MILESTONE = 5;
 
 export function cityStamps(attended: readonly ProfileActivity[]): CityStamp[] {
-  // A post with no city stamps nowhere.
+  // A post with no place stamps nowhere.
   const byCity = new Map<string, PlacedActivity[]>();
-  for (const a of placed(attended)) byCity.set(a.city.id, [...(byCity.get(a.city.id) ?? []), a]);
+  for (const a of placed(attended)) {
+    const key = a.locality.label;
+    byCity.set(key, [...(byCity.get(key) ?? []), a]);
+  }
   return [...byCity.values()]
     .map((list) => {
       const sorted = [...list].sort(byDate);
       const first = sorted[0] as PlacedActivity;
-      const labelCountry = first.city.label.split(',').slice(1).join(',').trim();
+      const { label, countryCode } = first.locality;
       return {
-        cityId: first.city.id,
-        city: first.city.name,
-        country: labelCountry || first.city.countryCode,
+        cityId: label,
+        city: label.split(',')[0]?.trim() || label,
+        country: countryOfLabel(label) || countryCode || '',
         activities: [...sorted].reverse(),
         experiences: new Set(sorted.flatMap((a) => a.interests.map((i) => i.id))).size,
         firstVisit: first.startAt,
@@ -213,6 +227,6 @@ export function cityStamps(attended: readonly ProfileActivity[]): CityStamp[] {
 export function profileCounters(attended: readonly ProfileActivity[]) {
   return {
     events: attended.length,
-    countries: new Set(placed(attended).map((a) => a.city.countryCode)).size,
+    countries: new Set(placed(attended).map(countryKey)).size,
   };
 }

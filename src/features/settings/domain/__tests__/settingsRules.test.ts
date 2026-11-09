@@ -26,11 +26,11 @@ const account: Account = {
   email: 'maya@example.com',
   bio: 'Taking the scenic route.',
   avatarUrl: null,
-  homeCity: { id: 'london', name: 'London', label: 'London, UK' },
+  homePlace: { placeId: 'ChIJ-london', name: 'London', label: 'London, UK' },
   languages: ['en', 'zh'],
   socialLinks: { instagram: '@mayawanders', tiktok: null, website: null },
   travelStyles: ['solo', 'foodie'],
-  favouriteCities: [{ id: 'accra', name: 'Accra', label: 'Accra, Ghana' }],
+  favouriteDestinations: [{ placeId: 'ChIJ-accra', name: 'Accra', label: 'Accra, Ghana' }],
   identities: [{ provider: 'email' }],
   extras: { languages: ['en', 'zh'], pronouns: 'she/her', socialLinks: { instagram: '@mayawanders' } },
 };
@@ -54,8 +54,9 @@ describe('profile edits', () => {
       diffProfile(account, { firstName: 'Maya', lastName: 'Chen', bio: 'Taking the scenic route.' }),
     ).toEqual({});
     expect(
-      diffProfile(account, { bio: '', homeCityId: 'lisbon', languages: ['en', 'zh'], handle: 'maya.w' }),
-    ).toEqual({ bio: null, homeCityId: 'lisbon', handle: 'maya.w' });
+      diffProfile(account, { bio: '', homePlaceId: 'ChIJ-lisbon', languages: ['en', 'zh'], handle: 'maya.w' }),
+    ).toEqual({ bio: null, homePlaceId: 'ChIJ-lisbon', handle: 'maya.w' });
+    expect(diffProfile(account, { homePlaceId: 'ChIJ-london' })).toEqual({});
   });
 
   it('merges languages and links into extras without losing the rest', () => {
@@ -73,20 +74,29 @@ describe('profile edits', () => {
 
 describe('travel style and favourite destinations', () => {
   it('sends them only when they changed, in the order picked', () => {
-    expect(diffProfile(account, { travelStyles: ['solo', 'foodie'], favouriteCityIds: ['accra'] })).toEqual(
-      {},
-    );
     expect(
-      diffProfile(account, { travelStyles: ['foodie', 'solo'], favouriteCityIds: ['accra', 'lisbon'] }),
-    ).toEqual({ travelStyles: ['foodie', 'solo'], favouriteCityIds: ['accra', 'lisbon'] });
+      diffProfile(account, { travelStyles: ['solo', 'foodie'], favouriteDestinationIds: ['ChIJ-accra'] }),
+    ).toEqual({});
+    expect(
+      diffProfile(account, {
+        travelStyles: ['foodie', 'solo'],
+        favouriteDestinationIds: ['ChIJ-accra', 'ChIJ-lisbon'],
+      }),
+    ).toEqual({ travelStyles: ['foodie', 'solo'], favouriteDestinationIds: ['ChIJ-accra', 'ChIJ-lisbon'] });
   });
 
   it('merges them into extras, and an empty list clears', () => {
-    expect(mergeExtras(account.extras, { travelStyles: [], favouriteCityIds: ['lisbon'] })).toMatchObject({
+    const merged = mergeExtras(
+      { ...account.extras, favouriteCityIds: ['old'] },
+      { travelStyles: [], favouriteDestinationIds: ['ChIJ-lisbon'] },
+    );
+    expect(merged).toMatchObject({
       pronouns: 'she/her',
       travelStyles: [],
-      favouriteCityIds: ['lisbon'],
+      favouriteDestinationIds: ['ChIJ-lisbon'],
     });
+    // PATCH /me rejects fields it does not list, so the old key never goes back.
+    expect(merged).not.toHaveProperty('favouriteCityIds');
   });
 
   it('knows the API’s 36 styles and their words', () => {

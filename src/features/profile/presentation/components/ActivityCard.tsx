@@ -9,19 +9,21 @@ import { formatDay, formatTime } from '../profileFormat';
 import { profileViewCopy } from '../profileViewCopy';
 
 /** How the person stands with the post, as its second tag says. */
-export type ActivityStatus = 'hosting' | 'completed' | 'going' | 'requested';
+export type ActivityStatus = 'hosting' | 'completed' | 'going' | 'requested' | 'waitlisted';
 
 const STATUS_TAG: Record<ActivityStatus, { label: string; tone: TagTone }> = {
   hosting: { label: profileViewCopy.hostingTag, tone: 'success' },
   completed: { label: profileViewCopy.completedTag, tone: 'success' },
   going: { label: profileViewCopy.goingTag, tone: 'success' },
   requested: { label: profileViewCopy.requestedTag, tone: 'pending' },
+  // Like a request, still waiting to get in.
+  waitlisted: { label: profileViewCopy.waitlistedTag, tone: 'pending' },
 };
 
 /**
  * A post on a profile (Figma Other User, "A weekend in Barcelona"): the cover,
- * the type and status tags (Hosting, Completed, Going, Request sent), the city
- * in caps when the post has one, the title, the day and start time, the place,
+ * the type and status tags (Hosting, Completed, Going, Request sent, Waitlisted), the city
+ * and country in caps when the post has a place (`localityLabel`), the title, the day and start time, the place,
  * how many are joining, and "View plan ›". The whole card opens the post.
  */
 export function ActivityCard({
@@ -43,7 +45,7 @@ export function ActivityCard({
       activeOpacity={0.85}
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={[activity.title, activity.city?.label, day, activity.placeName]
+      accessibilityLabel={[activity.title, activity.locality?.label, day, activity.placeName]
         .filter(Boolean)
         .join(', ')}
       style={{
@@ -69,9 +71,9 @@ export function ActivityCard({
           <Tag label={profileViewCopy.types[activity.type]} tone="outline" />
           <Tag label={tag.label} tone={tag.tone} />
         </View>
-        {activity.city ? (
+        {activity.locality ? (
           <Text variant="labelXs" tone="muted" style={{ textTransform: 'uppercase', letterSpacing: 0.4 }}>
-            {activity.city.label}
+            {activity.locality.label}
           </Text>
         ) : null}
         <Text variant="headingSm">{activity.title}</Text>

@@ -70,7 +70,7 @@ export function StampsView({ stamps }: { stamps: CityStamp[] }) {
         }}
       >
         <View style={{ alignItems: 'center' }}>
-          <Text variant="headingMd">{`${stamp.city}, ${stamp.country}`}</Text>
+          <Text variant="headingMd">{[stamp.city, stamp.country].filter(Boolean).join(', ')}</Text>
           <Text variant="bodySm" tone="muted">
             {copy.journey(stamp.city)}
           </Text>

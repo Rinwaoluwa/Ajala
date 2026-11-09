@@ -1,6 +1,6 @@
 import type { ActivityPage, ProfileActivity, PublicProfile } from '../../domain/entities/PublicProfile';
 import type { ActivityCardDto, ActivityPageDto, PublicProfileDto } from '../dto/profileViewDtos';
-import { toCityRef, toCityRefs, toInterest, toTravelStyles } from './profileMappers';
+import { toInterest, toPlaceRef, toPlaceRefs, toTravelStyles } from './profileMappers';
 
 export function toPublicProfile(dto: PublicProfileDto): PublicProfile {
   return {
@@ -9,8 +9,7 @@ export function toPublicProfile(dto: PublicProfileDto): PublicProfile {
     displayName: dto.displayName,
     avatarUrl: dto.avatarUrl ?? null,
     gender: dto.gender ?? null,
-    homeCity: dto.homeCity ? toCityRef(dto.homeCity) : null,
-    visiting: dto.visiting?.city ? toCityRef(dto.visiting.city) : null,
+    homePlace: dto.homePlace ? toPlaceRef(dto.homePlace) : null,
     interests: (dto.interests ?? []).map(toInterest),
     about: {
       bio: dto.bio ?? null,
@@ -22,7 +21,7 @@ export function toPublicProfile(dto: PublicProfileDto): PublicProfile {
       verified: dto.verified ?? false,
     },
     travelStyles: toTravelStyles(dto.extras),
-    favouriteCities: toCityRefs(dto.favouriteCities),
+    favouriteDestinations: toPlaceRefs(dto.favouriteDestinations),
     openToMeetToday: dto.openToMeetToday ?? false,
     sharePlans: dto.sharePlans ?? false,
     memberSince: dto.memberSince,
@@ -38,7 +37,9 @@ export function toActivity(dto: ActivityCardDto): ProfileActivity {
     imageUrl: dto.images?.[0]?.cardUrl ?? null,
     startAt: dto.startAt ?? null,
     placeName: dto.placeName ?? null,
-    city: dto.city ? toCityRef(dto.city) : null,
+    locality: dto.localityLabel?.trim()
+      ? { label: dto.localityLabel.trim(), countryCode: dto.countryCode ?? null }
+      : null,
     goingCount: dto.goingCount ?? 0,
     capacity: dto.capacity ?? null,
     interests: (dto.interests ?? []).map(toInterest),

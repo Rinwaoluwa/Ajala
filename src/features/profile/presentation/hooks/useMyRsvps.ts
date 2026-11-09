@@ -1,7 +1,7 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 
-import type { RsvpListState } from '../../domain/entities/PublicProfile';
+import type { MyRsvpTab, RsvpCursor } from '../../domain/entities/PublicProfile';
 import { profileKeys } from '../state/profileQueries';
 import { useProfileViewUseCases } from '../state/useProfileViewUseCases';
 
@@ -9,16 +9,18 @@ import { useProfileViewUseCases } from '../state/useProfileViewUseCases';
  * The own profile's Going / Requested tabs: `GET /me/rsvps?state=`, soonest
  * first — the same lists as the Trips tab, as an infinite query per tab. Going
  * is live posts the person is going to that have not ended; Requested is
- * private posts waiting on the host (spec §2.16).
+ * everything waiting to get in: private posts waiting on the host (tagged
+ * Request sent), then full posts whose waitlist they are on (tagged
+ * Waitlisted), as on the Trips tab's Requests.
  */
 export function useMyRsvps() {
   const useCases = useProfileViewUseCases();
-  const [tab, setTab] = useState<RsvpListState>('going');
+  const [tab, setTab] = useState<MyRsvpTab>('going');
 
   const list = useInfiniteQuery({
     queryKey: profileKeys.myRsvps(tab),
     queryFn: ({ pageParam }) => useCases.loadMyRsvps(tab, pageParam),
-    initialPageParam: null as string | null,
+    initialPageParam: null as RsvpCursor | null,
     getNextPageParam: (last) => last.nextCursor,
   });
 

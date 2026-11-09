@@ -37,6 +37,8 @@ export type SettingsErrorCode =
   /** 400 VALIDATION_FAILED on anything else. */
   | 'invalidDetails'
   | 'notFound'
+  /** The city search could not reach Google (no key, offline, refused). */
+  | 'placesUnavailable'
   | 'rateLimited'
   | 'network'
   | 'sessionExpired'

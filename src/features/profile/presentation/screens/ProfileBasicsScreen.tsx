@@ -41,11 +41,10 @@ const today = new Date();
 const oldest = new Date(today.getFullYear() - 120, 0, 1);
 
 export type ProfileBasicsScreenProps = {
-  onChooseCity: () => void;
   onContinue: () => void;
 };
 
-export function ProfileBasicsScreen({ onChooseCity, onContinue }: ProfileBasicsScreenProps) {
+export function ProfileBasicsScreen({ onContinue }: ProfileBasicsScreenProps) {
   const vm = useProfileBasics();
   const copy = setupCopy.basics;
 
@@ -93,7 +92,8 @@ export function ProfileBasicsScreen({ onChooseCity, onContinue }: ProfileBasicsS
           label={vm.draft.homeCity?.label ?? null}
           detected={vm.draft.cityDetected}
           detecting={vm.detectingCity}
-          onPress={onChooseCity}
+          detection={vm.cityDetection}
+          onFix={vm.fixCity}
         />
       </Animated.View>
 

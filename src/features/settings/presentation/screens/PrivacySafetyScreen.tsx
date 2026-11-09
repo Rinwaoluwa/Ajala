@@ -15,9 +15,13 @@ import type { SettingsDestination } from '../navigation/routes';
  *
  * PRIVACY: "Profile visibility" is the API's hide-from-search, shown the right
  * way round (on means findable). "Show current city", "Open to meet today" (the
- * server switches it off at the person's midnight) and "Share my plan" (lists
- * their upcoming open activities on the public profile, `GET /users/:id/plans`)
- * are the settings of the same names.
+ * server switches it off at the person's midnight) and "Show my upcoming plans
+ * on my profile" (`sharePlans`: lists their upcoming open activities on the
+ * public profile, `GET /users/:id/plans`) are the API's settings.
+ *
+ * "Share my plan" is not `sharePlans`: it is the trusted person — one member who
+ * accepts, then hears when plans change (backend answers C6). It has no design
+ * yet, so its row is left out rather than shown dead.
  *
  * MESSAGES (not drawn): who can start a chat, one of two, ticked like
  * Appearance's theme; and read receipts.
@@ -97,10 +101,13 @@ function Preferences({
           toggle={{ value: s.openToMeetToday, onChange: (v) => prefs.update({ openToMeetToday: v }) }}
         />
         <ListRow
-          title={copy.sharePlan}
-          subtitle={copy.sharePlanBody}
+          title={copy.showPlans}
+          subtitle={copy.showPlansBody}
           toggle={{ value: s.sharePlans, onChange: (v) => prefs.update({ sharePlans: v }) }}
         />
+        {/* TODO(trusted-person): the "Share my plan" row goes here once its screens
+            are designed — /me/trusted-person and /me/trusted-by, see
+            docs/api/backend-answers-2026-11-09.md C6. Hidden until then. */}
       </ListGroup>
       <ListGroup title={copy.messages}>
         <ListRow

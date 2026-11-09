@@ -4,7 +4,14 @@ import { createContext, useCallback, useContext, useMemo, useState, type ReactNo
 import { sharedQueryKeys } from '@core/api/queryClient/queryClient';
 import { useAuthorizedRequest } from '@features/auth';
 
-import type { CityRef, Gender, ImageFile, MyProfile, TravelStyle } from '../../domain/entities/Profile';
+import type {
+  CityDetection,
+  Gender,
+  ImageFile,
+  MyProfile,
+  PlaceRef,
+  TravelStyle,
+} from '../../domain/entities/Profile';
 import { isProfileError, type ProfileErrorCode } from '../../domain/entities/ProfileError';
 import { missingBasics, type MissingBasics } from '../../domain/rules/profileSetupRules';
 import { createProfileUseCases, type ProfileUseCases } from '../../profileModule';
@@ -20,8 +27,10 @@ import { profileKeys } from './profileQueries';
  * earlier, unfinished run already saved, and says which of name and date of
  * birth are missing. The draft holds only what the person changed here; every
  * other field reads through to the cached profile. The city lookup from the
- * phone's location (`detectCity`) is a query too, asked once "Set up your
- * profile" is on screen — by then location has been allowed.
+ * phone's location (`detectCity`, Google places' `cityAt`) is a query too,
+ * asked once "Set up your profile" is on screen (it shows the location prompt
+ * if it has not been answered). The city cannot be picked by hand: it is
+ * always where the phone is.
  *
  * The avatar is the exception to "send at the end": a photo uploads as soon as
  * it is picked (`POST /me/avatar`), shown from the phone while it goes, and the
@@ -32,16 +41,20 @@ import { profileKeys } from './profileQueries';
  */
 
 export type SetupDraft = {
-  homeCity: CityRef | null;
-  /** The city came from the phone's location ("Auto-detected"), not a search. */
+  /**
+   * Home city, a Google place (sent as `homePlaceId`). Where the phone is, never
+   * picked by hand; the saved one only while that cannot be found.
+   */
+  homeCity: PlaceRef | null;
+  /** The city came from the phone's location ("Auto-detected"). */
   cityDetected: boolean;
   languages: string[];
   gender: Gender | null;
   fullName: string;
   dateOfBirth: string | null;
   travelStyles: TravelStyle[];
-  /** Favourite destinations, as cities (sent as `extras.favouriteCityIds`). */
-  destinations: CityRef[];
+  /** Favourite destinations, as cities (sent as `extras.favouriteDestinationIds`). */
+  destinations: PlaceRef[];
   interestIds: string[];
   /** "Skip" on "What are you into?". */
   skippedInterests: boolean;
@@ -64,7 +77,9 @@ type ProfileSetupValue = {
   draft: SetupDraft;
   update: (patch: Partial<SetupDraft>) => void;
   detectingCity: boolean;
-  /** Looks the city up from the phone's location, unless one is already chosen. */
+  /** The last lookup's answer; null before the first one lands. */
+  cityDetection: CityDetection | null;
+  /** Looks the city up from the phone's location; again when it already has. */
   detectCity: () => void;
   avatar: AvatarState;
   uploadAvatar: (file: ImageFile) => void;
@@ -92,14 +107,18 @@ export function ProfileSetupProvider({ children }: { children: ReactNode }) {
   const update = useCallback((patch: Partial<SetupDraft>) => setEdits((e) => ({ ...e, ...patch })), []);
 
   const [detectAsked, setDetectAsked] = useState(false);
-  const cityChosen = edits.homeCity !== undefined || !!profile?.homeCity;
   const detected = useQuery({
     queryKey: profileKeys.detectedCity,
     queryFn: () => useCases.detectHomeCity(),
-    enabled: detectAsked && profile !== null && !cityChosen,
-    // Where the phone is does not change during setup; ask once.
+    enabled: detectAsked && profile !== null,
+    // Where the phone is does not change during setup; ask once, and again on "Try again".
     staleTime: Infinity,
   });
+  const detectedCity = detected.data?.kind === 'found' ? detected.data.city : null;
+  const detectCity = useCallback(() => {
+    if (detectAsked) void detected.refetch();
+    else setDetectAsked(true);
+  }, [detectAsked, detected]);
 
   const setProfile = useCallback(
     (next: MyProfile) => queryClient.setQueryData(sharedQueryKeys.me, next),
@@ -125,14 +144,14 @@ export function ProfileSetupProvider({ children }: { children: ReactNode }) {
   };
 
   const draft: SetupDraft = {
-    homeCity: edits.homeCity !== undefined ? edits.homeCity : (profile?.homeCity ?? detected.data ?? null),
-    cityDetected: edits.cityDetected ?? (!cityChosen && !!detected.data),
+    homeCity: detectedCity ?? profile?.homePlace ?? null,
+    cityDetected: detectedCity !== null,
     languages: edits.languages ?? profile?.languages ?? [],
     gender: edits.gender !== undefined ? edits.gender : (profile?.gender ?? null),
     fullName: edits.fullName ?? '',
     dateOfBirth: edits.dateOfBirth ?? null,
     travelStyles: edits.travelStyles ?? profile?.travelStyles ?? [],
-    destinations: edits.destinations ?? profile?.favouriteCities ?? [],
+    destinations: edits.destinations ?? profile?.favouriteDestinations ?? [],
     interestIds: edits.interestIds ?? profile?.interests.map((i) => i.id) ?? [],
     skippedInterests: edits.skippedInterests ?? false,
   };
@@ -146,7 +165,8 @@ export function ProfileSetupProvider({ children }: { children: ReactNode }) {
     draft,
     update,
     detectingCity: detected.isFetching,
-    detectCity: () => setDetectAsked(true),
+    cityDetection: detected.data ?? null,
+    detectCity,
     avatar,
     uploadAvatar: (file) => avatarChange.mutate({ action: 'upload', file }),
     removeAvatar: () => avatarChange.mutate({ action: 'remove' }),

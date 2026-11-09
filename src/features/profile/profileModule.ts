@@ -7,9 +7,9 @@ import {
   makeCheckHandle,
   makeChooseHandle,
   makeDetectHomeCity,
+  makeEndCitySearch,
   makeGetMyProfile,
   makeListInterests,
-  makeListPopularCities,
   makeRemoveAvatar,
   makeSaveSetup,
   makeSearchCities,
@@ -44,7 +44,7 @@ export function createProfileUseCases(request: ProfileRequest) {
     detectHomeCity: makeDetectHomeCity(repo),
     searchCities: makeSearchCities(repo),
     listInterests: makeListInterests(repo),
-    listPopularCities: makeListPopularCities(repo),
+    endCitySearch: makeEndCitySearch(repo),
   };
 }
 

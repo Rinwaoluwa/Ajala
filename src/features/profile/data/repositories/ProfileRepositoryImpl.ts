@@ -1,24 +1,43 @@
-import { getCurrentCoordinates, getLocationPermission } from '@core/location/deviceLocation';
+import {
+  getCurrentCoordinates,
+  getLocationPermission,
+  requestLocationPermission,
+} from '@core/location/deviceLocation';
+import { cityAt, endPlacesSession, searchCities } from '@core/places';
 
-import type { City, MyProfile, ProfileUpdate } from '../../domain/entities/Profile';
+import type { CityDetection, MyProfile, ProfileUpdate } from '../../domain/entities/Profile';
 import type { ProfileRepository } from '../../domain/repositories/ProfileRepository';
 import { createProfileApi, type ProfileRequest } from '../datasources/remote/profileApi';
 import type { ProfileExtrasDto, UpdateProfileDto } from '../dto/profileDtos';
-import { toCity, toInterest, toMyProfile, toProfileError } from '../mappers/profileMappers';
+import {
+  toCitySuggestion,
+  toFoundCity,
+  toInterest,
+  toMyProfile,
+  toProfileError,
+} from '../mappers/profileMappers';
 
 /**
- * `ProfileRepository` over the API and the phone's location.
+ * `ProfileRepository` over the API, the phone's location and Google places.
  *
  * Extras: `PATCH /me` takes `extras` as one record. Languages, travel styles and
- * favourite cities live inside it, beside fields setup does not edit (pronouns,
- * tagline, social links), so a change is merged into the extras the profile
- * already has rather than replacing them. The last `GET /me` (or PATCH answer)
- * is kept for that. Favourite cities come back as `favouriteCities`, not
- * always inside `extras`, so their ids are carried over from there: otherwise
- * a languages-only change could send extras without them and clear them.
+ * favourite destinations live inside it, beside fields setup does not edit
+ * (pronouns, tagline, social links), so a change is merged into the extras the
+ * profile already has rather than replacing them. The last `GET /me` (or PATCH
+ * answer) is kept for that. Favourite destinations come back as
+ * `favouriteDestinations`, not always inside `extras`, so their ids are carried
+ * over from there: otherwise a languages-only change could send extras without
+ * them and clear them.
+ *
+ * Old extras keys are dropped before sending: `PATCH /me` rejects fields it does
+ * not list, so a `favouriteCityIds` left over from before the move to places
+ * would fail every save.
+ *
+ * Cities: the API has no city search (spec §1.6), so search and "detect my
+ * city" go to `@core/places`, and only the chosen place ids reach the API.
  *
  * Cache policy: interests are fetched once per repository (the setup flow);
- * they are a short server-ordered list that changes rarely. Popular cities are
+ * they are a short server-ordered list that changes rarely. City searches are
  * cached by the screen's query. Nothing else is cached.
  */
 export function createProfileRepository(request: ProfileRequest): ProfileRepository {
@@ -27,11 +46,12 @@ export function createProfileRepository(request: ProfileRequest): ProfileReposit
   let interests: ReturnType<typeof toInterest>[] | null = null;
 
   const remember = (me: Awaited<ReturnType<typeof api.getMe>>): MyProfile => {
-    const known = me.extras ?? {};
+    const known: ProfileExtrasDto = { ...(me.extras ?? {}) };
+    delete known.favouriteCityIds;
     extras =
-      known.favouriteCityIds || !me.favouriteCities?.length
+      known.favouriteDestinationIds || !me.favouriteDestinations?.length
         ? known
-        : { ...known, favouriteCityIds: me.favouriteCities.map((c) => c.id) };
+        : { ...known, favouriteDestinationIds: me.favouriteDestinations.map((c) => c.placeId) };
     return toMyProfile(me);
   };
 
@@ -58,13 +78,14 @@ export function createProfileRepository(request: ProfileRequest): ProfileReposit
           dob: update.dateOfBirth,
           gender: update.gender,
           handle: update.handle,
-          homeCityId: update.homeCityId,
+          homePlaceId: update.homePlaceId,
           interestIds: update.interestIds,
+          timezone: update.timezone,
         };
         const changed: ProfileExtrasDto = {};
         if (update.languages) changed.languages = update.languages;
         if (update.travelStyles) changed.travelStyles = update.travelStyles;
-        if (update.favouriteCityIds) changed.favouriteCityIds = update.favouriteCityIds;
+        if (update.favouriteDestinationIds) changed.favouriteDestinationIds = update.favouriteDestinationIds;
         if (Object.keys(changed).length) body.extras = { ...(await currentExtras()), ...changed };
         // Leave out what is not being changed: the API treats a sent null as "clear".
         const sent = Object.fromEntries(Object.entries(body).filter(([, v]) => v !== undefined));
@@ -90,32 +111,35 @@ export function createProfileRepository(request: ProfileRequest): ProfileReposit
       }
     },
 
-    async detectHomeCity(): Promise<City | null> {
-      if ((await getLocationPermission()) !== 'granted') return null;
+    async detectHomeCity(): Promise<CityDetection> {
+      let permission = await getLocationPermission();
+      if (permission === 'undetermined' || permission === 'deniedCanAsk') {
+        permission = await requestLocationPermission();
+      }
+      if (permission !== 'granted') return { kind: 'noPermission', blocked: permission === 'blocked' };
       const coords = await getCurrentCoordinates();
-      if (!coords) return null;
+      if (!coords) return { kind: 'notFound' };
       try {
-        return toCity((await api.resolveCity(coords.lat, coords.lng)).city);
+        const found = await cityAt(coords.lat, coords.lng);
+        return found ? { kind: 'found', city: toFoundCity(found) } : { kind: 'notFound' };
       } catch {
-        // No city near enough, or no answer: the person picks one instead.
-        return null;
+        // Google could not be reached and the phone's geocoder had nothing: worth another try.
+        return { kind: 'notFound' };
       }
     },
 
-    async searchCities(query, limit) {
+    async searchCities(query, signal) {
       try {
-        return (await api.searchCities(query, limit)).map(toCity);
+        return (await searchCities(query, null, signal)).map(toCitySuggestion);
       } catch (e) {
+        // A cancelled search (the person typed on) is not a failure; hand the abort back as it was.
+        if (signal?.aborted) throw e;
         throw toProfileError(e);
       }
     },
 
-    async popularCities() {
-      try {
-        return (await api.popularCities()).map(toCity);
-      } catch (e) {
-        throw toProfileError(e);
-      }
+    endCitySearch() {
+      endPlacesSession();
     },
 
     async listInterests() {

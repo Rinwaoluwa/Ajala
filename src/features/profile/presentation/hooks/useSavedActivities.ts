@@ -54,7 +54,7 @@ function toPostCard(a: ProfileActivity): PostCardModel {
     title: a.title,
     imageUrl: a.imageUrl,
     startAt: a.startAt,
-    placeName: a.placeName ?? a.city?.label ?? null,
+    placeName: a.placeName ?? a.locality?.label ?? null,
     host: { name: a.host.name, avatarUrl: a.host.avatarUrl },
     distanceKm: a.distanceKm,
     saved: a.saved,

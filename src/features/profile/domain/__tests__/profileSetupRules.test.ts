@@ -50,7 +50,7 @@ describe('interests', () => {
 
 describe('basic details', () => {
   const ready = {
-    homeCityId: 'lon',
+    homePlaceId: 'ChIJ-london',
     languages: ['en'],
     gender: 'woman' as const,
     fullName: '',
@@ -60,7 +60,7 @@ describe('basic details', () => {
 
   it('needs a city and a language; gender is optional', () => {
     expect(canContinueBasics(ready, nothingMissing)).toBe(true);
-    expect(canContinueBasics({ ...ready, homeCityId: null }, nothingMissing)).toBe(false);
+    expect(canContinueBasics({ ...ready, homePlaceId: null }, nothingMissing)).toBe(false);
     expect(canContinueBasics({ ...ready, languages: [] }, nothingMissing)).toBe(false);
     expect(canContinueBasics({ ...ready, gender: null }, nothingMissing)).toBe(true);
   });

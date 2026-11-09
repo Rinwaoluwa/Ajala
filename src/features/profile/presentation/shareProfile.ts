@@ -2,9 +2,14 @@ import { Share } from 'react-native';
 
 import { PROFILE_LINK_BASE } from './profileViewCopy';
 
-/** The link that opens a profile in the app (the links host, API map §9). */
-export const profileLink = (handle: string | null, id: string) =>
-  `${PROFILE_LINK_BASE}${encodeURIComponent(handle ?? id)}`;
+/**
+ * The link that opens a profile in the app. Always the user id, never the
+ * handle: the links host and the app's `/user/[id]` route both expect the id
+ * (backend answers D3), and a handle can change. `handle` is kept only so the
+ * callers don't have to change.
+ */
+export const profileLink = (_handle: string | null, id: string) =>
+  `${PROFILE_LINK_BASE}${encodeURIComponent(id)}`;
 
 export function shareProfile(name: string, link: string) {
   void Share.share({ message: `${name} on Ajala: ${link}`, url: link }).catch(() => undefined);

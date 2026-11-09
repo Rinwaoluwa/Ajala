@@ -5,8 +5,9 @@ import type { Gender, MyProfile, TravelStyle } from '../entities/Profile';
  * picked, and what a step needs before Continue lights up.
  *
  * The lists that are not the server's (languages, genders, travel styles) are
- * fixed here because the design fixes them. Interests and destinations are the
- * server's (`GET /interests`, `GET /cities/popular`); only their bounds are here.
+ * fixed here because the design fixes them. Interests are the server's
+ * (`GET /interests`) and destinations are Google cities; only their bounds, and
+ * the few city names offered as quick searches, are here.
  */
 
 export type Option<T extends string = string> = { value: T; label: string };
@@ -92,11 +93,30 @@ export const travelStyleLabel = (value: string): string =>
   TRAVEL_STYLES.find((s) => s.value === value)?.label ?? value.replace(/_/g, ' ');
 
 /**
- * "Where do you love to travel?": up to ten cities, by id
- * (`extras.favouriteCityIds`). The chips are the server's popular cities
- * (`GET /cities/popular`), not a fixed list.
+ * "Where do you love to travel?": up to ten cities, by Google place id
+ * (`extras.favouriteDestinationIds`; an 11th is a 400).
  */
 export const MAX_DESTINATIONS = 10;
+
+/**
+ * Quick searches offered under the destinations search. The API used to rank
+ * popular cities (`GET /cities/popular`); that is gone and Swagger has nothing
+ * in its place, so these are a short fixed list of well-known cities. Tapping
+ * one searches for it, so what is saved is still a real Google place the
+ * person chose, never a guessed id. Every name is also in the demo's places.
+ */
+export const POPULAR_DESTINATION_SEARCHES: readonly string[] = [
+  'London',
+  'Paris',
+  'Lisbon',
+  'Barcelona',
+  'Amsterdam',
+  'Dubai',
+  'New York',
+  'Cape Town',
+  'Accra',
+  'Nairobi',
+];
 
 /** "Choose 5–8 interests". The API accepts 3–8; the screen's own rule is 5. */
 export const MIN_INTERESTS = 5;
@@ -154,7 +174,8 @@ export function isFullNameValid(fullName: string): boolean {
 }
 
 export type BasicsDraft = {
-  homeCityId: string | null;
+  /** The home city's Google place id. */
+  homePlaceId: string | null;
   languages: readonly string[];
   gender: Gender | null;
   fullName: string;
@@ -164,7 +185,7 @@ export type BasicsDraft = {
 /** Gender is in the draft but never required (see `GENDERS`). */
 export function canContinueBasics(draft: BasicsDraft, missing: MissingBasics): boolean {
   return (
-    draft.homeCityId !== null &&
+    draft.homePlaceId !== null &&
     draft.languages.length > 0 &&
     (!missing.name || isFullNameValid(draft.fullName)) &&
     (!missing.dateOfBirth || draft.dateOfBirth !== null)

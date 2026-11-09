@@ -4,7 +4,7 @@ import type { SettingsRepository } from '../repositories/SettingsRepository';
 import {
   BIO_MAX,
   DELETE_REASON_MAX,
-  FAVOURITE_CITIES_MAX,
+  FAVOURITE_DESTINATIONS_MAX,
   TRAVEL_STYLES_MAX,
   diffProfile,
   isEmailLike,
@@ -31,7 +31,7 @@ export const makeSaveProfile =
       throw new SettingsError('invalidDetails');
     if (edit.bio && edit.bio.length > BIO_MAX) throw new SettingsError('invalidDetails');
     if ((edit.travelStyles?.length ?? 0) > TRAVEL_STYLES_MAX) throw new SettingsError('invalidDetails');
-    if ((edit.favouriteCityIds?.length ?? 0) > FAVOURITE_CITIES_MAX)
+    if ((edit.favouriteDestinationIds?.length ?? 0) > FAVOURITE_DESTINATIONS_MAX)
       throw new SettingsError('invalidDetails');
     if (Object.keys(edit).length === 0) return account;
     return repo.updateAccount(edit, account);
@@ -48,12 +48,20 @@ export const makeCheckHandle = (repo: SettingsRepository) => async (raw: string)
   return repo.checkHandle(handle);
 };
 
-export const makeSearchCities = (repo: SettingsRepository) => async (query: string) => {
-  const q = query.trim();
-  return q.length < 2 ? [] : repo.searchCities(q, 10);
-};
+/**
+ * Google cities search (the API has none): from two characters, since each
+ * request is billed and one letter matches too much. A cancelled `signal`
+ * rejects with its own abort.
+ */
+export const makeSearchCities =
+  (repo: SettingsRepository) =>
+  async (query: string, signal?: AbortSignal) => {
+    const q = query.trim();
+    return q.length < 2 ? [] : (await repo.searchCities(q, signal)).slice(0, 10);
+  };
 
-export const makePopularCities = (repo: SettingsRepository) => () => repo.popularCities();
+export const makeEndCitySearch = (repo: SettingsRepository) => () => repo.endCitySearch();
+export const makeDetectCurrentCity = (repo: SettingsRepository) => () => repo.detectCurrentCity();
 
 export const makeGetSettings = (repo: SettingsRepository) => () => repo.getSettings();
 export const makeUpdateSettings = (repo: SettingsRepository) => (patch: SettingsPatch) =>

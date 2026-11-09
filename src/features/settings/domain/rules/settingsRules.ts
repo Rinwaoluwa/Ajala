@@ -11,9 +11,29 @@ export const HANDLE_MIN = 3;
 export const HANDLE_MAX = 20;
 export const DELETE_REASON_MAX = 500;
 export const SOCIAL_LINK_MAX = 200;
-/** `extras.travelStyles` and `extras.favouriteCityIds` each take up to 10 (spec §4). */
+/** `extras.travelStyles` and `extras.favouriteDestinationIds` each take up to 10 (spec §4; an 11th is a 400). */
 export const TRAVEL_STYLES_MAX = 10;
-export const FAVOURITE_CITIES_MAX = 10;
+export const FAVOURITE_DESTINATIONS_MAX = 10;
+
+/**
+ * Quick searches under Favourite destinations. The API's popular cities
+ * (`GET /cities/popular`) are gone and Swagger has nothing in their place, so
+ * this is a short fixed list of well-known cities. Tapping one searches for it;
+ * the person still picks the real Google city from the results. Profile setup
+ * offers the same list.
+ */
+export const POPULAR_DESTINATION_SEARCHES: readonly string[] = [
+  'London',
+  'Paris',
+  'Lisbon',
+  'Barcelona',
+  'Amsterdam',
+  'Dubai',
+  'New York',
+  'Cape Town',
+  'Accra',
+  'Nairobi',
+];
 
 /**
  * Whether the account can sign in with a password. Google- and Apple-only
@@ -83,8 +103,8 @@ export function diffProfile(account: Account, next: ProfileEdit): ProfileEdit {
   if (next.lastName !== undefined && next.lastName !== account.lastName) out.lastName = next.lastName;
   if (next.handle !== undefined && next.handle !== (account.handle ?? '')) out.handle = next.handle;
   if (next.bio !== undefined && (next.bio ?? '') !== (account.bio ?? '')) out.bio = next.bio || null;
-  if (next.homeCityId !== undefined && next.homeCityId !== (account.homeCity?.id ?? null)) {
-    out.homeCityId = next.homeCityId;
+  if (next.homePlaceId !== undefined && next.homePlaceId !== (account.homePlace?.placeId ?? null)) {
+    out.homePlaceId = next.homePlaceId;
   }
   if (next.languages && next.languages.join() !== account.languages.join()) out.languages = next.languages;
   if (next.socialLinks && !sameLinks(next.socialLinks, account.socialLinks))
@@ -92,10 +112,10 @@ export function diffProfile(account: Account, next: ProfileEdit): ProfileEdit {
   if (next.travelStyles && next.travelStyles.join() !== account.travelStyles.join())
     out.travelStyles = next.travelStyles;
   if (
-    next.favouriteCityIds &&
-    next.favouriteCityIds.join() !== account.favouriteCities.map((c) => c.id).join()
+    next.favouriteDestinationIds &&
+    next.favouriteDestinationIds.join() !== account.favouriteDestinations.map((c) => c.placeId).join()
   )
-    out.favouriteCityIds = next.favouriteCityIds;
+    out.favouriteDestinationIds = next.favouriteDestinationIds;
   return out;
 }
 
@@ -108,20 +128,24 @@ export const hasChanges = (edit: ProfileEdit) => Object.keys(edit).length > 0;
 
 /** Whether this edit touches `extras`, which then has to be sent. */
 export const editsExtras = (edit: ProfileEdit) =>
-  !!(edit.languages || edit.socialLinks || edit.travelStyles || edit.favouriteCityIds);
+  !!(edit.languages || edit.socialLinks || edit.travelStyles || edit.favouriteDestinationIds);
 
 /**
  * The extras record with this edit's fields merged in. `PATCH /me` may replace
  * extras whole, so everything else the server sent (pronouns, tagline…) goes
- * back unchanged rather than being wiped.
+ * back unchanged rather than being wiped. The old `favouriteCityIds` key is
+ * dropped: `PATCH /me` rejects fields it does not list, so one left over from
+ * before the move to places would fail the save.
  */
 export function mergeExtras(extras: Record<string, unknown>, edit: ProfileEdit): Record<string, unknown> {
+  const kept = { ...extras };
+  delete kept.favouriteCityIds;
   return {
-    ...extras,
+    ...kept,
     ...(edit.languages ? { languages: edit.languages } : null),
     ...(edit.socialLinks ? { socialLinks: cleanLinks(edit.socialLinks) } : null),
     ...(edit.travelStyles ? { travelStyles: edit.travelStyles } : null),
-    ...(edit.favouriteCityIds ? { favouriteCityIds: edit.favouriteCityIds } : null),
+    ...(edit.favouriteDestinationIds ? { favouriteDestinationIds: edit.favouriteDestinationIds } : null),
   };
 }
 

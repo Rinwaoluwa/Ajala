@@ -1,20 +1,46 @@
 import { isApiError } from '@core/api/ApiError';
+import { isPlacesError, type CityRef as FoundCity, type PlaceSuggestion } from '@core/places';
 
-import type { City, CityRef, Interest, MyProfile, TravelStyle } from '../../domain/entities/Profile';
+import type { CitySuggestion, Interest, MyProfile, PlaceRef, TravelStyle } from '../../domain/entities/Profile';
 import { ProfileError, type ProfileErrorCode } from '../../domain/entities/ProfileError';
-import type { CityDto, CityRefDto, InterestDto, MeDto, ProfileExtrasDto } from '../dto/profileDtos';
+import type { InterestDto, MeDto, PlaceRefDto, ProfileExtrasDto } from '../dto/profileDtos';
 
-export const toCityRef = (dto: CityRefDto): CityRef => ({
-  id: dto.id,
-  name: dto.name,
-  countryCode: dto.countryCode,
-  label: dto.label || dto.name,
+/**
+ * The server sends one label ("Lagos, Nigeria"); a chip wants just the city, so
+ * the name is what comes before the first comma.
+ */
+export const toPlaceRef = (dto: PlaceRefDto): PlaceRef => {
+  const label = dto.label?.trim() ?? '';
+  return {
+    placeId: dto.placeId,
+    name: label.split(',')[0]?.trim() || label,
+    label,
+    countryCode: dto.countryCode ?? null,
+  };
+};
+
+export const toPlaceRefs = (list: PlaceRefDto[] | null | undefined): PlaceRef[] => (list ?? []).map(toPlaceRef);
+
+/**
+ * A search row as a city the profile can hold. The label is built the way the
+ * server writes it ("Lagos, Nigeria"), so a city picked in this run reads the
+ * same as one read back from `GET /me`. The country code is not in a
+ * suggestion; the server fills it in on the next read.
+ */
+export const toCitySuggestion = (s: PlaceSuggestion): CitySuggestion => ({
+  placeId: s.placeId,
+  name: s.primaryText,
+  label: [s.primaryText, s.secondaryText].filter(Boolean).join(', '),
+  countryCode: null,
+  detail: s.secondaryText,
 });
 
-export const toCity = (dto: CityDto): City => ({
-  ...toCityRef(dto),
-  region: dto.region ?? '',
-  countryName: dto.countryName ?? '',
+/** "Detect my city" names only the city. */
+export const toFoundCity = (c: FoundCity): PlaceRef => ({
+  placeId: c.placeId,
+  name: c.name,
+  label: c.name,
+  countryCode: null,
 });
 
 export const toInterest = (dto: InterestDto): Interest => ({
@@ -28,8 +54,6 @@ export const toInterest = (dto: InterestDto): Interest => ({
 export const toTravelStyles = (extras: ProfileExtrasDto | null | undefined): TravelStyle[] =>
   Array.isArray(extras?.travelStyles) ? [...extras.travelStyles] : [];
 
-export const toCityRefs = (list: CityRefDto[] | null | undefined): CityRef[] => (list ?? []).map(toCityRef);
-
 export function toMyProfile(dto: MeDto): MyProfile {
   return {
     id: dto.id,
@@ -39,12 +63,11 @@ export function toMyProfile(dto: MeDto): MyProfile {
     dateOfBirth: dto.dob ?? null,
     gender: dto.gender ?? null,
     avatarUrl: dto.avatarUrl ?? null,
-    homeCity: dto.homeCity ? toCityRef(dto.homeCity) : null,
+    homePlace: dto.homePlace ? toPlaceRef(dto.homePlace) : null,
     interests: (dto.interests ?? []).map(toInterest),
     languages: Array.isArray(dto.extras?.languages) ? dto.extras.languages : [],
     travelStyles: toTravelStyles(dto.extras),
-    favouriteCities: toCityRefs(dto.favouriteCities),
-    visiting: dto.visiting?.city ? toCityRef(dto.visiting.city) : null,
+    favouriteDestinations: toPlaceRefs(dto.favouriteDestinations),
     subscribed: dto.subscribed ?? false,
     // The server's stamp, as sent: completion is never worked out on the phone (spec §2.4).
     profileCompletedAt: dto.profileCompletedAt ?? null,
@@ -77,6 +100,8 @@ export function toProfileError(
   context: { handle?: boolean; person?: boolean } = {},
 ): ProfileError {
   if (e instanceof ProfileError) return e;
+  // Google could not be reached or refused the key: every kind reads the same to the person.
+  if (isPlacesError(e)) return new ProfileError('placesUnavailable', { message: e.message });
   if (!isApiError(e)) {
     // Auth's session wrapper ends a dead session with its own error type.
     const code = (e as { code?: unknown } | null)?.code;

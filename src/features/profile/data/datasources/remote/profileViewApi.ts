@@ -37,7 +37,7 @@ export function createProfileViewApi(request: ProfileRequest) {
       }),
 
     getMyRsvps: (
-      state: 'going' | 'requested',
+      state: 'going' | 'requested' | 'waitlisted',
       cursor: string | null,
       limit: number,
       headers?: Record<string, string>,

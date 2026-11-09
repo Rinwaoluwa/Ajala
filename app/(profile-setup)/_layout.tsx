@@ -23,7 +23,6 @@ export default function ProfileSetupLayout() {
         {/* Setup has no way back to sign-up: the account exists now. */}
         <Stack.Screen name="location" options={{ gestureEnabled: false }} />
         <Stack.Screen name="basics" options={{ gestureEnabled: false }} />
-        <Stack.Screen name="city" options={{ presentation: 'modal' }} />
         <Stack.Screen name="saving" options={{ gestureEnabled: false, animation: 'fade' }} />
         <Stack.Screen name="display-name" options={{ animation: 'fade' }} />
       </Stack>

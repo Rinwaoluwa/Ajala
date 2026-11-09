@@ -3,7 +3,7 @@
 **FRD coverage:** MOB-007, MOB-008, MOB-009
 **Owner:** _unassigned_ — put your name here when you pick this feature up.
 
-Three-screen skippable tour, first-launch city detection via reverse geocoding, interest tagging (3–8 interests).
+Three-screen skippable tour. City detection and interests are in profile setup (`@features/profile`), which finds the city with Google places (`@core/places` `cityAt`); nothing here reads or saves a city.
 
 ## Boundary rules
 
@@ -29,9 +29,9 @@ onboarding/
 ├── domain/
 │   ├── entities/               OnboardingProgress
 │   ├── repositories/           contracts (interfaces) the data layer implements
-│   └── usecases/               DetectCurrentCityUseCase, SaveHomeCityUseCase, SaveInterestsUseCase, …
+│   └── usecases/               GetOnboardingSlidesUseCase, CompleteOnboardingUseCase, …
 └── presentation/
-    ├── screens/                TourScreen, CityDetectionScreen, CityPickerScreen, …
+    ├── screens/                WelcomeScreen, OnboardingScreen
     ├── components/             dumb UI, props in / callbacks out
     ├── hooks/                  view models: own state, call use cases, emit events
     ├── state/                  one state type per screen + one-shot event channel
@@ -40,4 +40,4 @@ onboarding/
 
 ## Notes
 
-Location-permission denial must not block the flow — fall back to the searchable city list.
+Location-permission denial must not block the flow — profile setup falls back to the Google city search.

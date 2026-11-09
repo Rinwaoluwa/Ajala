@@ -11,8 +11,11 @@ import { usePreferences } from '../hooks/useSettingsData';
  * server refuses.
  *
  * "Activity updates" is two stored toggles behind one switch (request accepted,
- * post reminder — API map §10). "Nearby activities" and "Recommendations" have
- * no field in the API yet (§12), so they are shown off and inert.
+ * post reminder — API map §10). "Nearby activities" (`notifyNearbyActivity`, on
+ * by default) and "Recommendations" (`notifyRecommendations`, off by default)
+ * are saved like the others, but the server sends neither kind yet (backend
+ * answers C5) — hence "coming soon" in their descriptions: the choice made now
+ * is the one used once they start.
  */
 export function NotificationSettingsScreen({ onBack }: { onBack: () => void }) {
   const copy = settingsCopy.notifications;
@@ -53,12 +56,18 @@ export function NotificationSettingsScreen({ onBack }: { onBack: () => void }) {
             <ListRow
               title={copy.nearby}
               subtitle={copy.nearbyBody}
-              toggle={{ value: false, onChange: () => undefined, disabled: true }}
+              toggle={{
+                value: s.notifyNearbyActivity,
+                onChange: (v) => prefs.update({ notifyNearbyActivity: v }),
+              }}
             />
             <ListRow
               title={copy.recommendations}
               subtitle={copy.recommendationsBody}
-              toggle={{ value: false, onChange: () => undefined, disabled: true }}
+              toggle={{
+                value: s.notifyRecommendations,
+                onChange: (v) => prefs.update({ notifyRecommendations: v }),
+              }}
             />
           </ListGroup>
           {prefs.error ? (

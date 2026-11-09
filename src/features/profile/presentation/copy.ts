@@ -21,9 +21,24 @@ export const setupCopy = {
       cancel: 'Cancel',
     },
     currentCity: 'Current city',
-    cityPlaceholder: 'Choose your city',
     cityDetecting: 'Finding your city...',
+    cityUnknown: 'City not found yet',
     autoDetected: 'Auto-detected',
+    // The city is always where the phone is; these say why it is missing and how to fix it.
+    cityMissing: {
+      noPermission: {
+        body: 'Ajala uses your location to set your current city.',
+        action: 'Allow location',
+      },
+      blocked: {
+        body: 'Location is off for Ajala. Turn it on in Settings to set your current city.',
+        action: 'Open Settings',
+      },
+      notFound: {
+        body: "We couldn't find your city. Check your connection and try again.",
+        action: 'Try again',
+      },
+    },
     languages: 'Languages spoken',
     // Not drawn. Gender is optional; name and date of birth are asked only when missing (§2.4).
     gender: 'Gender (optional)',
@@ -33,13 +48,6 @@ export const setupCopy = {
       placeholder: 'DD/MM/YYYY',
       sheetTitle: 'Date of birth',
     },
-  },
-
-  citySearch: {
-    title: 'Current city',
-    placeholder: 'Search city or country...',
-    hint: 'Type at least two letters.',
-    empty: 'No cities match that.',
   },
 
   travelStyle: {
@@ -52,11 +60,13 @@ export const setupCopy = {
     title: 'Where do you love to travel?',
     body: 'Choose up to 10 favourite destinations to personalise your experience.',
     search: 'Search city or country...',
-    section: 'Popular destinations',
+    // The design's "Popular destinations" came from `GET /cities/popular`, which is gone:
+    // the chosen cities sit here, and a fixed list of well-known cities below offers quick searches.
+    section: 'Your destinations',
+    noneChosen: 'Search for a city, or start with one of these.',
+    /** Over the quick searches: tapping one searches for that city. */
+    tryASearch: 'Popular searches',
     noMatches: 'No cities match that.',
-    // Not drawn: the popular list comes from the server and can fail to load.
-    popularFailed: "We couldn't load popular destinations. Search instead, or",
-    retry: 'try again',
   },
 
   interests: {
@@ -125,6 +135,7 @@ export const profileErrorMessages: Record<ProfileErrorCode, string> = {
   notFound: "This profile isn't available.",
   alreadyReported: "You've already reported this profile. We're looking into it.",
   ownProfile: "You can't do that to your own profile.",
+  placesUnavailable: "Place search isn't available right now",
   rateLimited: 'Too many tries. Wait a moment and try again.',
   network: 'No connection. Check your internet and try again.',
   sessionExpired: 'Your session has ended. Sign in again to carry on.',

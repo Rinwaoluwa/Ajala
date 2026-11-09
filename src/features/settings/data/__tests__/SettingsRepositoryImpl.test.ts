@@ -1,10 +1,19 @@
 import { describe, expect, it, jest } from '@jest/globals';
 
 import { ApiError } from '@core/api/ApiError';
+import { PlacesError, endPlacesSession, searchCities } from '@core/places';
 
 import { SettingsError } from '../../domain/entities/SettingsError';
 import type { Account } from '../../domain/entities/Settings';
 import { createSettingsRepository } from '../repositories/SettingsRepositoryImpl';
+
+// Google is never asked: the place calls are stubbed, the error type is the real one.
+jest.mock('@core/places', () => ({
+  ...jest.requireActual<typeof import('@core/places/placesTypes')>('@core/places/placesTypes'),
+  searchCities: jest.fn(),
+  endPlacesSession: jest.fn(),
+}));
+const mockSearchCities = searchCities as jest.MockedFunction<typeof searchCities>;
 
 jest.mock('@core/config/appConfig', () => ({
   getAppConfig: async () => ({
@@ -38,9 +47,12 @@ const ME = {
   email: 'maya@example.com',
   bio: null,
   avatarUrl: null,
-  homeCity: { id: 'london', name: 'London', countryCode: 'GB', label: 'London, UK' },
-  extras: { languages: ['en'], pronouns: 'she/her', travelStyles: ['solo', 'not_a_style'] },
-  favouriteCities: [{ id: 'accra', name: 'Accra', countryCode: 'GH', label: 'Accra, Ghana' }],
+  homePlace: { placeId: 'ChIJ-london', countryCode: 'GB', label: 'London, UK' },
+  extras: { languages: ['en'], pronouns: 'she/her', travelStyles: ['solo', 'not_a_style'] } as Record<
+    string,
+    unknown
+  >,
+  favouriteDestinations: [{ placeId: 'ChIJ-accra', countryCode: 'GH', label: 'Accra, Ghana' }],
   identities: [{ provider: 'google' }],
 };
 
@@ -51,6 +63,8 @@ const SETTINGS = {
   notifyNewComment: true,
   notifyNewMessage: true,
   notifySubscription: true,
+  notifyNearbyActivity: true,
+  notifyRecommendations: false,
   readReceipts: true,
   dmPermission: 'shared_only',
   hiddenFromSearch: false,
@@ -70,28 +84,56 @@ describe('SettingsRepository over the API', () => {
     expect(calls[0]).toMatchObject({ method: 'GET', path: '/api/v1/me' });
     expect(account).toMatchObject({
       firstName: 'Maya',
-      homeCity: { id: 'london', label: 'London, UK' },
+      homePlace: { placeId: 'ChIJ-london', name: 'London', label: 'London, UK' },
       languages: ['en'],
       socialLinks: { instagram: null, tiktok: null, website: null },
       // A slug outside the API's list could not be saved back, so it is dropped.
       travelStyles: ['solo'],
-      favouriteCities: [{ id: 'accra', name: 'Accra', label: 'Accra, Ghana' }],
+      favouriteDestinations: [{ placeId: 'ChIJ-accra', name: 'Accra', label: 'Accra, Ghana' }],
       identities: [{ provider: 'google' }],
     });
   });
 
-  it('sends travel styles and favourite cities inside extras', async () => {
+  it('sends the home place, and travel styles and favourite destinations inside extras', async () => {
     const { repo, calls } = fake(() => ME);
     const current = (await repo.getAccount()) as Account;
-    await repo.updateAccount({ travelStyles: ['beach'], favouriteCityIds: ['lisbon'] }, current);
+    await repo.updateAccount(
+      { homePlaceId: 'ChIJ-lagos', travelStyles: ['beach'], favouriteDestinationIds: ['ChIJ-lisbon'] },
+      current,
+    );
     expect(calls[1]?.body).toEqual({
+      homePlaceId: 'ChIJ-lagos',
       extras: {
         languages: ['en'],
         pronouns: 'she/her',
         travelStyles: ['beach'],
-        favouriteCityIds: ['lisbon'],
+        favouriteDestinationIds: ['ChIJ-lisbon'],
       },
     });
+  });
+
+  it('keeps favourite destinations through a languages-only save, and drops the old favouriteCityIds', async () => {
+    const { repo, calls } = fake(() => ({ ...ME, extras: { ...ME.extras, favouriteCityIds: ['old'] } }));
+    const current = (await repo.getAccount()) as Account;
+    await repo.updateAccount({ languages: ['fr'] }, current);
+    const extras = (calls[1]?.body as { extras: Record<string, unknown> }).extras;
+    expect(extras).toMatchObject({ languages: ['fr'], favouriteDestinationIds: ['ChIJ-accra'] });
+    expect(extras).not.toHaveProperty('favouriteCityIds');
+  });
+
+  it('searches cities with Google places, not the API, and reads a places failure as placesUnavailable', async () => {
+    const { repo, calls } = fake(() => ME);
+    mockSearchCities.mockResolvedValueOnce([
+      { placeId: 'ChIJ-lagos', primaryText: 'Lagos', secondaryText: 'Nigeria' },
+    ]);
+    expect(await repo.searchCities('lag')).toEqual([
+      { placeId: 'ChIJ-lagos', name: 'Lagos', label: 'Lagos, Nigeria', detail: 'Nigeria' },
+    ]);
+    mockSearchCities.mockRejectedValueOnce(new PlacesError('network', 'offline'));
+    await expect(repo.searchCities('lag')).rejects.toMatchObject({ code: 'placesUnavailable' });
+    repo.endCitySearch();
+    expect(endPlacesSession).toHaveBeenCalled();
+    expect(calls).toHaveLength(0);
   });
 
   it('reads the settings, and changes analytics through its own call', async () => {
@@ -108,6 +150,18 @@ describe('SettingsRepository over the API', () => {
       method: 'PATCH',
       path: '/api/v1/me/analytics',
       body: { enabled: true },
+    });
+  });
+
+  it('saves the nearby and recommendation switches, and reads them as the API defaults when missing', async () => {
+    const { notifyNearbyActivity: _n, notifyRecommendations: _r, ...older } = SETTINGS;
+    const { repo, calls } = fake((call) => (call.method === 'GET' ? older : SETTINGS));
+    expect(await repo.getSettings()).toMatchObject({ notifyNearbyActivity: true, notifyRecommendations: false });
+    await repo.updateSettings({ notifyNearbyActivity: false, notifyRecommendations: true });
+    expect(calls[1]).toMatchObject({
+      method: 'PATCH',
+      path: '/api/v1/me/settings',
+      body: { notifyNearbyActivity: false, notifyRecommendations: true },
     });
   });
 

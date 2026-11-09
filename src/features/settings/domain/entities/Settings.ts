@@ -56,7 +56,15 @@ export type TravelStyle =
 
 export type SocialLinks = { instagram: string | null; tiktok: string | null; website: string | null };
 
-export type AccountCity = { id: string; name: string; label: string };
+/**
+ * A city on the account, by its Google place id (`PlaceRefDto`, spec §1.6).
+ * `name` is the short form a chip shows ("Lagos"), `label` the full one
+ * ("Lagos, Nigeria").
+ */
+export type AccountPlace = { placeId: string; name: string; label: string };
+
+/** A row of the city search: the city, and the line under its name ("Nigeria"). */
+export type CitySuggestion = AccountPlace & { detail: string };
 
 export type Account = {
   id: string;
@@ -66,14 +74,15 @@ export type Account = {
   email: string | null;
   bio: string | null;
   avatarUrl: string | null;
-  homeCity: AccountCity | null;
+  /** `MeDto.homePlace`. */
+  homePlace: AccountPlace | null;
   /** ISO 639-1 codes, in the person's order. */
   languages: string[];
   socialLinks: SocialLinks;
   /** Up to 10, in the person's order. */
   travelStyles: TravelStyle[];
-  /** Up to 10 cities (`MeDto.favouriteCities`, sent back as `extras.favouriteCityIds`). */
-  favouriteCities: AccountCity[];
+  /** Up to 10 cities (`MeDto.favouriteDestinations`, sent back as `extras.favouriteDestinationIds`). */
+  favouriteDestinations: AccountPlace[];
   identities: Identity[];
   /**
    * Every extras field as the server last sent it. `PATCH /me` replaces extras
@@ -88,11 +97,13 @@ export type ProfileEdit = {
   lastName?: string;
   handle?: string;
   bio?: string | null;
-  homeCityId?: string | null;
+  /** A city's Google place id; null clears it. */
+  homePlaceId?: string | null;
   languages?: string[];
   socialLinks?: SocialLinks;
   travelStyles?: TravelStyle[];
-  favouriteCityIds?: string[];
+  /** Cities' Google place ids, up to 10. */
+  favouriteDestinationIds?: string[];
 };
 
 /** `UserSettingsDto`: the stored switches the Settings screens show. */
@@ -103,6 +114,10 @@ export type UserSettings = {
   notifyNewMessage: boolean;
   notifyNewComment: boolean;
   notifySubscription: boolean;
+  /** Activity happening near the person (on by default). Saved, but nothing sends it yet. */
+  notifyNearbyActivity: boolean;
+  /** Suggestions based on their interests (off by default). Saved, but nothing sends it yet. */
+  notifyRecommendations: boolean;
   readReceipts: boolean;
   /** Who can start a direct chat: anyone, or only people the person shares a post with. */
   dmPermission: 'anyone' | 'shared_only';
@@ -114,7 +129,11 @@ export type UserSettings = {
   showCurrentCity: boolean;
   /** Shown on the profile; the server switches it off at the person's midnight. */
   openToMeetToday: boolean;
-  /** List the upcoming open posts the person is going to on their public profile. */
+  /**
+   * List the upcoming open posts the person is going to on their public profile.
+   * Public, for anyone who opens the profile — not the "Share my plan" trusted
+   * person, which is a separate feature (backend answers C6).
+   */
   sharePlans: boolean;
 };
 

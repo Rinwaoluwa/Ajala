@@ -8,7 +8,7 @@ Settings and its pages (Figma, light and dark), over API map §10:
 | Screen | Route | API |
 | --- | --- | --- |
 | Settings (hub) | `/(app)/settings` | `GET /me`, `GET /me/posts?status=draft` (count), `GET /app/config` (Help, About), Log out → auth's sign-out |
-| Edit profile | `settings/edit-profile` | `PATCH /me` (only what changed; languages, links, `travelStyles` and `favouriteCityIds` merged into `extras`), `POST /me/avatar`, `GET /handles/availability`, `GET /cities`, `GET /cities/popular` |
+| Edit profile | `settings/edit-profile` | `PATCH /me` (only what changed: `homePlaceId`; languages, links, `travelStyles` and `favouriteDestinationIds` merged into `extras`), `POST /me/avatar`, `GET /handles/availability`; cities from Google places (`@core/places` `searchCities`, no API endpoint) |
 | Account & security | `settings/account` | — (menu; "Change password" reads "Set a password" for a Google/Apple-only account) |
 | Change email | `settings/change-email` | `POST /me/email/change` → code → `/confirm`; "Confirm it's you" on 403 |
 | Change / set password | `settings/change-password` | `POST /me/password`; or, with no `email` identity, `POST /me/password/set` (re-auth on 403) |
@@ -17,9 +17,9 @@ Settings and its pages (Figma, light and dark), over API map §10:
 | Download my data | `settings/data-export` | `GET /me/export` (404 = never asked), `POST /me/export` (once a day; re-auth on 403); Download opens `downloadUrl` in the browser |
 | Delete account | `settings/delete-account` | `DELETE /me`; "Confirm it's you" on 403; then signs out |
 | Drafts | `settings/drafts` | `GET /me/posts?status=draft` (filtered by type on the phone), `DELETE /posts/:id`; Continue editing → `/(app)/create/[type]?draftId=` |
-| Notifications | `settings/notifications` | `GET/PATCH /me/settings`, optimistic with rollback |
+| Notifications | `settings/notifications` | `GET/PATCH /me/settings`, optimistic with rollback; Discovery is `notifyNearbyActivity` (default on) and `notifyRecommendations` (default off) |
 | Appearance | `settings/appearance` | none — kept on the phone (`@shared/state/appearance`), applied at launch from `app/_layout.tsx` |
-| Privacy & safety | `settings/privacy` | `PATCH /me/settings` (`hiddenFromSearch`, `showCurrentCity`, `openToMeetToday`, `sharePlans`, `readReceipts`, `dmPermission`), `PATCH /me/analytics { enabled }`; all optimistic with rollback |
+| Privacy & safety | `settings/privacy` | `PATCH /me/settings` (`hiddenFromSearch`, `showCurrentCity`, `openToMeetToday`, `sharePlans` — labelled "Show my upcoming plans on my profile", `readReceipts`, `dmPermission`), `PATCH /me/analytics { enabled }`; all optimistic with rollback |
 | Your reports | `settings/reports` | `GET /me/reports` (paged, "Show more") |
 | Safety tips | `settings/safety-tips` | static |
 | Blocked accounts | `settings/blocked` | `GET /me/blocks`, `DELETE /users/:id/block` |
@@ -58,11 +58,30 @@ are the obvious piece to split into their own feature (spec §7 suggests `featur
   when read, since saving them back would be refused.
 - **Display name** is one field over the API's first and last name: the first word is the first
   name (API map §12).
+- **Home city and favourite destinations are Google places** (spec §1.6; the `/cities` endpoints are
+  gone). Both pickers search with `@core/places` `searchCities` (debounced 300 ms, from two letters,
+  cancelled with the query's `signal`, not retried; `endPlacesSession` after a pick, when "Manage"
+  closes and when the screen goes). A `PlacesError` reads "Place search isn’t available right now".
+  They read back as `homePlace` and `favouriteDestinations` (`PlaceRefDto`) and are saved as
+  `homePlaceId` and `extras.favouriteDestinationIds` (up to 10; an 11th is a 400). The old
+  `favouriteCityIds` key is dropped from extras before a save, since `PATCH /me` rejects unknown
+  fields, and the destinations' ids are carried into extras so a languages-only save keeps them.
+  Swagger has no popular cities, so "Popular searches" is a short fixed list of well-known cities
+  (`POPULAR_DESTINATION_SEARCHES`, the same as profile setup's); tapping one fills the search.
+- **Two "plans" settings (backend answers C6).** `sharePlans` is public: it lists the person's
+  upcoming open activities on their profile, so it reads "Show my upcoming plans on my profile".
+  "Share my plan" is a different thing — the **trusted person**, one member who accepts and then
+  hears when plans change (`/me/trusted-person`, `/me/trusted-by`; shapes in spec §2.21). The API is
+  built but there is no design yet, so that row is hidden (a `TODO(trusted-person)` in `PrivacySafetyScreen`) rather than
+  shown dead.
 
 ## Gaps (flag to product)
 
-- **Notifications:** Nearby activities and Recommendations have no fields; shown off and inert.
+- **Notifications:** Nearby activities and Recommendations are saved (`notifyNearbyActivity`,
+  `notifyRecommendations`; a server without them reads as the defaults, on and off), but the server
+  sends neither kind yet (backend answers C5); their descriptions say "coming soon".
   `notifyNewComment` and `notifySubscription` are stored but not drawn.
+- **Trusted person ("Share my plan"):** API built, no design; not started here (C6).
 - **Edit profile:** gender and interests are editable in the API but not drawn here.
 - **Analytics SDK:** there is no analytics client in the app yet (no `core/analytics` wrapper), so
   the opt-out is stored on the server only. Gate the SDK on `analyticsOptOut` when it lands (spec §7.11).

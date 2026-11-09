@@ -8,9 +8,9 @@ import { profileViewCopy } from '../profileViewCopy';
 
 /**
  * The top of a profile (Figma Own Profile, Other User): the photo beside the
- * counters, then name, pronouns, home city (and the city they are visiting
- * today, when there is one), "Open to meet today" when they said so, tagline,
- * bio and interests.
+ * counters, then name, pronouns, home city, "Open to meet today" when they
+ * said so, tagline, bio and interests. (No "Visiting" city: the API's
+ * `visiting` is always null while trips are parked.)
  *
  * Counters: Events and Countries come from the person's attended history; the
  * design's Streak has no data anywhere (API map §12) and is left out. While the
@@ -22,7 +22,6 @@ export function ProfileHero({
   avatarUrl,
   pronouns,
   city,
-  visiting,
   openToMeetToday = false,
   tagline,
   bio,
@@ -33,8 +32,6 @@ export function ProfileHero({
   avatarUrl: string | null;
   pronouns?: string | null;
   city?: string | null;
-  /** Today's trip city, shown after the home city. */
-  visiting?: string | null;
   openToMeetToday?: boolean;
   tagline?: string | null;
   bio?: string | null;
@@ -59,9 +56,9 @@ export function ProfileHero({
             {pronouns}
           </Text>
         ) : null}
-        {city || visiting ? (
+        {city ? (
           <Text variant="bodySm" tone="muted">
-            {[city, visiting ? profileViewCopy.visiting(visiting) : null].filter(Boolean).join(' · ')}
+            {city}
           </Text>
         ) : null}
         {openToMeetToday ? (

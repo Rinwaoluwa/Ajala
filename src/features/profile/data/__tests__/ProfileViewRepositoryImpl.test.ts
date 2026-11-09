@@ -37,24 +37,13 @@ const PERSON = {
     { id: 'p1', url: 'u1', thumbUrl: 't1', position: 0 },
   ],
   gender: null,
-  homeCity: {
-    id: 'bcn',
-    name: 'Barcelona',
-    countryCode: 'ES',
-    label: 'Barcelona, Spain',
-  },
-  visiting: {
-    city: {
-      id: 'lis',
-      name: 'Lisbon',
-      countryCode: 'PT',
-      label: 'Lisbon, Portugal',
-    },
-  },
+  homePlace: { placeId: 'ChIJ-bcn', countryCode: 'ES', label: 'Barcelona, Spain' },
+  // Always null while trips are parked (spec §2.8); the app does not read it.
+  visiting: null,
   verified: true,
   interests: [{ id: 'i', slug: 'surfing', name: 'Surfing', emoji: null }],
   extras: { pronouns: 'he/him', travelStyles: ['surfing', 'city_break'] },
-  favouriteCities: [{ id: 'lis', name: 'Lisbon', countryCode: 'PT', label: 'Lisbon, Portugal' }],
+  favouriteDestinations: [{ placeId: 'ChIJ-lis', countryCode: 'PT', label: 'Lisbon, Portugal' }],
   openToMeetToday: true,
   sharePlans: true,
   memberSince: '2025-01-01T00:00:00Z',
@@ -68,7 +57,8 @@ const CARD = {
   images: [{ thumbUrl: 't', cardUrl: 'card.jpg', fullUrl: 'f' }],
   startAt: '2026-10-24T10:00:00+02:00',
   placeName: 'El Born',
-  city: PERSON.homeCity,
+  localityLabel: 'Barcelona, Spain',
+  countryCode: 'ES',
   capacity: 10,
   goingCount: 3,
   saved: true,
@@ -86,11 +76,12 @@ describe('ProfileViewRepository over the API', () => {
     expect(person.about.photos.map((p) => p.id)).toEqual(['p1', 'p2']);
     expect(person).toMatchObject({
       travelStyles: ['surfing', 'city_break'],
-      favouriteCities: [{ id: 'lis' }],
-      visiting: { id: 'lis' },
+      homePlace: { placeId: 'ChIJ-bcn', name: 'Barcelona', label: 'Barcelona, Spain' },
+      favouriteDestinations: [{ placeId: 'ChIJ-lis', name: 'Lisbon', label: 'Lisbon, Portugal' }],
       openToMeetToday: true,
       sharePlans: true,
     });
+    expect(person).not.toHaveProperty('visiting');
   });
 
   it('pages saved posts by type, Going / Requested, and their plans', async () => {
@@ -110,12 +101,14 @@ describe('ProfileViewRepository over the API', () => {
     });
   });
 
-  it('keeps a card with no city', async () => {
+  it("reads a card's place from localityLabel, and keeps a card with none", async () => {
     const { repo } = fake(() => ({
-      items: [{ ...CARD, city: null }],
+      items: [CARD, { ...CARD, localityLabel: null, countryCode: null }],
       nextCursor: null,
     }));
-    expect((await repo.getMyAttended(null, 20)).items[0]?.city).toBeNull();
+    const items = (await repo.getMyAttended(null, 20)).items;
+    expect(items[0]?.locality).toEqual({ label: 'Barcelona, Spain', countryCode: 'ES' });
+    expect(items[1]?.locality).toBeNull();
   });
 
   it('pages their posts with the location header', async () => {

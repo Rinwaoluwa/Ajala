@@ -1,6 +1,5 @@
 import type {
   AnalyticsOptDto,
-  CityDto,
   DataExportDto,
   DeletionScheduledDto,
   HandleAvailabilityDto,
@@ -54,9 +53,6 @@ export function createSettingsApi(request: SettingsRequest) {
         path: `${V1}/handles/availability?${query({ handle })}`,
         retry: false,
       }),
-    searchCities: (q: string, limit: number) =>
-      request<CityDto[]>({ method: 'GET', path: `${V1}/cities?${query({ q, limit })}` }),
-    popularCities: () => request<CityDto[]>({ method: 'GET', path: `${V1}/cities/popular` }),
 
     getSettings: () => request<UserSettingsDto>({ method: 'GET', path: `${V1}/me/settings` }),
     updateSettings: (body: UpdateUserSettingsDto) =>

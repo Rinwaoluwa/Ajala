@@ -1,5 +1,6 @@
 import type {
-  City,
+  CityDetection,
+  CitySuggestion,
   HandleAvailability,
   ImageFile,
   Interest,
@@ -9,7 +10,8 @@ import type {
 
 /**
  * The profile's contract with the outside world. The data layer implements it
- * over the API (as the signed-in person) and the phone's location.
+ * over the API (as the signed-in person), the phone's location and Google
+ * places (`@core/places`: the API has no city search of its own, spec §1.6).
  *
  * Calls reject with `ProfileError`; the few that answer "nothing" instead say so
  * in their type (`detectHomeCity`).
@@ -17,18 +19,25 @@ import type {
 export interface ProfileRepository {
   getMyProfile(): Promise<MyProfile>;
   /**
-   * The extras in it (`languages`, `travelStyles`, `favouriteCityIds`) are merged
+   * The extras in it (`languages`, `travelStyles`, `favouriteDestinationIds`) are merged
    * into what the profile already holds, not swapped for it.
    */
   updateProfile(update: ProfileUpdate): Promise<MyProfile>;
   /** Returns the new avatar URL. */
   uploadAvatar(file: ImageFile): Promise<string | null>;
   removeAvatar(): Promise<void>;
-  /** The city the phone is in, or null when location is off or unreadable. */
-  detectHomeCity(): Promise<City | null>;
-  searchCities(query: string, limit: number): Promise<City[]>;
-  /** Up to 12 cities with the most live posts (`GET /cities/popular`), for the destinations chips. */
-  popularCities(): Promise<City[]>;
+  /**
+   * The city the phone is in. Shows the system's location prompt first when it
+   * may still be shown. Never rejects: a failure is a `CityDetection` kind.
+   */
+  detectHomeCity(): Promise<CityDetection>;
+  /**
+   * Cities matching what was typed. Rejects with `placesUnavailable` when the
+   * search cannot be reached; a cancelled `signal` rejects with its own abort.
+   */
+  searchCities(query: string, signal?: AbortSignal): Promise<CitySuggestion[]>;
+  /** A city search closed without looking a place up: start a fresh billing session next time. */
+  endCitySearch(): void;
   listInterests(): Promise<Interest[]>;
   checkHandle(handle: string): Promise<HandleAvailability>;
 }

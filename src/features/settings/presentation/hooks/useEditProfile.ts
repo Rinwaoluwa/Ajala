@@ -1,15 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActionSheetIOS, Alert, Platform } from 'react-native';
 
 import { useDebouncedValue } from '@shared/hooks/useDebouncedValue';
 
 import { settingsMedia } from '../../settingsModule';
-import type { Account, AccountCity, SocialLinks, TravelStyle } from '../../domain/entities/Settings';
+import type { Account, AccountPlace, SocialLinks, TravelStyle } from '../../domain/entities/Settings';
 import { isSettingsError } from '../../domain/entities/SettingsError';
 import {
   BIO_MAX,
-  FAVOURITE_CITIES_MAX,
+  FAVOURITE_DESTINATIONS_MAX,
   TRAVEL_STYLES_MAX,
   diffProfile,
   displayNameOf,
@@ -27,11 +27,12 @@ import { errorCodeOf, useAccountChanged } from './useSettingsData';
 
 /**
  * View model for Edit profile (API map §10): the form over the account, a live
- * username check (`GET /handles/availability`, after a 400ms pause), the city
- * search (`GET /cities`), favourite destinations (picked from
- * `GET /cities/popular` or searched), the photo (`POST /me/avatar`, saved at
- * once), and Save (`PATCH /me` with only what changed; languages, links, travel
- * styles and favourite city ids merged into extras).
+ * username check (`GET /handles/availability`, after a 400ms pause), the home
+ * city (where the phone is, looked up on open; it cannot be picked by hand)
+ * and favourite destinations (a Google cities search, since the API has none,
+ * with a few well-known cities as quick searches), the photo (`POST /me/avatar`, saved at once), and Save
+ * (`PATCH /me` with only what changed: `homePlaceId`, and languages, links,
+ * travel styles and `favouriteDestinationIds` merged into extras).
  */
 export function useEditProfile(account: Account) {
   const useCases = useSettingsUseCases();
@@ -41,11 +42,10 @@ export function useEditProfile(account: Account) {
   const [displayName, setDisplayName] = useState(displayNameOf(account));
   const [handle, setHandle] = useState(account.handle ?? '');
   const [bio, setBio] = useState(account.bio ?? '');
-  const [city, setCity] = useState<AccountCity | null>(account.homeCity);
   const [languages, setLanguages] = useState<string[]>(account.languages);
   const [links, setLinks] = useState<SocialLinks>(account.socialLinks);
   const [travelStyles, setTravelStyles] = useState<TravelStyle[]>(account.travelStyles);
-  const [favourites, setFavourites] = useState<AccountCity[]>(account.favouriteCities);
+  const [favourites, setFavourites] = useState<AccountPlace[]>(account.favouriteDestinations);
 
   // ---------- username ----------
   const cleanHandle = normaliseHandle(handle);
@@ -71,32 +71,20 @@ export function useEditProfile(account: Account) {
               ? 'reserved'
               : 'taken';
 
-  // ---------- city ----------
-  const [cityQuery, setCityQuery] = useState('');
-  const settledCity = useDebouncedValue(cityQuery.trim(), 300);
-  const cities = useQuery({
-    queryKey: settingsKeys.cities(settledCity.toLowerCase()),
-    queryFn: () => useCases.searchCities(settledCity),
-    enabled: settledCity.length >= 2,
-    staleTime: 10 * 60_000,
+  // ---------- city and favourite destinations ----------
+  // The current city is where the phone is: looked up once on open, saved if it moved.
+  const detected = useQuery({
+    queryKey: settingsKeys.currentCity,
+    queryFn: () => useCases.detectCurrentCity(),
+    staleTime: 5 * 60_000,
   });
-
-  // ---------- favourite destinations ----------
-  const [destQuery, setDestQuery] = useState('');
-  const settledDest = useDebouncedValue(destQuery.trim(), 300);
-  // Same key as the home-city search: one answer per query, whichever field asked.
-  const destinations = useQuery({
-    queryKey: settingsKeys.cities(settledDest.toLowerCase()),
-    queryFn: () => useCases.searchCities(settledDest),
-    enabled: settledDest.length >= 2,
-    staleTime: 10 * 60_000,
-  });
-  const popular = useQuery({
-    queryKey: settingsKeys.popularCities,
-    queryFn: () => useCases.popularCities(),
-    // The server refreshes the list every 10 minutes.
-    staleTime: 10 * 60_000,
-  });
+  const city: AccountPlace | null = detected.data ?? account.homePlace;
+  const destSearch = useCitySearchField();
+  // The destinations field keeps its own text: a new key empties it, or fills it with a quick search.
+  const [destField, setDestField] = useState({ key: 0, text: '' });
+  // Leaving the screen ends the Google search session; nothing here asks for place details.
+  const { endCitySearch } = useCases;
+  useEffect(() => () => endCitySearch(), [endCitySearch]);
 
   // ---------- photo ----------
   const avatar = useMutation({
@@ -157,11 +145,11 @@ export function useEditProfile(account: Account) {
         lastName,
         handle: cleanHandle,
         bio,
-        homeCityId: city?.id ?? null,
+        homePlaceId: city?.placeId ?? null,
         languages,
         socialLinks: links,
         travelStyles,
-        favouriteCityIds: favourites.map((c) => c.id),
+        favouriteDestinationIds: favourites.map((c) => c.placeId),
       }),
     [account, firstName, lastName, cleanHandle, bio, city, languages, links, travelStyles, favourites],
   );
@@ -190,14 +178,8 @@ export function useEditProfile(account: Account) {
     bio,
     setBio: useCallback((t: string) => setBio(t.slice(0, BIO_MAX)), []),
     city,
-    cityQuery,
-    setCityQuery: useCallback((t: string) => setCityQuery(t), []),
-    cityResults: settledCity.length >= 2 ? (cities.data ?? []) : [],
-    citySearching: settledCity.length >= 2 && cities.isFetching,
-    chooseCity: (c: AccountCity | null) => {
-      setCity(c);
-      setCityQuery('');
-    },
+    cityDetecting: detected.isFetching,
+    cityDetected: !!detected.data && detected.data.placeId === city?.placeId,
     languages,
     toggleLanguage: (code: string) => setLanguages((list) => toggleIn(list, code)),
     travelStyles,
@@ -205,21 +187,34 @@ export function useEditProfile(account: Account) {
     toggleTravelStyle: (style: TravelStyle) =>
       setTravelStyles((list) => toggleIn(list, style, TRAVEL_STYLES_MAX)),
     favourites,
-    favouritesFull: favourites.length >= FAVOURITE_CITIES_MAX,
-    /** Adds the city, or takes it out if already there; a full list takes nothing more. */
-    toggleFavourite: (c: AccountCity) =>
+    favouritesFull: favourites.length >= FAVOURITE_DESTINATIONS_MAX,
+    /** Adds the city, or takes it out if already there; a full list takes nothing more (an 11th is a 400). */
+    toggleFavourite: (c: AccountPlace) =>
       setFavourites((list) =>
-        list.some((f) => f.id === c.id)
-          ? list.filter((f) => f.id !== c.id)
-          : list.length >= FAVOURITE_CITIES_MAX
+        list.some((f) => f.placeId === c.placeId)
+          ? list.filter((f) => f.placeId !== c.placeId)
+          : list.length >= FAVOURITE_DESTINATIONS_MAX
             ? list
-            : [...list, c],
+            : [...list, { placeId: c.placeId, name: c.name, label: c.label }],
       ),
-    destQuery,
-    setDestQuery: useCallback((t: string) => setDestQuery(t), []),
-    destResults: settledDest.length >= 2 ? (destinations.data ?? []) : [],
-    destSearching: settledDest.length >= 2 && destinations.isFetching,
-    popularCities: popular.data ?? [],
+    destField,
+    destQuery: destSearch.query,
+    setDestQuery: destSearch.setQuery,
+    destResults: destSearch.results,
+    destSearching: destSearch.searching,
+    destFailure: destSearch.failure,
+    destNoMatches: destSearch.noMatches,
+    /** A quick search: put the city's name in the field and search for it. */
+    searchDestination: (name: string) => {
+      destSearch.setQuery(name);
+      setDestField((f) => ({ key: f.key + 1, text: name }));
+    },
+    /** Managing closed: empty the field and end the Google session. */
+    closeDestinations: () => {
+      destSearch.setQuery('');
+      setDestField((f) => ({ key: f.key + 1, text: '' }));
+      endCitySearch();
+    },
     links,
     /** One stable setter per link, so the native fields are not rebuilt on each keystroke. */
     linkSetters: linkSetters,
@@ -239,3 +234,35 @@ export function useEditProfile(account: Account) {
 }
 
 export type EditProfileViewModel = ReturnType<typeof useEditProfile>;
+
+/**
+ * One city search field: Google cities (through the use cases), asked once
+ * typing pauses for 300ms and from two characters, since each request is
+ * billed. A newer query cancels the one in flight (TanStack's `signal`), and
+ * only the answer for what is in the field now shows. Not retried: when Google
+ * is unreachable a second try fails the same way, and the field says so.
+ * Both fields share one cache, so a city searched in one is instant in the other.
+ */
+function useCitySearchField() {
+  const useCases = useSettingsUseCases();
+  const [query, setQuery] = useState('');
+  const q = query.trim();
+  const settled = useDebouncedValue(q, 300);
+  const result = useQuery({
+    queryKey: settingsKeys.cities(settled.toLowerCase()),
+    queryFn: ({ signal }) => useCases.searchCities(settled, signal),
+    enabled: settled.length >= 2,
+    staleTime: 10 * 60_000,
+    retry: false,
+  });
+  const asking = q.length >= 2;
+  const current = asking && settled === q && !result.isFetching;
+  return {
+    query,
+    setQuery: useCallback((t: string) => setQuery(t), []),
+    results: current ? (result.data ?? []) : [],
+    searching: asking && !current,
+    failure: current && result.isError ? errorCodeOf(result.error) : null,
+    noMatches: current && result.isSuccess && result.data.length === 0,
+  };
+}

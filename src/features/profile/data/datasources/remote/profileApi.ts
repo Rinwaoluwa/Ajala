@@ -1,7 +1,5 @@
 import type {
   AvatarDto,
-  CityDto,
-  CityResolveDto,
   HandleAvailabilityDto,
   InterestDto,
   MeDto,
@@ -13,7 +11,8 @@ const V1 = '/api/v1';
 
 /**
  * The profile's endpoints, as the signed-in person (docs/api: spec §3.3, §3.4,
- * §3.12; API map §3). `request` is auth's `AuthorizedRequest`, which attaches and
+ * §3.13; API map §3). There are no city endpoints any more: cities come from
+ * Google places (`@core/places`), called by the repository. `request` is auth's `AuthorizedRequest`, which attaches and
  * refreshes the token, so nothing here handles one.
  */
 
@@ -49,21 +48,6 @@ export function createProfileApi(request: ProfileRequest) {
     },
 
     removeAvatar: () => request<void>({ method: 'DELETE', path: `${V1}/me/avatar` }),
-
-    resolveCity: (lat: number, lng: number) =>
-      request<CityResolveDto>({
-        method: 'GET',
-        path: `${V1}/cities/resolve?${query({ lat, lng })}`,
-      }),
-
-    searchCities: (q: string, limit: number) =>
-      request<CityDto[]>({
-        method: 'GET',
-        path: `${V1}/cities?${query({ q, limit })}`,
-      }),
-
-    /** Up to 12, most live posts first; the server refreshes it every 10 minutes. */
-    popularCities: () => request<CityDto[]>({ method: 'GET', path: `${V1}/cities/popular` }),
 
     listInterests: () => request<InterestDto[]>({ method: 'GET', path: `${V1}/interests` }),
 

@@ -13,7 +13,8 @@ export const settingsKeys = {
   support: ['settings', 'support'] as const,
   reports: ['settings', 'reports'] as const,
   dataExport: ['settings', 'export'] as const,
-  popularCities: ['settings', 'popularCities'] as const,
   handle: (handle: string) => ['settings', 'handle', handle] as const,
-  cities: (query: string) => ['settings', 'cities', query] as const,
+  /** Google city search (`@core/places`), per lower-cased query. */
+  cities: (query: string) => ['settings', 'citySearch', query] as const,
+  currentCity: ['settings', 'currentCity'] as const,
 };

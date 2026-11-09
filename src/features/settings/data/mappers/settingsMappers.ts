@@ -1,9 +1,11 @@
 import { isApiError } from '@core/api/ApiError';
+import { isPlacesError, type PlaceSuggestion } from '@core/places';
 
 import type {
   Account,
-  AccountCity,
+  AccountPlace,
   BlockedUser,
+  CitySuggestion,
   DataExport,
   Draft,
   MyReport,
@@ -13,19 +15,24 @@ import type {
 import { SettingsError, type SettingsErrorCode } from '../../domain/entities/SettingsError';
 import { isTravelStyle } from '../../domain/rules/travelStyles';
 import type {
-  CityDto,
-  CityRefDto,
   DataExportDto,
   MeDto,
   MyPostDto,
   MyReportDto,
+  PlaceRefDto,
   PublicProfileDto,
   SessionDto,
   UserSettingsDto,
 } from '../dto/settingsDtos';
 
 export function toAccount(dto: MeDto): Account {
-  const extras = dto.extras ?? {};
+  const favouriteDestinations = (dto.favouriteDestinations ?? []).map(toAccountPlace);
+  // Favourite destinations come back outside extras, and not always inside them too; carry their
+  // ids into the extras kept for the next PATCH, or a languages-only save would clear them.
+  const extras =
+    dto.extras?.favouriteDestinationIds || !favouriteDestinations.length
+      ? (dto.extras ?? {})
+      : { ...dto.extras, favouriteDestinationIds: favouriteDestinations.map((c) => c.placeId) };
   const links = extras.socialLinks ?? {};
   return {
     id: dto.id,
@@ -35,7 +42,7 @@ export function toAccount(dto: MeDto): Account {
     email: dto.email ?? null,
     bio: dto.bio ?? null,
     avatarUrl: dto.avatarUrl ?? null,
-    homeCity: dto.homeCity ? toCityRef(dto.homeCity) : null,
+    homePlace: dto.homePlace ? toAccountPlace(dto.homePlace) : null,
     languages: Array.isArray(extras.languages) ? extras.languages : [],
     socialLinks: {
       instagram: links.instagram ?? null,
@@ -44,19 +51,25 @@ export function toAccount(dto: MeDto): Account {
     },
     // A slug outside the API's fixed list could not be saved back, so it is dropped here.
     travelStyles: Array.isArray(extras.travelStyles) ? extras.travelStyles.filter(isTravelStyle) : [],
-    favouriteCities: (dto.favouriteCities ?? []).map(toCityRef),
+    favouriteDestinations,
     identities: (dto.identities ?? []).map((i) => ({ provider: i.provider })),
     extras,
   };
 }
 
-const toCityRef = (dto: CityRefDto): AccountCity => ({
-  id: dto.id,
-  name: dto.name,
-  label: dto.label || dto.name,
-});
+/** The server sends one label ("Lagos, Nigeria"); a chip shows what comes before the first comma. */
+const toAccountPlace = (dto: PlaceRefDto): AccountPlace => {
+  const label = dto.label?.trim() ?? '';
+  return { placeId: dto.placeId, name: label.split(',')[0]?.trim() || label, label };
+};
 
-export const toCity = (dto: CityDto): AccountCity => toCityRef(dto);
+/** A Google search row, labelled the way the server writes it so a new pick reads like a saved one. */
+export const toCitySuggestion = (s: PlaceSuggestion): CitySuggestion => ({
+  placeId: s.placeId,
+  name: s.primaryText,
+  label: [s.primaryText, s.secondaryText].filter(Boolean).join(', '),
+  detail: s.secondaryText,
+});
 
 export function toSettings(dto: UserSettingsDto): UserSettings {
   return {
@@ -66,6 +79,10 @@ export function toSettings(dto: UserSettingsDto): UserSettings {
     notifyNewMessage: dto.notifyNewMessage,
     notifyNewComment: dto.notifyNewComment,
     notifySubscription: dto.notifySubscription,
+    // A server from before these two fields existed leaves them out; read that
+    // as the API's own defaults (nearby on, recommendations off) rather than off.
+    notifyNearbyActivity: dto.notifyNearbyActivity !== false,
+    notifyRecommendations: dto.notifyRecommendations === true,
     readReceipts: dto.readReceipts,
     dmPermission: dto.dmPermission === 'shared_only' ? 'shared_only' : 'anyone',
     hiddenFromSearch: dto.hiddenFromSearch,
@@ -132,6 +149,8 @@ export type ErrorContext =
 /** By the API's code (spec §5), never its message. */
 export function toSettingsError(e: unknown, context?: ErrorContext): SettingsError {
   if (e instanceof SettingsError) return e;
+  // Google could not be reached or refused the key: every kind reads the same to the person.
+  if (isPlacesError(e)) return new SettingsError('placesUnavailable', { message: e.message });
   if (!isApiError(e)) {
     // Auth's session wrapper turns a 401 into its own "session expired" after one
     // refresh. On these calls a 401 is the person's password or code, not the

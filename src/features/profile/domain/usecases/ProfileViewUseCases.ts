@@ -1,7 +1,10 @@
 import type {
   ActivityPage,
+  MyRsvpPage,
+  MyRsvpTab,
   PersonReportReason,
   ProfileActivity,
+  RsvpCursor,
   RsvpListState,
   SavedFilter,
 } from '../entities/PublicProfile';
@@ -50,9 +53,30 @@ export const makeLoadPersonActivity =
 export const makeLoadSaved = (repo: ProfileViewRepository) => (filter: SavedFilter, cursor: string | null) =>
   repo.getMySaved(filter, cursor, PROFILE_PAGE_SIZE);
 
+/**
+ * A page of the own profile's Going or Requested tab (`GET /me/rsvps`), each
+ * post tagged with its list. Requested reads the same two lists as the Trips
+ * tab, in the same order: my requests, then the waitlists I'm on (backend
+ * answers B8). When the requests end part-way through a page, the waitlist's
+ * first page is read straight away and added, so the tab is never empty while
+ * something is waitlisted.
+ */
 export const makeLoadMyRsvps =
-  (repo: ProfileViewRepository) => (state: RsvpListState, cursor: string | null) =>
-    repo.getMyRsvps(state, cursor, PROFILE_PAGE_SIZE);
+  (repo: ProfileViewRepository) =>
+  async (tab: MyRsvpTab, at: RsvpCursor | null): Promise<MyRsvpPage> => {
+    const from: RsvpCursor = at ?? { state: tab, cursor: null };
+    const read = async (state: RsvpListState, cursor: string | null) => {
+      const page = await repo.getMyRsvps(state, cursor, PROFILE_PAGE_SIZE);
+      return {
+        items: page.items.map((activity) => ({ activity, state })),
+        nextCursor: page.nextCursor ? { state, cursor: page.nextCursor } : null,
+      };
+    };
+    const page = await read(from.state, from.cursor);
+    if (page.nextCursor || from.state !== 'requested') return page;
+    const waitlist = await read('waitlisted', null);
+    return { items: [...page.items, ...waitlist.items], nextCursor: waitlist.nextCursor };
+  };
 
 export const makeBlockPerson = (repo: ProfileViewRepository) => (userId: string) => repo.block(userId);
 export const makeUnblockPerson = (repo: ProfileViewRepository) => (userId: string) => repo.unblock(userId);

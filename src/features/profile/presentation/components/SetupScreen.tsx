@@ -19,6 +19,8 @@ export function SetupScreen({ header, children }: { header: ReactNode; children:
     <Screen edges={['top']} padded={false}>
       {header}
       <ScrollView
+        // Android draws scrolled content past the edges unless told to clip, over the header above.
+        style={{ flex: 1, overflow: 'hidden' }}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="interactive"
         automaticallyAdjustKeyboardInsets

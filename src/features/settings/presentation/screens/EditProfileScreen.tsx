@@ -9,7 +9,6 @@ import {
   ChipGroup,
   NativeIcon,
   NativeSpinner,
-  SelectField,
   SkeletonBlock,
   SkeletonPulse,
   StatusSheet,
@@ -21,15 +20,17 @@ import {
 } from '@shared/components';
 import { useTheme } from '@shared/hooks/useTheme';
 
-import type { Account, AccountCity } from '../../domain/entities/Settings';
+import type { Account, AccountPlace } from '../../domain/entities/Settings';
 import {
   BIO_MAX,
-  FAVOURITE_CITIES_MAX,
+  FAVOURITE_DESTINATIONS_MAX,
   HANDLE_MAX,
+  POPULAR_DESTINATION_SEARCHES,
   TRAVEL_STYLES_MAX,
 } from '../../domain/rules/settingsRules';
 import { LANGUAGES, languageName } from '../../domain/rules/languages';
 import { TRAVEL_STYLES, travelStyleLabel } from '../../domain/rules/travelStyles';
+import type { SettingsErrorCode } from '../../domain/entities/SettingsError';
 import { LoadFailed } from '../components/LoadFailed';
 import { ProfileChip } from '../components/ProfileChip';
 import { SettingsFrame } from '../components/SettingsFrame';
@@ -39,10 +40,12 @@ import { useAccount } from '../hooks/useSettingsData';
 
 /**
  * Edit profile (Figma, light and dark): the photo card ("Change photo", saved at
- * once), Display name, Username (checked as you type), Current city (searched
- * in place), Social links ("Add More"), Bio, Languages spoken, Travel style
- * (up to 10 of the API's 36) and Favourite destinations (up to 10 cities,
- * popular ones offered, any searchable), each behind "Manage".
+ * once), Display name, Username (checked as you type), Current city (from the
+ * phone's location, not editable), Social links ("Add More"), Bio, Languages spoken, Travel style
+ * (up to 10 of the API's 36) and Favourite destinations (up to 10 Google
+ * cities, searched, with a few well-known cities as quick searches), each
+ * behind "Manage". A city search Google cannot answer says "Place search isn't
+ * available right now".
  * Save sends only what changed; leaving with unsaved changes asks first.
  */
 export function EditProfileScreen({ onBack }: { onBack: () => void }) {
@@ -209,68 +212,52 @@ function UsernameField({ vm }: { vm: EditProfileViewModel }) {
   );
 }
 
+/**
+ * "Current city", read-only: always where the phone is (looked up on open), so
+ * there is nothing to search. Without location it keeps the saved city.
+ */
 function CityPicker({ vm }: { vm: EditProfileViewModel }) {
   const theme = useTheme();
   const copy = settingsCopy.edit;
-  if (vm.city) {
-    return (
-      <SelectField
-        label={copy.currentCity}
-        value={vm.city.label}
-        placeholder={copy.cityPlaceholder}
-        icon={icons.search}
-        onPress={() => vm.chooseCity(null)}
-      />
-    );
-  }
   return (
-    <Animated.View layout={LinearTransition.duration(200)}>
-      <TextField
-        label={copy.currentCity}
-        placeholder={copy.cityPlaceholder}
-        onChangeText={vm.setCityQuery}
-        autoCorrect={false}
-        trailing={
-          vm.citySearching ? (
+    <View style={{ gap: 8 }}>
+      <Text variant="labelMd">{copy.currentCity}</Text>
+      <View
+        accessible
+        accessibilityLabel={`${copy.currentCity}: ${vm.city?.label ?? copy.cityUnknown}`}
+        style={{
+          minHeight: 48,
+          borderRadius: 12,
+          borderWidth: 1,
+          borderColor: theme.controlBorder,
+          backgroundColor: theme.chipFill,
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 10,
+          paddingHorizontal: 14,
+          paddingVertical: 10,
+        }}
+      >
+        <Host matchContents pointerEvents="none" ignoreSafeArea="all">
+          <NativeIcon source={icons.location} size={16} color={theme.muted} />
+        </Host>
+        <Text variant="bodySm" tone={vm.city ? undefined : 'muted'} style={{ flex: 1 }}>
+          {vm.city?.label ?? (vm.cityDetecting ? copy.cityDetecting : copy.cityUnknown)}
+        </Text>
+        {vm.cityDetecting ? (
+          <Host matchContents>
             <NativeSpinner size={14} color={theme.muted} />
-          ) : (
-            <NativeIcon source={icons.search} size={16} color={theme.muted} />
-          )
-        }
-      />
-      {vm.cityResults.length > 0 ? (
-        <Animated.View
-          entering={FadeIn.duration(180)}
-          exiting={FadeOut.duration(120)}
-          style={{
-            marginTop: 6,
-            borderRadius: 12,
-            borderWidth: 1,
-            borderColor: theme.border,
-            backgroundColor: theme.card,
-            overflow: 'hidden',
-          }}
-        >
-          {vm.cityResults.slice(0, 6).map((c, i) => (
-            <TouchableOpacity
-              key={c.id}
-              activeOpacity={0.6}
-              onPress={() => vm.chooseCity(c)}
-              accessibilityRole="button"
-              accessibilityLabel={c.label}
-              style={{
-                paddingHorizontal: 12,
-                paddingVertical: 12,
-                borderTopWidth: i === 0 ? 0 : 1,
-                borderTopColor: theme.border,
-              }}
-            >
-              <Text variant="bodySm">{c.label}</Text>
-            </TouchableOpacity>
-          ))}
-        </Animated.View>
-      ) : null}
-    </Animated.View>
+          </Host>
+        ) : vm.cityDetected ? (
+          <Text variant="bodyXs" tone="muted">
+            {copy.cityAutoDetected}
+          </Text>
+        ) : null}
+      </View>
+      <Text variant="bodyXs" tone="muted">
+        {copy.cityHelper}
+      </Text>
+    </View>
   );
 }
 
@@ -435,30 +422,39 @@ function TravelStyleSection({ vm }: { vm: EditProfileViewModel }) {
 }
 
 /**
- * Favourite destinations: the chosen cities, and while managing, the popular
- * ones (`GET /cities/popular`) to tap plus a search (`GET /cities?q=`) for the
- * rest. Tapping a chosen city takes it out.
+ * Favourite destinations: the chosen cities, and while managing, a Google
+ * cities search plus a few well-known cities as quick searches (the API no
+ * longer ranks popular cities). A quick search fills the field rather than
+ * adding a guessed place, so the person still picks the real city. Tapping a
+ * chosen city takes it out. Closing "Manage" ends the search session.
  */
 function FavouritesSection({ vm }: { vm: EditProfileViewModel }) {
   const theme = useTheme();
   const copy = settingsCopy.edit;
   const [managing, setManaging] = useState(false);
-  const chosen = (c: AccountCity) => vm.favourites.some((f) => f.id === c.id);
-  const popular = vm.popularCities.filter((c) => !chosen(c));
+  const chosen = (c: AccountPlace) => vm.favourites.some((f) => f.placeId === c.placeId);
+  const chosenNames = new Set(vm.favourites.map((f) => f.name.toLowerCase()));
+  const quickSearches = vm.favouritesFull
+    ? []
+    : POPULAR_DESTINATION_SEARCHES.filter((name) => !chosenNames.has(name.toLowerCase()));
+  const toggleManaging = () => {
+    if (managing) vm.closeDestinations();
+    setManaging((m) => !m);
+  };
 
   return (
     <Animated.View layout={LinearTransition.duration(220)} style={{ gap: 10 }}>
       <SectionHeader
         title={copy.favouriteLocations}
         managing={managing}
-        onToggle={() => setManaging((m) => !m)}
-        count={copy.pickedCount(vm.favourites.length, FAVOURITE_CITIES_MAX)}
+        onToggle={toggleManaging}
+        count={copy.pickedCount(vm.favourites.length, FAVOURITE_DESTINATIONS_MAX)}
       />
       {vm.favourites.length ? (
         <ChipGroup>
           {vm.favourites.map((c) => (
             <Chip
-              key={c.id}
+              key={c.placeId}
               label={c.name}
               selected={managing}
               onPress={() => (managing ? vm.toggleFavourite(c) : setManaging(true))}
@@ -473,6 +469,8 @@ function FavouritesSection({ vm }: { vm: EditProfileViewModel }) {
       {managing ? (
         <Animated.View entering={FadeIn.duration(180)} style={{ gap: 10 }}>
           <TextField
+            key={vm.destField.key}
+            defaultValue={vm.destField.text}
             label={copy.favouriteLocations}
             labelHidden
             placeholder={copy.destinationPlaceholder}
@@ -486,6 +484,7 @@ function FavouritesSection({ vm }: { vm: EditProfileViewModel }) {
               )
             }
           />
+          <SearchNote failure={vm.destFailure} noMatches={vm.destNoMatches} />
           {vm.destResults.length > 0 ? (
             <View
               style={{
@@ -501,7 +500,7 @@ function FavouritesSection({ vm }: { vm: EditProfileViewModel }) {
                 const blocked = vm.favouritesFull && !picked;
                 return (
                   <TouchableOpacity
-                    key={c.id}
+                    key={c.placeId}
                     activeOpacity={0.6}
                     disabled={blocked}
                     onPress={() => vm.toggleFavourite(c)}
@@ -530,19 +529,18 @@ function FavouritesSection({ vm }: { vm: EditProfileViewModel }) {
               })}
             </View>
           ) : null}
-          {popular.length ? (
+          {quickSearches.length ? (
             <>
               <Text variant="labelXs" tone="muted">
                 {copy.popular}
               </Text>
               <ChipGroup>
-                {popular.map((c) => (
+                {quickSearches.map((name) => (
                   <Chip
-                    key={c.id}
-                    label={c.name}
+                    key={name}
+                    label={name}
                     selected={false}
-                    disabled={vm.favouritesFull}
-                    onPress={() => vm.toggleFavourite(c)}
+                    onPress={() => vm.searchDestination(name)}
                   />
                 ))}
               </ChipGroup>
@@ -550,6 +548,18 @@ function FavouritesSection({ vm }: { vm: EditProfileViewModel }) {
           ) : null}
         </Animated.View>
       ) : null}
+    </Animated.View>
+  );
+}
+
+/** Under a city search: why it found nothing, when it found nothing. */
+function SearchNote({ failure, noMatches }: { failure: SettingsErrorCode | null; noMatches: boolean }) {
+  if (!failure && !noMatches) return null;
+  return (
+    <Animated.View entering={FadeIn.duration(180)} exiting={FadeOut.duration(120)} style={{ marginTop: 6 }}>
+      <Text variant="bodySm" tone="muted" accessibilityLiveRegion="polite">
+        {failure ? settingsErrors[failure] : settingsCopy.edit.noCityMatches}
+      </Text>
     </Animated.View>
   );
 }

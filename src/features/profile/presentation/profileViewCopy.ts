@@ -1,3 +1,5 @@
+import { LINKS_ORIGIN } from '@core/config/links';
+
 import type { BadgeCategory } from '../domain/rules/achievementRules';
 import type { PersonReportReason } from '../domain/entities/PublicProfile';
 
@@ -19,15 +21,14 @@ export const profileViewCopy = {
   savedRow: 'Saved activities',
   // Not drawn on the profile pages: the setup steps' answers, shown back as pills.
   travelStyles: 'Travel style',
-  favouriteCities: 'Favourite places',
-  visiting: (city: string) => `Visiting ${city}`,
+  favouriteDestinations: 'Favourite places',
   openToMeet: 'Open to meet today',
   myActivities: {
     title: 'Your activities',
     going: 'Going',
     requested: 'Requested',
     emptyGoing: 'Nothing coming up. Join something and it shows here.',
-    emptyRequested: 'No requests waiting on a host.',
+    emptyRequested: 'Nothing waiting. Requests to join and waitlists you’re on show here.',
     failed: 'Your activities didn’t load.',
     retry: 'Try again',
     more: 'Show more',
@@ -45,7 +46,7 @@ export const profileViewCopy = {
   },
   safety: {
     title: 'Safety tips',
-    body: 'Meet in public, share your plans with someone you trust, and report anything that feels unsafe.',
+    body: 'Meet in public, tell someone you trust where you’re going, and report anything that feels unsafe.',
   },
   activities: {
     title: 'Public activities',
@@ -67,6 +68,7 @@ export const profileViewCopy = {
   completedTag: 'Completed',
   goingTag: 'Going',
   requestedTag: 'Request sent',
+  waitlistedTag: 'Waitlisted',
   options: {
     title: 'Profile options',
     share: 'Share profile',
@@ -165,5 +167,5 @@ export const profileViewCopy = {
   },
 } as const;
 
-/** "https://ajalatrvl.com/users/<handle>" — the links host serves profile links (API map §9, §11). */
-export const PROFILE_LINK_BASE = 'https://ajalatrvl.com/users/';
+/** "https://<links host>/users/<id>" — share links live on the links host (backend answers D3). */
+export const PROFILE_LINK_BASE = `${LINKS_ORIGIN}/users/`;

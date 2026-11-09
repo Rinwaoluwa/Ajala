@@ -4,16 +4,12 @@
  * typed nullable (spec §6 note).
  */
 
-export interface CityRefDto {
-  id: string;
-  name: string;
-  countryCode: string;
+/** A place the API holds by its Google place id (spec §1.6); there is no city catalogue any more. */
+export interface PlaceRefDto {
+  placeId: string;
+  /** "Lagos, Nigeria". */
   label: string;
-}
-
-export interface CityDto extends CityRefDto {
-  region: string;
-  countryName: string;
+  countryCode: string | null;
 }
 
 export interface SocialLinksDto {
@@ -30,17 +26,17 @@ export interface MeDto {
   email: string | null;
   bio: string | null;
   avatarUrl: string | null;
-  homeCity: CityRefDto | null;
+  homePlace: PlaceRefDto | null;
   extras:
     | (Record<string, unknown> & {
         languages?: string[];
         socialLinks?: SocialLinksDto;
         travelStyles?: string[] | null;
-        favouriteCityIds?: string[];
+        favouriteDestinationIds?: string[];
       })
     | null;
-  /** The cities behind `extras.favouriteCityIds`, in order. */
-  favouriteCities: CityRefDto[] | null;
+  /** The cities behind `extras.favouriteDestinationIds`, in order. */
+  favouriteDestinations: PlaceRefDto[] | null;
   /** Provider only: `verifiedAt` left the API (spec §8). */
   identities: { provider: 'email' | 'google' | 'apple' }[] | null;
 }
@@ -50,7 +46,8 @@ export interface UpdateProfileDto {
   lastName?: string;
   handle?: string;
   bio?: string | null;
-  homeCityId?: string | null;
+  /** A city's Google place id; a venue or street address is a 400. */
+  homePlaceId?: string | null;
   extras?: Record<string, unknown>;
 }
 
@@ -61,12 +58,17 @@ export interface UserSettingsDto {
   notifyNewComment: boolean;
   notifyNewMessage: boolean;
   notifySubscription: boolean;
+  /** Activity near the person. On by default; only stored for now — nothing sends it yet (backend answers C5). */
+  notifyNearbyActivity: boolean;
+  /** Suggestions from their interests. Off by default; only stored for now (C5). */
+  notifyRecommendations: boolean;
   readReceipts: boolean;
   dmPermission: 'anyone' | 'shared_only';
   hiddenFromSearch: boolean;
   analyticsOptOut: boolean;
   showCurrentCity: boolean;
   openToMeetToday: boolean;
+  /** Public: list the person's upcoming open activities on their profile. Not the trusted person (C6). */
   sharePlans: boolean;
 }
 

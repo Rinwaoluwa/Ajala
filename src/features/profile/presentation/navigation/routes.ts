@@ -6,7 +6,6 @@ export const profileSetupRoutes = {
   /** Location first: "Current city" and the app itself need it. */
   start: '/(profile-setup)/location',
   basics: '/(profile-setup)/basics',
-  city: '/(profile-setup)/city',
   travelStyle: '/(profile-setup)/travel-style',
   destinations: '/(profile-setup)/destinations',
   interests: '/(profile-setup)/interests',

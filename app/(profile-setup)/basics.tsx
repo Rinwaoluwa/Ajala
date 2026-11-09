@@ -5,10 +5,7 @@ import { ProfileBasicsScreen, ProfileSetupGate, profileSetupRoutes } from '@feat
 export default function ProfileBasicsRoute() {
   return (
     <ProfileSetupGate>
-      <ProfileBasicsScreen
-        onChooseCity={() => router.push(profileSetupRoutes.city)}
-        onContinue={() => router.push(profileSetupRoutes.travelStyle)}
-      />
+      <ProfileBasicsScreen onContinue={() => router.push(profileSetupRoutes.travelStyle)} />
     </ProfileSetupGate>
   );
 }

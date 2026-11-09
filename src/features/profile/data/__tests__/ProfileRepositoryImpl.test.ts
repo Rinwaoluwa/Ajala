@@ -1,13 +1,27 @@
 import { describe, expect, it, jest } from '@jest/globals';
 
 import { ApiError } from '@core/api/ApiError';
+import { PlacesError, cityAt, endPlacesSession, searchCities } from '@core/places';
 
 import { createProfileRepository } from '../repositories/ProfileRepositoryImpl';
 
 jest.mock('@core/location/deviceLocation', () => ({
   getLocationPermission: async () => 'granted',
+  requestLocationPermission: async () => 'granted',
   getCurrentCoordinates: async () => ({ lat: 51.5, lng: -0.12 }),
 }));
+// Google is never asked: the repository's place calls are stubbed, the error type is the real one.
+jest.mock('@core/places', () => {
+  const types = jest.requireActual<typeof import('@core/places/placesTypes')>('@core/places/placesTypes');
+  return {
+    ...types,
+    cityAt: jest.fn(),
+    searchCities: jest.fn(),
+    endPlacesSession: jest.fn(),
+  };
+});
+const mockCityAt = cityAt as jest.MockedFunction<typeof cityAt>;
+const mockSearchCities = searchCities as jest.MockedFunction<typeof searchCities>;
 
 const ME = {
   id: 'u1',
@@ -17,11 +31,11 @@ const ME = {
   dob: '1994-03-02',
   gender: null,
   avatarUrl: null,
-  homeCity: null,
+  homePlace: null,
   visiting: null,
   interests: [],
-  extras: { pronouns: 'she/her', languages: ['fr'], travelStyles: ['solo'] },
-  favouriteCities: [{ id: 'acc', name: 'Accra', countryCode: 'GH', label: 'Accra, Ghana' }],
+  extras: { pronouns: 'she/her', languages: ['fr'], travelStyles: ['solo'] } as Record<string, unknown>,
+  favouriteDestinations: [{ placeId: 'ChIJ-accra', countryCode: 'GH', label: 'Accra, Ghana' }],
   subscribed: true,
   subscribedUntil: '2026-12-01T00:00:00Z',
   profileCompletedAt: null,
@@ -55,69 +69,85 @@ describe('profile repository', () => {
       path: '/api/v1/me',
       body: {
         gender: 'woman',
-        // Favourite cities come back outside extras; they are carried over so this does not clear them.
+        // Favourite destinations come back outside extras; they are carried over so this does not clear them.
         extras: {
           pronouns: 'she/her',
           languages: ['en'],
           travelStyles: ['solo'],
-          favouriteCityIds: ['acc'],
+          favouriteDestinationIds: ['ChIJ-accra'],
         },
       },
     });
   });
 
-  it("reads travel styles, favourite cities and the server's completion stamp", async () => {
+  it('never sends the old favouriteCityIds key: PATCH /me rejects fields it does not list', async () => {
+    const { request, calls } = fakeRequest(() => ({
+      ...ME,
+      extras: { ...ME.extras, favouriteCityIds: ['old'] },
+    }));
+    const repo = createProfileRepository(request);
+    await repo.getMyProfile();
+    await repo.updateProfile({ languages: ['en'] });
+    expect((calls[1]?.body as { extras: Record<string, unknown> }).extras).not.toHaveProperty(
+      'favouriteCityIds',
+    );
+  });
+
+  it("reads the home place, travel styles, favourite destinations and the server's completion stamp", async () => {
     const { request } = fakeRequest(() => ({
       ...ME,
+      homePlace: { placeId: 'ChIJ-lagos', label: 'Lagos, Nigeria', countryCode: 'NG' },
       profileCompletedAt: '2026-11-01T10:00:00Z',
     }));
     const me = await createProfileRepository(request).getMyProfile();
     expect(me).toMatchObject({
+      homePlace: { placeId: 'ChIJ-lagos', name: 'Lagos', label: 'Lagos, Nigeria', countryCode: 'NG' },
       travelStyles: ['solo'],
-      favouriteCities: [{ id: 'acc', label: 'Accra, Ghana' }],
+      favouriteDestinations: [{ placeId: 'ChIJ-accra', name: 'Accra', label: 'Accra, Ghana' }],
       subscribed: true,
       profileCompletedAt: '2026-11-01T10:00:00Z',
     });
   });
 
-  it('saves travel styles and favourite cities inside extras', async () => {
+  it('saves the home place, travel styles and favourite destinations by place id', async () => {
     const { request, calls } = fakeRequest(() => ME);
     const repo = createProfileRepository(request);
     await repo.getMyProfile();
     await repo.updateProfile({
+      homePlaceId: 'ChIJ-lagos',
       travelStyles: ['beach', 'foodie'],
-      favouriteCityIds: ['lis', 'acc'],
+      favouriteDestinationIds: ['ChIJ-lisbon', 'ChIJ-accra'],
     });
     expect(calls[1]?.body).toEqual({
+      homePlaceId: 'ChIJ-lagos',
       extras: {
         pronouns: 'she/her',
         languages: ['fr'],
         travelStyles: ['beach', 'foodie'],
-        favouriteCityIds: ['lis', 'acc'],
+        favouriteDestinationIds: ['ChIJ-lisbon', 'ChIJ-accra'],
       },
     });
   });
 
-  it('lists popular cities', async () => {
-    const city = {
-      id: 'lag',
-      name: 'Lagos',
-      countryCode: 'NG',
-      label: 'Lagos, Nigeria',
-      region: 'Lagos',
-      countryName: 'Nigeria',
-      timezone: 'Africa/Lagos',
-      lat: 6.45,
-      lng: 3.39,
-    };
-    const { request, calls } = fakeRequest(() => [city]);
-    expect(await createProfileRepository(request).popularCities()).toEqual([
-      expect.objectContaining({ id: 'lag', label: 'Lagos, Nigeria' }),
+  it('searches cities with Google places, never the API, and passes the abort signal on', async () => {
+    mockSearchCities.mockResolvedValueOnce([
+      { placeId: 'ChIJ-lagos', primaryText: 'Lagos', secondaryText: 'Nigeria' },
     ]);
-    expect(calls[0]).toMatchObject({
-      method: 'GET',
-      path: '/api/v1/cities/popular',
-    });
+    const { request, calls } = fakeRequest(() => ME);
+    const signal = new AbortController().signal;
+    expect(await createProfileRepository(request).searchCities('lag', signal)).toEqual([
+      { placeId: 'ChIJ-lagos', name: 'Lagos', label: 'Lagos, Nigeria', countryCode: null, detail: 'Nigeria' },
+    ]);
+    expect(mockSearchCities).toHaveBeenCalledWith('lag', null, signal);
+    expect(calls).toHaveLength(0);
+  });
+
+  it('reads any places failure as placesUnavailable, and ends the session on request', async () => {
+    mockSearchCities.mockRejectedValueOnce(new PlacesError('denied', 'refused'));
+    const repo = createProfileRepository(fakeRequest(() => ME).request);
+    await expect(repo.searchCities('lag')).rejects.toMatchObject({ code: 'placesUnavailable' });
+    repo.endCitySearch();
+    expect(endPlacesSession).toHaveBeenCalled();
   });
 
   it('reads 409 on a handle as taken, and HANDLE_COOLDOWN with its date', async () => {
@@ -147,27 +177,22 @@ describe('profile repository', () => {
     });
   });
 
-  it('resolves the home city from the phone, and answers null when the API has none', async () => {
-    const city = {
-      id: 'lon',
-      name: 'London',
-      countryCode: 'GB',
-      label: 'London, UK',
-      region: '',
-      countryName: 'United Kingdom',
-      timezone: 'Europe/London',
-      lat: 0,
-      lng: 0,
-    };
-    const found = fakeRequest(() => ({ city, distanceKm: 2 }));
-    expect(await createProfileRepository(found.request).detectHomeCity()).toMatchObject({
-      id: 'lon',
-      label: 'London, UK',
-    });
-    expect(found.calls[0]?.path).toBe('/api/v1/cities/resolve?lat=51.5&lng=-0.12');
+  it('finds the home city from the phone with cityAt, and says notFound when there is none or it fails', async () => {
+    const { request, calls } = fakeRequest(() => ME);
+    const repo = createProfileRepository(request);
 
-    const none = fakeRequest(() => new ApiError({ code: 'NOT_FOUND', message: 'none', status: 404 }));
-    expect(await createProfileRepository(none.request).detectHomeCity()).toBeNull();
+    mockCityAt.mockResolvedValueOnce({ placeId: 'ChIJ-london', name: 'London' });
+    expect(await repo.detectHomeCity()).toEqual({
+      kind: 'found',
+      city: { placeId: 'ChIJ-london', name: 'London', label: 'London', countryCode: null },
+    });
+    expect(mockCityAt).toHaveBeenCalledWith(51.5, -0.12);
+
+    mockCityAt.mockResolvedValueOnce(null);
+    expect(await repo.detectHomeCity()).toEqual({ kind: 'notFound' });
+    mockCityAt.mockRejectedValueOnce(new PlacesError('unavailable', 'no geocoder'));
+    expect(await repo.detectHomeCity()).toEqual({ kind: 'notFound' });
+    expect(calls).toHaveLength(0);
   });
 
   it('uploads the avatar as multipart, field "file"', async () => {

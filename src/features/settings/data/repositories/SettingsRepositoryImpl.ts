@@ -1,4 +1,6 @@
 import { getAppConfig } from '@core/config/appConfig';
+import { getCurrentCoordinates, getLocationPermission } from '@core/location/deviceLocation';
+import { cityAt, endPlacesSession, searchCities } from '@core/places';
 
 import type { SettingsRepository } from '../../domain/repositories/SettingsRepository';
 import { cleanLinks, editsExtras, mergeExtras } from '../../domain/rules/settingsRules';
@@ -6,7 +8,7 @@ import { createSettingsApi, type SettingsRequest } from '../datasources/remote/s
 import {
   toAccount,
   toBlockedUser,
-  toCity,
+  toCitySuggestion,
   toDataExport,
   toDraft,
   toReport,
@@ -17,7 +19,8 @@ import {
 } from '../mappers/settingsMappers';
 
 /**
- * `SettingsRepository` over the API. Nothing is cached here; the screens' queries
+ * `SettingsRepository` over the API, and Google places for the city search (the
+ * API has none, spec §1.6). Nothing is cached here; the screens' queries
  * cache. The app config comes from `core/config`, which caches it itself.
  */
 export function createSettingsRepository(request: SettingsRequest): SettingsRepository {
@@ -41,7 +44,7 @@ export function createSettingsRepository(request: SettingsRequest): SettingsRepo
               ...(edit.lastName !== undefined ? { lastName: edit.lastName } : null),
               ...(edit.handle !== undefined ? { handle: edit.handle } : null),
               ...(edit.bio !== undefined ? { bio: edit.bio } : null),
-              ...(edit.homeCityId !== undefined ? { homeCityId: edit.homeCityId } : null),
+              ...(edit.homePlaceId !== undefined ? { homePlaceId: edit.homePlaceId } : null),
               ...(editsExtras(edit)
                 ? {
                     extras: mergeExtras(current.extras, {
@@ -60,8 +63,27 @@ export function createSettingsRepository(request: SettingsRequest): SettingsRepo
         const r = await api.checkHandle(handle);
         return { available: r.available, reason: r.reason ?? null };
       }),
-    searchCities: (q, limit) => guard(async () => (await api.searchCities(q, limit)).map(toCity)),
-    popularCities: () => guard(async () => (await api.popularCities()).map(toCity)),
+    searchCities: async (q, signal) => {
+      try {
+        return (await searchCities(q, null, signal)).map(toCitySuggestion);
+      } catch (e) {
+        // A cancelled search (the person typed on) is not a failure; hand the abort back as it was.
+        if (signal?.aborted) throw e;
+        throw toSettingsError(e);
+      }
+    },
+    endCitySearch: () => endPlacesSession(),
+    detectCurrentCity: async () => {
+      if ((await getLocationPermission()) !== 'granted') return null;
+      const coords = await getCurrentCoordinates();
+      if (!coords) return null;
+      try {
+        const found = await cityAt(coords.lat, coords.lng);
+        return found ? { placeId: found.placeId, name: found.name, label: found.name } : null;
+      } catch {
+        return null;
+      }
+    },
 
     getSettings: () => guard(async () => toSettings(await api.getSettings())),
     updateSettings: (patch) => guard(async () => toSettings(await api.updateSettings(patch))),

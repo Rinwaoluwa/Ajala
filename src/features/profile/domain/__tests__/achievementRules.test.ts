@@ -11,9 +11,10 @@ import {
   topBadges,
 } from '../rules/achievementRules';
 
-const lagos = { id: 'lagos', name: 'Lagos', countryCode: 'NG', label: 'Lagos, Nigeria' };
-const accra = { id: 'accra', name: 'Accra', countryCode: 'GH', label: 'Accra, Ghana' };
-const nairobi = { id: 'nairobi', name: 'Nairobi', countryCode: 'KE', label: 'Nairobi, Kenya' };
+// Cards carry `localityLabel` and `countryCode`, no city id (spec §6).
+const lagos = { label: 'Lagos, Nigeria', countryCode: 'NG' };
+const accra = { label: 'Accra, Ghana', countryCode: 'GH' };
+const nairobi = { label: 'Nairobi, Kenya', countryCode: 'KE' };
 const interest = (slug: string) => ({ id: slug, slug, name: slug, emoji: null });
 
 let n = 0;
@@ -24,7 +25,7 @@ const act = (over: Partial<ProfileActivity> = {}): ProfileActivity => ({
   imageUrl: null,
   startAt: `2026-0${(n % 9) + 1}-10T10:00:00Z`,
   placeName: null,
-  city: lagos,
+  locality: lagos,
   goingCount: 3,
   capacity: null,
   interests: [],
@@ -56,7 +57,7 @@ describe('badges', () => {
   });
 
   it('counts countries once each for Globe Trotter', () => {
-    const attended = [act(), act(), act({ city: accra }), act({ city: nairobi })];
+    const attended = [act(), act(), act({ locality: accra }), act({ locality: nairobi })];
     expect(find(badgeProgress(attended), 'globe-trotter')).toMatchObject({ done: 3, earned: true });
   });
 
@@ -86,7 +87,7 @@ describe('badges', () => {
 describe('stamps and counters', () => {
   it('makes one stamp per city, most visited first, with its milestone', () => {
     const attended = [
-      act({ city: accra, interests: [interest('food')] }),
+      act({ locality: accra, interests: [interest('food')] }),
       ...Array.from({ length: 6 }, (_, i) => act({ interests: [interest(i % 2 ? 'food' : 'art')] })),
     ];
     const stamps = cityStamps(attended);
@@ -96,7 +97,7 @@ describe('stamps and counters', () => {
   });
 
   it('counts events and distinct countries', () => {
-    expect(profileCounters([act(), act({ city: accra }), act({ city: accra })])).toEqual({
+    expect(profileCounters([act(), act({ locality: accra }), act({ locality: accra })])).toEqual({
       events: 3,
       countries: 2,
     });
@@ -104,7 +105,7 @@ describe('stamps and counters', () => {
   });
 
   it('counts a post with no city as an event, but stamps no city or country for it', () => {
-    const attended = [act({ city: null }), act({ city: accra })];
+    const attended = [act({ locality: null }), act({ locality: accra })];
     expect(cityStamps(attended).map((s) => s.city)).toEqual(['Accra']);
     expect(profileCounters(attended)).toEqual({ events: 2, countries: 1 });
   });

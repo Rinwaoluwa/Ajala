@@ -1,6 +1,7 @@
 import type {
   Account,
-  AccountCity,
+  AccountPlace,
+  CitySuggestion,
   BlockedUser,
   DataExport,
   Draft,
@@ -25,9 +26,18 @@ export interface SettingsRepository {
   updateAccount(edit: ProfileEdit, current: Account): Promise<Account>;
   uploadAvatar(file: { uri: string; name: string; type: string }): Promise<string | null>;
   checkHandle(handle: string): Promise<HandleCheck>;
-  searchCities(query: string, limit: number): Promise<AccountCity[]>;
-  /** `GET /cities/popular`: up to 12, most live posts first. */
-  popularCities(): Promise<AccountCity[]>;
+  /**
+   * Cities matching what was typed, from Google places (`@core/places`; the API
+   * has no city search). Rejects with `placesUnavailable` when Google cannot be reached.
+   */
+  searchCities(query: string, signal?: AbortSignal): Promise<CitySuggestion[]>;
+  /** A city search closed without looking a place up: the next one starts a new billing session. */
+  endCitySearch(): void;
+  /**
+   * The city the phone is in, for "Current city". Null when location is not
+   * allowed (it never prompts here), unreadable, or no city is found. Never rejects.
+   */
+  detectCurrentCity(): Promise<AccountPlace | null>;
 
   getSettings(): Promise<UserSettings>;
   updateSettings(patch: SettingsPatch): Promise<UserSettings>;

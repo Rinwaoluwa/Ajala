@@ -115,8 +115,7 @@ export function OwnProfileScreen(props: OwnProfileScreenProps) {
           name={name}
           avatarUrl={p.avatarUrl}
           pronouns={p.about?.pronouns}
-          city={p.homeCity?.label}
-          visiting={p.visiting?.label}
+          city={p.homePlace?.label}
           tagline={p.about?.tagline}
           bio={p.about?.bio}
           interests={p.interests}
@@ -203,7 +202,8 @@ function AboutMe({ profile }: { profile: MyProfile }) {
     });
   }
   const styles = profile.travelStyles.map(travelStyleLabel);
-  const places = profile.favouriteCities.map((c) => c.name);
+  // The server's label ("Lisbon, Portugal"), so two cities with one name read apart.
+  const places = profile.favouriteDestinations.map((c) => c.label);
   if (!languages.length && !rows.length && !styles.length && !places.length) return null;
 
   return (
@@ -220,7 +220,7 @@ function AboutMe({ profile }: { profile: MyProfile }) {
         </>
       ) : null}
       <PillSection title={copy.travelStyles} labels={styles} />
-      <PillSection title={copy.favouriteCities} labels={places} />
+      <PillSection title={copy.favouriteDestinations} labels={places} />
       {rows.length ? (
         <>
           <Text variant="bodySm" tone="muted" className="mt-4">
@@ -244,7 +244,8 @@ function AboutMe({ profile }: { profile: MyProfile }) {
 
 /**
  * Going / Requested (`GET /me/rsvps`): the posts the person is going to that
- * have not ended, and the private ones waiting on a host. A page at a time,
+ * have not ended, and everything waiting to get in — private posts waiting on
+ * a host, then waitlists — each tagged by its list. A page at a time,
  * with "Show more" — the screen scrolls as a whole, so the list does not page
  * itself on scroll.
  */
@@ -284,12 +285,12 @@ function MyActivities({
         </Text>
       ) : (
         <>
-          {rsvps.items.map((item) => (
+          {rsvps.items.map(({ activity, state }) => (
             <ActivityCard
-              key={item.id}
-              activity={item}
-              status={rsvps.tab}
-              onPress={() => onOpenPost(item.id)}
+              key={activity.id}
+              activity={activity}
+              status={state}
+              onPress={() => onOpenPost(activity.id)}
             />
           ))}
           {rsvps.hasMore ? (

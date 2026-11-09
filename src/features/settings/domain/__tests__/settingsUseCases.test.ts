@@ -16,11 +16,11 @@ const account = {
   lastName: 'Chen',
   handle: 'maya',
   bio: null,
-  homeCity: null,
+  homePlace: null,
   languages: [],
   socialLinks: { instagram: null, tiktok: null, website: null },
   travelStyles: [],
-  favouriteCities: [],
+  favouriteDestinations: [],
 } as unknown as Account;
 
 function repo(calls: string[]): SettingsRepository {
@@ -76,10 +76,12 @@ describe('settings use cases', () => {
     expect(calls).toEqual(['reauthenticate:{"code":"123456"}']);
   });
 
-  it('refuses more than ten travel styles or favourite cities', async () => {
+  it('refuses more than ten travel styles or favourite destinations (an 11th is a 400)', async () => {
     const calls: string[] = [];
     const eleven = Array.from({ length: 11 }, (_, i) => `c${i}`);
-    await expect(makeSaveProfile(repo(calls))(account, { favouriteCityIds: eleven })).rejects.toMatchObject({
+    await expect(
+      makeSaveProfile(repo(calls))(account, { favouriteDestinationIds: eleven }),
+    ).rejects.toMatchObject({
       code: 'invalidDetails',
     });
     expect(calls).toEqual([]);

@@ -1,10 +1,9 @@
 import type {
-  CityRefDto,
   GenderDto,
   InterestDto,
+  PlaceRefDto,
   ProfileExtrasDto,
   ProfilePhotoDto,
-  VisitingDto,
 } from './profileDtos';
 
 /** `PublicProfileDto` (spec §6), trimmed to what the profile page shows. */
@@ -17,15 +16,21 @@ export interface PublicProfileDto {
   gender: GenderDto | null;
   bio: string | null;
   photos: ProfilePhotoDto[] | null;
-  /** Null also when they hide their city. */
-  homeCity: CityRefDto | null;
-  visiting: VisitingDto | null;
+  /** Their home city. Null also when they hide it (`showCurrentCity` off). */
+  homePlace: PlaceRefDto | null;
+  // `visiting` is left out: always null while trips are parked (spec §2.8).
+  /** An admin badge: the Ajala team reviewed this profile. Not an identity check. */
   verified: boolean;
   interests: InterestDto[] | null;
   extras: ProfileExtrasDto | null;
-  favouriteCities: CityRefDto[] | null;
+  /** In their order. */
+  favouriteDestinations: PlaceRefDto[] | null;
   openToMeetToday: boolean;
-  /** `GET /users/:id/plans` lists them. */
+  /**
+   * Their public "Upcoming" list is on: `GET /users/:id/plans` lists them. Not the
+   * trusted-person feature (one member who hears about plan changes), which the
+   * app must name differently (backend answers C6).
+   */
   sharePlans: boolean;
   memberSince: string;
   blockedByMe: boolean;
@@ -47,7 +52,10 @@ export interface ActivityCardDto {
   /** Null only on a draft. */
   startAt: string | null;
   placeName: string | null;
-  city: CityRefDto | null;
+  /** "Lagos, Nigeria": the city and country of the post's place; null without one. */
+  localityLabel: string | null;
+  /** ISO 3166-1 alpha-2 of the post's place. */
+  countryCode: string | null;
   capacity: number | null;
   goingCount: number;
   saved: boolean;

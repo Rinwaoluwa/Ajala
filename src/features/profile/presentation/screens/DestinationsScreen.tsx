@@ -6,7 +6,6 @@ import {
   Button,
   Chip,
   ChipGroup,
-  LoadingRing,
   NativeIcon,
   NativeSpinner,
   Text,
@@ -17,45 +16,58 @@ import {
 import { useTheme } from '@shared/hooks/useTheme';
 import { palette } from '@shared/theme';
 
-import type { CityRef } from '../../domain/entities/Profile';
-import { MAX_DESTINATIONS } from '../../domain/rules/profileSetupRules';
+import type { PlaceRef } from '../../domain/entities/Profile';
+import { MAX_DESTINATIONS, POPULAR_DESTINATION_SEARCHES } from '../../domain/rules/profileSetupRules';
 import { chipToneFor } from '../chipTones';
 import { SetupHeader } from '../components/SetupHeader';
 import { SetupIntro } from '../components/SetupIntro';
 import { SECTION_GAP, SetupScreen } from '../components/SetupScreen';
 import { setupCopy } from '../copy';
 import { useCitySearch } from '../hooks/useCitySearch';
-import { usePopularCities } from '../hooks/usePopularCities';
 import { useProfileSetup } from '../state/ProfileSetupContext';
 
 /**
- * "Where do you love to travel?", step 3 of 4: up to ten destinations from the
- * server's popular cities (`GET /cities/popular`) or the search
- * (`GET /cities?q=`), with the count beside the list. Saved with the rest of
- * setup as `extras.favouriteCityIds`.
+ * "Where do you love to travel?", step 3 of 4: up to ten cities from a Google
+ * cities search (`useCitySearch`), with the count beside them. Saved with the
+ * rest of setup as `extras.favouriteDestinationIds` (an 11th is a 400, so the
+ * list stops at ten).
  *
- * A searched city joins the chips at the end of the list, chosen. Once ten are
- * chosen the rest dim and stop responding until one is let go. Chips are keyed
- * by city id, so two cities with one name stay apart.
+ * The API no longer ranks popular cities, so under the picks sits a fixed list
+ * of well-known cities (`POPULAR_DESTINATION_SEARCHES`). Tapping one puts its
+ * name in the search rather than adding a guessed place: the person still
+ * picks the real Google city from the results. Names already chosen drop out
+ * of that list, and it hides once ten are chosen.
+ *
+ * Chosen cities are chips, keyed by place id so two cities with one name stay
+ * apart; tapping one lets it go.
  */
 export function DestinationsScreen({ onBack, onContinue }: { onBack: () => void; onContinue: () => void }) {
   const theme = useTheme();
   const { draft, update } = useProfileSetup();
   const search = useCitySearch(5);
-  const popular = usePopularCities();
-  // The field keeps its own text; a new key empties it once a result is picked.
-  const [fieldKey, setFieldKey] = useState(0);
+  // The field keeps its own text: a new key empties it after a pick, or fills it with a quick search.
+  const [field, setField] = useState({ key: 0, text: '' });
   const copy = setupCopy.destinations;
   const chosen = draft.destinations;
-  const chosenIds = new Set(chosen.map((c) => c.id));
+  const chosenIds = new Set(chosen.map((c) => c.placeId));
+  const chosenNames = new Set(chosen.map((c) => c.name.toLowerCase()));
   const full = chosen.length >= MAX_DESTINATIONS;
-  // Picks that are not in the popular list (searched, or saved earlier) are shown after it.
-  const popularIds = new Set(popular.cities.map((c) => c.id));
-  const options: CityRef[] = [...popular.cities, ...chosen.filter((c) => !popularIds.has(c.id))];
+  const quickSearches = full
+    ? []
+    : POPULAR_DESTINATION_SEARCHES.filter((name) => !chosenNames.has(name.toLowerCase()));
 
-  const choose = (city: CityRef) => {
-    if (chosenIds.has(city.id)) update({ destinations: chosen.filter((c) => c.id !== city.id) });
-    else if (!full) update({ destinations: [...chosen, city] });
+  const remove = (city: PlaceRef) => update({ destinations: chosen.filter((c) => c.placeId !== city.placeId) });
+
+  const pick = (city: PlaceRef) => {
+    // Picking a city already chosen keeps it chosen rather than letting it go.
+    if (!chosenIds.has(city.placeId) && !full) update({ destinations: [...chosen, city] });
+    search.finish();
+    setField((f) => ({ key: f.key + 1, text: '' }));
+  };
+
+  const searchFor = (name: string) => {
+    search.setQuery(name);
+    setField((f) => ({ key: f.key + 1, text: name }));
   };
 
   return (
@@ -64,7 +76,8 @@ export function DestinationsScreen({ onBack, onContinue }: { onBack: () => void;
 
       <Animated.View entering={enterRise(60)} style={{ marginTop: SECTION_GAP }}>
         <TextField
-          key={fieldKey}
+          key={field.key}
+          defaultValue={field.text}
           label={copy.search}
           labelHidden
           placeholder={copy.search}
@@ -78,21 +91,16 @@ export function DestinationsScreen({ onBack, onContinue }: { onBack: () => void;
         />
         {!search.tooShort && (search.results.length > 0 || !search.searching) ? (
           <Animated.View entering={FadeIn.duration(180)} exiting={FadeOut.duration(120)} className="mt-8">
-            {search.results.length === 0 ? (
-              <Text variant="bodySm" tone="muted" className="py-8">
-                {copy.noMatches}
+            {search.failure || search.results.length === 0 ? (
+              <Text variant="bodySm" tone="muted" className="py-8" accessibilityLiveRegion="polite">
+                {search.failure ?? copy.noMatches}
               </Text>
             ) : (
               search.results.map((city) => (
                 <Pressable
-                  key={city.id}
-                  onPress={() => {
-                    // Picking a city already chosen keeps it chosen rather than letting it go.
-                    if (!chosenIds.has(city.id)) choose(city);
-                    search.clear();
-                    setFieldKey((k) => k + 1);
-                  }}
-                  disabled={full && !chosenIds.has(city.id)}
+                  key={city.placeId}
+                  onPress={() => pick(city)}
+                  disabled={full && !chosenIds.has(city.placeId)}
                   accessibilityRole="button"
                   accessibilityLabel={city.label}
                 >
@@ -103,7 +111,7 @@ export function DestinationsScreen({ onBack, onContinue }: { onBack: () => void;
                         justifyContent: 'center',
                         borderBottomWidth: 1,
                         borderBottomColor: theme.border,
-                        opacity: pressed ? 0.6 : 1,
+                        opacity: pressed ? 0.6 : full && !chosenIds.has(city.placeId) ? 0.4 : 1,
                       }}
                     >
                       <Text variant="bodySm">{city.label}</Text>
@@ -117,7 +125,7 @@ export function DestinationsScreen({ onBack, onContinue }: { onBack: () => void;
       </Animated.View>
 
       <Animated.View entering={enterRise(120)} style={{ marginTop: 24 }}>
-        <View className="mb-12 flex-row items-baseline justify-between">
+        <View className="mb-12 flex-row flex-wrap items-baseline justify-between" style={{ columnGap: 8 }}>
           <Text variant="bodyMd">{copy.section}</Text>
           <Text
             variant="bodyXs"
@@ -128,39 +136,42 @@ export function DestinationsScreen({ onBack, onContinue }: { onBack: () => void;
           </Text>
         </View>
         <Animated.View layout={LinearTransition.duration(200)}>
-          <ChipGroup>
-            {options.map((city) => (
-              <Chip
-                key={city.id}
-                label={city.name}
-                selected={chosenIds.has(city.id)}
-                disabled={full}
-                tone={chipToneFor(city.id)}
-                onPress={() => choose(city)}
-              />
-            ))}
-          </ChipGroup>
-        </Animated.View>
-        {popular.loading ? (
-          <View className="mt-12 items-center">
-            <LoadingRing size={28} accessibilityLabel="Loading popular destinations" />
-          </View>
-        ) : popular.failed ? (
-          <Animated.View
-            entering={FadeIn.duration(180)}
-            className="mt-12 flex-row flex-wrap items-center"
-            style={{ columnGap: 8, rowGap: 4 }}
-          >
+          {chosen.length ? (
+            <ChipGroup>
+              {chosen.map((city) => (
+                <Chip
+                  key={city.placeId}
+                  label={city.name}
+                  selected
+                  tone={chipToneFor(city.name)}
+                  onPress={() => remove(city)}
+                />
+              ))}
+            </ChipGroup>
+          ) : (
             <Text variant="bodySm" tone="muted">
-              {copy.popularFailed}
+              {copy.noneChosen}
             </Text>
-            <Pressable onPress={popular.retry} accessibilityRole="button" hitSlop={8}>
-              {({ pressed }) => (
-                <Text variant="labelSm" tone="primary" style={{ opacity: pressed ? 0.6 : 1 }}>
-                  {copy.retry}
-                </Text>
-              )}
-            </Pressable>
+          )}
+        </Animated.View>
+
+        {quickSearches.length ? (
+          <Animated.View layout={LinearTransition.duration(200)} style={{ marginTop: 20 }}>
+            <Text variant="labelSm" tone="muted" className="mb-8">
+              {copy.tryASearch}
+            </Text>
+            <ChipGroup>
+              {quickSearches.map((name) => (
+                <Chip
+                  key={name}
+                  label={name}
+                  selected={false}
+                  tone={chipToneFor(name)}
+                  onPress={() => searchFor(name)}
+                  testID={`destinations-quick-${name}`}
+                />
+              ))}
+            </ChipGroup>
           </Animated.View>
         ) : null}
       </Animated.View>

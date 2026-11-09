@@ -1,5 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActionSheetIOS, Alert, Platform } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ActionSheetIOS, Alert, AppState, Platform } from 'react-native';
+
+import { openAppSettings } from '@core/location/deviceLocation';
 
 import type { Gender } from '../../domain/entities/Profile';
 import {
@@ -22,15 +24,50 @@ import { useProfileSetup } from '../state/ProfileSetupContext';
  * its own.
  */
 export function useProfileBasics() {
-  const { draft, update, missing, avatar, uploadAvatar, removeAvatar, detectingCity, detectCity, profile } =
-    useProfileSetup();
+  const {
+    draft,
+    update,
+    missing,
+    avatar,
+    uploadAvatar,
+    removeAvatar,
+    detectingCity,
+    cityDetection,
+    detectCity,
+    profile,
+  } = useProfileSetup();
   const [nameTouched, setNameTouched] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
 
-  // Wait for the profile: a city it already has must not be looked up again.
+  // The city is always where the phone is: look it up once the profile is in.
+  const asked = useRef(false);
   useEffect(() => {
-    if (profile && !draft.homeCity) detectCity();
-  }, [profile, draft.homeCity, detectCity]);
+    if (!profile || asked.current) return;
+    asked.current = true;
+    detectCity();
+  }, [profile, detectCity]);
+
+  // Back from Settings with location turned on: look again.
+  const sentToSettings = useRef(false);
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active' && sentToSettings.current) {
+        sentToSettings.current = false;
+        detectCity();
+      }
+    });
+    return () => sub.remove();
+  }, [detectCity]);
+
+  /** The one way to fix a city that was not found: Settings when location is blocked, else ask again. */
+  const fixCity = useCallback(() => {
+    if (cityDetection?.kind === 'noPermission' && cityDetection.blocked) {
+      sentToSettings.current = true;
+      openAppSettings();
+      return;
+    }
+    detectCity();
+  }, [cityDetection, detectCity]);
 
   const toggleLanguage = useCallback(
     (code: string) => update({ languages: toggle(draft.languages, code, MAX_LANGUAGES) }),
@@ -96,7 +133,7 @@ export function useProfileBasics() {
     () =>
       canContinueBasics(
         {
-          homeCityId: draft.homeCity?.id ?? null,
+          homePlaceId: draft.homeCity?.placeId ?? null,
           languages: draft.languages,
           gender: draft.gender,
           fullName: draft.fullName,
@@ -113,6 +150,8 @@ export function useProfileBasics() {
     missing,
     avatar,
     detectingCity,
+    cityDetection,
+    fixCity,
     nameError,
     canContinue,
     toggleLanguage,
