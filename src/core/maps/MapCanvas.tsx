@@ -1,18 +1,21 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState, type ReactNode } from 'react';
 import Constants from 'expo-constants';
 import { Platform, StyleSheet, Text, View, useColorScheme } from 'react-native';
-import MapView, { Marker, type MapPressEvent, type Region } from 'react-native-maps';
+import MapView, { Marker, PROVIDER_GOOGLE, type MapPressEvent, type Region } from 'react-native-maps';
 
-import { darkMapStyle } from './darkMapStyle';
+import { darkMapStyle, lightMapStyle } from './darkMapStyle';
 import type { MapRegion } from './geo';
 
 /**
  * The map, as the app uses it. The only file that imports react-native-maps, so
  * the provider can change without touching a feature (map README).
  *
- * Apple Maps on iOS (no key), Google Maps on Android (key from
- * `GOOGLE_MAPS_ANDROID_API_KEY`, see app.config.js). It follows the colour
- * scheme: iOS by its own appearance, Android through `darkMapStyle`.
+ * Google Maps on both platforms, with the keys from `GOOGLE_MAPS_IOS_API_KEY` and
+ * `GOOGLE_MAPS_ANDROID_API_KEY` (EAS environment variables, read by
+ * app.config.js). It follows the colour scheme through `darkMapStyle` and
+ * `lightMapStyle`, which also hide businesses and transit.
+ *
+ * An iOS build made without its key falls back to Apple Maps rather than failing.
  *
  * The map's own chrome is off — compass, toolbar, points of interest — because
  * the screen draws its own controls over it, and businesses' pins would compete
@@ -43,11 +46,15 @@ export type MapCanvasProps = {
 /**
  * Whether this build can draw a map. Android's Google Maps closes the app when it
  * starts without an API key, so a build made without GOOGLE_MAPS_ANDROID_API_KEY
- * (app.config.js records it) draws a note in the map's place instead. iOS uses
- * Apple Maps, which needs no key.
+ * (app.config.js records it) draws a note in the map's place instead. iOS can
+ * always draw one: Google with its key, Apple Maps without.
  */
 export const MAP_AVAILABLE =
   Platform.OS !== 'android' || Constants.expoConfig?.extra?.googleMapsAndroid === true;
+
+/** Google Maps draws this build's map: always on Android, on iOS when the build has its key. */
+const GOOGLE_MAPS =
+  Platform.OS === 'android' || Constants.expoConfig?.extra?.googleMapsIos === true;
 
 export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(function MapCanvas(
   {
@@ -75,9 +82,11 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(function Ma
       ref={map}
       style={StyleSheet.absoluteFill}
       initialRegion={initialRegion as Region}
+      provider={GOOGLE_MAPS ? PROVIDER_GOOGLE : undefined}
       mapType={kind}
+      // Apple Maps (the iOS fallback) follows this; Google Maps follows the style.
       userInterfaceStyle={dark ? 'dark' : 'light'}
-      customMapStyle={Platform.OS === 'android' && dark ? darkMapStyle : undefined}
+      customMapStyle={GOOGLE_MAPS ? (dark ? darkMapStyle : lightMapStyle) : undefined}
       showsUserLocation={showsUserLocation}
       showsMyLocationButton={false}
       showsCompass={false}

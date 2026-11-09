@@ -1,12 +1,12 @@
 /**
  * Where the API lives.
  *
- * `EXPO_PUBLIC_API_URL` overrides the default, which is the deployment named in
- * the API spec (`docs/api/ajala-api-users-common.md` §1). Anything prefixed
+ * `EXPO_PUBLIC_API_URL` overrides the default, staging, which development and
+ * preview builds use. A production build must set it. Anything prefixed
  * `EXPO_PUBLIC_` is compiled into the bundle and readable by anyone with the app,
  * so a base URL is fine here and a secret never is.
  */
-const DEFAULT_BASE_URL = 'https://dev-api.ajalatrvl.com';
+const DEFAULT_BASE_URL = 'https://staging-api.ajalatrvl.com';
 
 export const apiConfig = {
   baseUrl: (process.env.EXPO_PUBLIC_API_URL ?? DEFAULT_BASE_URL).replace(/\/+$/, ''),

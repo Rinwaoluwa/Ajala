@@ -1,8 +1,6 @@
 import * as Location from 'expo-location';
 import { Linking } from 'react-native';
 
-import { DEMO_MODE } from '../demo/demoMode';
-
 /**
  * Where the phone is, and whether the app may ask. The only file that imports
  * `expo-location`.
@@ -55,9 +53,6 @@ export async function requestLocationPermission(): Promise<LocationPermission> {
  * once when there is a recent one; otherwise a fresh fix, given `timeoutMs`.
  */
 export async function getCurrentCoordinates(timeoutMs = 8000): Promise<Coordinates | null> {
-  // The demo's posts are all in Lagos: a demo build tested anywhere else would show an
-  // empty feed and map, so it stands the phone in Victoria Island instead.
-  if (DEMO_MODE) return DEMO_POSITION;
   try {
     const last = await Location.getLastKnownPositionAsync({ maxAge: 10 * 60 * 1000 });
     if (last) return { lat: last.coords.latitude, lng: last.coords.longitude };
@@ -71,9 +66,6 @@ export async function getCurrentCoordinates(timeoutMs = 8000): Promise<Coordinat
     return null;
   }
 }
-
-/** Where a demo build says the phone is (Victoria Island, Lagos), as docs/DEMO.md suggests for the simulator. */
-const DEMO_POSITION: Coordinates = { lat: 6.4281, lng: 3.4219 };
 
 /** This app's page in the system Settings, where a blocked permission is turned back on. */
 export function openAppSettings(): void {

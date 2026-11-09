@@ -5,7 +5,7 @@ Mapbox, the analytics vendor or the HTTP client should touch this folder and not
 
 | Folder | Holds |
 | --- | --- |
-| `api` | `apiClient` — the one place the app speaks HTTP (base URL, JSON, bearer token, GET retries, `ApiError`); in demo mode it answers from `demo` instead |
+| `api` | `apiClient` — the one place the app speaks HTTP (base URL, JSON, bearer token, GET retries, `ApiError`) |
 | `api/websocket` | the chat socket (`chatSocket`): lifecycle and typed events |
 | `push` | expo-notifications behind plain functions: permission, the native push token (FCM on Android, APNs on iOS), arriving/tapped listeners, and reading a push's `data` wherever the platform put it. The API calls live in the notifications feature. A push triggers a refresh; it never writes state |
 | `session` | `beforeSignOut`: work other features need done while still signed in (push unregister), run by auth's sign-out with a time limit — a registry because those features import auth |

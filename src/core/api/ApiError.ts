@@ -7,11 +7,16 @@
  */
 
 /**
- * Every code the API documents: the `ErrorCode` union in the client spec
- * (`docs/api/ajala-api-users-common.md` §6, what to do with each in §5). Listing
- * them all means a 409 `POST_FULL` reaches its feature as itself rather than as
- * a generic `CONFLICT`; a code the API adds later falls back by status (see
- * `apiClient`).
+ * Every code the API documents, in the order of Swagger's `ErrorResponseDto.code`
+ * enum (the same `ErrorCode` union as `docs/api/ajala-api-users-common.md` §6;
+ * what to do with each is in §5). Listing them all means a 409 `POST_FULL`
+ * reaches its feature as itself rather than as a generic `CONFLICT`; a code the
+ * API adds later falls back by status (see `apiClient`).
+ *
+ * Swagger dropped `ACCOUNT_LINK_REQUIRED` (accounts are never joined; an OAuth
+ * sign-in on an email that already has an account is `EMAIL_ALREADY_REGISTERED`)
+ * and `NO_CITY` (there are no cities any more; with neither a location nor a
+ * teleport the feed answers `NO_LOCATION`).
  */
 export const API_ERROR_CODES = [
   'VALIDATION_FAILED',
@@ -31,21 +36,32 @@ export const API_ERROR_CODES = [
   'STEP_UP_REQUIRED',
   'REAUTH_REQUIRED',
   'PASSWORD_BREACHED',
-  'ACCOUNT_LINK_REQUIRED',
+  // 409 from Google/Apple sign-in: the email already has an account, signed in
+  // another way. `details.signInMethods` says which ways to offer instead.
+  'EMAIL_ALREADY_REGISTERED',
   'HANDLE_COOLDOWN',
   'LAST_SIGN_IN_METHOD',
   'TOTP_REQUIRED',
   'TOTP_CODE_USED',
+  'SIGN_IN_AGAIN',
   'SIGNUP_REFUSED',
+  // Too many trusted-person requests in a day (429).
+  'TRUSTED_REQUEST_LIMIT',
   'REPORTING_PAUSED',
   'CHAT_START_LIMIT',
   'EVENT_MONTHLY_CAP',
-  'NO_CITY',
+  // 404 from the feed, map and search: no X-Client-Location and no teleport.
+  // There is no home-city fallback.
+  'NO_LOCATION',
   'POST_FULL',
+  // A post's group chat holds 100; someone going past that waits for a place,
+  // and until then opening the chat answers this 409.
+  'GROUP_CHAT_FULL',
   'POST_STARTED',
   'POST_CANCELLED',
   'POST_HAS_ATTENDEES',
-  'EXTERNAL_BOOKING',
+  'CAPTCHA_FAILED',
+  'WAITLIST_LINK_INVALID',
   'SERVICE_UNAVAILABLE',
   'INTERNAL',
 ] as const;
@@ -65,7 +81,7 @@ export class ApiError extends Error {
   readonly status: number | null;
   /** Which fields failed, sent with VALIDATION_FAILED. */
   readonly fieldErrors: ApiFieldError[];
-  /** Extras for specific codes, e.g. `{ challengeId }` with ACCOUNT_LINK_REQUIRED. */
+  /** Extras for specific codes, e.g. `{ signInMethods }` with EMAIL_ALREADY_REGISTERED. */
   readonly details: Record<string, unknown> | null;
   /** The API's own id for this request. Quote it when reporting a problem. */
   readonly requestId: string | null;

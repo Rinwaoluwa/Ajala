@@ -10,7 +10,7 @@ import { Platform } from 'react-native';
  * iOS has no such call. iCloud Keychain offers to save by itself after a sign-in,
  * when the fields carry `username` / `password` / `new-password` content types (the
  * auth forms set them) AND the app has a `webcredentials:` associated domain — see
- * `IOS_WEBCREDENTIALS_DOMAIN` in app.config.js. So here iOS answers "system".
+ * the links host (`EXPO_PUBLIC_LINKS_HOST`) in app.config.js. So here iOS answers "system".
  *
  * Never throws: a password manager that is missing or says no is not an error the
  * person needs to see. A build made before the module existed answers

@@ -3,7 +3,8 @@
  * so it can be tested as plain data.
  *
  * The API sends the inbox item's `data` (`kind`, usually `postId`; spec §2.10),
- * but where it lands in the notification object depends on the platform and on
+ * or for a chat message, which has no inbox item, `{ kind: 'chat.message',
+ * conversationId }` (backend answers B6). Where it lands in the notification object depends on the platform and on
  * how the server builds the message:
  *
  *   - Android (FCM): the message's data map, copied to `content.data`; also on
@@ -21,7 +22,7 @@
 export type PushMessage = {
   /** The OS's id for this notification; used so one tap is handled once. */
   id: string;
-  /** The inbox item's `data`: `kind`, usually `postId`, sometimes `conversationId`. */
+  /** The inbox item's `data` (`kind`, usually `postId`), or a chat push's `kind` and `conversationId`. */
   data: Record<string, unknown>;
 };
 

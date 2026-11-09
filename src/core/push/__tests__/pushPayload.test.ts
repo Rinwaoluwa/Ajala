@@ -29,6 +29,19 @@ describe("reading a push's data", () => {
     expect(pushDataOf(n)).toEqual({ kind: 'new_comment', postId: 'p2' });
   });
 
+  it('reads a chat push (docs/push/demo-chat-message.apns) with its conversation', () => {
+    const n = {
+      request: {
+        identifier: 'apns-chat',
+        content: { data: null },
+        trigger: pushTrigger({
+          payload: { aps: { alert: { title: 'Lagos Weekend Crew' } }, kind: 'chat.message', conversationId: 'c-lagos-crew' },
+        }),
+      },
+    };
+    expect(pushDataOf(n)).toEqual({ kind: 'chat.message', conversationId: 'c-lagos-crew' });
+  });
+
   it('undoes nesting under data or body, including a JSON string', () => {
     const nested = {
       request: { content: {}, trigger: pushTrigger({ payload: { aps: {}, data: { kind: 'message', conversationId: 'c1' } } }) },

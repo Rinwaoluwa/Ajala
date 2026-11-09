@@ -75,17 +75,17 @@ describe('apiRequest', () => {
   it('turns the error envelope into a typed ApiError', async () => {
     fetchMock.mockResolvedValue(
       json(409, {
-        code: 'ACCOUNT_LINK_REQUIRED',
+        code: 'EMAIL_ALREADY_REGISTERED',
         message: 'An account with this email exists',
-        details: { challengeId: 'c-1' },
+        details: { signInMethods: ['password'] },
         requestId: 'req-1',
       }),
     );
     const e = await caught(apiRequest({ method: 'POST', path: '/api/v1/auth/oauth/google', body: {} }));
     expect(e).toMatchObject({
-      code: 'ACCOUNT_LINK_REQUIRED',
+      code: 'EMAIL_ALREADY_REGISTERED',
       status: 409,
-      details: { challengeId: 'c-1' },
+      details: { signInMethods: ['password'] },
       requestId: 'req-1',
       fieldErrors: [],
     });

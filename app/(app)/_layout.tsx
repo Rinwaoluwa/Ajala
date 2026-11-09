@@ -17,6 +17,15 @@ import { useStackScreenOptions } from '@shared/hooks/useStackScreenOptions';
 import { ApiRequesterProvider } from '@shared/state/apiRequester';
 
 /**
+ * Push notifications are switched off for now: nothing asks for permission or
+ * registers this phone with POST /me/devices. The backend wants a Firebase (FCM)
+ * token on iOS as well as Android (backend-requests A13), which needs Firebase
+ * Messaging in the app first. Set this to true to turn push back on; the push
+ * code itself is unchanged.
+ */
+const PUSH_ENABLED = false;
+
+/**
  * The signed-in app.
  *
  * Guards once, here, rather than in each screen. It waits for the stored session
@@ -54,14 +63,16 @@ export default function AppLayout() {
       <LocationGate>
         {/* Push: asks for permission once the person is in the app (signed in,
             onboarding done, location allowed), registers this phone, and opens
-            a tapped push where its inbox row would go. */}
-        <PushNotifications
-          onOpenPost={(id) => router.push({ pathname: postDetailRoutes.post, params: { id } })}
-          onOpenMessages={(id) =>
-            id ? router.push({ pathname: chatRoutes.thread, params: { id } }) : router.push(chatRoutes.list)
-          }
-          onOpenPaywall={() => router.push(paymentRoutes.travelPaywall)}
-        />
+            a tapped push where its inbox row would go. Off for now: PUSH_ENABLED. */}
+        {PUSH_ENABLED ? (
+          <PushNotifications
+            onOpenPost={(id) => router.push({ pathname: postDetailRoutes.post, params: { id } })}
+            onOpenMessages={(id) =>
+              id ? router.push({ pathname: chatRoutes.thread, params: { id } }) : router.push(chatRoutes.list)
+            }
+            onOpenPaywall={() => router.push(paymentRoutes.travelPaywall)}
+          />
+        ) : null}
         <Stack screenOptions={screenOptions}>
           <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
           {/* Choosing a city slides up over everything and closes back down, like a compose screen. */}

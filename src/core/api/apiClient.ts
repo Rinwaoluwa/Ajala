@@ -1,5 +1,3 @@
-import { demoRequest } from '../demo/demoApi';
-import { DEMO_MODE } from '../demo/demoMode';
 import { API_ERROR_CODES, ApiError, type ApiErrorCode, type ApiFieldError } from './ApiError';
 import { apiConfig } from './apiConfig';
 
@@ -90,8 +88,6 @@ const RETRYABLE: ReadonlySet<ApiErrorCode> = new Set(['NETWORK', 'INTERNAL', 'SE
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 export async function apiRequest<T>(request: ApiRequest): Promise<T> {
-  // Demo mode (`EXPO_PUBLIC_DEMO=1`, docs/DEMO.md): answered on the phone, nothing is sent.
-  if (DEMO_MODE) return demoRequest<T>(request);
   const retries = request.method === 'GET' && request.retry !== false ? GET_RETRY_DELAYS_MS : [];
   for (let attempt = 0; ; attempt += 1) {
     try {

@@ -20,8 +20,9 @@ export type PushPlatform = 'ios' | 'android';
 
 /**
  * The native token: FCM on Android, APNs on iOS (not an Expo push token; the
- * API sends through Firebase/APNs itself). Which one iOS should send is an open
- * question to the backend (docs/api/backend-requests.md A13).
+ * API sends through Firebase/APNs itself). Which one iOS should send is still an
+ * open question to the backend (A13, not answered in
+ * docs/api/backend-answers-2026-11-09.md).
  */
 export type PushToken = { token: string; platform: PushPlatform };
 

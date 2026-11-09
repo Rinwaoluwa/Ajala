@@ -5,7 +5,6 @@
   "private": true,
   "scripts": {
     "start": "expo start",
-    "demo": "EXPO_PUBLIC_DEMO=1 expo start --dev-client --clear",
     "ios": "expo run:ios",
     "android": "expo run:android",
     "lint": "eslint .",

@@ -15,22 +15,54 @@
  * enabled (EAS turns it on when it makes the provisioning profile). A free
  * personal team cannot sign it. On Android the button is hidden.
  *
- * PASSWORD AUTOFILL (iOS) — set IOS_WEBCREDENTIALS_DOMAIN to the domain whose
- * `/.well-known/apple-app-site-association` lists this app under
- * `webcredentials.apps` ("<TEAM_ID>.com.ajala.app"). iCloud Keychain then offers
- * to save the password after sign-up and sign-in, and suggests strong ones.
- * Off by default: a free personal team cannot sign the Associated Domains
- * capability.
+ * SHARE LINKS AND PASSWORD AUTOFILL — one variable, the links host:
  *
- *   IOS_WEBCREDENTIALS_DOMAIN=ajalatrvl.com
+ *   EXPO_PUBLIC_LINKS_HOST=go.ajalatrvl.com        production (the default)
+ *   EXPO_PUBLIC_LINKS_HOST=dev-go.ajalatrvl.com    development
+ *   EXPO_PUBLIC_LINKS_HOST=staging-go.ajalatrvl.com  staging / preview
  *
- * MAPS — the Explore map is react-native-maps: Apple Maps on iOS, which needs no
- * key, and Google Maps on Android, which does. Google Maps closes the app when it
- * starts without a key, so a build without one says so in `extra.googleMapsAndroid`
- * and Explore shows a note in place of the map (src/core/maps/MapCanvas.tsx).
- * For EAS builds, set it as an EAS environment variable, not only in .env:
+ * The app shares `https://<host>/posts/{id}` and `/users/{id}`
+ * (src/core/config/links.ts; backend answers D3), and app/+native-intent.tsx
+ * sends them to the post and profile screens. Here the same host becomes:
  *
+ *   iOS: associated domains `applinks:<host>` (universal links) and
+ *   `webcredentials:<host>` (iCloud Keychain offers to save the password after
+ *   sign-up and sign-in). The host's apple-app-site-association lists
+ *   "<TEAM_ID>.com.ajala.app" for both. Universal links need a paid Apple
+ *   Developer team to sign the Associated Domains capability (EAS enables it on
+ *   the App ID) — as Sign in with Apple above already does.
+ *
+ *   Android: an auto-verified intent filter for https://<host>/posts/* and
+ *   /users/*, checked against the host's assetlinks.json (the signing key's
+ *   SHA-256 must be listed there).
+ *
+ * The EXPO_PUBLIC_ prefix lets the JavaScript read it too, so a build shares the
+ * same host it opens. Changing it needs a new native build.
+ *
+ * MAPS — the Explore map is react-native-maps drawing Google Maps on both
+ * platforms. The keys are EAS environment variables (development, preview and
+ * production); `npx eas-cli env:pull --environment development` writes them to the
+ * gitignored .env.local for local builds:
+ *
+ *   GOOGLE_MAPS_IOS_API_KEY=<Maps SDK for iOS key, restricted to com.ajala.app>
  *   GOOGLE_MAPS_ANDROID_API_KEY=<Maps SDK for Android key, restricted to com.ajala.app>
+ *
+ * Android's Google Maps closes the app when it starts without a key, so a build
+ * without one says so in `extra.googleMapsAndroid` and Explore shows a note in
+ * place of the map. An iOS build without its key falls back to Apple Maps
+ * (`extra.googleMapsIos`; src/core/maps/MapCanvas.tsx).
+ *
+ * PLACES — the API takes Google place ids and has no place search, so the app
+ * calls Google's Places API (New) itself (src/core/places) with the same keys.
+ * They are build-time variables, so the platform's key is copied into
+ * `extra.placesKey` for the JavaScript (it is already in the binary for Maps).
+ * The keys are app-restricted, so each request names the app in headers; on
+ * Android that includes the signing key's SHA-1, which the app picks itself (the
+ * debug key in development, the EAS upload key otherwise) unless
+ * GOOGLE_ANDROID_CERT_SHA1 names another. "Places API (New)" must be enabled
+ * on both keys in Google Cloud, and the Android key must list both SHA-1s.
+ *
+ *   GOOGLE_ANDROID_CERT_SHA1=<optional; colons are fine>
  *
  * PUSH NOTIFICATIONS — expo-notifications, with the app's own token (FCM on
  * Android, APNs on iOS), not Expo's push service. Adding or changing this needs
@@ -64,22 +96,54 @@ module.exports = ({ config }) => {
     plugins: [...(next.plugins ?? []), 'expo-apple-authentication'],
   };
 
-  const webCredentialsDomain = process.env.IOS_WEBCREDENTIALS_DOMAIN;
-  if (webCredentialsDomain) {
-    next = {
-      ...next,
-      ios: {
-        ...next.ios,
-        associatedDomains: [...(next.ios?.associatedDomains ?? []), `webcredentials:${webCredentialsDomain}`],
-      },
-    };
-  }
-
-  const mapsKey = process.env.GOOGLE_MAPS_ANDROID_API_KEY;
+  // Share links (see the header). Same default as src/core/config/links.ts.
+  const linksHost = process.env.EXPO_PUBLIC_LINKS_HOST?.trim() || 'go.ajalatrvl.com';
   next = {
     ...next,
-    extra: { ...next.extra, googleMapsAndroid: Boolean(mapsKey) },
-    plugins: [...(next.plugins ?? []), ['react-native-maps', { androidGoogleMapsApiKey: mapsKey }]],
+    ios: {
+      ...next.ios,
+      associatedDomains: [
+        ...(next.ios?.associatedDomains ?? []),
+        `applinks:${linksHost}`,
+        `webcredentials:${linksHost}`,
+      ],
+    },
+  };
+  next = {
+    ...next,
+    android: {
+      ...next.android,
+      intentFilters: [
+        ...(next.android?.intentFilters ?? []),
+        {
+          action: 'VIEW',
+          autoVerify: true,
+          data: [
+            { scheme: 'https', host: linksHost, pathPrefix: '/posts/' },
+            { scheme: 'https', host: linksHost, pathPrefix: '/users/' },
+          ],
+          category: ['BROWSABLE', 'DEFAULT'],
+        },
+      ],
+    },
+  };
+
+  const androidMapsKey = process.env.GOOGLE_MAPS_ANDROID_API_KEY;
+  const iosMapsKey = process.env.GOOGLE_MAPS_IOS_API_KEY;
+  next = {
+    ...next,
+    extra: {
+      ...next.extra,
+      googleMapsAndroid: Boolean(androidMapsKey),
+      googleMapsIos: Boolean(iosMapsKey),
+      // Places (see the header). Null without a key: place search then says it isn't available.
+      placesKey: { ios: iosMapsKey || null, android: androidMapsKey || null },
+      placesAndroidCert: process.env.GOOGLE_ANDROID_CERT_SHA1?.trim() || null,
+    },
+    plugins: [
+      ...(next.plugins ?? []),
+      ['react-native-maps', { androidGoogleMapsApiKey: androidMapsKey, iosGoogleMapsApiKey: iosMapsKey }],
+    ],
   };
 
   // The small icon is the "A" mark from the adaptive monochrome icon, white on

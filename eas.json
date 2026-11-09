@@ -11,9 +11,6 @@
     },
     "preview": {
       "node": "24.13.0",
-      "env": {
-        "EXPO_PUBLIC_DEMO": "1"
-      },
       "autoIncrement": true,
       "android": {
         "distribution": "internal",
@@ -31,7 +28,8 @@
   "submit": {
     "preview": {
       "ios": {
-        "companyName": "Ajala"
+        "companyName": "Ajala",
+        "ascAppId": "6830361306"
       }
     }
   }
