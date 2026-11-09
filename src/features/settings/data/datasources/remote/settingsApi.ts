@@ -1,3 +1,5 @@
+import { appendFile } from '@core/api/uploadPart';
+
 import type {
   AnalyticsOptDto,
   DataExportDto,
@@ -42,8 +44,7 @@ export function createSettingsApi(request: SettingsRequest) {
     /** multipart, field `file` (spec §1.4). */
     uploadAvatar: (file: { uri: string; name: string; type: string }) => {
       const form = new FormData();
-      // React Native's FormData takes a file as { uri, name, type }.
-      form.append('file', file as unknown as Blob);
+      appendFile(form, 'file', file);
       return request<{ avatarUrl: string | null }>({ method: 'POST', path: `${V1}/me/avatar`, body: form });
     },
     /** Throttled to 10 a minute: the caller debounces, and a GET is not retried here. */

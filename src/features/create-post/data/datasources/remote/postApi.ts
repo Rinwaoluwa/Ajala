@@ -1,3 +1,5 @@
+import { appendFile } from '@core/api/uploadPart';
+
 import type {
   CreatePostFieldsDto,
   InterestDto,
@@ -33,7 +35,7 @@ export function toPostForm(fields: CreatePostFieldsDto, images: UploadFile[]): F
     else form.append(key, String(value));
   }
   // React Native's FormData takes a file as { uri, name, type }.
-  images.forEach((image) => form.append('images', image as unknown as Blob));
+  images.forEach((image) => appendFile(form, 'images', image));
   return form;
 }
 
@@ -50,7 +52,7 @@ export function createPostApi(request: PostRequest) {
 
     replaceImages: (postId: string, images: UploadFile[]) => {
       const form = new FormData();
-      images.forEach((image) => form.append('images', image as unknown as Blob));
+      images.forEach((image) => appendFile(form, 'images', image));
       return request<PostDetailDto>({
         method: 'PUT',
         path: `${V1}/posts/${encodeURIComponent(postId)}/images`,

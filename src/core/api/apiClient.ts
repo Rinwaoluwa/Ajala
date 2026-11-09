@@ -132,6 +132,8 @@ async function sendOnce<T>(request: ApiRequest): Promise<T> {
   } catch (e) {
     // An abort here is the timeout firing, or the caller cancelling.
     const aborted = e instanceof Error && e.name === 'AbortError';
+    // The platform's own reason ("Network request failed", a file it could not read) is only in dev logs.
+    if (__DEV__ && !aborted) console.warn(`[api] ${request.method} ${request.path} did not go out:`, e);
     const error = new ApiError({
       code: aborted ? 'TIMEOUT' : 'NETWORK',
       message: aborted ? 'The request timed out.' : 'Could not reach the server.',

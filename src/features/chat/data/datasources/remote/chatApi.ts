@@ -1,4 +1,5 @@
 import type { ApiRequest } from '@core/api/apiClient';
+import { appendFile } from '@core/api/uploadPart';
 
 import type {
   AddMemberDto,
@@ -69,7 +70,7 @@ export function createChatApi(request: ChatRequest) {
       if (input.taggedPostId) form.append('taggedPostId', input.taggedPostId);
       for (const image of input.images) {
         // React Native's FormData takes `{ uri, name, type }` for a file.
-        form.append('images', image as unknown as Blob);
+        appendFile(form, 'images', image);
       }
       return request<MessageDto>({ method: 'POST', path: `${conversation(id)}/messages`, body: form });
     },

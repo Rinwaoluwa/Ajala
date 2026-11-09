@@ -1,3 +1,5 @@
+import { appendFile } from '@core/api/uploadPart';
+
 import type {
   AvatarDto,
   HandleAvailabilityDto,
@@ -38,8 +40,7 @@ export function createProfileApi(request: ProfileRequest) {
     /** multipart, field `file` (§1.4). */
     uploadAvatar: (file: { uri: string; name: string; type: string }) => {
       const form = new FormData();
-      // React Native's FormData takes a file as { uri, name, type }.
-      form.append('file', file as unknown as Blob);
+      appendFile(form, 'file', file);
       return request<AvatarDto>({
         method: 'POST',
         path: `${V1}/me/avatar`,

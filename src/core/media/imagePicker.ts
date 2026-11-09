@@ -1,5 +1,6 @@
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
+import { Platform } from 'react-native';
 
 /**
  * Picking a photo for upload. The only file that imports `expo-image-picker` and
@@ -13,6 +14,20 @@ import * as ImagePicker from 'expo-image-picker';
  * Resolves with `null` when the person cancels or refuses access; that is a
  * choice, not an error.
  */
+
+/**
+ * How long a menu takes to close on iOS. The pickers are opened from an action
+ * sheet or an alert, and iOS silently refuses to present the picker while that
+ * menu is still animating away: the tap would do nothing. Android has no such
+ * rule.
+ */
+const MENU_CLOSE_MS = Platform.OS === 'ios' ? 450 : 0;
+const afterMenuCloses = () => new Promise<void>((resolve) => setTimeout(resolve, MENU_CLOSE_MS));
+
+/** A picker that failed to open is shown to the person as nothing; the log says why. */
+function logPickerFailure(e: unknown) {
+  if (__DEV__) console.warn('[media] the photo picker did not open:', e);
+}
 
 export type PickedImage = { uri: string; name: string; type: 'image/jpeg' };
 export type ImageSource = 'library' | 'camera';
@@ -39,6 +54,7 @@ export async function pickSquareImage({
 
   let result: ImagePicker.ImagePickerResult;
   try {
+    await afterMenuCloses();
     if (source === 'camera') {
       const permission = await ImagePicker.requestCameraPermissionsAsync();
       if (!permission.granted) return null;
@@ -46,7 +62,8 @@ export async function pickSquareImage({
     } else {
       result = await ImagePicker.launchImageLibraryAsync(options);
     }
-  } catch {
+  } catch (e) {
+    logPickerFailure(e);
     return null;
   }
   const asset = result.canceled ? undefined : result.assets[0];
@@ -94,7 +111,8 @@ export async function pickImages({
       orderedSelection: true,
       quality: 1,
     });
-  } catch {
+  } catch (e) {
+    logPickerFailure(e);
     return [];
   }
   if (result.canceled) return [];
