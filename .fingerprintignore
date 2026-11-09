@@ -5,3 +5,6 @@ node_modules/**/android/build/**/*
 node_modules/**/android/.cxx/**/*
 node_modules/**/android/.gradle/**/*
 node_modules/**/ios/build/**/*
+# React Native's Gradle plugin rewrites some libraries' AndroidManifest.xml in
+# place during a local Android build (it drops the `package` attribute).
+node_modules/**/android/src/main/AndroidManifest.xml
