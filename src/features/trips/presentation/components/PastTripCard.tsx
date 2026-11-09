@@ -52,9 +52,9 @@ function PastTripCardComponent({ trip, onOpen }: { trip: TripCard; onOpen: () =>
       <Text variant="bodySm" tone="muted">
         {when}
       </Text>
-      {trip.placeName || trip.cityLabel ? (
+      {trip.placeName || trip.localityLabel ? (
         <Text variant="bodySm" tone="muted">
-          {trip.placeName ?? trip.cityLabel}
+          {trip.placeName || trip.localityLabel}
         </Text>
       ) : null}
       <View

@@ -11,9 +11,11 @@ const TYPES: readonly PostPreview['type'][] = ['meetup', 'event', 'plan', 'group
  * card's title, photo and type come along (`title`, `image`, `type`), so the page
  * draws its header straight away while the rest loads.
  *
- * Message (a direct chat with the host) and the host's Group chat both open the
- * chat start route, which asks the API for the conversation (`POST
- * /conversations { userId }` or `{ postId }`) and moves on to the thread.
+ * Message (a direct chat with the host) and Group chat (the post's own chat,
+ * made automatically when it went live; for the host and the people going) both
+ * open the chat start route, which asks the API for the conversation (`POST
+ * /conversations { userId }` or `{ postId }`) and moves on to the thread. That
+ * route says so when someone going is still waiting for a place in a full chat.
  */
 export default function PostRoute() {
   const { id, title, image, type } = useLocalSearchParams<{

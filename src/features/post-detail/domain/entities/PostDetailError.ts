@@ -6,11 +6,9 @@ export type PostDetailErrorCode =
   | 'postStarted'
   /** Also what a comment on a cancelled post answers: the composer closes. */
   | 'postCancelled'
-  /** A paid Event: book through its link instead. */
-  | 'externalBooking'
   /** Delete refused: people joined. Cancel instead. */
   | 'hasAttendees'
-  /** Own post, declined by the host, or a list the viewer may not see. */
+  /** Own post (a 409 on joining it), declined by the host, or a list the viewer may not see. */
   | 'notAllowed'
   /** Empty, or longer than `COMMENT_MAX`. */
   | 'commentInvalid'

@@ -25,14 +25,9 @@ export const postCopy = {
   location: 'Location',
   openInMaps: 'Opens in Maps',
   price: 'Price',
-  free: 'Free',
   joined: 'Joined',
-  /** A shared cost, as the server split it (spec §1.5). */
-  costEach: (amount: string) => `About ${amount} each`,
-  plusCostEach: (amount: string) => `Plus about ${amount} each`,
-  costShared: (total: string, people: number) => `${total} shared by ${people}`,
-  linkClicks: (n: number) =>
-    n === 1 ? '1 person opened your booking link' : `${n} people opened your booking link`,
+  /** The host's own post: how many opened its link (joining opens it). */
+  linkClicks: (n: number) => (n === 1 ? '1 person opened your link' : `${n} people opened your link`),
   schedule: 'Running order',
   itinerary: 'Itinerary',
   stop: (n: number, of: number) => `Stop ${n} of ${of}`,
@@ -41,8 +36,9 @@ export const postCopy = {
   saved: 'Saved',
   message: 'Message',
   messageHost: (name: string) => `Message ${name}`,
+  /** Opens the post's chat; it is made automatically, and everyone going is in it. */
   groupChat: 'Group chat',
-  groupChatHint: 'A chat with everyone going',
+  groupChatHint: 'Opens the chat with everyone going',
   spotsLeft: (left: number, of: number) => `${left} of ${of} spots left`,
   noLimit: 'No limit',
   share: 'Share',
@@ -51,7 +47,6 @@ export const postCopy = {
     join: (type: PostType) => `Join ${NOUN[type]}`,
     request: 'Request to join',
     joinWaitlist: 'Join the waiting list',
-    book: 'Book a spot',
     requested: 'Requested',
     going: "You're Going",
     waitlisted: (position: number | null) => (position ? `Waitlisted · #${position}` : 'Waitlisted'),
@@ -186,8 +181,8 @@ export const postErrorMessages: Record<PostDetailErrorCode, string> = {
   postFull: 'It just filled up. Try the waiting list, or explore other activities.',
   postStarted: 'It has already started, so new people can’t join.',
   postCancelled: 'The host cancelled it.',
-  externalBooking: 'Book this one through its link.',
   hasAttendees: 'People have joined, so it can’t be deleted. Cancel it instead.',
+  // Also joining your own post (409): the page then re-reads it and shows "Manage post".
   notAllowed: 'You can’t do that on this post.',
   rateLimited: 'Too many tries. Wait a moment and try again.',
   network: 'You seem to be offline. Check your connection and try again.',

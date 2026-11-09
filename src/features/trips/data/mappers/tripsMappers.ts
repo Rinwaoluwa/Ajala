@@ -15,7 +15,7 @@ export function toTripCard(dto: PostCardDto | MyPostDto, role: TripRole): TripCa
     endAt: dto.endAt ?? null,
     recurrence: dto.recurrence?.frequency ?? null,
     placeName: dto.placeName ?? null,
-    cityLabel: dto.city?.label ?? dto.city?.name ?? '',
+    localityLabel: dto.localityLabel ?? '',
     goingCount: dto.goingCount ?? 0,
     // Only my own posts carry a status; every other list holds live posts.
     status: 'status' in dto && dto.status ? dto.status : 'published',

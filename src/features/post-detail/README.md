@@ -8,32 +8,50 @@ Full gallery, full description with map snippet, attendee strip, host card, thre
 ## What is built
 
 The post page (Figma post detail, light and dark): photos with a glass back button, type tag,
-bookmark and ⋯; title; host ("Hosted by …", opens their profile) with **Message**, or the host's
-**Group chat**; description and interests; Date & Time (with the end time, and "Repeats weekly"
-for a Group), Location (opens Maps), Price (or "About ₦12,000 each" for a shared cost) and Joined
-tiles, the main button and Share, the host's link clicks, an Event's running order or a Plan's
-itinerary, safety tips, Who's Going, and Comments with their replies.
+bookmark and ⋯; title; host ("Hosted by …", opens their profile) with **Message** (anyone but the
+host) and **Group chat** (the host and the people going); description and interests; Date & Time
+(with the end time, and "Repeats weekly" for a Group), Location (the place's name with its address
+or city under it; opens Maps), Price (only when the
+post has one) and Joined tiles, the main button and Share, the host's link clicks, an Event's
+running order or a Plan's itinerary, safety tips, Who's Going, and Comments with their replies.
 
 | Element                                                     | API                                                                             |
 | ----------------------------------------------------------- | ------------------------------------------------------------------------------- |
 | The page                                                    | `GET /posts/:id` with `X-Client-Location`                                       |
 | End time, repeats, running order, itinerary, interests      | `endAt`, `recurrence`, `schedule` (Events), `itinerary` (Plans), `interests`    |
-| "About N each"                                              | `costSplit.perPersonCents` with its `exponent` and `currency` (spec §1.5)       |
-| "N people opened your booking link" (host)                  | `linkClickCount` (null unless you host)                                         |
+| Location row                                                | `placeName`, then `formattedAddress` (or `localityLabel` for a pin) — `location.ts` |
+| … opens Maps                                                | iOS: Apple Maps at `lat`/`lng`; Android: the Google place (`placeId`), else `geo:` |
+| Price tile (the price or nothing; a Plan never has one)     | `price`                                                                         |
+| "N people opened your link" (host)                          | `linkClickCount` (null unless you host)                                         |
 | Bookmark                                                    | `POST` / `DELETE /posts/:id/save` via the shared `useSavePost` (live posts)     |
-| Message (not the host)                                      | the chat start route with `{ userId }` → `POST /conversations { userId }`       |
-| Group chat (host, live post)                                | the chat start route with `{ postId }` → `POST /conversations { postId }`       |
+| Message (not the host, live post)                           | the chat start route with `{ userId }` → `POST /conversations { userId }`       |
+| Group chat (host or going, live post)                       | the chat start route with `{ postId }` → `POST /conversations { postId }`       |
 | Join / Request to join / waiting list                       | `POST /posts/:id/rsvp` — optimistic, rolled back on a refusal                   |
+| … on a post with `externalUrl`                              | opens the link, `POST /posts/:id/link-click`, then the RSVP as usual            |
 | ✓ You're Going / Requested / Waitlisted → leave or withdraw | `DELETE /posts/:id/rsvp` (asks first)                                           |
-| Book a spot (paid Event, `joinMode: external`)              | open `externalUrl`, `POST /posts/:id/link-click`                                |
+| Your own post                                               | `isHost`, or `host.id` = your id (`GET /me`): "Manage post", never Join         |
 | Who's Going                                                 | `GET /posts/:id/attendees?state=going` (paged); the host also sees `requested`  |
 | Accept / Decline (host)                                     | `POST /posts/:id/attendees/:userId/accept` or `/decline`                        |
+| Remove someone (host; use case only, no UI in the design)   | `POST /posts/:id/attendees/:userId/remove` (`removeAttendee`)                   |
 | ⋯ → Cancel / Delete (host)                                  | `POST /posts/:id/cancel`, `DELETE /posts/:id` (409 → offer Cancel)              |
 | ⋯ → Report activity                                         | explore's report flow (`ReportPostFlow`), `POST /posts/:id/report`              |
-| Share                                                       | the post link, `https://ajalatrvl.com/posts/<id>` (`LINKS_HOST` in the rules)   |
+| Share                                                       | the post link, `https://go.ajalatrvl.com/posts/<id>` (host from `EXPO_PUBLIC_LINKS_HOST`) |
 
 The two chat actions are callbacks (`onMessageHost`, `onOpenGroupChat`) that the route file
 `app/(app)/post/[id].tsx` wires to `chatRoutes.start`, so this feature never imports a chat screen.
+
+Changes from the backend answers of Nov 9 2026 (`docs/api/backend-answers-2026-11-09.md`):
+
+- **Every post joins by RSVP.** `joinMode` and `EXTERNAL_BOOKING` are gone. A post with a link
+  (tickets, a booking page) opens it as the person joins, counts the click, and RSVPs; the three
+  start together so the RSVP isn't held up while the person is in the browser.
+- **No shared cost.** The Price tile shows the price, or isn't there; a Plan never has a price.
+- **Group chats are automatic.** There is no "start" step: Group chat just opens the post's chat
+  for the host and the people going. The chat route handles a full chat (409 `GROUP_CHAT_FULL`)
+  and a chat that is gone (404). A cancelled post shows no chat button at all, as its chat is removed.
+- **Your own post (B9).** The server reports `rsvpState: 'none'` on it, so `asSeenBy` also compares
+  `host.id` with the viewer's id. Joining it anyway answers 409, read as `notAllowed`; the page then
+  reads the post again.
 
 ## Comments (spec §2.18)
 
@@ -53,12 +71,19 @@ The two chat actions are callbacks (`onMessageHost`, `onOpenGroupChat`) that the
 - A report's 403 `REPORTING_PAUSED`, 409 (already reported) and 400 are said in the dialog.
 - 404 now means the post is gone; there is no "comments unavailable" state any more.
 
+Swagger of 9 Nov 2026: `PostDetailDto.city` is gone; the page reads `placeId`, `formattedAddress`,
+`localityLabel` ("Lagos, Nigeria") and `countryCode`.
+
 ## Gaps
+
+- **Remove someone** is wired down to the use case, but Who's Going has no control for it yet.
 
 - **Follow** and **mutual friends** are not in the API, so they are left out.
 - The design labels every type's button "Join event"; it says the type here ("Join plan").
-- The design has no frames for the running order, itinerary, shared cost, link clicks or comment
-  threads; they follow the page's existing cards and the Who's Going heading.
+- The design has no frames for the running order, itinerary, link clicks or comment threads; they
+  follow the page's existing cards and the Who's Going heading.
+- The design has no separate "open the link" button, so the link opens only on joining. Someone
+  already going can't reopen it from the page yet.
 - The Plan checklist was removed from the API; the itinerary (read-only lines) replaces it.
 
 ## Boundary rules
@@ -78,7 +103,8 @@ The two chat actions are callbacks (`onMessageHost`, `onOpenGroupChat`) that the
 post-detail/
 ├── postDetailModule.ts        composition root
 ├── data/                      postDetailApi, DTOs, mappers, PostDetailRepositoryImpl
-├── domain/                    PostDetail, PostDetailError, postDetailRules (button state, optimistic RSVP),
+├── domain/                    PostDetail, PostDetailError, postDetailRules (button state, optimistic RSVP,
+│                              own post, chat buttons),
 │                              commentRules (threads, "Comment deleted", closed comments)
 └── presentation/
     ├── screens/               PostDetailScreen

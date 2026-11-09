@@ -1,8 +1,35 @@
 import type { PostDetail, RsvpResult } from '../entities/PostDetail';
 
 /**
+ * The post as the signed-in person sees it. The API asks every card to compare
+ * `host.id` with the viewer's own id (backend answers B9): on your own post it
+ * says `rsvpState: 'none'` and Join answers 409, so it is marked as yours and
+ * gets "Manage post" instead. Until the id is known, the server's `isHost` stands.
+ */
+export function asSeenBy(post: PostDetail, viewerId: string | null): PostDetail {
+  if (post.isHost || !viewerId || post.host.id !== viewerId) return post;
+  return { ...post, isHost: true };
+}
+
+/**
+ * Which chat buttons sit beside the host's name. Group chats are automatic (one
+ * is made when a post goes live, and everyone going is in it), so "Group chat"
+ * is for the host and the people going, and nobody else. Anyone but the host may
+ * "Message" them. A cancelled post's chat is removed for everyone, so a post that
+ * is not live has neither.
+ */
+export function chatActions(post: PostDetail): { groupChat: boolean; messageHost: boolean } {
+  if (post.status !== 'published') return { groupChat: false, messageHost: false };
+  return {
+    groupChat: post.isHost || post.rsvpState === 'going',
+    messageHost: !post.isHost,
+  };
+}
+
+/**
  * What the post page's main button is, from the post as the API last described
- * it (spec §2.13). The server decides; this only names the state it is in.
+ * it (spec §2.13). The server decides; this only names the state it is in. Every
+ * post joins by RSVP; one with a link opens it as it joins (see `usePostDetail`).
  */
 export type JoinAction =
   /** Open post with room: join at once. */
@@ -11,8 +38,6 @@ export type JoinAction =
   | 'request'
   /** Full, but a waiting list is open. */
   | 'joinWaitlist'
-  /** A paid Event: open its link to pay or book. */
-  | 'book'
   | 'requested'
   | 'going'
   | 'waitlisted'
@@ -54,7 +79,6 @@ export function joinAction(post: PostDetail, now: Date = new Date()): JoinAction
     case 'none':
       break;
   }
-  if (post.joinMode === 'external') return 'book';
   if (post.visibility === 'private') return 'request';
   if (isFull(post)) return post.waitlistEnabled ? 'joinWaitlist' : 'full';
   return 'join';
@@ -92,6 +116,10 @@ export function withRsvp(post: PostDetail, r: RsvpResult): PostDetail {
   };
 }
 
-/** Where the "Share" link points; the deep-link files make it open the app (API map §11). */
-export const LINKS_HOST = 'https://ajalatrvl.com';
+/**
+ * Where the "Share" link points: `https://<links host>/posts/{id}` (backend
+ * answers D3). The same variable and default as `@core/config/links`, read here
+ * directly because Domain may not import `@core`.
+ */
+export const LINKS_HOST = `https://${process.env.EXPO_PUBLIC_LINKS_HOST?.trim() || 'go.ajalatrvl.com'}`;
 export const postLink = (postId: string) => `${LINKS_HOST}/posts/${encodeURIComponent(postId)}`;

@@ -22,6 +22,10 @@ export const makeRespondToRequest =
   (repo: PostDetailRepository) => (postId: string, userId: string, answer: 'accept' | 'decline') =>
     answer === 'accept' ? repo.accept(postId, userId) : repo.decline(postId, userId);
 
+/** No screen calls this yet: the design has no "remove" on Who's Going. */
+export const makeRemoveAttendee = (repo: PostDetailRepository) => (postId: string, userId: string) =>
+  repo.removeAttendee(postId, userId);
+
 export const makeCancelPost = (repo: PostDetailRepository) => (postId: string) => repo.cancel(postId);
 export const makeDeletePost = (repo: PostDetailRepository) => (postId: string) => repo.remove(postId);
 

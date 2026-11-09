@@ -30,7 +30,8 @@ import { useNotifications } from '../hooks/useNotifications';
  * round back button, All / Unread, then the inbox, newest first (spec §2.17).
  *
  * All and Unread are filtered by the server. Tapping a row marks it read and
- * opens what it is about: the post, the conversation, or the Travel paywall.
+ * opens what it is about: the post or the Travel paywall. Chat messages are
+ * not listed here (they are push only; Messages has its own badge).
  * While anything is unread, a round button at the header's right marks it all
  * read; nothing is marked read just by opening the screen.
  */
@@ -45,18 +46,11 @@ const BUTTON = 40;
 export type NotificationsScreenProps = {
   onBack: () => void;
   onOpenPost: (postId: string) => void;
-  /** A message: its conversation when the server says which, otherwise the Messages list. */
-  onOpenMessages: (conversationId: string | null) => void;
   /** A subscription notice: the Travel paywall. */
   onOpenPaywall: () => void;
 };
 
-export function NotificationsScreen({
-  onBack,
-  onOpenPost,
-  onOpenMessages,
-  onOpenPaywall,
-}: NotificationsScreenProps) {
+export function NotificationsScreen({ onBack, onOpenPost, onOpenPaywall }: NotificationsScreenProps) {
   const theme = useTheme();
   const glass = useLiquidGlass();
   const insets = useSafeAreaInsets();
@@ -66,7 +60,6 @@ export function NotificationsScreen({
     vm.markRead(n);
     const target = targetOf(n);
     if (target?.to === 'post') onOpenPost(target.postId);
-    else if (target?.to === 'messages') onOpenMessages(target.conversationId);
     else if (target?.to === 'paywall') onOpenPaywall();
   };
 

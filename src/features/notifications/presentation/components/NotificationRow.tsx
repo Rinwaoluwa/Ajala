@@ -13,9 +13,10 @@ import { notificationsCopy } from '../copy';
  * icon, the title, a line, and how long ago. Unread rows have a bolder title
  * and a small dot under the time, so "mark all as read" visibly does something.
  *
- * The API sends no sender photo, so a message shows the design's chat icon
- * rather than an avatar. Categories with a supplied design icon use it
- * (`VectorIcon`); the rest keep the Ionicons the screen has always drawn.
+ * Categories with a supplied design icon use it (`VectorIcon`); the rest keep
+ * the Ionicons the screen has always drawn. Chat messages never appear here
+ * (they are push only, with their own badge on Messages), so there is no
+ * message look.
  */
 type Look = { tint: string; ink: string } & (
   { vector: VectorIconName } | { ion: keyof typeof Ionicons.glyphMap }
@@ -31,9 +32,10 @@ const LOOK: Record<NotificationKind, Look> = {
   request_accepted: { ...TEAL, ion: 'checkmark-circle-outline' },
   post_reminder: { ...CORAL, ion: 'calendar-outline' },
   new_comment: { ...AMBER, ion: 'chatbubble-ellipses-outline' },
-  new_message: { ...TEAL, vector: 'chat' },
   subscription: { ...CORAL, vector: 'compass' },
   post_update: { ...TEAL, ion: 'document-text-outline' },
+  // "Share my plan": someone you trust, or who trusts you, with your plans.
+  trusted_person: { ...TEAL, ion: 'people-outline' },
   moderation: { ...SLATE, ion: 'shield-checkmark-outline' },
 };
 

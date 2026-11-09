@@ -4,7 +4,7 @@ import { Linking } from 'react-native';
 
 import type { AttendeesPage, PostDetail, RsvpResult } from '../../domain/entities/PostDetail';
 import { isPostDetailError, type PostDetailErrorCode } from '../../domain/entities/PostDetailError';
-import { expectJoin, expectLeave, joinAction, withRsvp } from '../../domain/rules/postDetailRules';
+import { asSeenBy, expectJoin, expectLeave, joinAction, withRsvp } from '../../domain/rules/postDetailRules';
 import { LISTS_SHOWING_POSTS, postDetailKeys } from '../state/postDetailQueries';
 import { usePostDetailUseCases } from '../state/usePostDetailUseCases';
 
@@ -17,8 +17,11 @@ const codeOf = (e: unknown): PostDetailErrorCode | null =>
  *
  * Joining is optimistic (spec §7): the button and the going count change at
  * once, the answer corrects them, and an error puts the page back as it was and
- * says why. A paid Event is booked through its link instead — opened, and the
- * click counted for the host.
+ * says why. Every post joins by RSVP; when it has a link (tickets, a booking
+ * page), joining also opens it and counts the click for the host.
+ *
+ * The post is read as the signed-in person sees it (`asSeenBy`), so their own
+ * post never offers Join even where the server's `isHost` says otherwise.
  */
 export function usePostDetail(postId: string) {
   const useCases = usePostDetailUseCases();
@@ -26,6 +29,14 @@ export function usePostDetail(postId: string) {
   const key = postDetailKeys.post(postId);
 
   const post = useQuery({ queryKey: key, queryFn: () => useCases.getPost(postId), staleTime: 30_000 });
+
+  const viewer = useQuery({
+    queryKey: postDetailKeys.viewer,
+    queryFn: useCases.getViewer,
+    staleTime: 5 * 60_000,
+  });
+  const viewerId = viewer.data?.id ?? null;
+  const seen = useMemo(() => (post.data ? asSeenBy(post.data, viewerId) : null), [post.data, viewerId]);
 
   const going = useInfiniteQuery({
     queryKey: postDetailKeys.attendees(postId, 'going'),
@@ -36,19 +47,13 @@ export function usePostDetail(postId: string) {
   });
 
   // Requests are the host's only (403 otherwise), so only the host asks.
-  const isHost = post.data?.isHost ?? false;
+  const isHost = seen?.isHost ?? false;
   const requested = useInfiniteQuery({
     queryKey: postDetailKeys.attendees(postId, 'requested'),
     queryFn: ({ pageParam }) => useCases.getAttendees(postId, 'requested', pageParam),
     initialPageParam: null as string | null,
     getNextPageParam: (last: AttendeesPage) => last.nextCursor,
     enabled: isHost && post.data?.visibility === 'private',
-  });
-
-  const viewer = useQuery({
-    queryKey: postDetailKeys.viewer,
-    queryFn: useCases.getViewer,
-    staleTime: 5 * 60_000,
   });
 
   const refreshPeople = () =>
@@ -117,15 +122,23 @@ export function usePostDetail(postId: string) {
     [going.data, requested.data, post.data?.goingCount],
   );
 
-  const book = async () => {
-    const link = post.data?.externalUrl;
-    if (!link) return;
-    void useCases.recordLinkClick(postId);
-    await Linking.openURL(link).catch(() => undefined);
+  /**
+   * Joining a post with a link (backend answers, Nov 2026): open the link, count
+   * the click for the host, then RSVP as usual. They start together rather than
+   * waiting on each other: the link takes the person out of the app, and the
+   * RSVP should not sit paused until they come back.
+   */
+  const join = () => {
+    const link = seen?.externalUrl;
+    if (link) {
+      void Linking.openURL(link).catch(() => undefined);
+      void useCases.recordLinkClick(postId);
+    }
+    rsvp.mutate('join');
   };
 
   return {
-    post: post.data ?? null,
+    post: seen,
     loading: post.isPending,
     error: codeOf(post.error),
     retry: () => void post.refetch(),
@@ -134,7 +147,7 @@ export function usePostDetail(postId: string) {
       void post.refetch();
       refreshPeople();
     },
-    action: post.data ? joinAction(post.data) : null,
+    action: seen ? joinAction(seen) : null,
     viewer: viewer.data ?? null,
 
     people,
@@ -146,13 +159,8 @@ export function usePostDetail(postId: string) {
       if (going.hasNextPage && !going.isFetchingNextPage) void going.fetchNextPage();
     },
 
-    join: () => {
-      // Open the link first when the post has one (spec §2.13), then hold the spot.
-      if (post.data?.externalUrl) void book();
-      rsvp.mutate('join');
-    },
+    join,
     leave: () => rsvp.mutate('leave'),
-    book,
     rsvpPending: rsvp.isPending,
     rsvpError: codeOf(rsvp.error),
     clearRsvpError: rsvp.reset,

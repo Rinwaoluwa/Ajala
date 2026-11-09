@@ -1,9 +1,11 @@
 import { usePushNotifications } from '../hooks/usePushNotifications';
 
 export type PushNotificationsProps = {
-  /** The same three places a row in the inbox opens (see `NotificationsScreen`). */
+  /** A post push (a reminder, a comment, a changed time or place, ...), as its inbox row opens it. */
   onOpenPost: (postId: string) => void;
+  /** A chat push (`chat.message`): its conversation, or Messages when it names none. */
   onOpenMessages: (conversationId: string | null) => void;
+  /** A subscription notice: the Travel paywall. */
   onOpenPaywall: () => void;
 };
 

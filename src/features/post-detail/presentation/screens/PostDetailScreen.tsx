@@ -38,9 +38,10 @@ import { useTheme } from '@shared/hooks/useTheme';
 import type { PostComment, PostDetail, PostType } from '../../domain/entities/PostDetail';
 import { isPostDetailError } from '../../domain/entities/PostDetailError';
 import { commentsClosed } from '../../domain/rules/commentRules';
-import { postLink, spotsLeft } from '../../domain/rules/postDetailRules';
+import { chatActions, postLink, spotsLeft } from '../../domain/rules/postDetailRules';
 import { postCopy, postErrorMessages } from '../copy';
 import { formatPrice, formatRecurrence, formatWhen } from '../format';
+import { locationLines, mapsUrl } from '../location';
 import { usePostDetail } from '../hooks/usePostDetail';
 import { CommentBar, CommentsSection } from '../components/Comments';
 import { useComments } from '../hooks/useComments';
@@ -54,11 +55,11 @@ import { WhoIsGoing } from '../components/WhoIsGoing';
 
 /**
  * The post page (Figma post detail, API map §6): the photos (with the bookmark),
- * title, host — with Message, or the host's Group chat — and description; when
- * (and until when, and whether it repeats) and where; price or the shared cost
- * and how many have joined; the main button (join, request, going, full…) and
- * Share; an Event's running order or a Plan's itinerary; safety tips; who's
- * going; comments and their replies.
+ * title, host — with Message (anyone but the host) and Group chat (the host and
+ * the people going) — and description; when (and until when, and whether it
+ * repeats) and where; the price (when there is one) and how many have joined;
+ * the main button (join, request, going, full…) and Share; an Event's running
+ * order or a Plan's itinerary; safety tips; who's going; comments and replies.
  *
  * States: a skeleton while it loads; "This post isn't available" for a 404 (a
  * draft, removed, or the host blocked the viewer); a retry when the network
@@ -78,7 +79,10 @@ export type PostDetailScreenProps = {
   onOpenProfile: (userId: string) => void;
   /** A direct chat with the host (`POST /conversations { userId }`, behind the chat route). */
   onMessageHost?: (hostId: string) => void;
-  /** The host's group chat with everyone going (`POST /conversations { postId }`). */
+  /**
+   * The post's group chat, made automatically when it went live (`POST
+   * /conversations { postId }` finds it). Shown to the host and the people going.
+   */
   onOpenGroupChat?: (postId: string) => void;
   /**
    * The tapped card's photo, title and type. With it the page opens on its real
@@ -157,17 +161,28 @@ export function PostDetailScreen({
   const post = vm.post;
   const action = vm.action ?? 'none';
   const when = formatWhen(post.startAt, post.endAt);
-  const where = post.placeName ?? post.cityLabel;
+  const where = locationLines(post);
   const left = spotsLeft(post);
-  const priceTile = priceOf(post);
   // Saving answers 409 on a draft or a cancelled post, so the bookmark shows on live ones only.
   const canSave = post.status === 'published';
-  const chat =
-    post.isHost && post.status === 'published' && onOpenGroupChat
-      ? { label: postCopy.groupChat, hint: postCopy.groupChatHint, onPress: () => onOpenGroupChat(post.id) }
-      : !post.isHost && onMessageHost
-        ? { label: postCopy.message, hint: postCopy.messageHost(post.host.name), onPress: () => onMessageHost(post.host.id) }
-        : null;
+  // None on a cancelled post: its chat is removed for everyone (see `chatActions`).
+  const can = chatActions(post);
+  const chats = [
+    can.groupChat && onOpenGroupChat
+      ? {
+          label: postCopy.groupChat,
+          hint: postCopy.groupChatHint,
+          onPress: () => onOpenGroupChat(post.id),
+        }
+      : null,
+    can.messageHost && onMessageHost
+      ? {
+          label: postCopy.message,
+          hint: postCopy.messageHost(post.host.name),
+          onPress: () => onMessageHost(post.host.id),
+        }
+      : null,
+  ].filter((c) => c !== null);
 
   const confirmDeleteComment = (comment: PostComment) => {
     const c = postCopy.comments;
@@ -195,18 +210,7 @@ export function PostDetailScreen({
     void Share.share({ message: postCopy.shareMessage(post.title, link), url: link }).catch(() => undefined);
   };
 
-  const openMaps = () => {
-    const label = encodeURIComponent(where ?? post.title);
-    const url =
-      post.lat !== null && post.lng !== null
-        ? Platform.OS === 'ios'
-          ? `http://maps.apple.com/?ll=${post.lat},${post.lng}&q=${label}`
-          : `geo:${post.lat},${post.lng}?q=${post.lat},${post.lng}(${label})`
-        : Platform.OS === 'ios'
-          ? `http://maps.apple.com/?q=${label}`
-          : `geo:0,0?q=${label}`;
-    void Linking.openURL(url).catch(() => undefined);
-  };
+  const openMaps = () => void Linking.openURL(mapsUrl(post, Platform.OS)).catch(() => undefined);
 
   const menu = menuActions(post, {
     onReport: () => setReporting(post.id),
@@ -282,7 +286,7 @@ export function PostDetailScreen({
             {post.title}
           </Text>
 
-          {/* Wraps: at large text sizes the chat button drops under the host rather than squeezing them. */}
+          {/* Wraps: at large text sizes the chat buttons drop under the host rather than squeezing them. */}
           <View
             style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: 12, rowGap: 8 }}
           >
@@ -298,11 +302,11 @@ export function PostDetailScreen({
                 {postCopy.hostedBy} <Text variant="bodySm">{post.host.name}</Text>
               </Text>
             </TouchableOpacity>
-            {chat ? (
-              <View accessibilityHint={chat.hint}>
+            {chats.map((chat) => (
+              <View key={chat.label} accessibilityHint={chat.hint}>
                 <Button label={chat.label} variant="secondary" size="sm" onPress={chat.onPress} />
               </View>
-            ) : null}
+            ))}
           </View>
 
           {post.description ? (
@@ -334,14 +338,18 @@ export function PostDetailScreen({
             <InfoRow
               icon={<VectorIcon name="pin" size={18} color={theme.selectedForeground} />}
               label={postCopy.location}
-              value={where}
+              value={where.value}
+              note={where.note}
+              noteTone="muted"
               onPress={openMaps}
               hint={postCopy.openInMaps}
             />
           ) : null}
 
+          {/* The price or nothing (backend answers C1): no price is not the same as free, and a
+              Plan never has one, as each stop costs something different. Joined then fills the row. */}
           <View style={{ flexDirection: 'row', gap: 12 }}>
-            <StatTile label={postCopy.price} value={priceTile.value} note={priceTile.note} />
+            {post.price ? <StatTile label={postCopy.price} value={formatPrice(post.price)} /> : null}
             <StatTile
               label={postCopy.joined}
               value={String(post.goingCount)}
@@ -358,7 +366,6 @@ export function PostDetailScreen({
             action={action}
             pending={vm.rsvpPending}
             onJoin={vm.join}
-            onBook={() => void vm.book()}
             onLeave={confirmLeave}
             onShare={share}
             manageMenu={menu}
@@ -466,28 +473,6 @@ export function PostDetailScreen({
       />
     </KeyboardAvoidingView>
   );
-}
-
-/**
- * The Price tile: the ticket price, or a Plan's or Group's shared cost as the
- * server split it ("About ₦12,000 each", spec §1.5), or Free. With both, the
- * share is the note under the price.
- */
-function priceOf(post: PostDetail): { value: string; note: string | null } {
-  const split = post.costSplit;
-  if (post.price) {
-    return {
-      value: formatPrice(post.price),
-      note: split ? postCopy.plusCostEach(formatPrice(split.perPerson)) : null,
-    };
-  }
-  if (split) {
-    return {
-      value: postCopy.costEach(formatPrice(split.perPerson)),
-      note: postCopy.costShared(formatPrice(split.total), split.expectedCount),
-    };
-  }
-  return { value: postCopy.free, note: null };
 }
 
 function showError(e: unknown) {

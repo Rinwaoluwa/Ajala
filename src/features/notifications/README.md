@@ -18,16 +18,30 @@ a small dot.
   the cached lists and the badge at once, put them back on failure, and refetch afterwards.
   Opening the screen marks nothing read.
 
-`category` picks the icon (`NotificationRow`). The DTO has no sender photo, so a message shows
-the chat icon. A category this build doesn't know shows as a post update.
+`category` picks the icon (`NotificationRow`). Swagger's categories, with the `data.kind`s each
+carries (spec §2.17), read by `kindOf` in `notificationRules.ts`:
 
-Tapping routes on the notification (`targetOf`): `new_message` → its conversation when
-`data.conversationId` is sent, otherwise Messages; `subscription` → the Travel paywall; anything
-with a `postId` → the post page; the rest (a report reviewed) stays on the list. The route file
-(`app/(app)/notifications.tsx`) maps those to the chat, payment and post-detail routes.
+| `category` | `data.kind` | Icon | Tap |
+|---|---|---|---|
+| `join_request` | `rsvp.requested` | person-add | the post |
+| `request_accepted` | `rsvp.accepted` | checkmark | the post |
+| `post_update` | `rsvp.promoted`, `rsvp.removed`, `post.cancelled`, `post.taken_down`, `post.details_changed` | document | the post |
+| `post_reminder` | `post.reminder` | calendar | the post |
+| `new_comment` | `comment.new` (+ `commentId`) | chat bubble | the post |
+| `subscription` | `subscription.ending` | compass | the Travel paywall |
+| `trusted_person` | `trusted.request`, `trusted.plans`, `trusted.accepted`, `trusted.ended`, `trusted.reminder` (+ `linkId`, not on `ended`) | people | nowhere yet: "Share my plan" has no screens; `linkId` is what they will open |
+| `moderation` | `moderation.warning` | shield | nowhere |
 
-Push payloads carry the same `data` (spec §2.10), so a tapped push goes through `targetOf` too
-(see Push below).
+A category this build doesn't know is read by its kind (any `trusted.*` is `trusted_person`), else as
+a post update, so a `postId` on it still opens. **Chat is not in the inbox**: `new_message` is no
+longer a category, so the inbox has no message look or route; Messages has its own badge
+(`useUnreadChatsCount` in the chat feature). A stray one would still read, as a post update.
+
+Tapping routes on the notification (`targetOf`), as in the table; anything else stays on the list. The route file
+(`app/(app)/notifications.tsx`) maps those to the payment and post-detail routes.
+
+Push payloads carry the same `data` (spec §2.10), so a tapped push goes through `targetOf` too,
+except chat pushes, which open the chat (see Push below).
 
 ## The badge
 
@@ -63,29 +77,38 @@ are here.
   and the token is forgotten either way. A sign-out before the signed-in app mounted in this launch
   (from the terms screen, say) has no task registered and skips it, so the phone may keep getting that account's pushes until
   the API drops or re-assigns the token. Rare enough to leave for now.
-- **A push arrives while open.** Shown as a banner (and in the list), and every `['notifications']`
-  query is refetched, so the inbox and the bell badge catch up.
+- **A push arrives while open.** Shown as a banner, and every `['notifications']` query is
+  refetched, so the inbox and the bell badge catch up. Not for a chat push (`isChatPush`): it has no
+  inbox item. The chat feature hears chat pushes itself and refetches the conversations list and
+  the Messages badge instead.
 - **A push is tapped** (open, background, or launched from closed via
-  `getLastNotificationResponseAsync`). `pushOpenOf` reads its `data` as the inbox row it mirrors
-  and opens the same place (`targetOf`): the post, the chat (or Messages), or the paywall. `kind`
-  spellings are not pinned down yet (backend-requests B6): the demo's `message`, `comment`,
-  `post_updated`, `report_resolved` are read as their categories, and a `conversationId` marks a
-  message. When the push carries `notificationId` (not in the spec yet; the demo payload has it)
-  that inbox item is marked read; otherwise the inbox is just refetched. Each tap is handled once.
+  `getLastNotificationResponseAsync`). `pushOpenOf` decides where it goes:
+  - `{ kind: 'chat.message', conversationId }` (backend answers B6; no `messageId`, as one push can
+    cover several messages) → that chat thread (Messages if it names none). `new_message`, an old
+    `message`, or any push with a `conversationId` is read the same way.
+  - `{ category: 'post_update', kind: 'post.details_changed', postId }` (a host changed the time or
+    place; sent once, ten minutes later) → the post.
+  - Everything else is read as the inbox row it mirrors, by its Swagger `kind` (the table above),
+    and opens the same place (`targetOf`): the post, the paywall, or nowhere (trusted person,
+    moderation). A `kind` that is itself a category name is read as that category.
+
+  When the push carries `notificationId` (not in the spec yet) that inbox
+  item is marked read; otherwise the inbox is refetched (never for a chat push). Each tap is handled
+  once.
 - **Where the data sits.** Android data messages land in `content.data`. On iOS,
   expo-notifications only fills `content.data` from a `body` key, so keys sent beside `aps` (the
   normal APNs/FCM shape) are read from the trigger's payload instead (`core/push/pushPayload.ts`).
 
 **Token: APNs or FCM on iOS?** The app sends `getDevicePushTokenAsync()`, the native token: FCM
-on Android, **APNs** on iOS. The spec calls the field "FCM token". If the backend sends iOS pushes
-through FCM, it needs an FCM token from iOS too, which means adding Firebase Messaging to the iOS
-app. Open question: docs/api/backend-requests.md A13.
+on Android, **APNs** on iOS. Swagger now says `RegisterDeviceDto.token` is "the push token from
+Firebase" on both platforms, so iOS needs Firebase Messaging added to send an FCM token (spec §8
+Q15 asks whether an APNs token is refused or just undeliverable). Push is switched off in the
+signed-in layout (`PUSH_ENABLED`) until then.
 
 **Needs, outside the code:** `google-services.json` for `com.ajala.app` (Android, via the
 `GOOGLE_SERVICES_JSON` env/EAS file variable, see `app.config.js`); Push Notifications on the
 App ID and an APNs key (.p8) given to whoever sends (the backend, or Firebase if A13 lands on
-FCM). Local `expo run:ios` builds get sandbox tokens; EAS builds production ones. To try a push
-without a backend: docs/DEMO.md, "Trying a push".
+FCM). Local `expo run:ios` builds get sandbox tokens; EAS builds production ones.
 
 ```
 notifications/
@@ -95,7 +118,7 @@ notifications/
 ├── domain/                      AppNotification, PushDevice, NotificationsError, use cases
 │                                (inbox, PushUseCases), notificationRules (targetOf, markPagesRead,
 │                                shortAgo), pushRules (buildDeviceRegistration, pushOpenOf,
-│                                shouldAskForPushPermission)
+│                                isChatPush, shouldAskForPushPermission)
 └── presentation/                NotificationsScreen, NotificationRow, useNotifications,
                                  useInbox (query + mark-read mutation), useUnreadNotificationsCount,
                                  PushNotifications + usePushNotifications

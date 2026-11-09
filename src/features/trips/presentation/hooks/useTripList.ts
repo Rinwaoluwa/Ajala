@@ -1,28 +1,28 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 
-import type { TripCard, TripsPage, TripsTab } from '../../domain/entities/Trip';
+import type { TripCard, TripsTab } from '../../domain/entities/Trip';
 import { isTripsError, type TripsErrorCode } from '../../domain/entities/TripsError';
 import { mergeUpcoming } from '../../domain/rules/tripRules';
 import { tripsKeys, type TripsSource } from '../state/tripsQueries';
 import { useTripsUseCases } from '../state/useTripsUseCases';
 
+/** A page of any Trips list; the Requests tab's cursor says which list it is in, so it is generic. */
+type Page<C> = { items: TripCard[]; nextCursor: C | null };
+
 /** One cursor-paged list, cached under its own key; fetched only while its tab shows. */
-function usePagedTrips(
-  source: TripsSource,
-  load: (cursor: string | null) => Promise<TripsPage>,
-  enabled: boolean,
-) {
+function usePagedTrips<C>(source: TripsSource, load: (cursor: C | null) => Promise<Page<C>>, enabled: boolean) {
   return useInfiniteQuery({
     queryKey: tripsKeys.list(source),
-    queryFn: ({ pageParam }) => load(pageParam),
-    initialPageParam: null as string | null,
+    // TanStack cannot carry a generic cursor type through to `pageParam`; it is always ours.
+    queryFn: ({ pageParam }) => load(pageParam as C | null),
+    initialPageParam: null as C | null,
     getNextPageParam: (last) => last.nextCursor,
     enabled,
   });
 }
 
-const flatten = (pages: readonly TripsPage[] | undefined) => {
+const flatten = (pages: readonly { items: TripCard[] }[] | undefined) => {
   const seen = new Set<string>();
   return (pages ?? []).flatMap((p) => p.items).filter((t) => !seen.has(t.id) && !!seen.add(t.id));
 };
@@ -35,25 +35,27 @@ const flatten = (pages: readonly TripsPage[] | undefined) => {
  *     host that haven't ended (`/me/posts`, filtered on the phone), soonest
  *     first. A hosted page can filter down to nothing; when nothing shows yet
  *     the next page is fetched by itself rather than saying "no plans" too soon.
- *   - Requests: private posts I asked to join (`/me/rsvps?state=requested`).
+ *   - Requests: everything I'm waiting to get into — private posts I asked to
+ *     join (`/me/rsvps?state=requested`), then full posts whose waitlist I'm on
+ *     (`state=waitlisted`), one query that reads the two lists in turn.
  *   - Past: what I went to (`/me/attended`), latest first.
  *
  * All four queries are always declared (hooks cannot be conditional); only the
  * ones behind the current tab are enabled.
  */
 export function useTripList(tab: TripsTab) {
-  const { loadGoing, loadHostedUpcoming, loadRequested, loadPast } = useTripsUseCases();
+  const { loadGoing, loadHostedUpcoming, loadWaiting, loadPast } = useTripsUseCases();
   const [pulling, setPulling] = useState(false);
 
   const going = usePagedTrips('going', loadGoing, tab === 'upcoming');
   const hosted = usePagedTrips('hosted', loadHostedUpcoming, tab === 'upcoming');
-  const requested = usePagedTrips('requested', loadRequested, tab === 'requests');
+  const waiting = usePagedTrips('waiting', loadWaiting, tab === 'requests');
   const past = usePagedTrips('past', loadPast, tab === 'past');
 
-  const sources = tab === 'upcoming' ? [going, hosted] : tab === 'requests' ? [requested] : [past];
+  const sources = tab === 'upcoming' ? [going, hosted] : tab === 'requests' ? [waiting] : [past];
 
   const goingComplete = going.isSuccess && !going.hasNextPage;
-  const shownPages = (tab === 'requests' ? requested : past).data?.pages;
+  const shownPages = tab === 'requests' ? waiting.data?.pages : past.data?.pages;
   const items: TripCard[] = useMemo(
     () =>
       tab === 'upcoming'
@@ -66,6 +68,7 @@ export function useTripList(tab: TripsTab) {
   const anyNext = sources.some((q) => q.hasNextPage);
   const fetchingNext = sources.some((q) => q.isFetchingNextPage);
   const allSettled = sources.every((q) => !q.isPending);
+
 
   const fetchMore = () => {
     for (const q of sources) if (q.hasNextPage && !q.isFetchingNextPage) void q.fetchNextPage();

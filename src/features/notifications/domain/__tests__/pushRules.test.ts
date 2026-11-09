@@ -2,6 +2,7 @@ import { describe, expect, it } from '@jest/globals';
 
 import {
   buildDeviceRegistration,
+  isChatPush,
   pushNotificationOf,
   pushOpenOf,
   shouldAskForPushPermission,
@@ -65,6 +66,22 @@ describe('where a tapped push opens', () => {
     });
   });
 
+  it('opens a chat push in its conversation, with no inbox item to mark', () => {
+    expect(pushOpenOf({ kind: 'chat.message', conversationId: 'c1' })).toEqual({
+      target: { to: 'messages', conversationId: 'c1' },
+      notificationId: null,
+    });
+  });
+
+  it('opens a post whose time or place changed', () => {
+    expect(pushOpenOf({ category: 'post_update', kind: 'post.details_changed', postId: 'p-jazz' }).target).toEqual({
+      to: 'post',
+      postId: 'p-jazz',
+    });
+    // Without the category, the kind alone still says it.
+    expect(pushNotificationOf({ kind: 'post.details_changed', postId: 'p-jazz' }).kind).toBe('post_update');
+  });
+
   it('opens a message in its conversation, whichever spelling of the kind', () => {
     expect(pushOpenOf({ kind: 'new_message', conversationId: 'c1' }).target).toEqual({
       to: 'messages',
@@ -80,8 +97,41 @@ describe('where a tapped push opens', () => {
     expect(pushOpenOf({ kind: 'dm', conversationId: 'c2' }).target).toEqual({ to: 'messages', conversationId: 'c2' });
   });
 
+  it('tells chat pushes from the rest, which refresh the inbox', () => {
+    expect(isChatPush({ kind: 'chat.message', conversationId: 'c1' })).toBe(true);
+    expect(isChatPush({ kind: 'new_comment', postId: 'p1' })).toBe(false);
+    expect(isChatPush({ category: 'post_update', kind: 'post.details_changed', postId: 'p1' })).toBe(false);
+    expect(isChatPush({})).toBe(false);
+  });
+
   it('opens the paywall for a subscription notice', () => {
+    expect(pushOpenOf({ kind: 'subscription.ending' }).target).toEqual({ to: 'paywall' });
     expect(pushOpenOf({ kind: 'subscription' }).target).toEqual({ to: 'paywall' });
+  });
+
+  it('reads each of Swagger’s kinds as its category', () => {
+    const cases: [string, string][] = [
+      ['rsvp.requested', 'join_request'],
+      ['rsvp.accepted', 'request_accepted'],
+      ['rsvp.promoted', 'post_update'],
+      ['rsvp.removed', 'post_update'],
+      ['post.cancelled', 'post_update'],
+      ['post.taken_down', 'post_update'],
+      ['post.reminder', 'post_reminder'],
+      ['comment.new', 'new_comment'],
+      ['moderation.warning', 'moderation'],
+      ['trusted.request', 'trusted_person'],
+      ['trusted.plans', 'trusted_person'],
+      ['trusted.ended', 'trusted_person'],
+      ['trusted.something_new', 'trusted_person'],
+    ];
+    for (const [kind, category] of cases) expect(pushNotificationOf({ kind, postId: 'p1' }).kind).toBe(category);
+    expect(pushOpenOf({ kind: 'rsvp.requested', postId: 'p1' }).target).toEqual({ to: 'post', postId: 'p1' });
+  });
+
+  it('stays put for a trusted-person push (no screens yet) and a moderation warning', () => {
+    expect(pushOpenOf({ kind: 'trusted.plans', linkId: 'tl-1' }).target).toBeNull();
+    expect(pushOpenOf({ kind: 'moderation.warning' }).target).toBeNull();
   });
 
   it('prefers category over kind when both are sent', () => {

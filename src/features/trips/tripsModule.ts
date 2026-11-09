@@ -4,7 +4,7 @@ import {
   makeLoadGoing,
   makeLoadHostedUpcoming,
   makeLoadPast,
-  makeLoadRequested,
+  makeLoadWaiting,
 } from './domain/usecases/TripsUseCases';
 
 /**
@@ -16,7 +16,7 @@ export function createTripsUseCases(request: TripsRequest) {
   return {
     loadGoing: makeLoadGoing(repo),
     loadHostedUpcoming: makeLoadHostedUpcoming(repo),
-    loadRequested: makeLoadRequested(repo),
+    loadWaiting: makeLoadWaiting(repo),
     loadPast: makeLoadPast(repo),
   };
 }

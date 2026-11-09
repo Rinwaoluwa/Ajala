@@ -19,8 +19,8 @@ import {
 } from '@core/push/pushNotifications';
 import { registerBeforeSignOut } from '@core/session/beforeSignOut';
 
-import type { NotificationTarget } from '../../domain/entities/Notification';
-import { pushOpenOf, shouldAskForPushPermission } from '../../domain/rules/pushRules';
+import type { PushTarget } from '../../domain/entities/Notification';
+import { isChatPush, pushOpenOf, shouldAskForPushPermission } from '../../domain/rules/pushRules';
 import { notificationKeys } from '../state/notificationsQueries';
 import { useNotificationsUseCases } from '../state/useNotificationsUseCases';
 import { useMarkRead } from './useInbox';
@@ -42,13 +42,16 @@ const SIGN_OUT_TASK = 'notifications.unregisterPush';
  *     changes, and again when the app comes back after notifications were
  *     turned on in the phone's settings;
  *   - has sign-out unregister it first (`POST /me/devices/unregister`);
- *   - refreshes the inbox and badge when a push arrives while open;
- *   - opens what a tapped push is about, as its inbox row would, and marks it
- *     read when the push says which inbox item it is.
+ *   - refreshes the inbox and badge when a push arrives while open, except a
+ *     chat push: chat messages are never in the inbox, and the chat feature
+ *     hears those itself to refresh Messages and its badge;
+ *   - opens what a tapped push is about: a chat message its conversation,
+ *     anything else what its inbox row would, marked read when the push says
+ *     which inbox item it is.
  *
  * Every failure here is quiet: without push the app still works.
  */
-export function usePushNotifications(onOpen: (target: NonNullable<NotificationTarget>) => void) {
+export function usePushNotifications(onOpen: (target: NonNullable<PushTarget>) => void) {
   const { registerPushDevice, unregisterPushDevice } = useNotificationsUseCases();
   const queryClient = useQueryClient();
   const markRead = useMarkRead();
@@ -119,13 +122,16 @@ export function usePushNotifications(onOpen: (target: NonNullable<NotificationTa
     const open = (message: PushMessage) => {
       if (!claimOpenedPush(message)) return;
       const { target, notificationId } = pushOpenOf(message.data);
-      // Marking read refreshes the inbox and badge afterwards too.
+      // Marking read refreshes the inbox and badge afterwards too. A chat push
+      // has no inbox item, so the inbox is left alone.
       if (notificationId) latest.current.markRead(notificationId);
-      else refreshInbox();
+      else if (!isChatPush(message.data)) refreshInbox();
       if (target) latest.current.onOpen(target);
     };
 
-    const offReceived = onPushReceived(refreshInbox);
+    const offReceived = onPushReceived((message) => {
+      if (!isChatPush(message.data)) refreshInbox();
+    });
     const offOpened = onPushOpened(open);
     // A tap that launched the app from closed. Deferred a tick so the screens
     // mounted alongside this one are ready to be navigated from.

@@ -11,13 +11,6 @@ export type RsvpStateDto = 'none' | 'requested' | 'going' | 'waitlisted' | 'decl
 
 export type RecurrenceDto = 'weekly' | 'biweekly' | 'monthly';
 
-export interface CityRefDto {
-  id: string;
-  name: string;
-  countryCode: string;
-  label: string;
-}
-
 export interface PostImageDto {
   thumbUrl: string;
   cardUrl: string;
@@ -29,15 +22,6 @@ export interface PostPriceDto {
   amountCents: number;
   currency: string;
   exponent: number;
-}
-
-/** A Plan or Group sharing a cost; `perPersonCents` is the "about N each" figure (spec §1.5). */
-export interface PostCostSplitDto {
-  totalCents: number;
-  currency: string;
-  exponent: number;
-  expectedCount: number;
-  perPersonCents: number;
 }
 
 export interface PostRecurrenceDto {
@@ -57,10 +41,10 @@ export interface PostCardDto {
   endAt: string | null;
   recurrence: PostRecurrenceDto | null;
   placeName: string | null;
-  city: CityRefDto | null;
-  /** Null when free. */
+  /** "Accra, Ghana": the city and country of the post's place. Null without a place (a draft). */
+  localityLabel: string | null;
+  /** Null when free or not given. There is no shared cost any more (backend answers C1). */
   price: PostPriceDto | null;
-  costSplit: PostCostSplitDto | null;
   /** Host not counted. */
   goingCount: number;
   rsvpState: RsvpStateDto;

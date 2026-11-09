@@ -1,4 +1,4 @@
-import type { AppNotification, NotificationKind } from '../entities/Notification';
+import type { AppNotification } from '../entities/Notification';
 import type {
   DeviceIdentity,
   DevicePushToken,
@@ -6,7 +6,7 @@ import type {
   PushOpen,
   PushPermissionStatus,
 } from '../entities/PushDevice';
-import { targetOf } from './notificationRules';
+import { kindOf, targetOf } from './notificationRules';
 
 /**
  * The API's limits on `RegisterDeviceDto` (spec §4). It refuses the whole
@@ -53,52 +53,45 @@ export function shouldAskForPushPermission(status: PushPermissionStatus, already
   return status === 'undetermined' && !alreadyAsked;
 }
 
-const KINDS: readonly NotificationKind[] = [
-  'join_request',
-  'request_accepted',
-  'post_reminder',
-  'new_comment',
-  'new_message',
-  'subscription',
-  'post_update',
-  'moderation',
-];
-
-/**
- * `data.kind` is not pinned down by the spec (backend-requests B6). These are
- * the other spellings seen so far (the demo's), read as the category they mean.
- */
-const KIND_ALIASES: Readonly<Record<string, NotificationKind>> = {
-  message: 'new_message',
-  comment: 'new_comment',
-  post_updated: 'post_update',
-  report_resolved: 'moderation',
-};
+/** A chat push's `kind` (backend answers B6), the inbox category it would have had, and the demo's old spelling. */
+const CHAT_KINDS = new Set(['chat.message', 'new_message', 'message']);
 
 const text = (v: unknown) => (typeof v === 'string' && v.trim().length > 0 ? v.trim() : null);
 
 /**
+ * Whether a push is about a chat message: `{ kind: 'chat.message', conversationId }`.
+ * Those are push only, never in the inbox, so they open the chat and leave the
+ * inbox alone. A conversation id marks one even under an unfamiliar kind.
+ */
+export function isChatPush(data: Readonly<Record<string, unknown>>): boolean {
+  const kinds = [text(data.category), text(data.kind)];
+  return kinds.some((k) => k !== null && CHAT_KINDS.has(k)) || text(data.conversationId) !== null;
+}
+
+/**
  * A push's `data` read as the inbox item it mirrors, enough for `targetOf`.
- * A `category` wins over `kind` when a push carries both; a conversation id
- * marks a message even when the kind is unfamiliar; anything else unknown
+ * Pushes carry Swagger's `kind` (`rsvp.requested`, `comment.new`,
+ * `trusted.plans`…); a `category` wins when one comes too. Anything unknown
  * reads as a post update, as it does in the inbox, so a `postId` still opens.
  */
 export function pushNotificationOf(
   data: Readonly<Record<string, unknown>>,
-): Pick<AppNotification, 'kind' | 'postId' | 'conversationId'> {
-  const raw = text(data.category) ?? text(data.kind);
-  const conversationId = text(data.conversationId);
-  const known = raw && (KINDS as readonly string[]).includes(raw) ? (raw as NotificationKind) : null;
-  const kind = known ?? (raw ? KIND_ALIASES[raw] : undefined) ?? (conversationId ? 'new_message' : 'post_update');
-  return { kind, postId: text(data.postId), conversationId };
+): Pick<AppNotification, 'kind' | 'postId'> {
+  return { kind: kindOf(text(data.category), text(data.kind)), postId: text(data.postId) };
 }
 
 /**
- * What tapping a push does: the same place the inbox row would open, and the
- * inbox item to mark read when the push names it (`notificationId`, which the
- * spec doesn't promise yet; without it the inbox is only refreshed).
+ * What tapping a push does. A chat message opens its conversation (Messages
+ * when it names none); anything else opens what its inbox row would: a changed
+ * post (`post.details_changed`) the post, a subscription notice the paywall.
+ * It also names the inbox item to mark read when the push carries one
+ * (`notificationId`, which the spec doesn't promise yet); a chat push never
+ * does, as it has no inbox item.
  */
 export function pushOpenOf(data: Readonly<Record<string, unknown>>): PushOpen {
+  if (isChatPush(data)) {
+    return { target: { to: 'messages', conversationId: text(data.conversationId) }, notificationId: null };
+  }
   return {
     target: targetOf(pushNotificationOf(data)),
     notificationId: text(data.notificationId),

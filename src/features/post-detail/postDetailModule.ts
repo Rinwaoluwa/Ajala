@@ -14,6 +14,7 @@ import {
   makeLeave,
   makeRecordLinkClick,
   makeReportComment,
+  makeRemoveAttendee,
   makeRespondToRequest,
 } from './domain/usecases/PostDetailUseCases';
 
@@ -30,6 +31,7 @@ export function createPostDetailUseCases(request: PostDetailRequest) {
     leave: makeLeave(repo),
     recordLinkClick: makeRecordLinkClick(repo),
     respondToRequest: makeRespondToRequest(repo),
+    removeAttendee: makeRemoveAttendee(repo),
     cancelPost: makeCancelPost(repo),
     deletePost: makeDeletePost(repo),
     getViewer: makeGetViewer(repo),

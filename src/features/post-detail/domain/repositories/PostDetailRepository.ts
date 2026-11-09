@@ -20,10 +20,16 @@ export interface PostDetailRepository {
   ): Promise<AttendeesPage>;
   join(postId: string): Promise<RsvpResult>;
   leave(postId: string): Promise<void>;
-  /** Counts one click on the pay-or-book link for the host. */
+  /** Counts one click on the post's link for the host. */
   recordLinkClick(postId: string): Promise<void>;
   accept(postId: string, userId: string): Promise<RsvpResult>;
   decline(postId: string, userId: string): Promise<RsvpResult>;
+  /**
+   * `POST /posts/:id/attendees/:userId/remove`: the host takes someone going or
+   * on the waitlist off the post, for good; a spot they held goes to the next
+   * person waiting. Answers with the count after.
+   */
+  removeAttendee(postId: string, userId: string): Promise<RsvpResult>;
   cancel(postId: string): Promise<void>;
   remove(postId: string): Promise<void>;
   /** `GET /me`, for the comment bar's avatar. */

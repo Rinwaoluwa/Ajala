@@ -37,7 +37,6 @@ export function JoinBar({
   action,
   pending,
   onJoin,
-  onBook,
   onLeave,
   onShare,
   manageMenu,
@@ -45,8 +44,8 @@ export function JoinBar({
   post: PostDetail;
   action: JoinAction;
   pending: boolean;
+  /** Joins by RSVP; on a post with a link, the screen's handler opens that too. */
   onJoin: () => void;
-  onBook: () => void;
   onLeave: () => void;
   onShare: () => void;
   /** The host's choices under "Manage post" (the same as the ⋯ menu). */
@@ -64,8 +63,6 @@ export function JoinBar({
         return { label: b.request, onPress: onJoin };
       case 'joinWaitlist':
         return { label: b.joinWaitlist, onPress: onJoin };
-      case 'book':
-        return { label: b.book, onPress: onBook };
       case 'going':
         return { label: b.going, onPress: onLeave, icon: icons.check };
       case 'requested':

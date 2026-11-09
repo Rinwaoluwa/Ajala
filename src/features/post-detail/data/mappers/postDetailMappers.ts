@@ -28,7 +28,6 @@ const toMoney = (cents: number, currency: string, exponent: number): Money => ({
 const toPrice = (p: PostPriceDto): Money => toMoney(p.amountCents, p.currency, p.exponent);
 
 export function toPostDetail(dto: PostDetailDto): PostDetail {
-  const split = dto.costSplit ?? null;
   return {
     id: dto.id,
     type: dto.type,
@@ -41,21 +40,17 @@ export function toPostDetail(dto: PostDetailDto): PostDetail {
       ? { frequency: dto.recurrence.frequency, endsOn: dto.recurrence.endsOn ?? null }
       : null,
     placeName: dto.placeName ?? null,
-    cityLabel: dto.city?.label ?? dto.city?.name ?? null,
+    placeId: dto.placeId ?? null,
+    formattedAddress: dto.formattedAddress ?? null,
+    localityLabel: dto.localityLabel ?? null,
+    countryCode: dto.countryCode ?? null,
     lat: dto.lat ?? null,
     lng: dto.lng ?? null,
     capacity: dto.capacity ?? null,
     goingCount: dto.goingCount ?? 0,
-    price: dto.price ? toPrice(dto.price) : null,
-    costSplit: split
-      ? {
-          total: toMoney(split.totalCents, split.currency, split.exponent),
-          perPerson: toMoney(split.perPersonCents, split.currency, split.exponent),
-          expectedCount: split.expectedCount,
-        }
-      : null,
+    // A Plan carries no money (the API refuses it); dropping a stray price keeps the page honest.
+    price: dto.type !== 'plan' && dto.price ? toPrice(dto.price) : null,
     externalUrl: dto.externalUrl ?? null,
-    joinMode: dto.joinMode === 'external' ? 'external' : 'rsvp',
     rsvpState: dto.rsvpState ?? 'none',
     visibility: dto.visibility === 'private' ? 'private' : 'open',
     waitlistEnabled: dto.waitlistEnabled ?? false,
@@ -165,9 +160,8 @@ export function toPostDetailError(e: unknown): PostDetailError {
     POST_FULL: 'postFull',
     POST_STARTED: 'postStarted',
     POST_CANCELLED: 'postCancelled',
-    EXTERNAL_BOOKING: 'externalBooking',
     POST_HAS_ATTENDEES: 'hasAttendees',
-    // Own post, a declined person asking again, or a host-only list.
+    // Joining your own post, a declined person asking again, or a host-only list.
     CONFLICT: 'notAllowed',
     FORBIDDEN: 'notAllowed',
     RATE_LIMITED: 'rateLimited',

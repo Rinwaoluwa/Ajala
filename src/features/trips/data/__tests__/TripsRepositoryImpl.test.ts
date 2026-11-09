@@ -28,9 +28,8 @@ const CARD: PostCardDto = {
   endAt: '2026-11-20T18:00:00+00:00',
   recurrence: null,
   placeName: 'Osu, Accra',
-  city: { id: 'accra', name: 'Accra', countryCode: 'GH', label: 'Accra, Ghana' },
+  localityLabel: 'Accra, Ghana',
   price: null,
-  costSplit: { totalCents: 90000, currency: 'GHS', exponent: 2, expectedCount: 3, perPersonCents: 30000 },
   goingCount: 3,
   rsvpState: 'going',
   saved: false,
@@ -61,7 +60,7 @@ describe('TripsRepository over the API', () => {
           endAt: '2026-11-20T18:00:00+00:00',
           recurrence: null,
           placeName: 'Osu, Accra',
-          cityLabel: 'Accra, Ghana',
+          localityLabel: 'Accra, Ghana',
           goingCount: 3,
           status: 'published',
           role: 'hosting',
@@ -70,24 +69,27 @@ describe('TripsRepository over the API', () => {
     });
   });
 
-  it('lists what I am going to and what I asked to join, tagged by list', async () => {
+  it('lists what I am going to, asked to join and am waitlisted on, tagged by list', async () => {
     const weekly: PostCardDto = {
       ...CARD,
       type: 'group',
-      city: null,
+      localityLabel: null,
       recurrence: { frequency: 'weekly', endsOn: null },
     };
     const { repo, calls } = fake(() => ({ items: [weekly], nextCursor: null }));
     const going = await repo.listRsvps('going', null, 20);
     const requested = await repo.listRsvps('requested', 'c3', 20);
+    const waitlisted = await repo.listRsvps('waitlisted', null, 20);
     expect(calls.map((c) => c.path)).toEqual([
       '/api/v1/me/rsvps?state=going&limit=20',
       '/api/v1/me/rsvps?state=requested&cursor=c3&limit=20',
+      '/api/v1/me/rsvps?state=waitlisted&limit=20',
     ]);
+    expect(waitlisted.items[0]?.role).toBe('waitlisted');
     expect(going.items[0]).toMatchObject({
       role: 'going',
       recurrence: 'weekly',
-      cityLabel: '',
+      localityLabel: '',
       status: 'published',
     });
     expect(requested.items[0]?.role).toBe('requested');

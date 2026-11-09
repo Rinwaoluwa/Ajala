@@ -1,22 +1,32 @@
 /** Wire shapes for the inbox (spec §6: `NotificationDto`, `InboxPageDto`, `MarkReadDto`). */
 
+/**
+ * Swagger's `NotificationDto.category` (spec §2.17). `new_message` is no
+ * longer one: chat messages never reach the inbox.
+ */
 export type NotificationCategoryDto =
   | 'join_request'
   | 'request_accepted'
   | 'post_reminder'
   | 'new_comment'
-  | 'new_message'
   | 'subscription'
   | 'post_update'
+  | 'trusted_person'
   | 'moderation';
 
 export interface NotificationDto {
   id: string;
-  category: NotificationCategoryDto;
+  /** Typed as text: a category added to the API later must still read (as a post update). */
+  category: NotificationCategoryDto | (string & Record<never, never>);
   title: string;
   body: string;
-  /** What to open: `kind` and usually `postId`; the same payload a push carries (spec §2.10). */
-  data: { kind?: string; postId?: string; [k: string]: unknown } | null;
+  /**
+   * What to open, as string values; the same payload a push carries (spec
+   * §2.10, §2.17). `kind` is always there (`rsvp.requested`, `post.reminder`,
+   * `comment.new` + `commentId`, `trusted.plans` + `linkId`…), with `postId`
+   * on everything about a post.
+   */
+  data: { kind?: string; postId?: string; commentId?: string; linkId?: string; [k: string]: unknown } | null;
   readAt: string | null;
   createdAt: string;
 }

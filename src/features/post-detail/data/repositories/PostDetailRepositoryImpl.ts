@@ -57,12 +57,14 @@ export function createPostDetailRepository(request: PostDetailRequest): PostDeta
     recordLinkClick: (id) => guard(() => api.linkClick(id)),
     accept: (id, userId) => guard(async () => toRsvpResult(await api.respond(id, userId, 'accept'))),
     decline: (id, userId) => guard(async () => toRsvpResult(await api.respond(id, userId, 'decline'))),
+    removeAttendee: (id, userId) => guard(async () => toRsvpResult(await api.respond(id, userId, 'remove'))),
     cancel: (id) => guard(async () => void (await api.cancel(id))),
     remove: (id) => guard(() => api.remove(id)),
     getViewer: () =>
       guard(async () => {
         const me = await api.getMe();
         return {
+          id: me.id,
           name: [me.firstName, me.lastName].filter(Boolean).join(' ') || 'You',
           avatarUrl: me.avatarUrl ?? null,
         };

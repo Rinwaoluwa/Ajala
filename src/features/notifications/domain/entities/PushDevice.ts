@@ -1,4 +1,4 @@
-import type { NotificationTarget } from './Notification';
+import type { PushTarget } from './Notification';
 
 /**
  * This phone as a push destination (spec §2.10): its token, and what the API
@@ -31,6 +31,6 @@ export type PushPermissionStatus = 'granted' | 'denied' | 'undetermined';
 
 /** What tapping a push does: where it goes, and which inbox item to mark read when the push names one. */
 export type PushOpen = {
-  target: NotificationTarget;
+  target: PushTarget;
   notificationId: string | null;
 };

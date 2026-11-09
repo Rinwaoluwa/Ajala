@@ -1,7 +1,7 @@
 /**
  * Wire shapes for the post page (spec §6: `PostDetailDto`, `AttendeesPageDto`,
- * `RsvpStateDto`, `CommentDto`), trimmed to what the page reads. The repo's
- * OpenAPI copy has no post paths yet, so these follow the client spec.
+ * `RsvpStateDto`, `CommentDto`), trimmed to what the page reads, as the
+ * Swagger of 9 Nov 2026 has them.
  */
 
 export type RsvpStateDto = 'none' | 'requested' | 'going' | 'waitlisted' | 'declined' | 'removed';
@@ -26,15 +26,6 @@ export interface PostPriceDto {
   exponent: number;
 }
 
-export interface PostCostSplitDto {
-  totalCents: number;
-  currency: string;
-  exponent: number;
-  expectedCount: number;
-  /** Rounded up by the server: the "about N each" figure. */
-  perPersonCents: number;
-}
-
 export interface PostRecurrenceDto {
   frequency: 'weekly' | 'biweekly' | 'monthly';
   /** YYYY-MM-DD; null until stopped. */
@@ -57,15 +48,21 @@ export interface PostDetailDto {
   startAt: string | null;
   endAt: string | null;
   recurrence: PostRecurrenceDto | null;
+  /** The label under the card; the place's city name when the host gave none. */
   placeName: string | null;
+  /** The Google place the host picked; null for a dropped pin. */
+  placeId: string | null;
+  formattedAddress: string | null;
+  /** The city and country, e.g. "Lagos, Nigeria". */
+  localityLabel: string | null;
+  countryCode: string | null;
   lat: number | null;
   lng: number | null;
-  city: { id: string; name: string; label: string } | null;
   capacity: number | null;
+  /** Optional on Meetups, Events and Groups; a Plan never has one. */
   price: PostPriceDto | null;
-  costSplit: PostCostSplitDto | null;
+  /** A link the host shares (tickets, a booking page). Joining still goes by RSVP. */
   externalUrl: string | null;
-  joinMode: 'rsvp' | 'external';
   goingCount: number;
   rsvpState: RsvpStateDto;
   visibility: 'open' | 'private';
@@ -106,6 +103,7 @@ export interface RsvpStateResponseDto {
 
 /** The few fields of `MeDto` the page reads. */
 export interface MeDto {
+  id: string;
   firstName: string | null;
   lastName: string | null;
   avatarUrl: string | null;

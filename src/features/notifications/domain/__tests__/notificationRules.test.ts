@@ -11,7 +11,6 @@ const n = (id: string, kind: NotificationKind, extra: Partial<AppNotification> =
   at: '2026-11-02T10:00:00Z',
   read: false,
   postId: null,
-  conversationId: null,
   ...extra,
 });
 
@@ -21,12 +20,8 @@ describe('where a notification opens', () => {
     expect(targetOf(n('b', 'new_comment', { postId: 'p2' }))).toEqual({ to: 'post', postId: 'p2' });
   });
 
-  it('opens a message in its conversation, or Messages when the server did not say which', () => {
-    expect(targetOf(n('m', 'new_message', { postId: 'p1', conversationId: 'c1' }))).toEqual({
-      to: 'messages',
-      conversationId: 'c1',
-    });
-    expect(targetOf(n('m', 'new_message'))).toEqual({ to: 'messages', conversationId: null });
+  it('opens a post whose time or place changed', () => {
+    expect(targetOf(n('u', 'post_update', { postId: 'p-jazz' }))).toEqual({ to: 'post', postId: 'p-jazz' });
   });
 
   it('opens the paywall for the subscription, and nothing for a report reviewed', () => {

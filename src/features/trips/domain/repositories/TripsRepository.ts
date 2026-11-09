@@ -9,8 +9,9 @@ export interface TripsRepository {
   /** `GET /me/posts?status=published`: posts I host, newest first, past ones included. */
   listHosted(cursor: string | null, limit: number): Promise<TripsPage>;
   /**
-   * `GET /me/rsvps?state=`: live posts I'm going to that haven't ended, or
-   * private ones I asked to join that the host hasn't answered; soonest first.
+   * `GET /me/rsvps?state=`: live posts I'm going to that haven't ended,
+   * private ones I asked to join that the host hasn't answered, or full ones
+   * whose waitlist I'm on; soonest first. Each card is tagged with the list.
    */
   listRsvps(state: RsvpListState, cursor: string | null, limit: number): Promise<TripsPage>;
   /** `GET /me/attended`: past posts I went to, latest first. */

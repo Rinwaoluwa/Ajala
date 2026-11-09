@@ -12,9 +12,10 @@ import { TravellerDots } from './TravellerDots';
 
 /**
  * A trip still to come (Figma Trips / Upcoming and Requests): the cover photo,
- * the type and status tags (Hosting, Going, Request sent, or Cancelled on a
- * post I called off), the city in caps, the title, "18–20 Oct · Starts 10:00"
- * (plus how often a Group repeats), the place, who is joining, and "View trip ›".
+ * the type and status tags (Hosting, Going, Request sent, Waitlisted, or
+ * Cancelled on a post I called off), the city and country in caps (`localityLabel`),
+ * the title, "18–20 Oct · Starts 10:00" (plus how often a Group repeats), the
+ * place, who is joining, and "View trip ›".
  * Light: white with a hairline and a grey place line. Dark: Deep, with the
  * place and the link in Marigold.
  *
@@ -24,7 +25,8 @@ function statusTag(trip: TripCard): { label: string; tone: TagTone } {
   if (trip.status === 'cancelled') return { label: tripsCopy.cancelled, tone: 'neutral' };
   return {
     label: tripsCopy.roles[trip.role],
-    tone: trip.role === 'requested' ? 'pending' : 'success',
+    // Both are still waiting to get in, so both read as pending.
+    tone: trip.role === 'requested' || trip.role === 'waitlisted' ? 'pending' : 'success',
   };
 }
 
@@ -82,9 +84,9 @@ function UpcomingTripCardComponent({ trip, onOpen }: { trip: TripCard; onOpen: (
           <Tag label={tripsCopy.types[trip.type]} tone="outline" />
           <Tag label={tag.label} tone={tag.tone} />
         </View>
-        {trip.cityLabel ? (
+        {trip.localityLabel ? (
           <Text variant="labelXs" tone="muted" style={{ textTransform: 'uppercase', letterSpacing: 0.4 }}>
-            {trip.cityLabel}
+            {trip.localityLabel}
           </Text>
         ) : null}
         <Text variant="headingMd" numberOfLines={2}>

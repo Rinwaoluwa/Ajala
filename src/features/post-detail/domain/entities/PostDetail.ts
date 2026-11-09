@@ -12,9 +12,6 @@ export type Money = { amount: number; currency: string; exponent: number };
 
 export type PostPrice = Money;
 
-/** A Plan or Group sharing a cost; the server works out each person's share (spec §1.5). */
-export type CostSplit = { total: Money; perPerson: Money; expectedCount: number };
-
 export type Recurrence = 'weekly' | 'biweekly' | 'monthly';
 
 /** A Group that meets again; the server moves `startAt`/`endAt` on after each meeting. */
@@ -36,25 +33,36 @@ export type PostDetail = {
   /** ISO date-time, after `startAt`; optional. */
   endAt: string | null;
   recurrence: PostRecurrence | null;
+  /** The label under the card: the venue or meeting point, or the city when the host named none. */
   placeName: string | null;
-  cityLabel: string | null;
+  /** The Google place the host picked; null for a dropped pin. Opens the exact place in Google Maps. */
+  placeId: string | null;
+  /** Google's address for the place; null for a dropped pin. */
+  formattedAddress: string | null;
+  /** The city and country around the place: "Lagos, Nigeria". */
+  localityLabel: string | null;
+  /** ISO 3166-1 alpha-2, e.g. "NG". */
+  countryCode: string | null;
   lat: number | null;
   lng: number | null;
   /** Null is no limit. */
   capacity: number | null;
   /** The host is not counted. */
   goingCount: number;
+  /** The price, or nothing (no price is not "Free"). A Plan never has one. */
   price: PostPrice | null;
-  costSplit: CostSplit | null;
+  /**
+   * A link the host shares (tickets, a booking page). Every post joins by RSVP;
+   * joining one with a link opens it too, and counts the click for the host.
+   */
   externalUrl: string | null;
-  /** `external`: a paid Event booked through its link, never RSVPed. */
-  joinMode: 'rsvp' | 'external';
   rsvpState: RsvpState;
   visibility: 'open' | 'private';
   waitlistEnabled: boolean;
   /** 1 is next. */
   waitlistPosition: number | null;
   status: PostStatus;
+  /** The server's word, also checked against the viewer's id (`asSeenBy`). */
   isHost: boolean;
   host: PostHost;
   /** Saved to the viewer's account (the bookmark). */
@@ -64,7 +72,7 @@ export type PostDetail = {
   schedule: string[];
   /** A Plan's stops, in order; empty on other types. */
   itinerary: string[];
-  /** How many people opened the pay-or-book link. The host's own post only; null otherwise. */
+  /** How many people opened the post's link. The host's own post only; null otherwise. */
   linkClickCount: number | null;
 };
 
@@ -94,8 +102,8 @@ export type RsvpResult = {
   waitlistPosition: number | null;
 };
 
-/** The signed-in person, as the comment bar shows them. */
-export type Viewer = { name: string; avatarUrl: string | null };
+/** The signed-in person: their id tells their own posts apart; the comment bar shows the rest. */
+export type Viewer = { id: string; name: string; avatarUrl: string | null };
 
 /** Who wrote a comment (null once it is deleted). */
 export type CommentAuthor = { userId: string; name: string; avatarUrl: string | null };

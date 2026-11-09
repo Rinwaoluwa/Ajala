@@ -3,7 +3,7 @@ import { describe, expect, it } from '@jest/globals';
 import type { TripCard } from '../entities/Trip';
 import type { TripsRepository } from '../repositories/TripsRepository';
 import { mergeUpcoming, soonestFirst, upcomingOnly } from '../rules/tripRules';
-import { makeLoadGoing, makeLoadHostedUpcoming, makeLoadRequested } from '../usecases/TripsUseCases';
+import { makeLoadGoing, makeLoadHostedUpcoming, makeLoadWaiting } from '../usecases/TripsUseCases';
 
 const NOW = new Date('2026-11-02T12:00:00Z');
 
@@ -16,7 +16,7 @@ const trip = (id: string, startAt: string | null, extra: Partial<TripCard> = {})
   endAt: null,
   recurrence: null,
   placeName: null,
-  cityLabel: 'Accra, Ghana',
+  localityLabel: 'Accra, Ghana',
   goingCount: 3,
   status: 'published',
   role: 'hosting',
@@ -61,7 +61,7 @@ describe('upcoming trips', () => {
     expect(await makeLoadHostedUpcoming(repo)(null)).toEqual({ items: [], nextCursor: 'c2' });
   });
 
-  it('reads going and requested from the RSVP list', async () => {
+  it('reads going from the RSVP list', async () => {
     const asked: string[] = [];
     const repo: TripsRepository = {
       listHosted: emptyPage,
@@ -72,8 +72,56 @@ describe('upcoming trips', () => {
       listAttended: emptyPage,
     };
     await makeLoadGoing(repo)(null);
-    await makeLoadRequested(repo)('c2');
-    expect(asked).toEqual(['going:null:20', 'requested:c2:20']);
+    expect(asked).toEqual(['going:null:20']);
+  });
+});
+
+describe('the Requests tab: requests, then waitlists', () => {
+  /** Answers each list from `pages[state][cursor ?? 'first']`, and records what was asked. */
+  function waitingRepo(pages: Record<string, Record<string, { ids: string[]; next: string | null }>>) {
+    const asked: string[] = [];
+    const repo: TripsRepository = {
+      listHosted: emptyPage,
+      listAttended: emptyPage,
+      listRsvps: async (state, cursor) => {
+        asked.push(`${state}:${cursor}`);
+        const page = pages[state]?.[cursor ?? 'first'] ?? { ids: [], next: null };
+        return {
+          items: page.ids.map((id) => trip(id, '2026-11-20T10:00:00Z', { role: state as TripCard['role'] })),
+          nextCursor: page.next,
+        };
+      },
+    };
+    return { repo, asked };
+  }
+
+  it('pages through my requests first, then carries on into the waitlist', async () => {
+    const { repo, asked } = waitingRepo({
+      requested: { first: { ids: ['r1'], next: 'r2' }, r2: { ids: ['r2'], next: null } },
+      waitlisted: { first: { ids: ['w1'], next: 'w2' }, w2: { ids: ['w2'], next: null } },
+    });
+    const load = makeLoadWaiting(repo);
+    const one = await load(null);
+    expect(ids(one.items)).toEqual(['r1']);
+    expect(one.nextCursor).toEqual({ state: 'requested', cursor: 'r2' });
+
+    // The requests end on this page, so the waitlist's first page joins it.
+    const two = await load(one.nextCursor);
+    expect(ids(two.items)).toEqual(['r2', 'w1']);
+    expect(two.items.map((t) => t.role)).toEqual(['requested', 'waitlisted']);
+    expect(two.nextCursor).toEqual({ state: 'waitlisted', cursor: 'w2' });
+
+    const three = await load(two.nextCursor);
+    expect(ids(three.items)).toEqual(['w2']);
+    expect(three.nextCursor).toBeNull();
+    expect(asked).toEqual(['requested:null', 'requested:r2', 'waitlisted:null', 'waitlisted:w2']);
+  });
+
+  it('shows waitlisted posts at once when there are no requests', async () => {
+    const { repo } = waitingRepo({ waitlisted: { first: { ids: ['w1'], next: null } } });
+    const page = await makeLoadWaiting(repo)(null);
+    expect(ids(page.items)).toEqual(['w1']);
+    expect(page.nextCursor).toBeNull();
   });
 });
 

@@ -49,7 +49,8 @@ export function createPostDetailApi(request: PostDetailRequest) {
     leave: (id: string) => request<void>({ method: 'DELETE', path: `${post(id)}/rsvp` }),
     linkClick: (id: string) => request<void>({ method: 'POST', path: `${post(id)}/link-click` }),
 
-    respond: (id: string, userId: string, answer: 'accept' | 'decline') =>
+    /** `remove` takes someone going, or waiting, off the post for good (they are told). */
+    respond: (id: string, userId: string, answer: 'accept' | 'decline' | 'remove') =>
       request<RsvpStateResponseDto>({
         method: 'POST',
         path: `${post(id)}/attendees/${encodeURIComponent(userId)}/${answer}`,

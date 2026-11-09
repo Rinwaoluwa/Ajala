@@ -31,9 +31,10 @@ import { useTripList } from '../hooks/useTripList';
  *
  *   - Upcoming: posts I'm going to and posts I host that haven't ended, soonest
  *     first, tagged Going or Hosting (`GET /me/rsvps`, `GET /me/posts`).
- *   - Requests: private posts I asked to join, tagged Request sent
- *     (`GET /me/rsvps?state=requested`), with the "Still waiting?" note under
- *     them (or under the empty state).
+ *   - Requests: what I'm waiting to get into — private posts I asked to join,
+ *     tagged Request sent (`GET /me/rsvps?state=requested`), then posts whose
+ *     waitlist I'm on, tagged Waitlisted (`state=waitlisted`) — with the
+ *     "Still waiting?" note under them (or under the empty state).
  *   - Past: what I went to (`GET /me/attended`), with the passport note under it.
  *
  * Each list pulls to refresh and loads more near its end; the first cards rise

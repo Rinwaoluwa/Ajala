@@ -6,7 +6,7 @@ export const tripsCopy = {
   title: 'Your trips',
   lines: {
     upcoming: 'Good company for wherever you’re headed.',
-    requests: 'Requests waiting for a host’s response.',
+    requests: 'Activities you’re waiting to get into: requests and waitlists.',
     past: 'A look back at the places and activities you joined.',
   } satisfies Record<TripsTab, string>,
   tabs: [
@@ -25,6 +25,7 @@ export const tripsCopy = {
     hosting: 'Hosting',
     going: 'Going',
     requested: 'Request sent',
+    waitlisted: 'Waitlisted',
     attended: 'Completed',
   } satisfies Record<TripRole, string>,
   cancelled: 'Cancelled',
@@ -45,8 +46,8 @@ export const tripsCopy = {
       action: 'Explore activities',
     },
     requests: {
-      title: 'No requests yet',
-      body: 'When you ask to join a private activity, it shows here until the host answers.',
+      title: 'Nothing waiting',
+      body: 'When you ask to join a private activity, or join the waitlist for a full one, it shows here until you’re in.',
     },
     past: {
       title: 'Nothing here yet',
@@ -56,7 +57,7 @@ export const tripsCopy = {
   notes: {
     waiting: {
       title: 'Still waiting?',
-      body: 'You’ll see an update here when the host accepts or declines your request.',
+      body: 'You’ll see an update here when a host answers your request or a place opens up on a waitlist.',
     },
     passport: {
       title: 'AJALA passport',

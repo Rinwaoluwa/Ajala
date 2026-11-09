@@ -9,7 +9,8 @@ import { useTheme } from '@shared/hooks/useTheme';
  * "Date & Time / Sunday, Oct 18 · 6:30 AM" and "Location / Erin-Ijesha, Osun
  * State" (Figma post detail): a pale card with a mint icon square, a muted
  * label and the value. With `onPress` the value is teal and a chevron shows.
- * `note` is a teal line under the value ("Repeats weekly").
+ * `note` is a line under the value: teal for "Repeats weekly", muted
+ * (`noteTone`) for a place's address.
  * `StatTile` is the half-width version for Price and Joined.
  */
 export function InfoRow({
@@ -17,6 +18,7 @@ export function InfoRow({
   label,
   value,
   note,
+  noteTone = 'primary',
   onPress,
   hint,
 }: {
@@ -24,6 +26,7 @@ export function InfoRow({
   label: string;
   value: string;
   note?: string | null;
+  noteTone?: 'primary' | 'muted';
   onPress?: () => void;
   hint?: string;
 }) {
@@ -59,7 +62,7 @@ export function InfoRow({
           {value}
         </Text>
         {note ? (
-          <Text variant="bodyXs" tone="primary">
+          <Text variant="bodyXs" tone={noteTone}>
             {note}
           </Text>
         ) : null}
@@ -82,7 +85,7 @@ export function InfoRow({
       activeOpacity={0.6}
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={`${label}: ${value}`}
+      accessibilityLabel={[`${label}: ${value}`, note].filter(Boolean).join(', ')}
       accessibilityHint={hint}
     >
       {body}

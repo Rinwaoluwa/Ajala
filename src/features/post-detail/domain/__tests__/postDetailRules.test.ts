@@ -1,7 +1,16 @@
 import { describe, expect, it } from '@jest/globals';
 
 import type { PostDetail } from '../entities/PostDetail';
-import { expectJoin, expectLeave, joinAction, postLink, spotsLeft, withRsvp } from '../rules/postDetailRules';
+import {
+  asSeenBy,
+  chatActions,
+  expectJoin,
+  expectLeave,
+  joinAction,
+  postLink,
+  spotsLeft,
+  withRsvp,
+} from '../rules/postDetailRules';
 
 const NOW = new Date('2026-10-20T12:00:00Z');
 
@@ -15,15 +24,16 @@ const post = (over: Partial<PostDetail> = {}): PostDetail => ({
   endAt: null,
   recurrence: null,
   placeName: 'Erin-Ijesha, Osun State',
-  cityLabel: null,
+  placeId: null,
+  formattedAddress: null,
+  localityLabel: 'Osogbo, Nigeria',
+  countryCode: 'NG',
   lat: 7.6,
   lng: 4.9,
   capacity: 12,
   goingCount: 8,
-  price: { amount: 15, currency: 'USD', exponent: 2 },
-  costSplit: null,
+  price: null,
   externalUrl: null,
-  joinMode: 'rsvp',
   rsvpState: 'none',
   visibility: 'open',
   waitlistEnabled: false,
@@ -61,11 +71,65 @@ describe('the main button', () => {
     expect(joinAction(post({ ...past, rsvpState: 'none' }), NOW)).toBe('started');
   });
 
-  it('books a paid Event through its link, and stops once started or cancelled', () => {
-    expect(joinAction(post({ joinMode: 'external' }), NOW)).toBe('book');
+  it('joins a paid Event with a link by RSVP too, and stops once started or cancelled', () => {
+    const paid = {
+      type: 'event' as const,
+      price: { amount: 50, currency: 'USD', exponent: 2 },
+    };
+    expect(joinAction(post({ ...paid, externalUrl: 'https://tix.africa' }), NOW)).toBe('join');
     expect(joinAction(post({ startAt: '2026-10-19T06:30:00Z' }), NOW)).toBe('started');
     expect(joinAction(post({ status: 'cancelled' }), NOW)).toBe('cancelled');
     expect(joinAction(post({ isHost: true }), NOW)).toBe('host');
+  });
+});
+
+describe('your own post (B9)', () => {
+  it('is yours when the host id is yours, even with rsvpState none', () => {
+    const mine = asSeenBy(post(), 'h');
+    expect(mine.isHost).toBe(true);
+    expect(joinAction(mine, NOW)).toBe('host');
+  });
+
+  it('is left alone for anyone else, or before the id is known', () => {
+    const p = post();
+    expect(asSeenBy(p, 'someone-else')).toBe(p);
+    expect(asSeenBy(p, null)).toBe(p);
+  });
+});
+
+describe('chat buttons', () => {
+  it('gives the host the group chat, and no Message', () => {
+    expect(chatActions(post({ isHost: true }))).toEqual({
+      groupChat: true,
+      messageHost: false,
+    });
+  });
+
+  it('gives someone going the group chat and Message', () => {
+    expect(chatActions(post({ rsvpState: 'going' }))).toEqual({
+      groupChat: true,
+      messageHost: true,
+    });
+  });
+
+  it('keeps the group chat from anyone not going', () => {
+    for (const rsvpState of ['none', 'requested', 'waitlisted', 'declined'] as const) {
+      expect(chatActions(post({ rsvpState }))).toEqual({
+        groupChat: false,
+        messageHost: true,
+      });
+    }
+  });
+
+  it('shows no chat at all on a cancelled post: its chat is removed', () => {
+    expect(chatActions(post({ status: 'cancelled', isHost: true }))).toEqual({
+      groupChat: false,
+      messageHost: false,
+    });
+    expect(chatActions(post({ status: 'cancelled', rsvpState: 'going' }))).toEqual({
+      groupChat: false,
+      messageHost: false,
+    });
   });
 });
 
@@ -106,6 +170,6 @@ describe('helpers', () => {
   });
 
   it('builds the share link', () => {
-    expect(postLink('p 1')).toBe('https://ajalatrvl.com/posts/p%201');
+    expect(postLink('p 1')).toBe('https://go.ajalatrvl.com/posts/p%201');
   });
 });

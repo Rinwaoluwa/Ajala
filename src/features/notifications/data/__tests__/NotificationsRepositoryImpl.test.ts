@@ -3,6 +3,7 @@ import { describe, expect, it } from '@jest/globals';
 import { ApiError } from '@core/api/ApiError';
 
 import { NotificationsError } from '../../domain/entities/NotificationsError';
+import { targetOf } from '../../domain/rules/notificationRules';
 import { createNotificationsRepository } from '../repositories/NotificationsRepositoryImpl';
 
 type Call = { method: string; path: string; body?: unknown };
@@ -20,10 +21,10 @@ function fake(answer: (call: Call) => unknown) {
 
 const DTO = {
   id: 'n1',
-  category: 'new_message',
-  title: 'Lagos Weekend Crew',
-  body: 'Kofi: hello',
-  data: { kind: 'message', postId: 'p1', conversationId: 'c1' },
+  category: 'post_update',
+  title: 'Jazz on the Terrace changed',
+  body: 'It now starts at 8:00 PM.',
+  data: { kind: 'post.details_changed', postId: 'p1' },
   readAt: null,
   createdAt: '2026-11-02T10:00:00Z',
 };
@@ -37,13 +38,12 @@ describe('NotificationsRepository', () => {
       items: [
         {
           id: 'n1',
-          kind: 'new_message',
-          title: 'Lagos Weekend Crew',
-          body: 'Kofi: hello',
+          kind: 'post_update',
+          title: 'Jazz on the Terrace changed',
+          body: 'It now starts at 8:00 PM.',
           at: '2026-11-02T10:00:00Z',
           read: false,
           postId: 'p1',
-          conversationId: 'c1',
         },
       ],
       nextCursor: '20',
@@ -59,7 +59,28 @@ describe('NotificationsRepository', () => {
     }));
     const page = await repo.list(false, null, 20);
     expect(calls[0]?.path).toBe('/api/v1/me/notifications?unread=false&limit=20');
-    expect(page.items[0]).toMatchObject({ kind: 'post_update', read: true, postId: null, conversationId: null });
+    expect(page.items[0]).toMatchObject({ kind: 'post_update', read: true, postId: null });
+  });
+
+  it('reads a stray chat category as a post update rather than failing (chat is push only)', async () => {
+    const { repo } = fake(() => ({
+      items: [{ ...DTO, category: 'new_message', data: { kind: 'chat.message', conversationId: 'c1' } }],
+      nextCursor: null,
+      unreadCount: 1,
+    }));
+    const page = await repo.list(false, null, 20);
+    expect(page.items[0]).toMatchObject({ kind: 'post_update', postId: null });
+  });
+
+  it('reads a trusted-person item (Share my plan) as its own kind, going nowhere yet', async () => {
+    const { repo } = fake(() => ({
+      items: [{ ...DTO, category: 'trusted_person', data: { kind: 'trusted.request', linkId: 'tl-1' } }],
+      nextCursor: null,
+      unreadCount: 1,
+    }));
+    const page = await repo.list(false, null, 20);
+    expect(page.items[0]).toMatchObject({ kind: 'trusted_person', postId: null });
+    expect(targetOf(page.items[0]!)).toBeNull();
   });
 
   it('marks some read, or everything by leaving ids out', async () => {
