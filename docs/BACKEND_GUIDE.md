@@ -5,8 +5,9 @@ server and back, and then covers each part on its own. It takes about 20 minutes
 
 The code is the source of truth. The API contract lives in
 [ajala-api-users-common.md](api/ajala-api-users-common.md) (the "spec"), and this guide links to it instead of
-repeating it. Open requests to the backend team live in [backend-requests.md](api/backend-requests.md). Items
-from that file appear here as **A1**, **B2** and so on.
+repeating it. Requests to the backend team live in [backend-requests.md](api/backend-requests.md), and the
+backend's answers in [backend-answers-2026-11-09.md](api/backend-answers-2026-11-09.md). Until the spec is
+re-synced from Swagger, the answers win where the two disagree. Items appear here as **A1**, **B2** and so on.
 
 ---
 
@@ -22,8 +23,7 @@ flowchart LR
   U --> R[Repository]
   R --> A["Api function<br/>(feature/data/datasources/remote)"]
   A --> C["apiRequest<br/>(src/core/api/apiClient.ts)"]
-  C -->|real build| API[(Ajala API)]
-  C -->|EXPO_PUBLIC_DEMO=1| D[(Demo API<br/>src/core/demo)]
+  C --> API[(Ajala API)]
 ```
 
 | Step | What it does | Example file |
@@ -46,8 +46,9 @@ The person opens a post and taps **Join**.
 
 **1. The screen** calls `vm.join()` from `usePostDetail(postId)`.
 
-**2. The hook** checks for a booking link first. If the post has an `externalUrl`, it opens the link and sends
-`POST /posts/{id}/link-click`. Then it runs the `rsvp` mutation with `'join'`.
+**2. The hook.** Every post joins by RSVP; there is no `joinMode`. If the post has an `externalUrl` (tickets,
+a booking page), the hook opens it and sends `POST /posts/{id}/link-click`, without waiting for either. Then it
+runs the `rsvp` mutation with `'join'`.
 
 **3. Optimistic update.** Before any request goes out, `onMutate` saves the current post and draws the
 expected result into the `['postDetail', 'post', id]` cache (`expectJoin` in
@@ -92,7 +93,6 @@ the API's `code` to a `PostDetailErrorCode`, and the screen shows the matching l
 | 409 `POST_FULL` | `postFull` | "It just filled up. Try the waiting list, or explore other activities." |
 | 409 `POST_STARTED` | `postStarted` | "It has already started, so new people can't join." |
 | 409 `POST_CANCELLED` | `postCancelled` | "The host cancelled it." |
-| 409 `EXTERNAL_BOOKING` | `externalBooking` | "Book this one through its link." |
 | 409 `CONFLICT` / 403 | `notAllowed` | "You can't do that on this post." (own post, or the host declined you) |
 | 404 / 410 | `notFound` | "This post isn't available any more." |
 | 429 | `rateLimited` | "Too many tries. Wait a moment and try again." |
@@ -113,13 +113,30 @@ All HTTP goes through `apiRequest<T>()` in [apiClient.ts](../src/core/api/apiCli
 
 | Variable | What it does | Where it is read |
 | --- | --- | --- |
-| `EXPO_PUBLIC_API_URL` | The server. Default `https://dev-api.ajalatrvl.com`. Use `http://localhost:3000` for a local server. | [apiConfig.ts](../src/core/api/apiConfig.ts) |
-| `EXPO_PUBLIC_DEMO` | `1` swaps the server for the demo API ([section 6](#6-demo-mode)). | [demoMode.ts](../src/core/demo/demoMode.ts) |
+| `EXPO_PUBLIC_API_URL` | The server. Default `https://staging-api.ajalatrvl.com` ([section 6](#6-environments)). Use `http://localhost:3000` for a local server. | [apiConfig.ts](../src/core/api/apiConfig.ts) |
+| `EXPO_PUBLIC_WS_URL` | The chat socket host. Guessed from the API URL when unset (`staging-api` → `staging-ws`). | [socketUrl.ts](../src/core/api/websocket/socketUrl.ts) |
 | `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`, `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID` | Google sign-in. Without them the Google button says "not available". | [googleIdentity.ts](../src/features/auth/data/datasources/native/googleIdentity.ts) |
+| `GOOGLE_IOS_URL_SCHEME` | The iOS client id reversed. Build time only. Without it the Google plugin is left out. | [app.config.js](../app.config.js) |
+| `EXPO_PUBLIC_LINKS_HOST` | The share-link host: `go.ajalatrvl.com` (default), `dev-go.ajalatrvl.com` or `staging-go.ajalatrvl.com`. | [links.ts](../src/core/config/links.ts), [app.config.js](../app.config.js) |
+| `GOOGLE_MAPS_IOS_API_KEY`, `GOOGLE_MAPS_ANDROID_API_KEY` | Google Maps on both platforms. Build time only. | [app.config.js](../app.config.js), [MapCanvas.tsx](../src/core/maps/MapCanvas.tsx) |
 | `EXPO_PUBLIC_IOS_APP_STORE_ID` | The store link on the forced-update screen. | `app.config.js` |
 
 Copy [.env.example](../.env.example) to `.env` to set them. These values are built into the app, so never
-put a secret in them. They are read once at startup: restart Metro after a change.
+put a secret in them. They are read once at startup: restart Metro after a change. The build-time ones need
+a new native build.
+
+The Google ids and the Maps keys are **EAS environment variables** (development, preview and production), not
+values to commit. `npx eas-cli env:pull --environment development` writes them to the gitignored `.env.local`
+for local builds.
+
+- **Maps.** The Explore map is `react-native-maps` drawing Google Maps on iOS and Android. An Android build
+  without its key shows a note in place of the map, because Google Maps would close the app. An iOS build
+  without its key falls back to Apple Maps.
+- **Share links.** The app builds `https://<links host>/posts/{id}` and `/users/{id}` itself (**D3**).
+  [app/+native-intent.tsx](<../app/+native-intent.tsx>) turns an opened link into the app's route (`/post/{id}`,
+  `/user/{id}`). `app.config.js` claims the same host: `applinks:` and `webcredentials:` on iOS (password
+  AutoFill included), verified intent filters on Android. Opening links needs a new native build, and on iOS
+  a paid Apple Developer team.
 
 Every path starts with `/api/v1`. Each api file writes it as `const V1 = '/api/v1'`.
 
@@ -153,8 +170,7 @@ pick the city and to work out distances. `getClientLocationHeader()` in
 location is off.
 
 These calls send it: the feed, map pins, a post (on the post page and the map card), post search, and the
-profile lists (`/me/saved`, `/me/rsvps`, `/users/{id}/posts` and the others). A demo build always reports
-Victoria Island, Lagos.
+profile lists (`/me/saved`, `/me/rsvps`, `/users/{id}/posts` and the others).
 
 ### How errors become `ApiError`
 
@@ -201,7 +217,8 @@ If the keychain fails to read, the app treats the person as signed out. It never
 
 Every auth call that creates a session also sends `deviceId` and `deviceName` (for example "Ada's iPhone"). The
 server then replaces this phone's old session instead of adding a new one. The optional `deviceCheck` token is
-not sent yet (**A5**).
+not sent yet. When it is, it goes on `POST /auth/otp/verify` for email sign-ups, and is left out if making one
+fails (**A5**).
 
 ### Lifetimes
 
@@ -266,7 +283,8 @@ Errors in steps 1 and 2 are ignored. The person is always signed out on this pho
 A login answers with tokens only. `useFinishSignIn` saves the session and then asks `GET /me`:
 
 - `termsUpToDate: false` → the terms screen (`POST /me/terms/accept { version }`);
-- `profileCompletedAt: null` → profile setup (**A1**: does gender count?);
+- `profileCompletedAt: null` → profile setup. First name, last name and date of birth complete it; gender
+  never counts. An email sign-up stays incomplete until its first `PATCH /me` (**A1**);
 - otherwise → the app.
 
 A session restored at launch does the same check once (`useEntryCheck`). It waits at most 2.5 seconds, then
@@ -300,19 +318,23 @@ POST /auth/password/reset  { token, newPassword } → 204, every device is signe
 - A 401 from `/reset` means the token expired or was used. The person must start again.
 - After a reset the app clears its own session too (`endLocalSession`), and the flow ends on sign-in.
 
-### Google, Apple and account linking
+### Google and Apple
 
 - **Apple:** a fresh nonce for each try. Apple gets its SHA-256 hash; the API gets the raw value with the
-  identity token: `POST /auth/oauth/apple`. Apple's name is sent only the first time Apple gives it.
-- **Google:** `POST /auth/oauth/google { idToken, nonce }`. The Google SDK in use cannot put the nonce into
-  the token. If the API checks it, Google sign-in will be refused (see the note in
-  [googleIdentity.ts](../src/features/auth/data/datasources/native/googleIdentity.ts)). The API also needs
-  our client ids (**D2**).
-- Both send the current `termsVersion` and the time zone.
-- **Linking:** if the email already belongs to an account, the API answers **409 `ACCOUNT_LINK_REQUIRED`**
-  with `details.challengeId` and emails a code. The link screen sends
-  `POST /auth/oauth/link { challengeId, code }`, which attaches Google or Apple and signs the person in. There
-  is no "resend": a failed code means tapping Google or Apple again.
+  identity token: `POST /auth/oauth/apple`. Apple's name is sent only the first time Apple gives it. The API
+  accepts `com.ajala.app` as the audience; Team ID `A2ZCQRWRA9` is not final yet (**D1**).
+- **Google:** `POST /auth/oauth/google { idToken, nonce }`. The client ids come from EAS environment
+  variables ([section 2](#2-the-api-client)). The API checks that the token carries the same nonce as the
+  body. The free Google sign-in library can't pass our nonce to Google (Google writes its own), so dev
+  answers 401 "Invalid sign-in token" (**A14**, confirmed on 9 Nov). The fix is the paid "Universal Sign
+  In" edition, whose `GoogleOneTapSignIn.signIn({ nonce })` takes our nonce; it is bought, and waiting on
+  the GitHub token that installs it.
+- Both send the current `termsVersion` and the time zone. Only these two can answer 403 `SIGNUP_REFUSED`
+  (**A4**); email sign-up answers its normal 202.
+- **Email already registered:** accounts are never joined. If the Google or Apple email already has an
+  account, the API answers **409 `EMAIL_ALREADY_REGISTERED`** with `details.signInMethods` (`password`,
+  `google`, `apple`). The app says how to get in, for example "This email already has an account. Sign in
+  with Google instead.", with a button for that way in. An empty list shows the plain message.
 - **Unlinking** is in Settings: `DELETE /me/identities/{provider}`. The last sign-in method cannot be removed
   (409 `LAST_SIGN_IN_METHOD`).
 
@@ -339,14 +361,14 @@ Each feature keeps its keys in one `*Queries.ts` file, under its own first word,
 | Feature | Keys (from the code) | File |
 | --- | --- | --- |
 | Shared | `['me']` (`GET /me`, profile's shape) | [queryClient.ts](../src/core/api/queryClient/queryClient.ts) |
-| Home | `['feed', 'list', filter]`, `['feed', 'cities', q]`, `['popularCities']` | [feedQueries.ts](../src/features/home/presentation/state/feedQueries.ts) |
+| Home | `['feed', 'list', filter]`, `['feed', 'cities', q]`, `['popularCities']`, `['home', 'travelState']` (`GET /me`: teleport and home city) | [feedQueries.ts](../src/features/home/presentation/state/feedQueries.ts) |
 | Explore | `['mapPins', bbox, type, q]`, `['explore', 'post', id]`, `['explore', 'interests']`, `['feed', 'explore-meetups']`, `['searchPosts', words, interestIds, type]` | [exploreQueries.ts](../src/features/explore/presentation/state/exploreQueries.ts) |
 | Post page | `['postDetail', 'post', id]`, `['postDetail', 'attendees', id, state]`, `['postDetail', 'comments', id]`, `['postDetail', 'comments', id, 'replies', commentId]`, `['postDetail', 'viewer']` | [postDetailQueries.ts](../src/features/post-detail/presentation/state/postDetailQueries.ts) |
 | Create post | `['createPost', 'interests']`, `['createPost', 'cities', q]`, `['createPost', 'draft', id]` | [createPostQueries.ts](../src/features/create-post/presentation/state/createPostQueries.ts) |
-| Trips | `['trips', 'going' \| 'hosted' \| 'requested' \| 'past']` | [tripsQueries.ts](../src/features/trips/presentation/state/tripsQueries.ts) |
+| Trips | `['trips', 'going' \| 'hosted' \| 'waiting' \| 'past']` (`waiting` is requests, then waitlists) | [tripsQueries.ts](../src/features/trips/presentation/state/tripsQueries.ts) |
 | Profile | `['profile', 'person', id]`, `['profile', 'activity', id, tab]`, `['profile', 'rsvps', state]`, `['saved', filter]`, … | [profileQueries.ts](../src/features/profile/presentation/state/profileQueries.ts) |
 | Settings | `['settings', 'account']`, `['settings', 'preferences']`, `['settings', 'sessions']`, … | [settingsQueries.ts](../src/features/settings/presentation/state/settingsQueries.ts) |
-| Chat | `['chat', 'threads', filter, search]`, `['chat', 'thread', id]`, `['chat', 'messages', id]`, `['chat', 'typing', id]` | [chatQueries.ts](../src/features/chat/presentation/state/chatQueries.ts) |
+| Chat | `['chat', 'threads', filter, search]`, `['chat', 'thread', id]`, `['chat', 'messages', id]`, `['chat', 'typing', id]`, `['chat', 'unreadCount']` | [chatQueries.ts](../src/features/chat/presentation/state/chatQueries.ts) |
 | Notifications | `['notifications', unread]` | [notificationsQueries.ts](../src/features/notifications/presentation/state/notificationsQueries.ts) |
 | Payment | `['subscription']` (5 minutes fresh) | [usePaymentUseCases.ts](../src/features/payment/presentation/state/usePaymentUseCases.ts) |
 
@@ -395,13 +417,14 @@ signed-in area the bookmark fails like an expired session and rolls back.
 
 | After | What is refreshed | Where |
 | --- | --- | --- |
-| Teleport or come home | `['feed']`, `['mapPins']`, `['searchPosts']` are **reset** (emptied, not just marked stale) so no old city flashes | [useTravelMove.ts](../src/features/home/presentation/hooks/useTravelMove.ts) |
+| Teleport or come home | `['feed']`, `['mapPins']`, `['searchPosts']` are **reset** (emptied, not just marked stale) so no old city flashes. The new teleport is written into `['home', 'travelState']` at once | [useTravelMove.ts](../src/features/home/presentation/hooks/useTravelMove.ts) |
 | Publish a post | `['feed']`, `['explore']` | [useCreatePost.ts](../src/features/create-post/presentation/hooks/useCreatePost.ts) |
 | Cancel or delete a post | the post, then `['feed']`, `['explore']`, `['trips']` | [usePostDetail.ts](../src/features/post-detail/presentation/hooks/usePostDetail.ts) |
 | Save or unsave | `['saved']` | [useSavePost.ts](../src/shared/hooks/useSavePost.ts) |
 | Change email, edit account | `['settings', 'account']` is set; `['me']` is refetched | [useSettingsData.ts](../src/features/settings/presentation/hooks/useSettingsData.ts) |
 | Unblock someone | `['feed']` | [useSettingsData.ts](../src/features/settings/presentation/hooks/useSettingsData.ts) |
-| Chat message sent or received | `['chat', 'threads']` | [chatCache.ts](../src/features/chat/presentation/state/chatCache.ts) |
+| Chat message sent, received or read; chat push | `['chat', 'threads']`, `['chat', 'unreadCount']` | [chatCache.ts](../src/features/chat/presentation/state/chatCache.ts) |
+| A chat answers 404 | The chat is dropped from every cached list at once | `dropThread`, `dropPostThreads` in [chatCache.ts](../src/features/chat/presentation/state/chatCache.ts) |
 
 Other lists catch up on their own: after one minute they are stale, and they refetch when the screen opens
 again or the app comes back to the front.
@@ -436,6 +459,24 @@ What each event does ([chatCache.ts](../src/features/chat/presentation/state/cha
 The socket is best effort. Nothing is queued or replayed. Every chat screen also refetches when it comes back
 into focus.
 
+### Group chats and the Messages badge
+
+- **Group chats are automatic.** The server makes one when a post goes live, and everyone going joins it, up
+  to 100 people. There is no "start group chat" in the app. The post page's **Group chat** button (host and
+  people going) sends `POST /conversations { postId }`, which only **finds** the chat
+  ([useStartChat.ts](../src/features/chat/presentation/hooks/useStartChat.ts)).
+- **409 `GROUP_CHAT_FULL`:** the person is going but waits for a place. The app shows a message, not an error.
+  No push says when they get in: the chat just appears in their list.
+- **404 on any conversation route:** they left or were removed, or the post was cancelled or deleted (which
+  removes its chat for everyone). The app drops the chat from every cached list, and an open chat says
+  "This chat isn't available".
+- **Badge:** `useUnreadChatsCount()` reads `GET /conversations/unread-count` → `{ count }` (**B5**). It counts
+  conversations, not messages. Home draws it on the chat button.
+- **Rows and detail:** `lastMessage.senderName` is the sender's first name (null for my own: "You:"), and
+  `imageUrl` is the post's cover (null in a direct chat, so keep the fallback icon). `GET /conversations/{id}`
+  carries `post` as a card, with my own `rsvpState` and `saved`. Chat never calls `GET /me` or
+  `GET /posts/{id}`.
+
 ### Push notifications
 
 The OS side is in [pushNotifications.ts](../src/core/push/pushNotifications.ts). The app logic is in
@@ -448,97 +489,44 @@ as `<PushNotifications />` in the signed-in layout, after the location gate.
    happens on each sign-in, when the OS changes the token, and when the app comes back after the person turned
    notifications on in Settings. iOS sends the raw APNs token and Android the FCM token (**A13**).
 3. **Unregister.** On sign-out, before logout: `POST /me/devices/unregister { token }` (see section 3).
-4. **A push arrives while the app is open:** the banner shows, and the inbox and badge refetch.
-5. **A push is tapped:** the app opens what it is about: a post (`postId`), a chat (`conversationId`) or the
-   Travel paywall (`kind: 'subscription'`). If the push carries `notificationId`, that inbox row is marked
-   read (**B6**). Keys are read beside `aps` or under `data`.
+4. **A push arrives while the app is open:** the banner shows, and the inbox and badge refetch. A chat push
+   refreshes Messages and its badge instead.
+5. **A push is tapped:** the app opens what it is about. Keys are read beside `aps` or under `data`.
+
+| Push `kind` | Opens |
+| --- | --- |
+| `chat.message` (with `conversationId`, no `messageId`) | The chat (**B6**) |
+| `post.details_changed` (category `post_update`, with `postId`): the host changed the time or place | The post |
+| `subscription` | The Travel paywall |
+| anything with a `postId` | The post |
+
+Chat messages are **never** in the inbox: `new_message` is push only and never appears in
+`GET /me/notifications`. If a push carries `notificationId`, that inbox row is marked read. The API does not
+promise this key yet.
 
 Every push failure is quiet. The app works without push.
 
-### In demo mode
-
-- No socket: `chatSocket` is created with `enabled: false`, and holding it does nothing. Threads refresh when
-  opened.
-- Push still asks for permission and registers. The demo answers `POST /me/devices` with 204 and never sends
-  a push. To try one on the iOS simulator, see "Trying a push" in [DEMO.md](DEMO.md).
-
 ---
 
-## 6. Demo mode
+## 6. Environments
 
-Demo mode runs the whole app with no server.
+| Build | API | Socket | Share links |
+| --- | --- | --- | --- |
+| Development (`eas build --profile development`, `expo run:*`) | `https://staging-api.ajalatrvl.com` | `https://staging-ws.ajalatrvl.com` | `staging-go.ajalatrvl.com` |
+| Preview (`eas build --profile preview`) | `https://staging-api.ajalatrvl.com` | `https://staging-ws.ajalatrvl.com` | `staging-go.ajalatrvl.com` |
+| Production | set `EXPO_PUBLIC_API_URL` before the first store build | | `go.ajalatrvl.com` |
 
-```bash
-npm run demo     # Metro with EXPO_PUBLIC_DEMO=1
-```
-
-### How it works
-
-The first line of `apiRequest` decides:
-
-```ts
-if (DEMO_MODE) return demoRequest<T>(request);
-```
-
-[demoApi.ts](../src/core/demo/demoApi.ts) waits 350 ms (to feel real), then looks for a matching route. Each
-route is `[method, path regex, handler]`. The handler returns the response body, or throws an `ApiError`
-through `fail(status, code, message)`. An unknown route answers 404 `NOT_FOUND` ("The demo has no answer for
-…").
-
-Because the swap happens at the very bottom, every repository, mapper, cache and error path runs for real.
-
-### Where routes live
-
-| File | Covers |
-| --- | --- |
-| [demoStore.ts](../src/core/demo/demoStore.ts) | State, helpers (`page`, `card`, `fail`, `invalid`) and `baseRoutes`: auth, `/me`, app config, feed, map, posts, search, cities, teleport, subscription |
-| [routes/postDetail.ts](../src/core/demo/routes/postDetail.ts) | Attendees, comments |
-| [routes/trips.ts](../src/core/demo/routes/trips.ts) | `/me/posts`, `/me/attended` |
-| [routes/profiles.ts](../src/core/demo/routes/profiles.ts) | Other people, blocking, reporting |
-| [routes/settings.ts](../src/core/demo/routes/settings.ts) | Settings, sessions, re-auth, export |
-| [routes/chat.ts](../src/core/demo/routes/chat.ts) | Conversations and messages |
-| [routes/notifications.ts](../src/core/demo/routes/notifications.ts) | Inbox and push devices |
-| [demoData.ts](../src/core/demo/demoData.ts) | Seed people, places and images |
-
-### Adding a demo route
-
-Add a tuple to the right area file:
-
-```ts
-// src/core/demo/routes/chat.ts
-export const chatRoutes: DemoRoute[] = [
-  // …
-  [
-    'GET',
-    /^\/api\/v1\/conversations\/unread-count$/,
-    () => {
-      signedIn();                       // 401 when no one is signed in
-      return { count: 2 };              // shaped exactly like the spec's DTO
-    },
-  ],
-];
-```
-
-For a new area, create `routes/<area>.ts` and add it to [routes/index.ts](../src/core/demo/routes/index.ts).
-Add a test next to the others in [src/core/demo/\_\_tests\_\_](../src/core/demo/__tests__/).
-
-### Limits
-
-- State lives in memory and resets when the app restarts.
-- The token is ignored. "Signed in" means the demo store has a `me`. Tokens last a year, so a refresh never
-  happens in the demo.
-- Google sign-in answers 503. Use email or Apple.
-- No socket, no real pushes, no real purchases. "Confirm it's you" is never asked for.
-- Images load from public placeholder sites, so you still need a connection.
-
-What you can try is listed in [DEMO.md](DEMO.md).
+The values live in EAS environment variables (`npx eas-cli env:list --environment preview`), one set per
+environment, so nothing is kept in `eas.json` or the repo. For local work,
+`npx eas-cli env:pull --environment development` writes them to `.env.local`. The dev server
+(`https://dev-api.ajalatrvl.com`) is still there for backend work: point `EXPO_PUBLIC_API_URL` at it.
 
 ---
 
 ## 7. Feature by feature
 
-Every endpoint the app calls, by feature. Paths leave out `/api/v1`. "Waiting on" points to
-[backend-requests.md](api/backend-requests.md). The screen-by-screen view is in
+Every endpoint the app calls, by feature. Paths leave out `/api/v1`. Item numbers point to
+[backend-requests.md](api/backend-requests.md) and its answers. The screen-by-screen view is in
 [screen-to-api-map.md](api/screen-to-api-map.md).
 
 ### App-wide
@@ -552,10 +540,9 @@ Every endpoint the app calls, by feature. Paths leave out `/api/v1`. "Waiting on
 
 | Screen | What it does | Endpoint(s) | Notes |
 | --- | --- | --- | --- |
-| Sign up | Create account, verify email | `POST /auth/signup/email` (202), `POST /auth/otp/verify`, `POST /auth/otp/resend` | Sends `termsVersion`. A4 (`SIGNUP_REFUSED`), A5 (`deviceCheck`) |
+| Sign up | Create account, verify email | `POST /auth/signup/email` (202), `POST /auth/otp/verify`, `POST /auth/otp/resend` | Sends `termsVersion`. `deviceCheck` belongs on OTP verify, not sent yet (A5) |
 | Sign in | Email and password | `POST /auth/login`, then `GET /me` | Step-up retries login with `otpCode` |
-| Google / Apple | Provider sign-in | `POST /auth/oauth/google`, `POST /auth/oauth/apple` | D1, D2 (server config) |
-| Link account | Code after 409 | `POST /auth/oauth/link` | |
+| Google / Apple | Provider sign-in | `POST /auth/oauth/google`, `POST /auth/oauth/apple` | 403 `SIGNUP_REFUSED` only here (A4). Google nonce still open (A14). Team ID pending (D1) |
 | Forgot password | Code, then new password | `POST /auth/password/forgot`, `/verify`, `/reset` | |
 | Terms | Accept new terms | `POST /me/terms/accept` | |
 | (background) | Keep and end the session | `POST /auth/refresh`, `POST /auth/logout` | Single-flight refresh |
@@ -573,9 +560,9 @@ Every endpoint the app calls, by feature. Paths leave out `/api/v1`. "Waiting on
 
 | Screen | What it does | Endpoint(s) | Notes |
 | --- | --- | --- | --- |
-| Profile setup | Name, birthday, photo, city, styles, interests, username | `GET /me`, `PATCH /me`, `POST`/`DELETE /me/avatar`, `GET /cities/resolve?lat&lng`, `GET /cities?q`, `GET /cities/popular`, `GET /interests`, `GET /handles/availability?handle` | A1 (gender), A3 (limits), A6 (`HANDLE_COOLDOWN` date) |
-| Own profile | Me, history, saved, going/requested | `GET /me`, `GET /me/attended`, `GET /me/saved?type`, `GET /me/rsvps?state` | Gamification is static (C4) |
-| Another person | Their profile and lists | `GET /users/{id}`, `GET /users/{id}/posts`, `/attended`, `/plans` | A12 (`visiting`) |
+| Profile setup | Name, birthday, photo, city, styles, interests, username | `GET /me`, `PATCH /me`, `POST`/`DELETE /me/avatar`, `GET /cities/resolve?lat&lng`, `GET /cities?q`, `GET /cities/popular`, `GET /interests`, `GET /handles/availability?handle` | Name and date of birth complete it (A1). An 11th style or city is a 400 (A3). `HANDLE_COOLDOWN` has `details.availableAt` (A6) |
+| Own profile | Me, history, saved, going/requested | `GET /me`, `GET /me/attended`, `GET /me/saved?type`, `GET /me/rsvps?state=going`, `requested`, `waitlisted` | Requested shows requests, then waitlists (B8). Gamification is static (C4). Share link `https://<links host>/users/{id}` |
+| Another person | Their profile and lists | `GET /users/{id}`, `GET /users/{id}/posts`, `/attended`, `/plans` | `visiting` is always null and not read. `verified` means our team reviewed the profile (A12) |
 | Another person | Block, report | `POST`/`DELETE /users/{id}/block`, `POST /users/{id}/report` | |
 
 ### Settings ([settingsApi.ts](../src/features/settings/data/datasources/remote/settingsApi.ts))
@@ -583,7 +570,8 @@ Every endpoint the app calls, by feature. Paths leave out `/api/v1`. "Waiting on
 | Screen | What it does | Endpoint(s) | Notes |
 | --- | --- | --- | --- |
 | Hub, Edit profile | Account and photo | `GET /me`, `PATCH /me`, `POST /me/avatar`, `GET /handles/availability`, `GET /cities`, `GET /cities/popular` | |
-| Notifications, Privacy | Toggles | `GET`/`PATCH /me/settings`, `PATCH /me/analytics` | Optimistic. C5, C6 |
+| Notifications, Privacy | Toggles | `GET`/`PATCH /me/settings`, `PATCH /me/analytics` | Optimistic. `notifyNearbyActivity` (default on) and `notifyRecommendations` (default off) are only saved for now; nothing is sent yet (C5). `sharePlans` is the public setting, not "Share my plan" (C6) |
+| (not built) Share my plan: the trusted person | One member who accepts, then hears when plans change | `PUT`/`GET`/`DELETE /me/trusted-person`, `GET /me/trusted-by`, `POST /me/trusted-by/{linkId}/accept`, `DELETE /me/trusted-by/{linkId}`, `GET /me/trusted-by/{linkId}/plans` | **Endpoints known, not built yet — waiting for Swagger shapes** (and design). PUT needs a recent re-auth. 429 `TRUSTED_REQUEST_LIMIT` (C6) |
 | Sign-in activity | Devices | `GET /me/sessions`, `DELETE /me/sessions/{id}`, `POST /auth/logout/all` | Logout-all then signs out here |
 | Password | Change or set | `POST /me/password`, `POST /me/password/set` | |
 | Change email | Code flow | `POST /me/email/change`, `POST /me/email/change/confirm` | |
@@ -598,17 +586,19 @@ Every endpoint the app calls, by feature. Paths leave out `/api/v1`. "Waiting on
 
 | Screen | What it does | Endpoint(s) | Notes |
 | --- | --- | --- | --- |
-| Home feed | Cards for the city | `GET /feed?type&cursor&limit` | Location header. Filter chips: C3 |
+| Home feed | Cards for the city | `GET /feed?type&cursor&limit` | Location header. Chips All / Meetups / Events / Plans / Groups (C3). A card shows the price or nothing: no shared cost (C1) |
+| Header, Travel | Where Travel stands | `GET /me` → `teleport: { city } \| null`, `homeCity` | `useTravelState`, key `['home', 'travelState']`. Known straight after a restart (B1) |
 | Travel | Pick a city | `GET /cities/popular`, `GET /cities?q` | |
-| Travel | Teleport / come home | `POST /me/teleport { cityId }`, `DELETE /me/teleport` | Not optimistic. 402 opens the paywall. B1 (teleport state on `/me`) |
+| Travel | Teleport / come home | `POST /me/teleport { cityId }`, `DELETE /me/teleport` | Not optimistic. 402 opens the paywall |
 
 ### Explore ([exploreApi.ts](../src/features/explore/data/datasources/remote/exploreApi.ts))
 
 | Screen | What it does | Endpoint(s) | Notes |
 | --- | --- | --- | --- |
 | Map | Pins in view | `GET /map/pins?bbox&type&q` | Location header |
-| Map card | Post, join, book, report | `GET /posts/{id}`, `POST /posts/{id}/rsvp`, `POST /posts/{id}/link-click`, `POST /posts/{id}/report` | |
-| List | Interests, nearby meetups, search | `GET /interests`, `GET /feed?type=meetup`, `GET /search/posts?q&interestIds&type` | A7 (how to send `interestIds`) |
+| Map | Google Maps on both platforms | none | Keys from EAS env vars ([section 2](#2-the-api-client)) |
+| Map card | Post, join, report | `GET /posts/{id}`, `POST /posts/{id}/rsvp`, `POST /posts/{id}/link-click`, `POST /posts/{id}/report` | Joining a post with a link opens it and counts the click, then RSVPs |
+| List | Interests, nearby meetups, search | `GET /interests`, `GET /feed?type=meetup`, `GET /search/posts?q&interestIds&type` | Repeated key `interestIds=a&interestIds=b` (A7) |
 | City search | Move the map | `GET /cities?q` | |
 
 ### Post page ([postDetailApi.ts](../src/features/post-detail/data/datasources/remote/postDetailApi.ts))
@@ -616,7 +606,8 @@ Every endpoint the app calls, by feature. Paths leave out `/api/v1`. "Waiting on
 | Screen | What it does | Endpoint(s) | Notes |
 | --- | --- | --- | --- |
 | Post | The post and who is going | `GET /posts/{id}`, `GET /posts/{id}/attendees?state`, `GET /me` | Host also sees `requested` |
-| Post | Join, leave, book | `POST`/`DELETE /posts/{id}/rsvp`, `POST /posts/{id}/link-click` | See section 1. B8 (waitlisted list) |
+| Post | Join, leave | `POST`/`DELETE /posts/{id}/rsvp`, `POST /posts/{id}/link-click` | Every post joins by RSVP; a link opens first (section 1). The place in line shows here (B8) |
+| Post | Group chat, share | `POST /conversations { postId }` | Group chat for the host and people going ([section 5](#5-live-chat-and-push-notifications)). Share link `https://<links host>/posts/{id}` |
 | Post (host) | Accept, decline, cancel, delete | `POST /posts/{id}/attendees/{userId}/accept` or `/decline`, `POST /posts/{id}/cancel`, `DELETE /posts/{id}` | 409 `POST_HAS_ATTENDEES` → cancel instead |
 | Comments | Read, reply, delete, report | `GET /posts/{id}/comments`, `GET …/comments/{cid}/replies`, `POST /posts/{id}/comments`, `DELETE …/comments/{cid}`, `POST …/comments/{cid}/report` | |
 
@@ -625,26 +616,28 @@ Every endpoint the app calls, by feature. Paths leave out `/api/v1`. "Waiting on
 | Screen | What it does | Endpoint(s) | Notes |
 | --- | --- | --- | --- |
 | Wizard | Interests, places | `GET /interests`, `GET /cities?q` | |
-| Publish (new) | Create with photos | `POST /posts` (multipart, `status=published`) | 409 `EVENT_MONTHLY_CAP`. A2 (line limits), C1, C2 |
-| Save draft / edit | Update | `POST /posts` (`status=draft`), then `PATCH /posts/{id}`, `PUT /posts/{id}/images`, `POST /posts/{id}/publish` | Photos only sent when they changed. A9 |
+| Publish (new) | Create with photos | `POST /posts` (multipart, `status=published`) | 409 `EVENT_MONTHLY_CAP`. Schedule and itinerary: 30 lines of 120 characters (A2) |
+| Price step | Price and link | (fields on the post) | Meetups, Events and Groups: optional, with a Skip button, paid Events too. Plans have no price step and never send `priceCents`, `currency` or `externalUrl` (a 400). No shared cost (C1, C2) |
+| Save draft / edit | Update | `POST /posts` (`status=draft`), then `PATCH /posts/{id}`, `PUT /posts/{id}/images`, `POST /posts/{id}/publish` | Photos only sent when they changed. Clearing the pin and setting `cityId` in one PATCH is still open (A9) |
 | Continue a draft | Load it | `GET /posts/{id}` | |
 
 ### Trips ([tripsApi.ts](../src/features/trips/data/datasources/remote/tripsApi.ts))
 
 | Tab | Endpoint(s) | Notes |
 | --- | --- | --- |
-| Upcoming | `GET /me/rsvps?state=going` + `GET /me/posts?status=published` (merged, duplicates removed) | A8, B9 |
-| Requests | `GET /me/rsvps?state=requested` | B8 |
+| Upcoming | `GET /me/rsvps?state=going` + `GET /me/posts?status=published` (merged) | Hosted posts are never in `/me/rsvps` (A8). Cards have no `isHost`: compare `host.id` (B9) |
+| Requests | `GET /me/rsvps?state=requested`, then `?state=waitlisted` | One list: Request sent, then Waitlisted (B8) |
 | Past | `GET /me/attended` | |
 
 ### Chat ([chatApi.ts](../src/features/chat/data/datasources/remote/chatApi.ts))
 
 | Screen | What it does | Endpoint(s) | Notes |
 | --- | --- | --- | --- |
-| Messages | Thread list | `GET /conversations?tab&search&cursor&limit`, `GET /me` | B2 (sender name), B3 (group picture), B5 (unread badge) |
-| Start chat | From a profile or post | `POST /conversations { userId }` or `{ postId }` | 429 `CHAT_START_LIMIT` |
-| Chat | Read and send | `GET /conversations/{id}`, `GET …/messages?before`, `POST …/messages` (multipart), `POST …/read`, `POST …/typing` | B4 (post card) |
-| Chat | Report, post card | `POST …/messages/{mid}/report`, `GET /posts/{id}` | |
+| Messages | Thread list | `GET /conversations?tab&search&cursor&limit` | `senderName` (B2), `imageUrl` (B3) |
+| Home chat button | Unread badge | `GET /conversations/unread-count` → `{ count }` | `useUnreadChatsCount` (B5) |
+| Open a chat | From a profile or post | `POST /conversations { userId }` or `{ postId }` | `{ postId }` only finds the group chat: 409 `GROUP_CHAT_FULL`, 404 drops it. 429 `CHAT_START_LIMIT` |
+| Chat | Read and send | `GET /conversations/{id}`, `GET …/messages?before`, `POST …/messages` (multipart), `POST …/read`, `POST …/typing` | `post` card on the detail (B4). 404 on any route: the chat is gone |
+| Chat | Report | `POST …/messages/{mid}/report` | |
 | (no screen yet) | Group members | `POST …/members`, `DELETE …/members/{userId}` | Use cases exist, no hook uses them |
 | Live | Socket | `/chat` namespace | A10, A11 |
 
@@ -652,9 +645,9 @@ Every endpoint the app calls, by feature. Paths leave out `/api/v1`. "Waiting on
 
 | Screen | What it does | Endpoint(s) | Notes |
 | --- | --- | --- | --- |
-| Inbox, Home bell | List and badge | `GET /me/notifications?unread&cursor&limit` | Badge from `unreadCount`. B7 (who it is about) |
+| Inbox, Home bell | List and badge | `GET /me/notifications?unread&cursor&limit` | Badge from `unreadCount`. No chat items. Category icons, no person (B7, not now) |
 | Inbox | Mark one / all read | `POST /me/notifications/read { ids? }` | No `ids` means all |
-| (background) | Push device | `POST /me/devices`, `POST /me/devices/unregister` | A13, B6 |
+| (background) | Push device | `POST /me/devices`, `POST /me/devices/unregister` | APNs or FCM token on iOS is open (A13). Push kinds in section 5 (B6) |
 
 ### Payment ([subscriptionApi.ts](../src/features/payment/data/datasources/remote/subscriptionApi.ts))
 
@@ -662,17 +655,17 @@ Every endpoint the app calls, by feature. Paths leave out `/api/v1`. "Waiting on
 | --- | --- | --- | --- |
 | Home PRO tag, Travel, paywall | Am I subscribed? | `GET /me/subscription` | `subscribed` decides `isPro` |
 | Manage | Web subscription portal | `POST /me/subscription/portal` | 404 → no web subscription |
-| (not called yet) | Buying | `GET /me/subscription/challenge`, `POST /me/subscription/apple`, `/google`, `/checkout`, `/checkout/confirm` | Typed and ready. Needs store SDKs and D4 |
+| (not called yet) | Buying | `GET /me/subscription/challenge`, `POST /me/subscription/apple`, `/google`, `/checkout`, `/checkout/confirm` | Typed and ready. Needs store SDKs. The plan is **weekly** (D4). Answers 503 in every environment today; a 500 from buying is the store failing. Both read "try again" |
 
 ---
 
 ## 8. How to add a new endpoint
 
-Follow the same path as every other call. Here is a small example: the unread-chats badge that the backend
-may add (**B5**), `GET /conversations/unread-count → { count }`.
+Follow the same path as every other call. Here is how the Messages badge (**B5**) was added:
+`GET /conversations/unread-count → { count }`.
 
 **1. Read the contract.** Find the path, DTO and error codes in [the spec](api/ajala-api-users-common.md)
-(§3 for endpoints, §5 for errors, §6 for types).
+(§3 for endpoints, §5 for errors, §6 for types), or in the backend's answers until the spec is re-synced.
 
 **2. Add the DTO** in `data/dto/`, copied from §6:
 
@@ -693,13 +686,13 @@ Wrap it in the feature's error guard so `ApiError` becomes the feature's error:
 
 ```ts
 // ChatRepositoryImpl.ts
-unreadCount: () => other(async () => (await api.unreadCount()).count),
+getUnreadCount: () => other(async () => Math.max(0, Number((await api.unreadCount()).count) || 0)),
 ```
 
 **5. Add a use case** in `domain/usecases/` and list it in the module file (`chatModule.ts`):
 
 ```ts
-export const makeUnreadCount = (repo: ChatRepository) => () => repo.unreadCount();
+export const makeGetUnreadCount = (repo: ChatRepository) => () => repo.getUnreadCount();
 ```
 
 **6. Add a query key and a hook** in `presentation/`:
@@ -708,19 +701,20 @@ export const makeUnreadCount = (repo: ChatRepository) => () => repo.unreadCount(
 // chatQueries.ts
 unreadCount: ['chat', 'unreadCount'] as const,
 
-// hooks/useUnreadChats.ts
-export function useUnreadChats() {
-  const { unreadCount } = useChatUseCases();
-  return useQuery({ queryKey: chatKeys.unreadCount, queryFn: unreadCount });
+// hooks/useUnreadChatsCount.ts (shortened; the real one also refetches on focus)
+export function useUnreadChatsCount(): number {
+  const { getUnreadCount } = useChatUseCases();
+  const query = useQuery({ queryKey: chatKeys.unreadCount, queryFn: () => getUnreadCount(), staleTime: 15_000 });
+  return query.data ?? 0;
 }
 ```
 
-For a write, use `useMutation`, and say in `onSuccess` which keys to refresh.
+Export the hook from the feature's `index.ts` if another screen needs it (Home's route does). For a write,
+use `useMutation`, and say in `onSuccess` which keys to refresh. Anything that changes the number invalidates
+`['chat', 'unreadCount']` in [chatCache.ts](../src/features/chat/presentation/state/chatCache.ts).
 
-**7. Teach the demo** the same route ([section 6](#6-demo-mode)), or the demo will answer 404.
-
-**8. Test.** Add a repository test with a fake `request` (see the `__tests__` folder next to each
-repository), and a demo route test.
+**7. Test.** Add a repository test with a fake `request` (see the `__tests__` folder next to each
+repository).
 
 Rules to keep:
 
@@ -744,18 +738,21 @@ one line with the method, path, status, code and `requestId`. Send the `requestI
 | 403 `REAUTH_REQUIRED` | A sensitive action (change email, set password, unlink, export, delete account) needs "Confirm it's you" in the last 5 minutes. The app asks and then retries. | [useAccountFlows.ts](../src/features/settings/presentation/hooks/useAccountFlows.ts) |
 | 403 `EMAIL_NOT_VERIFIED` / `STEP_UP_REQUIRED` on sign-in | Two different flows. See section 3. | [authErrorMapper.ts](../src/features/auth/data/mappers/authErrorMapper.ts) |
 | 404 `NO_CITY` on the feed or search | The server cannot find a city: no location header, no network guess, and no home city. Turn on location, or set a home city. | [feedMappers.ts](../src/features/home/data/mappers/feedMappers.ts), [deviceLocation.ts](../src/core/location/deviceLocation.ts) |
-| 409 `POST_FULL`, `POST_STARTED`, `POST_CANCELLED`, `EXTERNAL_BOOKING` | The post changed since the page loaded. The app rolls back and refetches. | Section 1 table |
-| 409 `ACCOUNT_LINK_REQUIRED` | Google or Apple matched an existing email. The link screen asks for the emailed code. | [useAccountLink.ts](../src/features/auth/presentation/hooks/useAccountLink.ts) |
+| 409 `POST_FULL`, `POST_STARTED`, `POST_CANCELLED` | The post changed since the page loaded. The app rolls back and refetches. | Section 1 table |
+| 409 `GROUP_CHAT_FULL` on `POST /conversations { postId }` | The group chat has 100 people; this person waits for a place. Not an error: the app says so. | [useStartChat.ts](../src/features/chat/presentation/hooks/useStartChat.ts) |
+| 404 on a conversation | Left, removed, or the post was cancelled or deleted. The chat is dropped from local state. | [chatCache.ts](../src/features/chat/presentation/state/chatCache.ts) |
+| 409 `EMAIL_ALREADY_REGISTERED` | Google or Apple matched an email that already has an account. The app names the ways in (`details.signInMethods`). | [authErrorMapper.ts](../src/features/auth/data/mappers/authErrorMapper.ts) |
 | 409 `LAST_SIGN_IN_METHOD`, `HANDLE_COOLDOWN`, `EVENT_MONTHLY_CAP` | Business rules. The screen explains each one. | Spec §5 |
 | 402 `PAYMENT_REQUIRED` on teleport | Travel is off or has lapsed. The paywall opens. | [useTravelMove.ts](../src/features/home/presentation/hooks/useTravelMove.ts) |
-| 429 `RATE_LIMITED` / `CHAT_START_LIMIT` | Too many tries. Auth forms wait for `Retry-After` (or 30 seconds) before the button works again. | [useBackoff.ts](../src/features/auth/presentation/hooks/useBackoff.ts) |
-| 503 `SERVICE_UNAVAILABLE` on `/me/subscription/*` | Purchases are off in this environment. The app shows "unavailable". Elsewhere, GETs are retried twice. | [subscriptionMappers.ts](../src/features/payment/data/mappers/subscriptionMappers.ts) |
+| 429 `RATE_LIMITED` / `CHAT_START_LIMIT` / `TRUSTED_REQUEST_LIMIT` | Too many tries (`TRUSTED_REQUEST_LIMIT`: too many trusted-person requests in a day; that feature is not built yet). Auth forms wait for `Retry-After` (or 30 seconds) before the button works again. | [useBackoff.ts](../src/features/auth/presentation/hooks/useBackoff.ts) |
+| 503 `SERVICE_UNAVAILABLE` on `/me/subscription/*`, or 500 when buying | Subscriptions are off or the store's keys are not set (every environment today), or the store failed or timed out. The app says "Purchases aren't available right now. Please try again." Elsewhere, GETs are retried twice. | [subscriptionMappers.ts](../src/features/payment/data/mappers/subscriptionMappers.ts) |
 | 400 `VALIDATION_FAILED` | A field broke a rule. `fieldErrors` says which, and forms show it under the field. | The feature's mapper; spec §4 for limits |
 | `NETWORK` / `TIMEOUT` | No connection, or no answer within 15 seconds. GETs retry on `NETWORK`; writes never retry. | [apiClient.ts](../src/core/api/apiClient.ts), [apiConfig.ts](../src/core/api/apiConfig.ts) |
-| "The demo has no answer for …" (404) | Demo mode is on and the route is missing. | [src/core/demo/routes](../src/core/demo/routes/) |
-| Chat not live | Demo mode (no socket), or the socket cannot connect. Pull to refresh still works. | [chatSocket.ts](../src/core/api/websocket/chatSocket.ts); A10 |
+| Chat not live | The socket cannot connect (check `EXPO_PUBLIC_WS_URL`). Pull to refresh still works. | [chatSocket.ts](../src/core/api/websocket/chatSocket.ts); A10 |
 | No pushes | Permission refused, a simulator without APNs, or an Android build without `google-services.json`. | [pushNotifications.ts](../src/core/push/pushNotifications.ts); A13 |
-| A changed `.env` value has no effect | `EXPO_PUBLIC_*` values are read at startup. | Restart Metro |
+| A changed `.env` value has no effect | `EXPO_PUBLIC_*` values are read at startup. Build-time values (Maps keys, links host, Google URL scheme) need a new native build. | Restart Metro, or rebuild |
+| No map on Android, or Apple Maps on iOS | The build had no Google Maps key. | `npx eas-cli env:pull --environment development`, then rebuild |
+| A share link opens the browser, not the app | The build claims another links host, or the iOS build has no paid team. | `EXPO_PUBLIC_LINKS_HOST`, [app.config.js](../app.config.js) |
 
 ### Known gaps
 
@@ -767,5 +764,7 @@ These are true of the code today. They are not bugs in the server.
 - Publishing, cancelling or deleting a post does not refresh map pins (`['mapPins']`) or search
   (`['searchPosts']`). They catch up when stale.
 - `GET /me` is cached under several keys (`['me']`, `['settings', 'account']`, `['postDetail', 'viewer']`,
-  `['chat', 'me']`). Settings refreshes `['me']` after a change; the other two refresh when stale.
+  `['home', 'travelState']`). Settings refreshes `['me']` after a change; Travel writes its own key; the others
+  refresh when stale.
 - Buying a subscription is typed but not wired. Group member add and remove have use cases but no screen.
+- The trusted person ("Share my plan") is not built: endpoints known, waiting for Swagger shapes and design.

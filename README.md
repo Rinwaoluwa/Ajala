@@ -4,9 +4,11 @@ React Native + Expo (Expo Router, TypeScript). A location-aware social app where
 and city locals discover and join **Meetups, Events, Plans and Groups** — city-default feed,
 premium travel to another city, and action-driven participation instead of likes.
 
-## Demo mode
+## The API
 
-`npm run demo` runs the app against a built-in pretend API with realistic Lagos data — sign in with any email and password. See [docs/DEMO.md](docs/DEMO.md).
+Development and preview builds talk to staging (`https://staging-api.ajalatrvl.com`); EAS sets
+`EXPO_PUBLIC_API_URL` for each environment, and `npx eas-cli env:pull --environment development`
+writes the same values to `.env.local` for local work. See [docs/BACKEND_GUIDE.md](docs/BACKEND_GUIDE.md).
 
 ## The shape
 
@@ -15,7 +17,7 @@ Ajala/
 ├── app/                    Expo Router routes — thin, they just render feature screens
 ├── src/
 │   ├── bootstrap/          the launch splash
-│   ├── core/               infrastructure: HTTP, sockets, push, storage, maps, demo mode
+│   ├── core/               infrastructure: HTTP, sockets, push, storage, maps, places
 │   ├── shared/             the global object: shared components, hooks, global stores, theme
 │   └── features/           one folder per feature — the unit of ownership
 │       ├── auth/  onboarding/  home/  explore/  create-post/  post-detail/  chat/  trips/

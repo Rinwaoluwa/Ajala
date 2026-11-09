@@ -244,11 +244,10 @@ or `/auth/password/verify` it is a wrong or expired code; from `/auth/password/r
 reset token that expired or was already used. Those overrides are
 declared at each call site in `AuthRepositoryImpl`, next to the request they qualify.
 
-### Working without a backend
+### Swapping the backend
 
 `authModule.ts` is the seam: it wires `createAuthRepository()` (real HTTP), and only that line
-knows the implementation. For offline work and demos, demo mode answers the same requests one
-level down, in `apiRequest` — see [DEMO.md](DEMO.md). No screen, hook or use case changes.
+knows the implementation. Tests swap in a test double there; no screen, hook or use case changes.
 
 ### Sessions
 
