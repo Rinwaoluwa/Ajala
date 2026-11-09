@@ -1,0 +1,7 @@
+# Native build output that a local `expo run:android` / Gradle build writes into
+# node_modules. It is never part of an EAS build, so it must not change the
+# runtime version (the fingerprint) computed on a developer's machine.
+node_modules/**/android/build/**/*
+node_modules/**/android/.cxx/**/*
+node_modules/**/android/.gradle/**/*
+node_modules/**/ios/build/**/*

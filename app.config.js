@@ -69,11 +69,11 @@
  * a new native build.
  *
  * iOS: the plugin adds the `aps-environment` entitlement (the App ID needs Push
- * Notifications, which EAS turns on with the profile). EAS builds are signed
- * for distribution (TestFlight, the App Store, ad hoc), which use production
- * APNs, so they say `production`; a local `expo run:ios` build says
- * `development` and gets sandbox tokens. The API must send each to the matching
- * APNs environment.
+ * Notifications, which EAS turns on with the profile). It says `production`:
+ * EAS builds are signed for distribution (TestFlight, the App Store, ad hoc),
+ * which use production APNs. It does not depend on where the build runs, since
+ * the runtime version (below) is a fingerprint of this config. A local device
+ * build that needs sandbox APNs sets APNS_MODE=development.
  *
  * Android: FCM needs the Firebase project's google-services.json for
  * `com.ajala.app`. It is not committed (.gitignore). Point GOOGLE_SERVICES_JSON
@@ -173,7 +173,11 @@ module.exports = ({ config }) => {
           icon: './assets/images/notifications/notification-icon.png',
           color: '#0E6F69',
           defaultChannel: 'default',
-          mode: process.env.EAS_BUILD ? 'production' : 'development',
+          // Fixed, not read from EAS_BUILD: the runtime version is a fingerprint of this
+          // config, and a value that differs between a laptop and EAS makes every
+          // update published from the laptop miss the builds. Distribution builds use
+          // production APNs; a local device build that needs sandbox sets APNS_MODE.
+          mode: process.env.APNS_MODE === 'development' ? 'development' : 'production',
         },
       ],
     ],
