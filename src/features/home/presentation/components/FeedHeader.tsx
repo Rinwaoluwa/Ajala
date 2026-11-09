@@ -7,31 +7,38 @@ import { useFontScale } from '@shared/hooks/useFontScale';
 import { useTheme } from '@shared/hooks/useTheme';
 import { palette } from '@shared/theme';
 
-import type { CitySource, FeedCity } from '../../domain/entities/Feed';
 import { homeCopy } from '../copy';
+import type { FeedPlace } from '../hooks/useFeed';
 import { ProTag } from './ProTag';
 
 /**
- * The top of the home feed: a coral pin, the city (Plus Jakarta 24) with a
- * chevron that opens Travel, the line under it, and the bell and chat buttons
+ * The top of the home feed: a coral pin, where the feed looks (Plus Jakarta 24)
+ * with a chevron that opens Travel, the line under it, and the bell and chat buttons
  * — 44pt pale-Marigold circles on light, Deep on dark; Liquid Glass circles where
  * the phone has it (`GlassSurface`).
  *
  * The bell carries a small coral count while notifications are unread
- * (`unreadCount`, from the notifications feature via the route); it is said as
- * "Notifications, 3 unread".
+ * (`unreadCount`, from the notifications feature via the route), and the chat
+ * button the same badge while conversations are unread (`unreadChatsCount`,
+ * from the chat feature); they are said as "Notifications, 3 unread" and
+ * "Messages, 2 unread".
  *
- * Until the feed has answered, the city and its line are skeleton bars, as the
- * skeleton frame draws them; the name fades in when it lands. The line says how
- * the server picked the city, and "Teleported to London" while a Travel
- * teleport is in force (spec §2.11).
+ * Until the feed has answered, the place and its line are skeleton bars, as the
+ * skeleton frame draws them; the name fades in when it lands. The feed has no
+ * city any more, only the point it looks around (`origin`): the big line is the
+ * teleport's name, or the region the phone is in ("Lagos", else "Near you"),
+ * and the line under it says "Teleported to Accra, Ghana" while a Travel
+ * teleport is in force (spec §2.11). With no location and no teleport (404
+ * NO_LOCATION, `noLocation`) it reads "Choose a place" and still opens Travel.
  */
 
 const BUTTON = 44;
 
 export type FeedHeaderProps = {
-  city: FeedCity | null;
-  citySource: CitySource;
+  /** Null until the feed (or `GET /me`'s teleport) says where it looks. */
+  place: FeedPlace | null;
+  /** The feed answered NO_LOCATION: no location and no teleport. */
+  noLocation?: boolean;
   /** Travel Pro: a PRO tag beside the city (Figma "Home Feed / Subscribed User"). */
   isPro?: boolean;
   onChooseCity: () => void;
@@ -39,10 +46,12 @@ export type FeedHeaderProps = {
   onMessages: () => void;
   /** Unread notifications; above zero, a badge on the bell. */
   unreadCount?: number;
+  /** Conversations with anything unread; above zero, the same badge on the chat button. */
+  unreadChatsCount?: number;
 };
 
 /**
- * The bell's badge: a coral circle for one digit, a pill for more ("12", "99+").
+ * The bell's and the chat button's badge: a coral circle for one digit, a pill for more ("12", "99+").
  *
  * The size follows the text size (to the label's 1.2× cap), so the number never
  * outgrows it, and a single digit gets no side padding, which had stretched the
@@ -80,44 +89,54 @@ function UnreadBadge({ count }: { count: number }) {
 }
 
 export function FeedHeader({
-  city,
-  citySource,
+  place,
+  noLocation = false,
   isPro = false,
   onChooseCity,
   onNotifications,
   onMessages,
   unreadCount = 0,
+  unreadChatsCount = 0,
 }: FeedHeaderProps) {
   const theme = useTheme();
   const dark = useColorScheme() === 'dark';
+  const shown = place !== null || noLocation;
   // Teal (light) / Mist (dark) once loaded; the skeleton's grey before.
-  const iconTint = city ? (dark ? theme.foreground : palette.teal) : theme.track;
+  const iconTint = shown ? (dark ? theme.foreground : palette.teal) : theme.track;
+  const title = place
+    ? (place.name ?? (place.teleported ? homeCopy.teleported : homeCopy.nearYou))
+    : homeCopy.choosePlace;
+  const subtitle = place
+    ? place.teleported
+      ? place.label
+        ? homeCopy.teleportedTo(place.label)
+        : homeCopy.teleported
+      : homeCopy.deviceSubtitle
+    : homeCopy.locationOff;
 
   return (
     <View className="flex-row items-center px-20 pt-8">
       <Pressable
         onPress={onChooseCity}
-        disabled={!city}
+        disabled={!shown}
         accessibilityRole="button"
-        accessibilityLabel={city ? `${city.name}. ${homeCopy.chooseCity}` : undefined}
+        accessibilityLabel={shown ? `${title}. ${subtitle}. ${homeCopy.chooseCity}` : undefined}
         style={{ flex: 1 }}
       >
-        {city ? (
+        {shown ? (
           <Animated.View entering={FadeIn.duration(220)}>
             <View className="flex-row items-center" style={{ gap: 8 }}>
               <VectorIcon name="pin" size={20} color={palette.coral} />
               <Text variant="headingLg" numberOfLines={1} style={{ flexShrink: 1 }}>
-                {city.name}
+                {title}
               </Text>
               {isPro ? <ProTag /> : null}
               <Host matchContents pointerEvents="none" ignoreSafeArea="all">
                 <NativeIcon source={icons.chevronDown} size={13} color={theme.foreground} />
               </Host>
             </View>
-            <Text variant="bodySm" tone="muted" className="mt-2">
-              {citySource === 'teleport'
-                ? homeCopy.teleportedTo(city.name)
-                : homeCopy.citySubtitle[citySource]}
+            <Text variant="bodySm" tone="muted" className="mt-2" numberOfLines={2}>
+              {subtitle}
             </Text>
           </Animated.View>
         ) : (
@@ -135,19 +154,20 @@ export function FeedHeader({
       <View className="flex-row" style={{ gap: 10 }}>
         {(
           [
-            [
-              'bell',
-              unreadCount > 0 ? `${homeCopy.notifications}, ${unreadCount} unread` : homeCopy.notifications,
-              onNotifications,
-            ],
-            ['chat', homeCopy.messages, onMessages],
+            ['bell', homeCopy.notifications, unreadCount, onNotifications],
+            ['chat', homeCopy.messages, unreadChatsCount, onMessages],
           ] as const
-        ).map(([icon, label, onPress]) => (
-          <Pressable key={icon} onPress={onPress} accessibilityRole="button" accessibilityLabel={label}>
+        ).map(([icon, name, count, onPress]) => (
+          <Pressable
+            key={icon}
+            onPress={onPress}
+            accessibilityRole="button"
+            accessibilityLabel={count > 0 ? `${name}, ${count} unread` : name}
+          >
             {({ pressed }) => (
               <>
                 <GlassSurface
-                  fallbackColor={city ? theme.iconButtonFill : theme.skeletonSurface}
+                  fallbackColor={shown ? theme.iconButtonFill : theme.skeletonSurface}
                   interactive
                   shadow={false}
                   onPlainPage
@@ -162,7 +182,7 @@ export function FeedHeader({
                 >
                   <VectorIcon name={icon} size={22} color={iconTint} />
                 </GlassSurface>
-                {icon === 'bell' && unreadCount > 0 ? <UnreadBadge count={unreadCount} /> : null}
+                {count > 0 ? <UnreadBadge count={count} /> : null}
               </>
             )}
           </Pressable>

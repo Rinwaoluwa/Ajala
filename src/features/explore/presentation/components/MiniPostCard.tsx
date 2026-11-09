@@ -22,18 +22,18 @@ import type { PostPreview } from '../../domain/entities/Explore';
 import type { ExploreErrorCode } from '../../domain/entities/ExploreError';
 import { rsvpAction, spotsLeft, type RsvpAction } from '../../domain/rules/exploreRules';
 import { exploreCopy, exploreErrorMessages, typeEmoji, typeLabels } from '../copy';
-import { formatCostShare, formatPrice, formatShortDay } from '../format';
+import { formatPrice, formatShortDay } from '../format';
 
 /**
  * The card a tapped pin opens (Figma "Map_Overlay_Mini"): the cover photo at the
  * left with the type tag on it; the title, "Oct 4 · The Nest", "47 joined · 13
  * left"; then the join button and Preview. × closes it, ⋯ offers Report.
  *
- * The button follows the post's own state (spec §2.13): RSVP with its price, or
- * Request to join on a private post, Book on a paid Event; Requested, Going and
- * Waitlisted once done; nothing once declined or removed. A Plan or Group that
- * splits a cost says "About ₦12,000 each" under its counts — the server's
- * per-person share, not worked out here.
+ * The button follows the post's own state (spec §2.13): RSVP, with its price
+ * when it has one (a card shows the price or nothing), or Request to join on a
+ * private post; Requested, Going and Waitlisted once done; "You're hosting" on
+ * the person's own post, never Join; nothing once declined or removed. A post
+ * with a link opens it as it joins (see `useJoinPost`).
  *
  * Motion: it rises 12pt and fades in over 250ms, and sinks out in 180ms (a fade
  * alone under Reduce Motion). At large text the buttons stack.
@@ -198,11 +198,6 @@ function Loaded({
         <Text variant="bodyXs" tone="muted" className="mt-2">
           {counts}
         </Text>
-        {post.costShare ? (
-          <Text variant="bodyXs" tone="muted" className="mt-2">
-            {exploreCopy.card.costEach(formatCostShare(post.costShare))}
-          </Text>
-        ) : null}
 
         <View
           onLayout={(e) => setColumnWidth(e.nativeEvent.layout.width)}
@@ -245,16 +240,15 @@ function Loaded({
   );
 }
 
-const actionable = (action: RsvpAction) => action.kind === 'join' || action.kind === 'book';
+const actionable = (action: RsvpAction) => action.kind === 'join';
 
 function actionLabel(action: RsvpAction): string {
   const c = exploreCopy.card;
   switch (action.kind) {
     case 'join':
       if (action.request) return c.request;
-      return c.rsvp(action.price ? formatPrice(action.price) : c.free);
-    case 'book':
-      return action.price ? c.book(formatPrice(action.price)) : c.book(c.free);
+      // The price or nothing: no price is not the same as free (backend answers C1).
+      return action.price ? c.rsvpPriced(formatPrice(action.price)) : c.rsvp;
     case 'requested':
       return c.requested;
     case 'going':

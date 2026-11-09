@@ -26,6 +26,8 @@ import { useSubscription } from '../hooks/useSubscription';
  * app or the API, so it is the brand's night gradient with the swirl, which both
  * variants already fade into at the foot. The badge is the design's own
  * (`travel-badge.svg`), with the home flag and the destination's on its line.
+ * Travel picks cities by Google place id, and a place suggestion carries no
+ * country, so either end shows the globe when its country is not known.
  *
  * It reads the subscription afresh on opening (`GET /me/subscription`): it may
  * have opened because a teleport just came back 402.
@@ -52,9 +54,10 @@ const formatDate = (iso: string | null): string | null => {
 };
 
 export type TravelPaywallScreenProps = {
-  /** The destination, or null for "anywhere" (from the Pro banner). */
-  city: { name: string; countryCode: string } | null;
-  homeCountryCode: string;
+  /** The destination, or null for "anywhere" (from the Pro banner). `countryCode` when known. */
+  city: { name: string; countryCode?: string | null } | null;
+  /** The home place's country (`MeDto.homePlace.countryCode`), or null when there is none. */
+  homeCountryCode: string | null;
   onClose: () => void;
 };
 
@@ -90,10 +93,14 @@ export function TravelPaywallScreen({ city, homeCountryCode, onClose }: TravelPa
           <View style={{ width: SEAL, height: SEAL }} accessibilityLabel={city ? `${city.name}` : undefined}>
             <SvgIcon name="travelBadge" size={SEAL} />
             <View style={{ position: 'absolute', left: SEAL * 0.17 - FLAG / 2, top: SEAL * 0.93 - FLAG / 2 }}>
-              <RoundFlag countryCode={homeCountryCode} size={FLAG} />
+              {homeCountryCode ? (
+                <RoundFlag countryCode={homeCountryCode} size={FLAG} />
+              ) : (
+                <SvgIcon name="earth" size={FLAG} />
+              )}
             </View>
             <View style={{ position: 'absolute', left: SEAL * 0.83 - FLAG / 2, top: SEAL * 0.93 - FLAG / 2 }}>
-              {city ? (
+              {city?.countryCode ? (
                 <RoundFlag countryCode={city.countryCode} size={FLAG} />
               ) : (
                 <SvgIcon name="earth" size={FLAG} />
@@ -181,7 +188,7 @@ export function TravelPaywallScreen({ city, homeCountryCode, onClose }: TravelPa
             <Animated.View entering={enterRise(180)} className="mt-40 items-center" style={{ gap: 16 }}>
               <View style={{ alignSelf: 'stretch' }}>
                 <Button
-                  label={`${copy.subscribe} — ${copy.price}`}
+                  label={`${copy.subscribe} — ${copy.price(null)}`}
                   size="lg"
                   fullWidth
                   loading={loading}

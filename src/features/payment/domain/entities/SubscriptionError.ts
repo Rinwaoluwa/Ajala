@@ -1,6 +1,9 @@
 /** Why a subscription call failed, in the terms the paywall acts on (by `ErrorResponseDto.code`). */
 export type SubscriptionErrorCode =
-  /** 503 SERVICE_UNAVAILABLE: subscriptions are switched off in this environment. */
+  /**
+   * 503 SERVICE_UNAVAILABLE: subscriptions are off here, or that store's keys
+   * aren't set. Also a 500 from buying: the store failed or timed out. Try again.
+   */
   | 'unavailable'
   /** 404 from the billing portal: there is no web subscription to manage. */
   | 'noWebSubscription'

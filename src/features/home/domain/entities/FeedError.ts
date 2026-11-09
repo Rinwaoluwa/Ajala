@@ -1,11 +1,18 @@
 /** Why a feed or Travel call failed, in the terms the screen acts on (by `ErrorResponseDto.code`). */
 export type FeedErrorCode =
-  /** 404 NO_CITY: no location, no network guess, no home city — set a home city. */
-  | 'noCity'
+  /**
+   * 404 NO_LOCATION: the phone sent no location and there is no teleport. Not a
+   * failure to apologise for: the screen asks for location, or offers a place.
+   */
+  | 'noLocation'
   /** 402 PAYMENT_REQUIRED on teleport: Travel is not (or no longer) on — show the paywall. */
   | 'paymentRequired'
-  /** 404 on teleport: the city is not in the catalogue any more. */
-  | 'cityNotFound'
+  /** 400 on teleport: the place is unknown, or not a city (a venue, an address). */
+  | 'notACity'
+  /** 503 on teleport: the map vendor is off or did not answer. Worth another go. */
+  | 'unavailable'
+  /** The place search itself failed (Google refused, no key, offline): `PlacesError`. */
+  | 'placesUnavailable'
   | 'network'
   | 'sessionExpired'
   | 'unknown';

@@ -28,7 +28,7 @@ import { MeetupCard } from './MeetupCard';
  * "Explore" (Figma, opened by View List): "Find your people. Discover your city.",
  * a search box, Browse By Interest, then Meetups Near You.
  *
- * The search box searches posts in the feed's city on submit (`GET
+ * The search box searches posts within 30 km of where the feed looks, on submit (`GET
  * /search/posts?q=`, 2–100 characters; no typeahead, as the spec asks). Its
  * results replace the interests and meetups until the box is cleared. Fewer than
  * two characters gets a hint under the box rather than a call the server would
@@ -153,7 +153,7 @@ function Results({
           </SkeletonPulse>
         ) : search.error ? (
           <Inline
-            message={search.error === 'noCity' ? exploreErrorMessages.noCity : copy.resultsFailed}
+            message={search.error === 'noLocation' ? exploreErrorMessages.noLocation : copy.resultsFailed}
             onRetry={search.retry}
           />
         ) : search.items.length === 0 ? (
@@ -242,7 +242,10 @@ function BrowseAndNearby({ onOpenMeetup }: { onOpenMeetup: (id: string) => void 
             </View>
           </SkeletonPulse>
         ) : meetups.failed ? (
-          <Inline message={copy.nearbyFailed} onRetry={meetups.retry} />
+          <Inline
+            message={meetups.noLocation ? exploreErrorMessages.noLocation : copy.nearbyFailed}
+            onRetry={meetups.retry}
+          />
         ) : meetups.items.length === 0 ? (
           <Text variant="bodySm" tone="muted" className="py-12">
             {interestId ? copy.nearbyNoInterest : copy.nearbyEmpty}

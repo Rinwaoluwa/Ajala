@@ -1,48 +1,55 @@
 /**
  * Travel's rules, apart from any screen.
  *
- * A city is matched by id when both sides have one, and by name otherwise: the
- * Travel screen opens with the feed's city from route params, and the person's
- * own city may only be known by name.
+ * There are no cities in the API any more, only Google place ids, and the
+ * feed without a teleport looks around the phone, not around a city. So
+ * Travel has two kinds of choice: "where you are" (the phone: coming home is
+ * `DELETE /me/teleport`) and a city, matched by its place id.
  */
 
-export type TravelPlace = { id?: string; name: string; countryCode: string };
+/** How many past teleports "Recent" keeps. Swagger has no popular-cities list, so this and search are all Travel offers. */
+export const MAX_RECENT_TRAVELS = 5;
 
-/** How many past teleports "Recent" keeps. */
-export const MAX_RECENT_TRAVELS = 3;
+/** Search starts from this many characters; fewer would be billed for useless suggestions. */
+export const MIN_CITY_SEARCH = 2;
 
-export function sameCity(a: TravelPlace | null | undefined, b: TravelPlace | null | undefined): boolean {
-  if (!a || !b) return false;
-  if (a.id && b.id) return a.id === b.id;
-  return a.name.trim().toLowerCase() === b.name.trim().toLowerCase();
-}
+/** What the person tapped: their own location, or a city by place id. */
+export type TravelPick = { kind: 'here' } | { kind: 'city'; placeId: string };
 
-/** What tapping a city in Travel does. */
+/** What tapping it does. */
 export type TravelChoice =
   /** It is where the feed already is: just close. */
   | { kind: 'stay' }
   /** Not subscribed: the paywall, for that city. */
   | { kind: 'paywall' }
-  /** The person's own city while teleported elsewhere: `DELETE /me/teleport`. */
+  /** Back to the phone's location while teleported: `DELETE /me/teleport`. */
   | { kind: 'returnHome' }
-  | { kind: 'teleport'; cityId: string };
+  | { kind: 'teleport'; placeId: string };
 
-export function travelChoice(
-  city: TravelPlace,
-  here: TravelPlace,
-  home: TravelPlace | null,
-  subscribed: boolean,
-): TravelChoice {
-  if (sameCity(city, here)) return { kind: 'stay' };
+/**
+ * Where the feed is now: on a teleport or not, and the teleport's place id
+ * once `GET /me` has said (before that, only the feed's word that it is
+ * teleported is known).
+ */
+export type TravelHere = { teleported: boolean; placeId: string | null };
+
+export function travelChoice(pick: TravelPick, here: TravelHere, subscribed: boolean): TravelChoice {
   // Coming home needs no subscription: a lapsed subscriber must always be able to.
-  if (sameCity(city, home)) return { kind: 'returnHome' };
+  if (pick.kind === 'here') return here.teleported ? { kind: 'returnHome' } : { kind: 'stay' };
+  if (here.teleported && pick.placeId === here.placeId) return { kind: 'stay' };
   if (!subscribed) return { kind: 'paywall' };
-  // Every city Travel lists comes from the catalogue, so it has an id; a name-only
-  // one (the opening city) is always `here` or `home`, handled above.
-  return city.id ? { kind: 'teleport', cityId: city.id } : { kind: 'stay' };
+  return { kind: 'teleport', placeId: pick.placeId };
 }
 
 /** The newest destination first, each once, at most `MAX_RECENT_TRAVELS`. */
-export function addRecent<T extends TravelPlace>(recent: readonly T[], city: T): T[] {
-  return [city, ...recent.filter((c) => !sameCity(c, city))].slice(0, MAX_RECENT_TRAVELS);
+export function addRecent<T extends { placeId: string }>(recent: readonly T[], city: T): T[] {
+  return [city, ...recent.filter((c) => c.placeId !== city.placeId)].slice(0, MAX_RECENT_TRAVELS);
+}
+
+/**
+ * The short name of a place label for the header's big line: "Accra" from
+ * "Accra, Ghana". The full label still goes in "Teleported to …".
+ */
+export function shortPlaceName(label: string): string {
+  return label.split(',')[0]?.trim() || label.trim();
 }

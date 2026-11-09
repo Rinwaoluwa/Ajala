@@ -1,14 +1,22 @@
 import { getClientLocationHeader } from '@core/location/deviceLocation';
+import { endPlacesSession, placeDetails, searchCities } from '@core/places';
 
 import type { FeedRepository } from '../../domain/repositories/FeedRepository';
 import { createFeedApi, type FeedRequest } from '../datasources/remote/feedApi';
-import { toCatalogCity, toFeedError, toFeedPage } from '../mappers/feedMappers';
+import { toFeedError, toFeedPage, toTravelCity, toTravelState } from '../mappers/feedMappers';
+
+/** A search the caller cancelled: handed back as it is, so the query layer sees a cancel, not a failure. */
+const isAbort = (e: unknown) => (e as { name?: unknown } | null)?.name === 'AbortError';
 
 /**
- * `FeedRepository` over the API. Every page sends `X-Client-Location` when the
- * phone can give it (spec §2.11), so the feed follows the person and cards say
- * how far away they are. A teleport outranks the header on the server, so it
- * is still sent while teleported: cards keep their real distance from the phone.
+ * `FeedRepository` over the API and the phone's place search. Every page sends
+ * `X-Client-Location` when the phone can give it (spec §2.11), so the feed
+ * follows the person and cards say how far away they are. A teleport outranks
+ * the header on the server, so it is still sent while teleported: cards keep
+ * their real distance from the phone.
+ *
+ * City search and place names come from `@core/places` (Google, or the demo's
+ * own list): the API takes place ids but has no search of its own.
  *
  * Cache policy: none on the phone. The server caches cards for 10 minutes;
  * pull to refresh asks again from the first page. Teleport and coming home are
@@ -21,6 +29,7 @@ export function createFeedRepository(request: FeedRequest): FeedRepository {
     try {
       return await run();
     } catch (e) {
+      if (isAbort(e)) throw e;
       throw toFeedError(e, context);
     }
   };
@@ -28,9 +37,12 @@ export function createFeedRepository(request: FeedRequest): FeedRepository {
   return {
     getFeed: (filter, cursor, limit) =>
       guard(async () => toFeedPage(await api.getFeed(filter, cursor, limit, await getClientLocationHeader()))),
-    searchCities: (query, limit) => guard(async () => (await api.searchCities(query, limit)).map(toCatalogCity)),
-    popularCities: () => guard(async () => (await api.popularCities()).map(toCatalogCity)),
-    teleport: (cityId) => guard(() => api.teleport({ cityId }), 'teleport'),
+    searchCities: (query, signal) =>
+      guard(async () => (await searchCities(query, null, signal)).map(toTravelCity)),
+    placeName: (placeId, signal) => guard(async () => (await placeDetails(placeId, signal)).name),
+    endCitySearch: () => endPlacesSession(),
+    teleport: (placeId) => guard(() => api.teleport({ placeId }), 'teleport'),
     returnHome: () => guard(() => api.returnHome()),
+    getTravelState: () => guard(async () => toTravelState(await api.getTravelState())),
   };
 }

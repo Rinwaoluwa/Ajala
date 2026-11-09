@@ -1,7 +1,9 @@
 /**
- * The home feed: post cards for one city (`FeedPageDto`). The server picks the
- * city — a Travel teleport first, then the phone's location, a network guess,
- * then the home city (spec §2.11) — and says which (`citySource`).
+ * The home feed: post cards around one point (`FeedPageDto`). The server picks
+ * the point, a Travel teleport first and then the phone's location
+ * (`X-Client-Location`), and says which (`originSource`). There is no city and
+ * no home-city fallback any more: with neither, the feed answers 404
+ * NO_LOCATION (spec §2.11).
  */
 
 export type PostType = 'meetup' | 'event' | 'plan' | 'group';
@@ -9,15 +11,20 @@ export type PostType = 'meetup' | 'event' | 'plan' | 'group';
 /** `all`, or one post type: the only filter the feed has (API map §4). */
 export type FeedFilter = 'all' | PostType;
 
-/** `teleport` means a Travel subscriber has pointed the feed at another city. */
-export type CitySource = 'device' | 'edge' | 'home' | 'teleport';
+/** `teleport` means a Travel subscriber has pointed the feed somewhere else; `device` is the phone. */
+export type OriginSource = 'device' | 'teleport';
 
-export type FeedCity = { id: string; name: string; countryCode: string; label: string };
+/** The point the feed looks around (`FeedOriginDto`). */
+export type FeedOrigin = {
+  lat: number;
+  lng: number;
+  /** The teleport place ("Accra, Ghana"); null for the phone's own location. */
+  label: string | null;
+  /** The state or region the point is in ("Lagos"); null when nobody can say. */
+  region: string | null;
+};
 
 export type PostPrice = { amount: number; currency: string };
-
-/** A shared cost (Plans and Groups): what each person pays, as the server worked it out. */
-export type CostShare = { perPerson: number; currency: string; expectedCount: number };
 
 export type RsvpState = 'none' | 'requested' | 'going' | 'waitlisted' | 'declined' | 'removed';
 export type Recurrence = 'weekly' | 'biweekly' | 'monthly';
@@ -34,27 +41,57 @@ export type PostCard = {
   endAt: string | null;
   /** How often a Group meets again; null for a one-off. */
   recurrence: Recurrence | null;
+  /**
+   * The line under the card: the host's name for the place, else the city and
+   * country around it ("Lagos, Nigeria"), so a dropped pin still says where.
+   */
   placeName: string | null;
+  /** The Google place the host picked; null for a dropped pin. */
+  placeId: string | null;
+  formattedAddress: string | null;
+  /** The city and country, e.g. "Lagos, Nigeria". */
+  localityLabel: string | null;
+  countryCode: string | null;
   host: { name: string; avatarUrl: string | null; verified: boolean };
   /** Null without the location header. */
   distanceKm: number | null;
   goingCount: number;
   capacity: number | null;
+  /** Null when free or not given: a card shows the price or nothing (there is no shared cost). */
   price: PostPrice | null;
-  costShare: CostShare | null;
   rsvpState: RsvpState;
-  joinMode: 'rsvp' | 'external';
   /** Whether this person has bookmarked it (the card's save button starts from this). */
   saved: boolean;
 };
 
 export type FeedPage = {
-  city: FeedCity;
-  citySource: CitySource;
+  origin: FeedOrigin;
+  originSource: OriginSource;
   items: PostCard[];
   /** Null on the last page. */
   nextCursor: string | null;
 };
 
-/** A city the Travel picker lists: from search or the Popular row. */
-export type CatalogCity = { id: string; name: string; countryCode: string; countryName: string };
+/**
+ * Where Travel stands, from `GET /me`: the teleport in force (null when there
+ * is none, or the subscription has ended) and the person's home place. Known
+ * after a restart, unlike anything the app remembers itself.
+ *
+ * `MeDto.teleport` is Swagger's `TeleportDto`, the place id alone (spec §8 Q1),
+ * so its name comes from the feed's `origin.label` or a place lookup. The home
+ * place centres nothing any more; it only gives the paywall its home flag.
+ */
+export type TravelState = {
+  teleport: { placeId: string } | null;
+  homePlace: { placeId: string; label: string; countryCode: string | null } | null;
+};
+
+/** A city the Travel picker lists: a place search result or a recent teleport. */
+export type TravelCity = {
+  /** Google place id: what `POST /me/teleport` takes. */
+  placeId: string;
+  /** "Accra". */
+  name: string;
+  /** The line under it ("Ghana"); empty when there is none. */
+  detail: string;
+};

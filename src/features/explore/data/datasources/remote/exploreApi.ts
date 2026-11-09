@@ -1,8 +1,8 @@
 import type {
-  CityDto,
   FeedPageDto,
   InterestDto,
   MapPinsDto,
+  MeIdDto,
   PostDetailDto,
   PostSearchPageDto,
   PostTypeDto,
@@ -16,6 +16,9 @@ const V1 = '/api/v1';
 /**
  * Explore's endpoints as the signed-in person (spec §2.11–2.13, API map §6–7).
  * `request` is auth's `AuthorizedRequest`, which attaches and refreshes the token.
+ *
+ * No city search here: `GET /cities` is gone, so the map's search uses
+ * `@core/places` on the phone.
  */
 export type ExploreRequest = <T>(request: {
   method: 'GET' | 'POST';
@@ -43,7 +46,11 @@ type Headers = Record<string, string> | null;
 
 export function createExploreApi(request: ExploreRequest) {
   return {
-    /** `bbox` is `west,south,east,north`, under 5° a side; `q` keeps pins whose title contains it. */
+    /**
+     * `bbox` is `west,south,east,north`, under 5° a side (20° for a subscriber);
+     * `q` keeps pins whose title contains it. 404 NO_LOCATION without a location
+     * or a teleport; `reach` says whether the box or only 30 km round the origin counts.
+     */
     getPins: (bbox: string, type: PostTypeDto | null, q: string | null, headers: Headers) =>
       request<MapPinsDto>({
         method: 'GET',
@@ -64,6 +71,9 @@ export function createExploreApi(request: ExploreRequest) {
         path: `${V1}/posts/${encodeURIComponent(postId)}/rsvp`,
       }),
 
+    /** Who is signed in; only the id is read. */
+    me: () => request<MeIdDto>({ method: 'GET', path: `${V1}/me` }),
+
     linkClick: (postId: string) =>
       request<void>({ method: 'POST', path: `${V1}/posts/${encodeURIComponent(postId)}/link-click` }),
 
@@ -76,7 +86,7 @@ export function createExploreApi(request: ExploreRequest) {
 
     listInterests: () => request<InterestDto[]>({ method: 'GET', path: `${V1}/interests` }),
 
-    /** The feed of one type (Explore asks for `meetup`); the server picks the city. */
+    /** The feed of one type (Explore asks for `meetup`); the server picks where it looks. */
     getFeed: (type: PostTypeDto, cursor: string | null, limit: number, headers: Headers) =>
       request<FeedPageDto>({
         method: 'GET',
@@ -84,7 +94,7 @@ export function createExploreApi(request: ExploreRequest) {
         headers: headers ?? undefined,
       }),
 
-    /** 400 with neither `q` nor interests; 404 NO_CITY. */
+    /** 400 with neither `q` nor interests; 404 NO_LOCATION. */
     searchPosts: (params: PostSearchParams, cursor: string | null, limit: number, headers: Headers) =>
       request<PostSearchPageDto>({
         method: 'GET',
@@ -97,9 +107,6 @@ export function createExploreApi(request: ExploreRequest) {
         })}`,
         headers: headers ?? undefined,
       }),
-
-    searchCities: (q: string, limit: number) =>
-      request<CityDto[]>({ method: 'GET', path: `${V1}/cities?${query({ q, limit })}` }),
   };
 }
 

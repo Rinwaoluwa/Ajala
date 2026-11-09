@@ -1,5 +1,6 @@
 import { getClientLocationHeader } from '@core/location/deviceLocation';
 import { bboxParam } from '@core/maps/geo';
+import { endPlacesSession, placeDetails, searchCities } from '@core/places';
 
 import type { ExploreRepository } from '../../domain/repositories/ExploreRepository';
 import { rsvpNoticeStore, type RsvpNoticeStore } from '../datasources/local/rsvpNoticeStore';
@@ -14,11 +15,15 @@ import {
   toRsvpResult,
 } from '../mappers/exploreMappers';
 
+/** A search the caller cancelled: handed back as it is, so the query layer sees a cancel, not a failure. */
+const isAbort = (e: unknown) => (e as { name?: unknown } | null)?.name === 'AbortError';
+
 /**
  * `ExploreRepository` over the API and the phone. Pins, posts, the feed and
  * search send `X-Client-Location` when the phone can give it (spec §2.11): it
- * picks the city (unless a Travel teleport outranks it) and fills each card's
- * distance.
+ * is where they look (unless a Travel teleport outranks it) and fills each
+ * card's distance. The map's city search is the place search on the phone
+ * (`@core/places`): the API takes place ids but has no search of its own.
  *
  * Cache policy: none here; the presentation layer's queries cache.
  */
@@ -32,6 +37,7 @@ export function createExploreRepository(
     try {
       return await run();
     } catch (e) {
+      if (isAbort(e)) throw e;
       throw toExploreError(e, context);
     }
   };
@@ -45,6 +51,7 @@ export function createExploreRepository(
       guard(async () => toPostPreview(await api.getPost(postId, await getClientLocationHeader()))),
     rsvp: (postId) => guard(async () => toRsvpResult(await api.rsvp(postId))),
     recordLinkClick: (postId) => guard(() => api.linkClick(postId)),
+    getMyId: () => guard(async () => (await api.me()).id),
     report: (postId, reason, details) =>
       guard(async () => {
         await api.report(postId, { reason, details });
@@ -63,7 +70,13 @@ export function createExploreRepository(
           ),
         ),
       ),
-    searchPlaces: (q, limit) => guard(async () => (await api.searchCities(q, limit)).map(toPlaceResult)),
+    searchPlaces: (q, signal) => guard(async () => (await searchCities(q, null, signal)).map(toPlaceResult)),
+    placeLocation: (placeId, signal) =>
+      guard(async () => {
+        const place = await placeDetails(placeId, signal);
+        return { lat: place.lat, lng: place.lng };
+      }),
+    endPlaceSearch: () => endPlacesSession(),
     hasSeenRsvpNotice: () => notice.seen(),
     markRsvpNoticeSeen: () => notice.markSeen(),
   };

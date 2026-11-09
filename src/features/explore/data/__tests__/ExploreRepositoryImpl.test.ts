@@ -1,8 +1,21 @@
 import { describe, expect, it, jest } from '@jest/globals';
 
 import { ApiError } from '@core/api/ApiError';
+import { PlacesError, endPlacesSession, placeDetails, searchCities } from '@core/places';
 
 import { createExploreRepository } from '../repositories/ExploreRepositoryImpl';
+
+// The place search on the phone, faked: the real one calls Google (or the demo list).
+jest.mock('@core/places', () => {
+  const actual = jest.requireActual<typeof import('@core/places/placesTypes')>('@core/places/placesTypes');
+  return {
+    PlacesError: actual.PlacesError,
+    isPlacesError: actual.isPlacesError,
+    searchCities: jest.fn(),
+    placeDetails: jest.fn(),
+    endPlacesSession: jest.fn(),
+  };
+});
 
 jest.mock('@core/location/deviceLocation', () => ({
   getClientLocationHeader: async () => ({ 'X-Client-Location': '6.453,3.396' }),
@@ -46,14 +59,15 @@ const POST = {
   endAt: null,
   recurrence: null,
   placeName: 'The Nest',
+  placeId: 'g-nest',
+  formattedAddress: '1 Admiralty Way, Lekki, Lagos, Nigeria',
+  localityLabel: 'Lagos, Nigeria',
+  countryCode: 'NG',
   lat: 6.43,
   lng: 3.42,
-  city: { id: 'los', name: 'Lagos', countryCode: 'NG', label: 'Lagos, NG' },
   capacity: 60,
   price: null,
-  costSplit: null,
   externalUrl: null,
-  joinMode: 'rsvp',
   goingCount: 47,
   rsvpState: 'none',
   saved: false,
@@ -72,15 +86,22 @@ const LISTED = {
   imageUrl: 'https://cdn/card.jpg',
   startAt: '2026-10-04T18:00:00+01:00',
   placeName: 'The Nest',
+  placeId: 'g-nest',
+  formattedAddress: '1 Admiralty Way, Lekki, Lagos, Nigeria',
+  localityLabel: 'Lagos, Nigeria',
+  countryCode: 'NG',
   goingCount: 47,
   distanceKm: 1.2,
 };
 
+const ORIGIN = { lat: 6.453, lng: 3.396, label: null, region: 'Lagos' };
+
 describe('explore repository', () => {
   it('asks for pins in a box of one type, with the location header', async () => {
     const { request, calls } = fake(() => ({
-      city: { id: 'los', name: 'Lagos', countryCode: 'NG', label: 'Lagos, NG' },
-      citySource: 'device',
+      origin: ORIGIN,
+      originSource: 'device',
+      reach: 'radius',
       pins: [
         { id: 'p1', type: 'event', lat: 6.4, lng: 3.4, title: 'Afrobeats', startAt: '2026-10-30T19:00:00Z' },
       ],
@@ -96,7 +117,9 @@ describe('explore repository', () => {
       headers: { 'X-Client-Location': '6.453,3.396' },
     });
     expect(result).toEqual({
-      cityName: 'Lagos',
+      origin: ORIGIN,
+      originSource: 'device',
+      reach: 'radius',
       pins: [
         { id: 'p1', type: 'event', lat: 6.4, lng: 3.4, title: 'Afrobeats', startAt: '2026-10-30T19:00:00Z' },
       ],
@@ -104,13 +127,13 @@ describe('explore repository', () => {
   });
 
   it('leaves the type out for all pins', async () => {
-    const { request, calls } = fake(() => ({ city: { name: 'Lagos' }, pins: [] }));
+    const { request, calls } = fake(() => ({ origin: ORIGIN, originSource: 'device', reach: 'box', pins: [] }));
     await createExploreRepository(request, notice).getPins({ west: 1, south: 2, east: 3, north: 4 }, null, null);
     expect(calls[0].path).toBe('/api/v1/map/pins?bbox=1%2C2%2C3%2C4');
   });
 
   it('sends a title filter as q', async () => {
-    const { request, calls } = fake(() => ({ city: { name: 'Lagos' }, pins: [] }));
+    const { request, calls } = fake(() => ({ origin: ORIGIN, originSource: 'device', reach: 'box', pins: [] }));
     await createExploreRepository(request, notice).getPins({ west: 1, south: 2, east: 3, north: 4 }, null, 'jazz');
     expect(calls[0].path).toBe('/api/v1/map/pins?bbox=1%2C2%2C3%2C4&q=jazz');
   });
@@ -122,23 +145,40 @@ describe('explore repository', () => {
     expect(post).toMatchObject({
       id: 'p1',
       imageUrl: 'https://cdn/card.jpg',
+      placeName: 'The Nest',
+      placeId: 'g-nest',
+      localityLabel: 'Lagos, Nigeria',
+      countryCode: 'NG',
       goingCount: 47,
       capacity: 60,
       rsvpState: 'none',
-      joinMode: 'rsvp',
+      externalUrl: null,
       isHost: false,
-      costShare: null,
+      hostId: 'h',
     });
+    // Shared cost is gone from the API: nothing of it reaches the card.
+    expect(post).not.toHaveProperty('costShare');
   });
 
-  it('carries a cost split for "about N each"', async () => {
+  it("keeps a post's link: joining opens it as well as RSVPing", async () => {
     const { request } = fake(() => ({
       ...POST,
-      type: 'plan',
-      costSplit: { totalCents: 4800000, currency: 'NGN', exponent: 2, expectedCount: 4, perPersonCents: 1200000 },
+      type: 'event',
+      externalUrl: 'https://tix.africa/x',
     }));
     const post = await createExploreRepository(request, notice).getPost('p1');
-    expect(post.costShare).toEqual({ perPersonCents: 1200000, currency: 'NGN', exponent: 2, expectedCount: 4 });
+    expect(post.externalUrl).toBe('https://tix.africa/x');
+  });
+
+  it('counts a link click with a POST, and reads who is signed in', async () => {
+    const { request, calls } = fake((c) => (c.path === '/api/v1/me' ? { id: 'me-1' } : undefined));
+    const repo = createExploreRepository(request, notice);
+    await repo.recordLinkClick('p1');
+    expect(await repo.getMyId()).toBe('me-1');
+    expect(calls.map((c) => [c.method, c.path])).toEqual([
+      ['POST', '/api/v1/posts/p1/link-click'],
+      ['GET', '/api/v1/me'],
+    ]);
   });
 
   it('joins with a POST and reads the new state', async () => {
@@ -181,6 +221,18 @@ describe('explore repository', () => {
     });
   });
 
+  it('names a dropped pin by the city around it', async () => {
+    const { request } = fake(() => ({ ...POST, placeName: null, placeId: null, formattedAddress: null }));
+    expect((await createExploreRepository(request, notice).getPost('p1')).placeName).toBe('Lagos, Nigeria');
+  });
+
+  it('reads NO_LOCATION (no location, no teleport) by its code', async () => {
+    const { request } = fake(() => new ApiError({ code: 'NO_LOCATION', message: 'no location', status: 404 }));
+    await expect(
+      createExploreRepository(request, notice).getPins({ west: 1, south: 2, east: 3, north: 4 }, null, null),
+    ).rejects.toMatchObject({ code: 'noLocation' });
+  });
+
   it('reads a 409 on a report as already reported, a 400 as their own post', async () => {
     const conflict = fake(() => new ApiError({ code: 'CONFLICT', message: 'open', status: 409 }));
     await expect(
@@ -188,16 +240,34 @@ describe('explore repository', () => {
     ).rejects.toMatchObject({
       code: 'alreadyReported',
     });
-    const own = fake(() => new ApiError({ code: 'BAD_REQUEST', message: 'own', status: 400 }));
+    // Swagger answers both with VALIDATION_FAILED; only missing words name a field.
+    const own = fake(() => new ApiError({ code: 'VALIDATION_FAILED', message: 'own', status: 400 }));
     await expect(
       createExploreRepository(own.request, notice).report('p1', 'other', 'x'),
     ).rejects.toMatchObject({
       code: 'ownPost',
     });
+    const empty = fake(
+      () =>
+        new ApiError({
+          code: 'VALIDATION_FAILED',
+          message: 'details',
+          status: 400,
+          fieldErrors: [{ field: 'details', message: 'required' }],
+        }),
+    );
+    await expect(
+      createExploreRepository(empty.request, notice).report('p1', 'other', ''),
+    ).rejects.toMatchObject({ code: 'detailsRequired' });
   });
 
   it('reads the feed of one type', async () => {
-    const { request, calls } = fake(() => ({ items: [POST], nextCursor: 'c2', city: {}, citySource: 'teleport' }));
+    const { request, calls } = fake(() => ({
+      items: [POST],
+      nextCursor: 'c2',
+      origin: { ...ORIGIN, label: 'Accra, Ghana' },
+      originSource: 'teleport',
+    }));
     const page = await createExploreRepository(request, notice).getFeed('meetup', null, 20);
     expect(calls[0]).toEqual({
       method: 'GET',
@@ -218,22 +288,34 @@ describe('explore repository', () => {
     );
   });
 
-  it('finds cities with where to move the map', async () => {
-    const { request, calls } = fake(() => [
-      {
-        id: 'los',
-        name: 'Lagos',
-        countryCode: 'NG',
-        label: 'Lagos, Nigeria',
-        region: '',
-        countryName: 'Nigeria',
-        lat: 6.5,
-        lng: 3.4,
-      },
+  it('finds cities on the phone, and where one is when chosen', async () => {
+    jest.mocked(searchCities).mockResolvedValueOnce([
+      { placeId: 'g-lagos', primaryText: 'Lagos', secondaryText: 'Nigeria' },
     ]);
-    const places = await createExploreRepository(request, notice).searchPlaces('lag', 6);
-    expect(calls[0].path).toBe('/api/v1/cities?q=lag&limit=6');
-    expect(places).toEqual([{ id: 'los', label: 'Lagos, Nigeria', lat: 6.5, lng: 3.4 }]);
+    jest.mocked(placeDetails).mockResolvedValueOnce({
+      placeId: 'g-lagos',
+      name: 'Lagos',
+      address: 'Lagos, Nigeria',
+      lat: 6.5,
+      lng: 3.4,
+    });
+    const { request, calls } = fake(() => null);
+    const repo = createExploreRepository(request, notice);
+    const signal = new AbortController().signal;
+    expect(await repo.searchPlaces('lag', signal)).toEqual([{ placeId: 'g-lagos', name: 'Lagos', detail: 'Nigeria' }]);
+    expect(searchCities).toHaveBeenCalledWith('lag', null, signal);
+    expect(await repo.placeLocation('g-lagos')).toEqual({ lat: 6.5, lng: 3.4 });
+    repo.endPlaceSearch();
+    expect(endPlacesSession).toHaveBeenCalled();
+    // The API has no city search any more: nothing goes to it.
+    expect(calls).toEqual([]);
+  });
+
+  it('reads a place search failure as "place search unavailable"', async () => {
+    jest.mocked(searchCities).mockRejectedValueOnce(new PlacesError('network', 'offline'));
+    await expect(
+      createExploreRepository(fake(() => null).request, notice).searchPlaces('lag'),
+    ).rejects.toMatchObject({ code: 'placesUnavailable' });
   });
 
   it('remembers the RSVP notice once read', async () => {

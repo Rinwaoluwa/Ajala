@@ -3,17 +3,32 @@ import { useMemo, useState } from 'react';
 
 import type { FeedFilter, FeedPage } from '../../domain/entities/Feed';
 import { isFeedError, type FeedErrorCode } from '../../domain/entities/FeedError';
+import { shortPlaceName } from '../../domain/rules/travelRules';
 import { feedKeys } from '../state/feedQueries';
 import { travelMemory } from '../state/travelMemory';
 import { useHomeUseCases } from '../state/useHomeUseCases';
+import { usePlaceName } from './usePlaceName';
+import { useTravelState } from './useTravelState';
+
+/**
+ * Where the header says the feed is looking.
+ *
+ * - `teleported`: a Travel teleport is in force; `label` is its full name
+ *   ("Accra, Ghana") for "Teleported to …", `name` the short one ("Accra").
+ * - otherwise the phone's own location: `name` is the region the server
+ *   named ("Lagos"), or null when it could not say (the header says "Near you").
+ */
+export type FeedPlace = { name: string | null; label: string | null; teleported: boolean };
 
 /**
  * View model for the home feed (API map §4): an infinite query over
  * `GET /feed`, one per post-type filter, paged by cursor.
  *
- * The server picks the city — a Travel teleport first (`citySource:
+ * The server picks where to look — a Travel teleport first (`originSource:
  * 'teleport'`), then the phone's location — so the key carries only the
- * filter; teleporting or coming home resets the cache (`useTravelMove`).
+ * filter; teleporting or coming home resets the cache (`useTravelMove`). With
+ * neither, the feed answers 404 NO_LOCATION (`error: 'noLocation'`): the
+ * screen asks for location or offers a place, rather than apologising.
  *
  * Cached per filter (TanStack Query): going back to a filter already seen draws
  * its cards at once and refreshes them behind. Pull to refresh refetches from
@@ -23,8 +38,12 @@ import { useHomeUseCases } from '../state/useHomeUseCases';
  *   - `refreshing`: a pull to refresh in flight, cards still on screen;
  *   - `loadingMore`: the next page, when the list nears its end.
  *
- * The header's city comes from the first page — of this filter, or while it
- * loads, of any filter already cached.
+ * The header's place comes from the first page — of this filter, or while it
+ * loads, of any filter already cached. Before any page has landed (a fresh
+ * start), a teleport the server already holds (`GET /me`, `useTravelState`)
+ * names it, so the header says "Teleported to London" straight away rather
+ * than a skeleton. `GET /me` gives only the teleport's place id, so its name
+ * is looked up once (`usePlaceName`, cached for the run).
  */
 export function useFeed() {
   const { loadFeed } = useHomeUseCases();
@@ -32,12 +51,13 @@ export function useFeed() {
   const [filter, setFilter] = useState<FeedFilter>('all');
   const [pulling, setPulling] = useState(false);
 
+  const travel = useTravelState();
   const query = useInfiniteQuery({
     queryKey: feedKeys.feed(filter),
     queryFn: async ({ pageParam }) => {
       const page = await loadFeed(filter, pageParam);
-      // Without a teleport the city the server chose is the person's own: Travel lists it as "Your city".
-      if (page.citySource !== 'teleport') travelMemory.setHome(page.city);
+      // The phone's own region names "Where you are" in Travel while teleported later.
+      if (page.originSource === 'device') travelMemory.setHere(page.origin.region);
       return page;
     },
     initialPageParam: null as string | null,
@@ -54,7 +74,7 @@ export function useFeed() {
       .filter((p) => !seen.has(p.id) && !!seen.add(p.id));
   }, [query.data]);
 
-  // A filter not loaded yet still has a city to show: any feed already cached.
+  // A filter not loaded yet still has a place to show: any feed already cached.
   const first =
     query.data?.pages[0] ??
     queryClient
@@ -67,11 +87,23 @@ export function useFeed() {
       : 'unknown'
     : null;
 
+  // Only looked up when the feed can't name the teleport itself.
+  const teleportId = travel?.teleport?.placeId ?? null;
+  const needsName = teleportId !== null && !(first?.originSource === 'teleport' && first.origin.label);
+  const teleportName = usePlaceName(needsName ? teleportId : null);
+
+  const place: FeedPlace | null = first
+    ? first.originSource === 'teleport'
+      ? named(first.origin.label ?? teleportName)
+      : { name: first.origin.region, label: null, teleported: false }
+    : teleportName
+      ? named(teleportName)
+      : null;
+
   return {
     filter,
     items,
-    city: first?.city ?? null,
-    citySource: first?.citySource ?? 'home',
+    place,
     loading: query.isPending,
     refreshing: pulling && query.isRefetching,
     loadingMore: query.isFetchingNextPage,
@@ -87,3 +119,9 @@ export function useFeed() {
     },
   };
 }
+
+const named = (label: string | null): FeedPlace => ({
+  name: label ? shortPlaceName(label) : null,
+  label,
+  teleported: true,
+});

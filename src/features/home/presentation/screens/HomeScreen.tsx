@@ -8,7 +8,7 @@ import { Button, LoadingRing, PostCard as PostCardView, Screen, Text, enterRise 
 import { useTheme } from '@shared/hooks/useTheme';
 import { SCREEN_GUTTER } from '@shared/theme';
 
-import type { CitySource, FeedCity, PostCard } from '../../domain/entities/Feed';
+import type { PostCard } from '../../domain/entities/Feed';
 import { FEED_FILTERS } from '../../domain/rules/feedRules';
 import { FeedHeader } from '../components/FeedHeader';
 import { FeedSkeleton } from '../components/FeedSkeleton';
@@ -16,10 +16,11 @@ import { FilterPills } from '../components/FilterPills';
 import { LevelCard } from '../components/LevelCard';
 import { homeCopy } from '../copy';
 import { useFeed } from '../hooks/useFeed';
+import { useLocationPrompt } from '../hooks/useLocationPrompt';
 import { travelMemory } from '../state/travelMemory';
 
 /**
- * The home feed (Figma "Home Feed", its skeleton, light and dark): the city
+ * The home feed (Figma "Home Feed", its skeleton, light and dark): the place
  * header, the level card, the post-type pills over a hairline, then the cards.
  *
  * Until the first page lands the whole screen is the skeleton frame. The cards
@@ -27,9 +28,13 @@ import { travelMemory } from '../state/travelMemory';
  * refresh asks again from the top; nearing the end loads the next page.
  *
  * The level card scrolls away with the cards; the pills and their hairline stay
- * pinned under the city header once it has gone (a sticky row in the list), so
+ * pinned under the place header once it has gone (a sticky row in the list), so
  * the filters are always in reach while the feed has the whole screen. While the
  * feed loads, fails or is empty, that state sits in the list under the pills.
+ *
+ * With no location and no teleport the feed answers 404 NO_LOCATION. That is
+ * not an error: the list asks to turn location on, or to choose a place
+ * (Travel). There is no home-city fallback any more.
  *
  * The list leaves room at its foot for the floating tab bar.
  */
@@ -38,13 +43,19 @@ import { travelMemory } from '../state/travelMemory';
 const TAB_BAR_CLEARANCE = 120;
 
 export type HomeScreenProps = {
-  /** Opens Travel; `source` says whether the feed is on a teleport, so Travel can offer the way home. */
-  onChooseCity: (city: FeedCity, source: CitySource) => void;
+  /**
+   * Opens Travel. `here` is what the header shows, so Travel can name the
+   * current place before `GET /me` answers: the teleport's name (`label`)
+   * and whether the feed is on one.
+   */
+  onChooseCity: (here: { label: string | null; teleported: boolean }) => void;
   onOpenPost: (post: PostCard) => void;
   onNotifications: () => void;
   /** Unread notifications, for the bell's badge (the route reads it from the notifications feature). */
   unreadCount?: number;
   onMessages: () => void;
+  /** Conversations with anything unread, for the chat button's badge (the route reads it from the chat feature). */
+  unreadChatsCount?: number;
   onViewLevel: () => void;
   /**
    * Wraps each card in a link that opens its post (the route supplies it; on
@@ -69,21 +80,23 @@ export function HomeScreen({
   onNotifications,
   unreadCount,
   onMessages,
+  unreadChatsCount,
   onViewLevel,
   linkCard,
 }: HomeScreenProps) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const feed = useFeed();
+  const location = useLocationPrompt(feed.retry);
   const { isPro } = useSubscription();
   // Home stays mounted across the tabs; it unmounts when the person signs out,
-  // and then the next account must not inherit this one's home or recent cities.
+  // and then the next account must not inherit this one's region or recent cities.
   useEffect(() => () => travelMemory.reset(), []);
   // The level card is a placeholder; closing it hides it for this visit.
   const [levelClosed, setLevelClosed] = useState(false);
   const bottom = TAB_BAR_CLEARANCE + insets.bottom;
   const levelCard =
-    feed.city && !levelClosed ? (
+    feed.place && !levelClosed ? (
       // The gap below is the card's own padding, so its shadow isn't cut by the pinned pills' background.
       <Animated.View entering={enterRise(80)} exiting={FadeOut.duration(180)} className="mt-16 px-20 pb-12">
         <LevelCard onView={onViewLevel} onClose={() => setLevelClosed(true)} />
@@ -101,7 +114,7 @@ export function HomeScreen({
         return (
           // Opaque, so the cards scroll under the pinned pills rather than through them.
           <View style={{ backgroundColor: theme.background, paddingTop: 4 }}>
-            <FilterPills value={feed.filter} onChange={feed.setFilter} disabled={!feed.city && feed.loading} />
+            <FilterPills value={feed.filter} onChange={feed.setFilter} disabled={!feed.place && feed.loading} />
             <View className="mt-12" style={{ height: 1, backgroundColor: theme.border }} />
           </View>
         );
@@ -118,21 +131,25 @@ export function HomeScreen({
         </Animated.View>
       );
     },
-    [onOpenPost, linkCard, theme, feed.filter, feed.setFilter, feed.city, feed.loading],
+    [onOpenPost, linkCard, theme, feed.filter, feed.setFilter, feed.place, feed.loading],
   );
 
   const typeLabel = FEED_FILTERS.find((f) => f.value === feed.filter)?.label.toLowerCase() ?? 'posts';
+  const noLocation = feed.error === 'noLocation' && feed.items.length === 0;
+  const openTravel = () =>
+    onChooseCity({ label: feed.place?.label ?? null, teleported: feed.place?.teleported ?? false });
 
   return (
     <Screen edges={['top']} padded={false}>
       <FeedHeader
-        city={feed.city}
-        citySource={feed.citySource}
+        place={feed.place}
+        noLocation={noLocation}
         isPro={isPro}
-        onChooseCity={() => feed.city && onChooseCity(feed.city, feed.citySource)}
+        onChooseCity={openTravel}
         onNotifications={onNotifications}
         onMessages={onMessages}
         unreadCount={unreadCount}
+        unreadChatsCount={unreadChatsCount}
       />
 
       <FlatList
@@ -158,15 +175,31 @@ export function HomeScreen({
             <View style={{ padding: SCREEN_GUTTER }}>
               <FeedSkeleton />
             </View>
+          ) : noLocation ? (
+            <Animated.View entering={FadeIn.duration(220)} className="flex-1 items-center justify-center px-20 py-48">
+              <Text variant="headingMd" className="text-center" accessibilityRole="header">
+                {homeCopy.noLocation.title}
+              </Text>
+              <Text variant="bodySm" tone="muted" className="mt-8 text-center" accessibilityLiveRegion="polite">
+                {homeCopy.noLocation.body}
+              </Text>
+              {/* Side by side when they fit, stacked at large text or on a narrow phone. */}
+              <View className="mt-20 flex-row flex-wrap justify-center" style={{ gap: 12 }}>
+                <Button
+                  label={homeCopy.noLocation.turnOn}
+                  loading={location.asking}
+                  onPress={() => void location.turnOn()}
+                />
+                <Button label={homeCopy.noLocation.choose} variant="secondary" onPress={openTravel} />
+              </View>
+            </Animated.View>
           ) : feed.error && feed.items.length === 0 ? (
             <Animated.View entering={FadeIn.duration(220)} className="flex-1 items-center justify-center px-20 py-48">
               <Text variant="headingMd" className="text-center" accessibilityRole="header">
                 {homeCopy.failed.title}
               </Text>
               <Text variant="bodySm" tone="muted" className="mt-8 text-center" accessibilityLiveRegion="polite">
-                {feed.error === 'noCity'
-                  ? homeCopy.failed.noCity
-                  : feed.error === 'network'
+                {feed.error === 'network'
                     ? homeCopy.failed.network
                     : homeCopy.failed.unknown}
               </Text>
@@ -180,7 +213,10 @@ export function HomeScreen({
                 {homeCopy.empty.title}
               </Text>
               <Text variant="bodySm" tone="muted" className="mt-8 text-center">
-                {homeCopy.empty.body(feed.filter === 'all' ? 'posts' : typeLabel, feed.city?.name ?? 'your city')}
+                {homeCopy.empty.body(
+                  feed.filter === 'all' ? 'posts' : typeLabel,
+                  feed.place?.name ? homeCopy.empty.near(feed.place.name) : homeCopy.empty.nearYou,
+                )}
               </Text>
             </Animated.View>
           ) : feed.loadingMore ? (

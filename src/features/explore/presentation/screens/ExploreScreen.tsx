@@ -19,8 +19,10 @@ import { useLiquidGlass } from '@shared/hooks/useLiquidGlass';
 import { useTheme } from '@shared/hooks/useTheme';
 import { SCREEN_GUTTER } from '@shared/theme';
 
-import type { Bbox, PlaceResult, PostPreview, PostType } from '../../domain/entities/Explore';
-import type { ReportReasonKey, RsvpAction } from '../../domain/rules/exploreRules';
+import { useSubscription } from '@features/payment';
+
+import type { Bbox, PlaceLocation, PostPreview, PostType } from '../../domain/entities/Explore';
+import { maxBboxSpan, type ReportReasonKey, type RsvpAction } from '../../domain/rules/exploreRules';
 import { FilterSheet } from '../components/FilterSheet';
 import { ExploreListSheet } from '../components/ExploreListSheet';
 import { MapButton } from '../components/MapButton';
@@ -38,16 +40,24 @@ import { useReportPost } from '../hooks/useReportPost';
 import { useRsvpNotice } from '../hooks/useRsvpNotice';
 
 /**
- * The Explore tab (Figma Explore map, light and dark; API map §7): the map of
- * the feed's city, full screen under the tab bar, with its pins.
+ * The Explore tab (Figma Explore map, light and dark; API map §7): the map
+ * around where the feed looks, full screen under the tab bar, with its pins.
  *
  * Over it: the city search and the filter button, the type chips, the map
  * controls on the right (locate me, map style, "Happening today"), and View List,
  * which opens the Explore sheet. Tapping a pin opens its mini card above the tab
  * bar; joining from it shows "Before you RSVP" the first time.
  *
- * The map starts where the phone is (location is required to use the app); pins
- * load for the box the map settles on.
+ * The map starts where the phone is; pins load for the box the map settles on.
+ * The server says where it looks (`origin`): when that is somewhere else — a
+ * teleport, or the phone could not say where it is — the camera goes there.
+ *
+ * How far pins reach is the server's word too (`reach`): a free reader only
+ * gets pins within 30 km of the origin, so panning further says so and offers
+ * Teleport (`onTeleport`, Home's Travel) rather than "No activities here yet".
+ * A subscriber may ask for a box up to 20° wide instead of 5°. With no location
+ * and no teleport (404 NO_LOCATION) the status asks for location and offers a
+ * place the same way.
  */
 
 /** The tab bar's top edge, as `FloatingTabBar` places it. */
@@ -60,13 +70,21 @@ const WORLD: MapRegion = regionAround(0, 0, 60);
 
 export type ExploreScreenProps = {
   onOpenPost: (postId: string) => void;
+  /** Opens Travel (Home's city picker), to look somewhere the map can't reach. */
+  onTeleport: () => void;
 };
 
-export function ExploreScreen({ onOpenPost }: ExploreScreenProps) {
+/** Rounded to about 100 m, so the same origin answered twice is one place. */
+const originKey = (o: { lat: number; lng: number; source: string }) =>
+  `${o.source}:${o.lat.toFixed(3)},${o.lng.toFixed(3)}`;
+
+export function ExploreScreen({ onOpenPost, onTeleport }: ExploreScreenProps) {
   const glass = useLiquidGlass();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const map = useRef<MapCanvasHandle>(null);
+  const { isPro } = useSubscription();
+  const span = maxBboxSpan(isPro);
 
   const [initialRegion, setInitialRegion] = useState<MapRegion | null>(null);
   const [bbox, setBbox] = useState<Bbox | null>(null);
@@ -86,20 +104,26 @@ export function ExploreScreen({ onOpenPost }: ExploreScreenProps) {
   const notice = useRsvpNotice();
   const report = useReportPost();
 
+  // Whether the map opened on the phone's own position (else the whole world, until the server says where).
+  const startedOnPhone = useRef(false);
   useEffect(() => {
     let live = true;
     void getCurrentCoordinates().then((at) => {
       if (!live) return;
+      startedOnPhone.current = !!at;
       const region = at ? regionAround(at.lat, at.lng) : WORLD;
       setInitialRegion(region);
-      setBbox(at ? regionToBbox(region) : null);
+      // Asked even with no position: a teleport still answers, and NO_LOCATION says what to do.
+      setBbox(regionToBbox(region, span));
     });
     return () => {
       live = false;
     };
+    // Only on opening; later boxes come from the map settling.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const settle = useCallback((region: MapRegion) => setBbox(regionToBbox(region)), []);
+  const settle = useCallback((region: MapRegion) => setBbox(regionToBbox(region, span)), [span]);
 
   const locate = async () => {
     const at = await getCurrentCoordinates();
@@ -107,7 +131,22 @@ export function ExploreScreen({ onOpenPost }: ExploreScreenProps) {
     pins.retry();
   };
 
-  const goTo = (place: PlaceResult) => map.current?.animateTo(regionAround(place.lat, place.lng, 0.15), 600);
+  const goTo = (place: PlaceLocation) => map.current?.animateTo(regionAround(place.lat, place.lng, 0.15), 600);
+
+  // Follow the server's origin when it moves: a teleport, coming home, or a
+  // first answer for a map that opened without the phone's position.
+  const followed = useRef<string | null>(null);
+  const origin = pins.origin;
+  const followKey = origin ? originKey(origin) : null;
+  useEffect(() => {
+    if (!origin || !followKey || followKey === followed.current) return;
+    const first = followed.current === null;
+    followed.current = followKey;
+    if (first && origin.source === 'device' && startedOnPhone.current) return;
+    map.current?.animateTo(regionAround(origin.lat, origin.lng), 600);
+    // `followKey` stands for `origin`, which is a new object on every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [followKey]);
 
   const select = (id: string | null) => {
     joining.reset();
@@ -115,7 +154,6 @@ export function ExploreScreen({ onOpenPost }: ExploreScreenProps) {
   };
 
   const join = (post: PostPreview, action: RsvpAction) => {
-    if (action.kind === 'book') return joining.book(post);
     if (action.kind !== 'join') return;
     if (!notice.seen) return setNoticeFor(post);
     joining.join(post);
@@ -140,13 +178,22 @@ export function ExploreScreen({ onOpenPost }: ExploreScreenProps) {
 
   const bottom = tabBarTop(insets.bottom) + 12;
   const [dockHeight, setDockHeight] = useState(0);
-  const status = pins.error
-    ? `${pins.error === 'noCity' ? exploreErrorMessages.noCity : exploreCopy.map.loadFailed}`
-    : pins.loaded && !pins.fetching && pins.pins.length === 0
-      ? todayOnly
-        ? exploreCopy.map.emptyToday
-        : exploreCopy.map.empty
-      : null;
+  const reachPlace = origin?.source === 'teleport' && origin.label ? origin.label.split(',')[0] : null;
+  const status: { text: string; action: { label: string; onPress: () => void } | null } | null = pins.error
+    ? pins.error === 'noLocation'
+      ? {
+          text: exploreErrorMessages.noLocation,
+          action: { label: exploreCopy.map.choosePlace, onPress: onTeleport },
+        }
+      : { text: exploreCopy.map.loadFailed, action: { label: exploreCopy.map.retry, onPress: pins.retry } }
+    : pins.outsideReach
+      ? {
+          text: reachPlace ? exploreCopy.map.outsideReachTeleported(reachPlace) : exploreCopy.map.outsideReach,
+          action: { label: exploreCopy.map.teleport, onPress: onTeleport },
+        }
+      : pins.loaded && !pins.fetching && pins.pins.length === 0
+        ? { text: todayOnly ? exploreCopy.map.emptyToday : exploreCopy.map.empty, action: null }
+        : null;
 
   return (
     <View className="flex-1 bg-background">
@@ -205,16 +252,16 @@ export function ExploreScreen({ onOpenPost }: ExploreScreenProps) {
           >
             <GlassSurface fallbackColor={theme.card} style={{ borderRadius: 999 }}>
               <Pressable
-                onPress={pins.error ? pins.retry : undefined}
-                disabled={!pins.error}
-                accessibilityRole={pins.error ? 'button' : 'text'}
+                onPress={status.action?.onPress}
+                disabled={!status.action}
+                accessibilityRole={status.action ? 'button' : 'text'}
                 accessibilityLiveRegion="polite"
                 style={{ paddingHorizontal: 14, paddingVertical: 8 }}
               >
-                <Text variant="labelSm">
-                  {status}
-                  {pins.error ? (
-                    <Text variant="labelSm" tone="link">{`  ${exploreCopy.map.retry}`}</Text>
+                <Text variant="labelSm" className="text-center">
+                  {status.text}
+                  {status.action ? (
+                    <Text variant="labelSm" tone="link">{`  ${status.action.label}`}</Text>
                   ) : null}
                 </Text>
               </Pressable>

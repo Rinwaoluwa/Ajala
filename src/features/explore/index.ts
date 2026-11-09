@@ -1,5 +1,5 @@
 /**
- * Public API of the `explore` feature: the Explore tab's map of the feed's city,
+ * Public API of the `explore` feature: the Explore tab's map around where the feed looks,
  * its pins and mini cards, and the Explore list (API map §7).
  */
 

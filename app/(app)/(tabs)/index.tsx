@@ -1,5 +1,6 @@
 import { Link, router } from 'expo-router';
 
+import { useUnreadChatsCount } from '@features/chat';
 import { HomeScreen, homeRoutes } from '@features/home';
 import { useUnreadNotificationsCount } from '@features/notifications';
 
@@ -10,19 +11,15 @@ import { useUnreadNotificationsCount } from '@features/notifications';
  * with it, so the page draws its header at once instead of an empty screen.
  */
 export default function HomeRoute() {
-  // The bell's badge comes from the notifications feature; home only draws it.
+  // The bell's and the chat button's badges come from their own features; home only draws them.
   const unreadCount = useUnreadNotificationsCount();
+  const unreadChatsCount = useUnreadChatsCount();
   return (
     <HomeScreen
-      onChooseCity={(city, source) =>
+      onChooseCity={(here) =>
         router.push({
           pathname: homeRoutes.travel,
-          params: {
-            city: city.name,
-            country: city.countryCode,
-            cityId: city.id,
-            teleported: source === 'teleport' ? '1' : '',
-          },
+          params: { place: here.label ?? '', teleported: here.teleported ? '1' : '' },
         })
       }
       onOpenPost={(post) => router.push({ pathname: '/(app)/post/[id]', params: { id: post.id } })}
@@ -40,6 +37,7 @@ export default function HomeRoute() {
       onNotifications={() => router.push('/(app)/notifications')}
       unreadCount={unreadCount}
       onMessages={() => router.push('/(app)/messages')}
+      unreadChatsCount={unreadChatsCount}
       onViewLevel={() => router.navigate('/(app)/(tabs)/profile')}
     />
   );

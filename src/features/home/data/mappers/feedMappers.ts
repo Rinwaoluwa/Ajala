@@ -1,8 +1,9 @@
 import { isApiError } from '@core/api/ApiError';
+import { isPlacesError, type PlaceSuggestion } from '@core/places';
 
-import type { CatalogCity, FeedPage, PostCard } from '../../domain/entities/Feed';
+import type { FeedPage, PostCard, TravelCity, TravelState } from '../../domain/entities/Feed';
 import { FeedError } from '../../domain/entities/FeedError';
-import type { CityDto, FeedPageDto, PostCardDto } from '../dto/feedDtos';
+import type { FeedPageDto, MeTravelDto, PostCardDto } from '../dto/feedDtos';
 
 /** Smallest unit to display amount (spec §1.5): amountCents / 10 ** exponent. */
 const toAmount = (cents: number, exponent: number) => cents / 10 ** exponent;
@@ -17,7 +18,12 @@ export function toPostCard(dto: PostCardDto): PostCard {
     startAt: dto.startAt ?? null,
     endAt: dto.endAt ?? null,
     recurrence: dto.recurrence?.frequency ?? null,
-    placeName: dto.placeName ?? null,
+    // The host's name for the place, else the city around it: a dropped pin has no name of its own.
+    placeName: dto.placeName || dto.localityLabel || null,
+    placeId: dto.placeId ?? null,
+    formattedAddress: dto.formattedAddress ?? null,
+    localityLabel: dto.localityLabel ?? null,
+    countryCode: dto.countryCode ?? null,
     host: { name: dto.host.displayName, avatarUrl: dto.host.avatarUrl ?? null, verified: dto.host.verified },
     distanceKm: dto.distanceKm ?? null,
     goingCount: dto.goingCount ?? 0,
@@ -25,45 +31,55 @@ export function toPostCard(dto: PostCardDto): PostCard {
     price: dto.price
       ? { amount: toAmount(dto.price.amountCents, dto.price.exponent), currency: dto.price.currency }
       : null,
-    costShare: dto.costSplit
-      ? {
-          perPerson: toAmount(dto.costSplit.perPersonCents, dto.costSplit.exponent),
-          currency: dto.costSplit.currency,
-          expectedCount: dto.costSplit.expectedCount,
-        }
-      : null,
     rsvpState: dto.rsvpState ?? 'none',
-    joinMode: dto.joinMode ?? 'rsvp',
     saved: dto.saved ?? false,
   };
 }
 
 export function toFeedPage(dto: FeedPageDto): FeedPage {
   return {
-    city: { id: dto.city.id, name: dto.city.name, countryCode: dto.city.countryCode, label: dto.city.label },
-    citySource: dto.citySource,
+    origin: {
+      lat: dto.origin.lat,
+      lng: dto.origin.lng,
+      // An empty string is no name: the header falls back as it would for null.
+      label: dto.origin.label || null,
+      region: dto.origin.region || null,
+    },
+    originSource: dto.originSource === 'teleport' ? 'teleport' : 'device',
     items: (dto.items ?? []).map(toPostCard),
     nextCursor: dto.nextCursor ?? null,
   };
 }
 
-export const toCatalogCity = (dto: CityDto): CatalogCity => ({
-  id: dto.id,
-  name: dto.name,
-  countryCode: dto.countryCode,
-  countryName: dto.countryName ?? '',
+export const toTravelState = (dto: MeTravelDto): TravelState => ({
+  teleport: dto.teleport?.placeId ? { placeId: dto.teleport.placeId } : null,
+  homePlace: dto.homePlace
+    ? { placeId: dto.homePlace.placeId, label: dto.homePlace.label, countryCode: dto.homePlace.countryCode ?? null }
+    : null,
+});
+
+export const toTravelCity = (s: PlaceSuggestion): TravelCity => ({
+  placeId: s.placeId,
+  name: s.primaryText,
+  detail: s.secondaryText,
 });
 
 /**
- * By the API's code (spec §5), never its message. A plain 404 means "no such
- * city" only on a teleport, so `context` says which call failed.
+ * By the API's code (spec §5), never its message. A 400 means "not a city"
+ * and a 503 "the map vendor is down" only on a teleport, so `context` says
+ * which call failed. A place search failing is a `PlacesError`, never an API
+ * error: it reads as "Place search isn't available right now".
  */
 export function toFeedError(e: unknown, context?: 'teleport'): FeedError {
   if (e instanceof FeedError) return e;
+  if (isPlacesError(e)) return new FeedError('placesUnavailable', e.message);
   if (isApiError(e)) {
-    if (e.code === 'NO_CITY') return new FeedError('noCity', e.message);
+    if (e.code === 'NO_LOCATION') return new FeedError('noLocation', e.message);
     if (e.code === 'PAYMENT_REQUIRED') return new FeedError('paymentRequired', e.message);
-    if (context === 'teleport' && e.code === 'NOT_FOUND') return new FeedError('cityNotFound', e.message);
+    if (context === 'teleport' && (e.code === 'VALIDATION_FAILED' || e.code === 'BAD_REQUEST')) {
+      return new FeedError('notACity', e.message);
+    }
+    if (context === 'teleport' && e.code === 'SERVICE_UNAVAILABLE') return new FeedError('unavailable', e.message);
     if (e.code === 'NETWORK' || e.code === 'TIMEOUT') return new FeedError('network', e.message);
     if (e.code === 'UNAUTHORIZED') return new FeedError('sessionExpired', e.message);
     return new FeedError('unknown', e.message);

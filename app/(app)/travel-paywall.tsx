@@ -3,15 +3,11 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { TravelPaywallScreen } from '@features/payment';
 
 export default function TravelPaywallRoute() {
-  const {
-    city,
-    country,
-    from = '',
-  } = useLocalSearchParams<{ city?: string; country?: string; from?: string }>();
+  const { city, from } = useLocalSearchParams<{ city?: string; from?: string }>();
   return (
     <TravelPaywallScreen
-      city={city && country ? { name: city, countryCode: country } : null}
-      homeCountryCode={from}
+      city={city ? { name: city } : null}
+      homeCountryCode={from || null}
       onClose={() => router.back()}
     />
   );

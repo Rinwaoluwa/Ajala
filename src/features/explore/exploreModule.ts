@@ -1,11 +1,14 @@
 import { createExploreRepository } from './data/repositories/ExploreRepositoryImpl';
 import type { ExploreRequest } from './data/datasources/remote/exploreApi';
 import {
+  makeEndPlaceSearch,
+  makeGetMyId,
   makeJoin,
   makeListInterests,
   makeLoadMeetups,
   makeLoadPins,
   makeLoadPost,
+  makePlaceLocation,
   makeRecordLinkClick,
   makeReportPost,
   makeRsvpNotice,
@@ -24,10 +27,13 @@ export function createExploreUseCases(request: ExploreRequest) {
     loadPost: makeLoadPost(repo),
     join: makeJoin(repo),
     recordLinkClick: makeRecordLinkClick(repo),
+    getMyId: makeGetMyId(repo),
     reportPost: makeReportPost(repo),
     listInterests: makeListInterests(repo),
     loadMeetups: makeLoadMeetups(repo),
     searchPlaces: makeSearchPlaces(repo),
+    placeLocation: makePlaceLocation(repo),
+    endPlaceSearch: makeEndPlaceSearch(repo),
     searchPosts: makeSearchPosts(repo),
     rsvpNotice: makeRsvpNotice(repo),
   };

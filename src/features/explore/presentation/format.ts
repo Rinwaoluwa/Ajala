@@ -1,4 +1,4 @@
-import type { CostShare, PostPrice } from '../domain/entities/Explore';
+import type { PostPrice } from '../domain/entities/Explore';
 
 /**
  * Dates and money as Explore's cards write them, in the phone's time zone:
@@ -53,9 +53,4 @@ export function formatMoney(cents: number, exponent: number, currency: string): 
 /** A post's price: "₦5,000". */
 export function formatPrice(price: PostPrice): string {
   return formatMoney(price.amountCents, price.exponent, price.currency);
-}
-
-/** A shared cost's per-person figure: "₦12,000" (the card adds "About … each"). */
-export function formatCostShare(share: CostShare): string {
-  return formatMoney(share.perPersonCents, share.exponent, share.currency);
 }

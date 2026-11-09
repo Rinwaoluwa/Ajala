@@ -1,17 +1,20 @@
-import type { CitySource, PostType } from '../domain/entities/Feed';
+import type { PostType } from '../domain/entities/Feed';
 
 /** The home feed's words, from the Figma frames. Copy not drawn there is marked. */
 
 export const homeCopy = {
-  citySubtitle: {
-    home: 'Exploring your home city',
-    // Not drawn: the frames only show the home-city case.
-    device: 'Exploring where you are',
-    edge: 'Exploring where you are',
-  } satisfies Record<Exclude<CitySource, 'teleport'>, string>,
+  // Not drawn: the frames show a home city, which the feed no longer has; it follows the phone.
+  deviceSubtitle: 'Exploring where you are',
+  // The header's big line when the server names no region for the phone's location.
+  nearYou: 'Near you',
   // Not drawn; the spec's wording (§2.11) for a feed a Travel teleport has moved.
-  teleportedTo: (city: string) => `Teleported to ${city}`,
+  teleportedTo: (place: string) => `Teleported to ${place}`,
+  // A teleport whose name is not known yet (the place lookup failed).
+  teleported: 'Teleported',
   chooseCity: 'Choose a city',
+  // The header with no location and no teleport (404 NO_LOCATION).
+  choosePlace: 'Choose a place',
+  locationOff: 'Location is off',
   notifications: 'Notifications',
   messages: 'Messages',
   like: 'Save',
@@ -36,12 +39,20 @@ export const homeCopy = {
   // Not drawn: what the feed says with nothing in it, or when it fails.
   empty: {
     title: 'Nothing here yet',
-    body: (type: string, city: string) => `No ${type} in ${city} right now. Check back soon, or create one.`,
+    body: (type: string, place: string) => `No ${type} ${place} right now. Check back soon, or create one.`,
+    near: (place: string) => `in ${place}`,
+    nearYou: 'near you',
+  },
+  // Not drawn: 404 NO_LOCATION, no location and no teleport. Not a failure: ask, or offer a place.
+  noLocation: {
+    title: 'See what’s around you',
+    body: 'Turn on location to see activities near you, or choose a place to explore.',
+    turnOn: 'Turn on location',
+    choose: 'Choose a place',
   },
   failed: {
     title: "We couldn't load the feed",
     network: 'Check your connection and try again.',
-    noCity: "We couldn't tell which city you're in. Make sure location is on, then try again.",
     unknown: 'Something went wrong on our side. Try again in a moment.',
     retry: 'Try again',
   },
@@ -54,20 +65,23 @@ export const travelCopy = {
   proTitle: 'Travel Pro',
   proBody: 'Explore activities in cities worldwide',
   pro: 'PRO',
-  yourCity: 'Your city',
+  // The phone's own location, where coming home lands. The design's "Your city" and Popular
+  // grid are gone: the feed follows the phone, not a home city, and Swagger has no popular list.
+  yourLocation: 'Where you are',
+  yourLocationBody: (region: string | null) => region ?? 'Your phone’s location',
   recent: 'Recent',
-  popular: 'Popular',
   results: 'Results',
-  home: 'Home',
+  here: 'Here',
+  // Not drawn: what Travel shows under "Where you are" before anything is typed.
+  searchHint: 'Search for a city to see what’s on there.',
   noResults: 'No cities match that.',
-  // Not drawn: "Your city" when the app opened already teleported, before the feed has seen home.
-  returnHome: 'Come back home',
-  returnHomeBody: 'Where you are, or your home city',
-  popularFailed: "Couldn't load popular cities.",
+  placesFailed: "Place search isn't available right now.",
+  searchFailed: "Couldn't search right now.",
   retry: 'Try again',
   // Not drawn: why a teleport did not happen (a 402 opens the paywall instead).
   moveFailed: {
-    cityNotFound: "That city isn't available any more. Pick another.",
+    notACity: "That isn't a city we can take you to. Pick another.",
+    unavailable: "Teleport isn't available right now. Try again in a moment.",
     network: 'No connection. Check your internet and try again.',
     other: "We couldn't move you there. Try again in a moment.",
   },

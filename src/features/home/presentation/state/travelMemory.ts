@@ -1,23 +1,24 @@
 import { useSyncExternalStore } from 'react';
 
-import { addRecent, sameCity } from '../../domain/rules/travelRules';
+import type { TravelCity } from '../../domain/entities/Feed';
+import { addRecent } from '../../domain/rules/travelRules';
 
 /**
  * What Travel remembers for this run of the app — never where the feed is.
  * The server holds the teleport (`POST /me/teleport`) and the feed says when
- * it is in force (`citySource: 'teleport'`); this only fills in what the API
+ * it is in force (`originSource: 'teleport'`); this only fills in what the API
  * has no call for:
  *
- *   - `home`: the city the feed last chose without a teleport, so Travel can
- *     name "Your city". Unknown when the app opens already teleported.
+ *   - `here`: the region the feed last named for the phone's own location
+ *     ("Lagos"), so "Where you are" in Travel has a name while teleported.
  *   - `recent`: the last few cities teleported to, newest first ("Recent").
+ *     Swagger has no popular-cities list, so this and search are what Travel
+ *     offers.
  */
 
-export type RememberedCity = { id: string; name: string; countryCode: string; countryName?: string };
+export type TravelMemory = { here: string | null; recent: TravelCity[] };
 
-export type TravelMemory = { home: RememberedCity | null; recent: RememberedCity[] };
-
-const EMPTY: TravelMemory = { home: null, recent: [] };
+const EMPTY: TravelMemory = { here: null, recent: [] };
 
 let state: TravelMemory = EMPTY;
 const listeners = new Set<() => void>();
@@ -30,13 +31,13 @@ function set(next: TravelMemory) {
 export const travelMemory = {
   get: () => state,
 
-  /** Recorded by the feed whenever a page comes back for a city that is not a teleport. */
-  setHome: (home: RememberedCity) => {
-    if (!sameCity(state.home, home)) set({ ...state, home });
+  /** Recorded by the feed whenever a page comes back for the phone's own location. */
+  setHere: (here: string | null) => {
+    if (here && here !== state.here) set({ ...state, here });
   },
 
   /** After a teleport lands. */
-  addRecent: (city: RememberedCity) => set({ ...state, recent: addRecent(state.recent, city) }),
+  addRecent: (city: TravelCity) => set({ ...state, recent: addRecent(state.recent, city) }),
 
   /** Signing out forgets it all. */
   reset: () => set(EMPTY),

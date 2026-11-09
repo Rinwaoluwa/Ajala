@@ -1,8 +1,10 @@
 import { createFeedRepository } from './data/repositories/FeedRepositoryImpl';
 import type { FeedRequest } from './data/datasources/remote/feedApi';
 import {
+  makeEndCitySearch,
   makeLoadFeed,
-  makePopularCities,
+  makeLoadTravelState,
+  makePlaceName,
   makeReturnHome,
   makeSearchCities,
   makeTeleport,
@@ -17,9 +19,11 @@ export function createHomeUseCases(request: FeedRequest) {
   return {
     loadFeed: makeLoadFeed(repo),
     searchCities: makeSearchCities(repo),
-    popularCities: makePopularCities(repo),
+    placeName: makePlaceName(repo),
+    endCitySearch: makeEndCitySearch(repo),
     teleport: makeTeleport(repo),
     returnHome: makeReturnHome(repo),
+    loadTravelState: makeLoadTravelState(repo),
   };
 }
 

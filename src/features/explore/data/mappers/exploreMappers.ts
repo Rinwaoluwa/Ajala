@@ -1,4 +1,5 @@
 import { isApiError } from '@core/api/ApiError';
+import { isPlacesError, type PlaceSuggestion } from '@core/places';
 
 import type {
   Interest,
@@ -11,7 +12,6 @@ import type {
 } from '../../domain/entities/Explore';
 import { ExploreError } from '../../domain/entities/ExploreError';
 import type {
-  CityDto,
   InterestDto,
   MapPinsDto,
   PostCardDto,
@@ -19,8 +19,19 @@ import type {
   RsvpStateResponseDto,
 } from '../dto/exploreDtos';
 
+/**
+ * A pins page. A missing `reach` reads as `radius`, the narrower promise: the
+ * map then offers Teleport rather than claiming the box is empty everywhere.
+ */
 export const toMapPins = (dto: MapPinsDto): MapPins => ({
-  cityName: dto.city?.name ?? '',
+  origin: {
+    lat: dto.origin.lat,
+    lng: dto.origin.lng,
+    label: dto.origin.label || null,
+    region: dto.origin.region || null,
+  },
+  originSource: dto.originSource === 'teleport' ? 'teleport' : 'device',
+  reach: dto.reach === 'box' ? 'box' : 'radius',
   pins: (dto.pins ?? []).map((p) => ({
     id: p.id,
     type: p.type,
@@ -31,32 +42,39 @@ export const toMapPins = (dto: MapPinsDto): MapPins => ({
   })),
 });
 
+/**
+ * The card's place fields. `placeName` is the line drawn: the host's name for
+ * the place, else the city around it ("Lagos, Nigeria"), since a dropped pin
+ * has no name of its own.
+ */
+const placeOf = (dto: PostCardDto) => ({
+  placeName: dto.placeName || dto.localityLabel || null,
+  placeId: dto.placeId ?? null,
+  formattedAddress: dto.formattedAddress ?? null,
+  localityLabel: dto.localityLabel ?? null,
+  countryCode: dto.countryCode ?? null,
+});
+
 export const toPostPreview = (dto: PostDetailDto): PostPreview => ({
   id: dto.id,
   type: dto.type,
   title: dto.title,
   imageUrl: dto.images?.[0]?.cardUrl ?? null,
   startAt: dto.startAt ?? null,
-  placeName: dto.placeName ?? null,
+  ...placeOf(dto),
   capacity: dto.capacity ?? null,
   goingCount: dto.goingCount ?? 0,
-  price: dto.price
-    ? { amountCents: dto.price.amountCents, currency: dto.price.currency, exponent: dto.price.exponent }
-    : null,
-  costShare: dto.costSplit
-    ? {
-        perPersonCents: dto.costSplit.perPersonCents,
-        currency: dto.costSplit.currency,
-        exponent: dto.costSplit.exponent,
-        expectedCount: dto.costSplit.expectedCount,
-      }
-    : null,
-  joinMode: dto.joinMode ?? 'rsvp',
+  // A Plan carries no money (the API refuses it), so a card never shows a price for one.
+  price:
+    dto.type !== 'plan' && dto.price
+      ? { amountCents: dto.price.amountCents, currency: dto.price.currency, exponent: dto.price.exponent }
+      : null,
   externalUrl: dto.externalUrl ?? null,
   visibility: dto.visibility ?? 'open',
   rsvpState: dto.rsvpState ?? 'none',
   waitlistPosition: dto.waitlistPosition ?? null,
   isHost: dto.isHost ?? false,
+  hostId: dto.host?.id ?? '',
 });
 
 export const toRsvpResult = (dto: RsvpStateResponseDto): RsvpResult => ({
@@ -78,7 +96,7 @@ const toListedPost = (dto: PostCardDto): ListedPost => ({
   title: dto.title,
   imageUrl: dto.images?.[0]?.cardUrl ?? null,
   startAt: dto.startAt ?? null,
-  placeName: dto.placeName ?? null,
+  ...placeOf(dto),
   goingCount: dto.goingCount ?? 0,
   distanceKm: dto.distanceKm ?? null,
 });
@@ -89,11 +107,10 @@ export const toPostsPage = (dto: { items: PostCardDto[] | null; nextCursor: stri
   nextCursor: dto.nextCursor ?? null,
 });
 
-export const toPlaceResult = (dto: CityDto): PlaceResult => ({
-  id: dto.id,
-  label: dto.label || [dto.name, dto.countryName].filter(Boolean).join(', '),
-  lat: dto.lat,
-  lng: dto.lng,
+export const toPlaceResult = (s: PlaceSuggestion): PlaceResult => ({
+  placeId: s.placeId,
+  name: s.primaryText,
+  detail: s.secondaryText,
 });
 
 /**
@@ -101,19 +118,27 @@ export const toPlaceResult = (dto: CityDto): PlaceResult => ({
  * something specific only on a report — one is already open, or it is the
  * person's own post — so `context` says which call failed. Anywhere else a
  * plain 409 is the generic "it changed": the caller re-reads the post.
+ *
+ * A report's 400 is `VALIDATION_FAILED` both for your own post and for "other"
+ * with nothing written; only the second names a field (`details`).
  */
 export function toExploreError(e: unknown, context: 'report' | 'other' = 'other'): ExploreError {
   if (e instanceof ExploreError) return e;
+  if (isPlacesError(e)) return new ExploreError('placesUnavailable', e.message);
   if (isApiError(e)) {
     if (context === 'report' && e.code === 'CONFLICT') return new ExploreError('alreadyReported', e.message);
-    if (context === 'report' && e.code === 'BAD_REQUEST') return new ExploreError('ownPost', e.message);
+    if (context === 'report' && (e.code === 'VALIDATION_FAILED' || e.code === 'BAD_REQUEST')) {
+      return e.fieldErrors.some((f) => f.field === 'details')
+        ? new ExploreError('detailsRequired', e.message)
+        : new ExploreError('ownPost', e.message);
+    }
     switch (e.code) {
       case 'REPORTING_PAUSED':
         return new ExploreError('reportingPaused', e.message);
       case 'CONFLICT':
         return new ExploreError('conflict', e.message);
-      case 'NO_CITY':
-        return new ExploreError('noCity', e.message);
+      case 'NO_LOCATION':
+        return new ExploreError('noLocation', e.message);
       case 'NETWORK':
       case 'TIMEOUT':
         return new ExploreError('network', e.message);
@@ -128,8 +153,6 @@ export function toExploreError(e: unknown, context: 'report' | 'other' = 'other'
         return new ExploreError('postStarted', e.message);
       case 'POST_CANCELLED':
         return new ExploreError('postCancelled', e.message);
-      case 'EXTERNAL_BOOKING':
-        return new ExploreError('externalBooking', e.message);
       case 'RATE_LIMITED':
         return new ExploreError('rateLimited', e.message);
       default:

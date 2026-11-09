@@ -16,10 +16,17 @@ export const toSubscription = (dto: MySubscriptionDto): Subscription => ({
 /**
  * By the API's code (spec §5), never its message. A 404 means "no web
  * subscription" only from the portal, so `context` says which call failed.
+ *
+ * Buying (`context: 'purchase'`): a 500 is the store failing or timing out
+ * behind the API, not a bug to report, so it reads like the 503 — purchases
+ * aren't available right now, try again (backend answers D4).
  */
-export function toSubscriptionError(e: unknown, context?: 'portal'): SubscriptionError {
+export function toSubscriptionError(e: unknown, context?: 'portal' | 'purchase'): SubscriptionError {
   if (e instanceof SubscriptionError) return e;
   if (isApiError(e)) {
+    if (context === 'purchase' && (e.code === 'INTERNAL' || e.status === 500)) {
+      return new SubscriptionError('unavailable', e.message);
+    }
     switch (e.code) {
       case 'SERVICE_UNAVAILABLE':
         return new SubscriptionError('unavailable', e.message);

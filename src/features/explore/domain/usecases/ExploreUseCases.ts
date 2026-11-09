@@ -11,14 +11,16 @@ export const makeLoadPost = (repo: ExploreRepository) => (postId: string) => rep
 
 export const makeJoin = (repo: ExploreRepository) => (postId: string) => repo.rsvp(postId);
 
-/** Before a pay-or-book link opens: the host sees the click (spec §2.12). Best effort. */
+/** When a post's link opens on joining: the host sees the click (spec §2.12). Best effort. */
 export const makeRecordLinkClick = (repo: ExploreRepository) => async (postId: string) => {
   try {
     await repo.recordLinkClick(postId);
   } catch {
-    // The link still opens; a missed count is not worth stopping someone booking.
+    // The link still opens and the RSVP still goes; a missed count is not worth stopping either.
   }
 };
+
+export const makeGetMyId = (repo: ExploreRepository) => () => repo.getMyId();
 
 export const makeReportPost =
   (repo: ExploreRepository) => (postId: string, keys: readonly ReportReasonKey[], details: string) => {
@@ -51,10 +53,16 @@ export const makeSearchPosts =
   };
 
 /** The map's city search, from two characters. */
-export const makeSearchPlaces = (repo: ExploreRepository) => async (query: string) => {
+export const makeSearchPlaces = (repo: ExploreRepository) => async (query: string, signal?: AbortSignal) => {
   const q = query.trim();
-  return q.length < 2 ? [] : repo.searchPlaces(q, 6);
+  return q.length < 2 ? [] : repo.searchPlaces(q, signal);
 };
+
+/** Where a chosen city is, to move the camera there. */
+export const makePlaceLocation = (repo: ExploreRepository) => (placeId: string) => repo.placeLocation(placeId);
+
+/** The search was cleared without a choice: the next one is a new billing session. */
+export const makeEndPlaceSearch = (repo: ExploreRepository) => () => repo.endPlaceSearch();
 
 export const makeRsvpNotice = (repo: ExploreRepository) => ({
   seen: () => repo.hasSeenRsvpNotice(),

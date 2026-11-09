@@ -17,6 +17,13 @@ export const exploreCopy = {
     empty: 'No activities here yet',
     emptyToday: 'Nothing happening here today',
     noPlaces: 'No matching cities',
+    placesFailed: "Place search isn't available right now",
+    // Not drawn: a free reader's map only reaches 30 km round where they are (`reach: 'radius'`).
+    outsideReach: 'Activities show within 30 km of you.',
+    outsideReachTeleported: (place: string) => `Activities show within 30 km of ${place}.`,
+    teleport: 'Teleport',
+    // Not drawn: 404 NO_LOCATION on the map. Tapping offers a place (Travel).
+    choosePlace: 'Choose a place',
   },
   filters: {
     title: 'Filter the map',
@@ -31,18 +38,15 @@ export const exploreCopy = {
     preview: 'Preview',
     report: 'Report activity',
     cancel: 'Cancel',
-    free: 'Free',
-    rsvp: (price: string) => `RSVP · ${price}`,
+    rsvp: 'RSVP',
+    rsvpPriced: (price: string) => `RSVP · ${price}`,
     request: 'Request to join',
-    book: (price: string) => `Book · ${price}`,
     requested: 'Requested',
     going: 'Going',
     waitlisted: (n: number | null) => (n ? `Waitlisted · #${n}` : 'Waitlisted'),
     hosting: "You're hosting",
     joined: (n: number) => `${n} joined`,
     left: (n: number) => `${n} left`,
-    // A Plan or Group splitting a cost: the server's per-person share (spec §1.5).
-    costEach: (amount: string) => `About ${amount} each`,
     loadFailed: "Couldn't load this activity.",
     retry: 'Try again',
   },
@@ -105,19 +109,20 @@ export const typeEmoji: Record<PostType, string> = {
 };
 
 export const exploreErrorMessages: Record<ExploreErrorCode, string> = {
-  noCity: 'Turn on location or set a home city to see activities near you.',
+  noLocation: 'Turn on location, or choose a place, to see activities.',
+  placesUnavailable: "Place search isn't available right now.",
   network: 'No connection. Check your internet and try again.',
   sessionExpired: 'Your session ended. Sign in again to continue.',
   notFound: "This activity isn't available any more.",
   postFull: 'This activity is full.',
   postStarted: 'This activity has already started.',
   postCancelled: 'The host cancelled this activity.',
-  externalBooking: 'This event books through its own link.',
   alreadyReported: "You've already reported this activity. We're looking into it.",
   // The spec's wording for 403 REPORTING_PAUSED (§5).
   reportingPaused: 'Reporting is paused on your account. You can still block people.',
   conflict: 'This activity just changed. Have another look and try again.',
   ownPost: "You can't report your own activity.",
+  detailsRequired: 'Tell us a little about what happened.',
   rateLimited: 'Too many tries. Wait a moment and try again.',
   unknown: 'Something went wrong. Try again.',
 };

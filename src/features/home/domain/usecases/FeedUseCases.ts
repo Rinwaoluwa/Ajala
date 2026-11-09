@@ -1,6 +1,7 @@
-import type { CatalogCity, FeedFilter } from '../entities/Feed';
+import type { FeedFilter, TravelCity } from '../entities/Feed';
 import type { FeedRepository } from '../repositories/FeedRepository';
 import { FEED_PAGE_SIZE } from '../rules/feedRules';
+import { MIN_CITY_SEARCH } from '../rules/travelRules';
 
 /** A page of the feed: the first with no cursor (also pull to refresh), then `nextCursor`. */
 export const makeLoadFeed =
@@ -8,19 +9,26 @@ export const makeLoadFeed =
   (filter: FeedFilter, cursor: string | null = null) =>
     repo.getFeed(filter, cursor, FEED_PAGE_SIZE);
 
-/** Travel's city search, from two characters. */
+/** Travel's city search, from two characters; `signal` drops a search typing has overtaken. */
 export const makeSearchCities =
   (repo: FeedRepository) =>
-  async (query: string): Promise<CatalogCity[]> => {
+  async (query: string, signal?: AbortSignal): Promise<TravelCity[]> => {
     const q = query.trim();
-    return q.length < 2 ? [] : repo.searchCities(q, 10);
+    return q.length < MIN_CITY_SEARCH ? [] : repo.searchCities(q, signal);
   };
 
-/** Travel's "Popular" row (`GET /cities/popular`). */
-export const makePopularCities = (repo: FeedRepository) => () => repo.popularCities();
+/** The name of a teleport known only by its place id (`MeDto.teleport`). */
+export const makePlaceName = (repo: FeedRepository) => (placeId: string, signal?: AbortSignal) =>
+  repo.placeName(placeId, signal);
 
-/** Moves the feed, map and search to a city (`POST /me/teleport`). */
-export const makeTeleport = (repo: FeedRepository) => (cityId: string) => repo.teleport(cityId);
+/** Travel closed: the next search is a new billing session. */
+export const makeEndCitySearch = (repo: FeedRepository) => () => repo.endCitySearch();
 
-/** Back to the city the server would pick without a teleport (`DELETE /me/teleport`). */
+/** Moves the feed, map and search to a city (`POST /me/teleport { placeId }`). */
+export const makeTeleport = (repo: FeedRepository) => (placeId: string) => repo.teleport(placeId);
+
+/** Back to where the phone is (`DELETE /me/teleport`). */
 export const makeReturnHome = (repo: FeedRepository) => () => repo.returnHome();
+
+/** Where Travel stands (`GET /me`): the teleport in force, if any, and the home place. */
+export const makeLoadTravelState = (repo: FeedRepository) => () => repo.getTravelState();

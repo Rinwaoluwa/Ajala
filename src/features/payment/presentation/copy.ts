@@ -15,8 +15,11 @@ export const travelPaywallCopy = {
     'Multi-city saved locations',
   ],
   subscribe: 'Subscribe',
-  // The design's price. The real one will come from the App Store / Play product once purchase is built.
-  price: '$10/month',
+  // Travel is a weekly plan (backend answers D4; Figma's "$10/month" is out of
+  // date). The amount is never written here: it is the store product's own
+  // localised price, in the buyer's currency.
+  // TODO(purchase): pass the App Store / Play product's localised price once buying is built.
+  price: (storePrice: string | null) => (storePrice ? `${storePrice} per week` : 'Weekly'),
   later: 'Maybe later',
 
   // Not drawn: Subscribe in a build that cannot buy yet (no store SDK; see the README).
@@ -41,8 +44,10 @@ export const travelPaywallCopy = {
   },
 
   errors: {
-    // The spec's wording for a 503 from the subscription endpoints (§5).
-    unavailable: "Purchases aren't available right now. Try again later.",
+    // A 503 from the subscription endpoints (subscriptions off, or that store's
+    // keys not set), or a 500 from buying (the store failed or timed out). Both
+    // are worth another go later (backend answers D4).
+    unavailable: "Purchases aren't available right now. Please try again.",
     noWebSubscription: "We couldn't find a web subscription to manage.",
     network: 'No connection. Check your internet and try again.',
     sessionExpired: 'Your session ended. Sign in again to continue.',

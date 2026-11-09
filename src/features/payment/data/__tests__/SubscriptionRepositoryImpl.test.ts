@@ -3,6 +3,7 @@ import { describe, expect, it } from '@jest/globals';
 import { ApiError } from '@core/api/ApiError';
 
 import { createSubscriptionApi } from '../datasources/remote/subscriptionApi';
+import { toSubscriptionError } from '../mappers/subscriptionMappers';
 import { createSubscriptionRepository } from '../repositories/SubscriptionRepositoryImpl';
 
 type Call = { method: string; path: string; body?: unknown };
@@ -62,6 +63,17 @@ describe('subscription repository', () => {
     await expect(createSubscriptionRepository(none.request).portalUrl()).rejects.toMatchObject({
       code: 'noWebSubscription',
     });
+  });
+});
+
+describe('buying errors', () => {
+  it('reads both a 503 and a 500 as purchases unavailable, try again', () => {
+    const off = new ApiError({ code: 'SERVICE_UNAVAILABLE', message: 'off', status: 503 });
+    const storeFailed = new ApiError({ code: 'INTERNAL', message: 'store', status: 500 });
+    expect(toSubscriptionError(off, 'purchase').code).toBe('unavailable');
+    expect(toSubscriptionError(storeFailed, 'purchase').code).toBe('unavailable');
+    // Elsewhere a 500 is still an unexpected failure.
+    expect(toSubscriptionError(storeFailed).code).toBe('unknown');
   });
 });
 

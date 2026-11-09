@@ -18,11 +18,21 @@ Teleport itself is Home's (`POST`/`DELETE /me/teleport`); it reads `useSubscript
 | Manage, `manage: 'web'` | `POST /me/subscription/portal` → `{ url }`, opened |
 | Manage, complimentary (`comp`) or none | no button: nothing to manage |
 
+The paywall's badge shows the home flag (`MeDto.homePlace.countryCode`, passed by Travel) and the
+destination's. Travel picks cities by Google place id and a place suggestion carries no country, so
+either end shows the globe when its country isn't known.
+
 The paywall re-reads the subscription whenever it opens (`useSubscription({ fresh: true })`): it
 may have opened because a teleport just came back 402.
 
-Errors by code (spec §5): 503 `SERVICE_UNAVAILABLE` → "Purchases aren't available right now"; a
-portal 404 → no web subscription; network and session as everywhere.
+The plan is **weekly** (backend answers D4; Figma's "$10/month" is out of date). The button reads
+"Subscribe — Weekly" with no amount: the price is the store product's own, localised, and
+`travelPaywallCopy.price(storePrice)` turns it into "<price> per week" once buying is built.
+
+Errors by code (spec §5): 503 `SERVICE_UNAVAILABLE` → "Purchases aren't available right now. Please
+try again."; when buying (`toSubscriptionError(e, 'purchase')`) a 500 reads the same, since it is the
+store failing or timing out behind the API (D4); a portal 404 → no web subscription; network and
+session as everywhere.
 
 ## Turning on buying
 
@@ -31,8 +41,8 @@ Everything server-side exists and is typed in `data/datasources/remote/subscript
 paths. What the app still needs:
 
 1. **Store products.** An auto-renewing subscription in App Store Connect and in the Play Console
-   (a subscription group on iOS; a base plan on Play), with the same product id on both. The
-   paywall's `$10/month` is the design's; show the store product's localised price instead.
+   (a subscription group on iOS; a base plan on Play), with the same product id on both, billed
+   **weekly**. Pass the product's localised price to `travelPaywallCopy.price` (`TODO(purchase)`).
 2. **A billing library** — StoreKit 2 and Play Billing 7+, e.g. `expo-iap` or
    `react-native-iap` — in a development build. Buy with `appAccountToken` (iOS) /
    `obfuscatedAccountId` (Android) set to the user id.
@@ -46,7 +56,9 @@ paths. What the app still needs:
    purchaseToken, challenge, integrityToken }` → `setQueryData(['subscription'], answer)`, finish
    the store transaction. **Restore** is the same verify call with the existing purchase.
 5. **Errors:** 403 the challenge, device or purchase didn't check out; 409 the purchase belongs to
-   another account; 503 subscriptions are off in this environment.
+   another account; 503 subscriptions are off here or that store's keys aren't set (every
+   environment today), and 500 the store failed or timed out — both "try again", so map buying
+   errors with `toSubscriptionError(e, 'purchase')`.
 6. **Web (optional):** `POST /me/subscription/checkout { couponCode? }` → open `url`; on return
    `POST /me/subscription/checkout/confirm` (safe to repeat — a "Refresh" button, not polling).
    App Store and Play rules restrict linking out to web payment from the apps.

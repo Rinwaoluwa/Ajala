@@ -1,5 +1,5 @@
 import { Host } from '@expo/ui';
-import { Pressable, ScrollView, View, useWindowDimensions } from 'react-native';
+import { Pressable, ScrollView, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -8,8 +8,6 @@ import {
   NativeIcon,
   NativeSpinner,
   Screen,
-  SkeletonBlock,
-  SkeletonPulse,
   SvgIcon,
   SwirlPattern,
   Text,
@@ -19,82 +17,100 @@ import {
 } from '@shared/components';
 import { useTheme } from '@shared/hooks/useTheme';
 import { SCREEN_GUTTER, palette } from '@shared/theme';
-import { flagEmoji } from '@shared/utils/flagEmoji';
 
 import { useSubscription } from '@features/payment';
 
+import type { TravelCity } from '../../domain/entities/Feed';
 import { isFeedError } from '../../domain/entities/FeedError';
-import { sameCity, travelChoice } from '../../domain/rules/travelRules';
+import { shortPlaceName, travelChoice, type TravelPick } from '../../domain/rules/travelRules';
 import { ProTag } from '../components/ProTag';
 import { TravelTag } from '../components/TravelTag';
 import { travelCopy as copy } from '../copy';
 import { useCitySearch } from '../hooks/useCitySearch';
-import { usePopularCities } from '../hooks/usePopularCities';
+import { usePlaceName } from '../hooks/usePlaceName';
 import { useTravelMove, type TravelMove } from '../hooks/useTravelMove';
+import { useTravelState } from '../hooks/useTravelState';
 import { useTravelMemory } from '../state/travelMemory';
 
 /**
  * Travel — "Explore activities in another city" (Figma "City picker / Free",
  * "City picker / Pro" and "City search / Results", light and dark).
  *
- * Free: the Travel Pro banner, then the Popular grid with the current city
- * first and chosen (mint, teal outline); every other city carries a PRO tag and
- * opens the paywall for it.
+ * The API has no cities any more, only Google place ids, and no popular-cities
+ * list (Swagger, 9 Nov). So the design's Popular grid is gone: Travel offers
+ * "Where you are" (the phone's location, where coming home lands), the last
+ * few teleports ("Recent", remembered for this run) and a city search on the
+ * phone (`@core/places`, cities only).
  *
- * Travel (`useSubscription`): a PRO tag on the title and no banner; "Your city"
- * (tagged Home), "Recent" teleports, and the Popular grid with TRAVEL tags.
- * Picking a city teleports there (`POST /me/teleport`); picking your own city
- * comes home (`DELETE /me/teleport`). Either way Travel closes once the server
- * has said yes, and the feed, map and search reload in the new city. A 402
- * (the subscription lapsed) opens the paywall instead.
+ * Free: the Travel Pro banner; every city carries a PRO tag and opens the
+ * paywall for it.
  *
- * Popular is the server's list (`GET /cities/popular`, busiest first). Typing
- * searches the catalogue (`GET /cities?q=`, cached — `useCitySearch`) and lists
- * the matches as rows, tagged the same way.
+ * Travel (`useSubscription`): a PRO tag on the title and no banner; cities
+ * carry TRAVEL tags. Picking a city teleports there (`POST /me/teleport
+ * { placeId }`); picking "Where you are" while teleported comes home (`DELETE
+ * /me/teleport`). Either way Travel closes once the server has said yes, and
+ * the feed, map and search reload around the new place. A 402 (the
+ * subscription lapsed) opens the paywall instead.
+ *
+ * Whether the feed is teleported, and where, is the server's word (`GET /me`,
+ * `useTravelState`); the route's `current` and `teleported` only stand in until
+ * it has answered. `GET /me` names the teleport by place id alone, so its name
+ * is the feed's (`current.label`) or a cached place lookup.
+ *
+ * Suggestions carry no country code, so rows show the globe rather than a flag.
  */
-
-type Pick = { id?: string; name: string; countryCode: string; countryName?: string };
 
 export type TravelScreenProps = {
-  /** The city the feed showed when this opened. */
-  current: Pick;
-  /** Whether that city is a teleport (`citySource: 'teleport'`), not the person's own. */
+  /** What the feed's header showed when this opened: the teleport's name, if any. */
+  current: { label: string | null };
+  /** Whether the feed was on a teleport (`originSource: 'teleport'`), until `GET /me` says. */
   teleported: boolean;
   onBack: () => void;
-  /** Not subscribed: the paywall for a city, or for "anywhere" (the Pro banner). */
-  onPaywall: (city: { name: string; countryCode: string } | null) => void;
+  /**
+   * Not subscribed: the paywall for a city, or for "anywhere" (the Pro banner).
+   * `homeCountryCode` is the account's home place's country, for the paywall's
+   * home flag; null when unknown.
+   */
+  onPaywall: (city: { name: string } | null, homeCountryCode: string | null) => void;
 };
-
-const GAP = 12;
-/**
- * Three tiles a row, as drawn — two when the text is large or the screen narrow
- * (under 360pt of width per unit of text scale), so names never squeeze.
- */
-const columnsFor = (width: number, fontScale: number) => (width / fontScale >= 360 ? 3 : 2);
-
-const chunk = <T,>(items: readonly T[], size: number): T[][] =>
-  Array.from({ length: Math.ceil(items.length / size) }, (_, i) => items.slice(i * size, i * size + size));
 
 export function TravelScreen({ current, teleported, onBack, onPaywall }: TravelScreenProps) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const { width, fontScale } = useWindowDimensions();
   const search = useCitySearch();
-  const popular = usePopularCities();
   const { isPro } = useSubscription();
   const memory = useTravelMemory();
+  const state = useTravelState();
   const travel = useTravelMove();
-  const columns = columnsFor(width, fontScale);
   const searching = search.active;
   const results = search.results;
 
-  const here: Pick = current;
-  // While teleported, home is only known if the feed has been home this run.
-  const home: Pick | null = memory.home ?? (teleported ? null : current);
-  const isHere = (city: Pick) => sameCity(city, here);
-  const isHome = (city: Pick) => sameCity(city, home);
+  // The server's word wins: the feed's page (and so `current`) can be a little older.
+  const isTeleported = state ? state.teleport !== null : teleported;
+  const teleportId = state?.teleport?.placeId ?? null;
+  const here = { teleported: isTeleported, placeId: teleportId };
+  // Named by the feed when it can; looked up (once, cached) when only `GET /me` knows the id.
+  const lookedUp = usePlaceName(isTeleported && !current.label ? teleportId : null);
+  const teleportLabel = current.label ?? lookedUp;
+  const homeCountry = state?.homePlace?.countryCode ?? null;
 
-  const run = async (move: TravelMove, city: Pick | null) => {
+  // The current teleport heads "Recent", even when it was made before this run.
+  const recent: TravelCity[] =
+    isTeleported && teleportId && !memory.recent.some((c) => c.placeId === teleportId)
+      ? [
+          {
+            placeId: teleportId,
+            name: teleportLabel ? shortPlaceName(teleportLabel) : copy.here,
+            detail: teleportLabel ?? '',
+          },
+          ...memory.recent,
+        ]
+      : memory.recent;
+
+  const isHere = (pick: TravelPick) =>
+    pick.kind === 'here' ? !isTeleported : isTeleported && pick.placeId === teleportId;
+
+  const run = async (move: TravelMove, city: TravelCity | null) => {
     try {
       await travel.move(move);
       onBack();
@@ -102,59 +118,57 @@ export function TravelScreen({ current, teleported, onBack, onPaywall }: TravelS
       // A lapsed subscription: the paywall says why. Anything else shows under the search box.
       if (isFeedError(e) && e.code === 'paymentRequired') {
         travel.reset();
-        onPaywall(city ? { name: city.name, countryCode: city.countryCode } : null);
+        onPaywall(city ? { name: city.name } : null, homeCountry);
       }
     }
   };
 
-  const choose = (city: Pick) => {
+  const choose = (city: TravelCity | null) => {
     if (travel.pending) return;
-    const choice = travelChoice(city, here, home, isPro);
+    const pick: TravelPick = city ? { kind: 'city', placeId: city.placeId } : { kind: 'here' };
+    const choice = travelChoice(pick, here, isPro);
     switch (choice.kind) {
       case 'stay':
         return onBack();
       case 'paywall':
-        return onPaywall({ name: city.name, countryCode: city.countryCode });
+        return onPaywall(city ? { name: city.name } : null, homeCountry);
       case 'returnHome':
         return void run({ kind: 'returnHome' }, null);
       case 'teleport':
-        return void run(
-          {
-            kind: 'teleport',
-            city: {
-              id: choice.cityId,
-              name: city.name,
-              countryCode: city.countryCode,
-              countryName: city.countryName ?? '',
-            },
-          },
-          city,
-        );
+        return city ? void run({ kind: 'teleport', city }, city) : undefined;
     }
   };
-  const comeHome = () => {
-    if (!travel.pending) void run({ kind: 'returnHome' }, null);
-  };
 
-  const badge = (city: Pick): Badge => (isHere(city) ? 'none' : isPro ? 'travel' : 'pro');
-  const busy = (city: Pick | null) => {
+  const badge = (city: TravelCity): Badge =>
+    isHere({ kind: 'city', placeId: city.placeId }) ? 'none' : isPro ? 'travel' : 'pro';
+  const busy = (city: TravelCity | null) => {
     const pending = travel.pending;
     if (!pending) return false;
-    if (pending.kind === 'returnHome') return city === null || isHome(city);
-    return city !== null && sameCity(pending.city, city);
+    if (pending.kind === 'returnHome') return city === null;
+    return city !== null && pending.city.placeId === city.placeId;
   };
-  const recent = memory.recent.filter((c) => !isHome(c));
-  const popularShown = isPro
-    ? popular.cities.filter((c) => !isHome(c))
-    : [here, ...popular.cities.filter((c) => !isHere(c))];
   const moveError =
     travel.error && travel.error !== 'paymentRequired'
-      ? travel.error === 'cityNotFound'
-        ? copy.moveFailed.cityNotFound
-        : travel.error === 'network'
-          ? copy.moveFailed.network
-          : copy.moveFailed.other
+      ? travel.error === 'notACity'
+        ? copy.moveFailed.notACity
+        : travel.error === 'unavailable'
+          ? copy.moveFailed.unavailable
+          : travel.error === 'network'
+            ? copy.moveFailed.network
+            : copy.moveFailed.other
       : null;
+
+  const cityRow = (city: TravelCity) => (
+    <CityRow
+      name={city.name}
+      detail={city.detail}
+      leading="earth"
+      selected={isHere({ kind: 'city', placeId: city.placeId })}
+      badge={badge(city)}
+      busy={busy(city)}
+      onPress={() => choose(city)}
+    />
+  );
 
   return (
     <Screen edges={['top']} padded={false}>
@@ -199,7 +213,9 @@ export function TravelScreen({ current, teleported, onBack, onPaywall }: TravelS
           returnKeyType="search"
           leading={<NativeIcon source={icons.search} size={16} color={palette.inkSecondary} />}
           trailing={
-            searching && !results ? <NativeSpinner size={14} color={palette.inkSecondary} /> : undefined
+            searching && !results && !search.failed ? (
+              <NativeSpinner size={14} color={palette.inkSecondary} />
+            ) : undefined
           }
           onChangeText={search.setQuery}
           testID="travel-search"
@@ -221,7 +237,7 @@ export function TravelScreen({ current, teleported, onBack, onPaywall }: TravelS
         {isPro ? null : (
           <Animated.View entering={enterRise(0)} className="mb-24">
             <Pressable
-              onPress={() => onPaywall(null)}
+              onPress={() => onPaywall(null, homeCountry)}
               accessibilityRole="button"
               accessibilityLabel={`${copy.proTitle}. ${copy.proBody}`}
             >
@@ -234,6 +250,7 @@ export function TravelScreen({ current, teleported, onBack, onPaywall }: TravelS
                   paddingVertical: 18,
                   flexDirection: 'row',
                   alignItems: 'center',
+                  gap: 12,
                 }}
               >
                 <SwirlPattern color={palette.teal} opacity={0.35} />
@@ -267,135 +284,55 @@ export function TravelScreen({ current, teleported, onBack, onPaywall }: TravelS
             <Text variant="bodySm" tone="muted" className="mb-12">
               {copy.results}
             </Text>
-            {results && results.length === 0 ? (
+            {search.failed ? (
+              <View className="flex-row flex-wrap items-center" style={{ gap: 12 }}>
+                <Text variant="bodySm" tone="muted" style={{ flexShrink: 1 }} accessibilityLiveRegion="polite">
+                  {search.placesDown ? copy.placesFailed : copy.searchFailed}
+                </Text>
+                <Button label={copy.retry} size="sm" variant="secondary" onPress={search.retry} />
+              </View>
+            ) : results && results.length === 0 ? (
               <Text variant="bodySm" tone="muted">
                 {copy.noResults}
               </Text>
             ) : null}
             <View style={{ gap: 12 }}>
               {(results ?? []).map((city) => (
-                <Animated.View key={city.id} entering={FadeIn.duration(180)}>
-                  <CityRow
-                    name={city.name}
-                    country={city.countryName}
-                    countryCode={city.countryCode}
-                    selected={isHere(city)}
-                    home={isPro && isHome(city)}
-                    badge={badge(city)}
-                    busy={busy(city)}
-                    onPress={() => choose(city)}
-                  />
+                <Animated.View key={city.placeId} entering={FadeIn.duration(180)}>
+                  {cityRow(city)}
                 </Animated.View>
               ))}
             </View>
           </View>
         ) : (
           <Animated.View entering={enterRise(80)}>
-            {isPro || teleported ? (
-              <>
-                <Text variant="bodySm" tone="muted" className="mb-12">
-                  {copy.yourCity}
-                </Text>
-                {home ? (
-                  <CityRow
-                    name={home.name}
-                    country={home.countryName ?? ''}
-                    countryCode={home.countryCode}
-                    selected={isHere(home)}
-                    home
-                    badge="none"
-                    busy={busy(home)}
-                    onPress={() => choose(home)}
-                  />
-                ) : (
-                  // Opened already teleported: the server knows where home is, the app does not yet.
-                  <CityRow
-                    name={copy.returnHome}
-                    country={copy.returnHomeBody}
-                    countryCode=""
-                    selected={false}
-                    home
-                    badge="none"
-                    busy={busy(null)}
-                    onPress={comeHome}
-                  />
-                )}
-                {isPro && recent.length > 0 ? (
-                  <>
-                    <Text variant="bodySm" tone="muted" className="mb-12 mt-24">
-                      {copy.recent}
-                    </Text>
-                    <View style={{ gap: 12 }}>
-                      {recent.map((city) => (
-                        <CityRow
-                          key={city.id}
-                          name={city.name}
-                          country={city.countryName ?? ''}
-                          countryCode={city.countryCode}
-                          selected={isHere(city)}
-                          badge={badge(city)}
-                          busy={busy(city)}
-                          onPress={() => choose(city)}
-                        />
-                      ))}
-                    </View>
-                  </>
-                ) : null}
-              </>
-            ) : null}
-            <Text variant="bodySm" tone="muted" className={isPro || teleported ? 'mb-12 mt-24' : 'mb-12'}>
-              {copy.popular}
+            <Text variant="bodySm" tone="muted" className="mb-12">
+              {copy.yourLocation}
             </Text>
-            {popular.failed ? (
-              <View className="flex-row flex-wrap items-center" style={{ gap: 12 }}>
-                <Text variant="bodySm" tone="muted" style={{ flexShrink: 1 }} accessibilityLiveRegion="polite">
-                  {copy.popularFailed}
+            <CityRow
+              name={copy.yourLocation}
+              detail={copy.yourLocationBody(memory.here)}
+              leading="location"
+              selected={isHere({ kind: 'here' })}
+              badge="none"
+              busy={busy(null)}
+              onPress={() => choose(null)}
+            />
+            {recent.length > 0 ? (
+              <>
+                <Text variant="bodySm" tone="muted" className="mb-12 mt-24">
+                  {copy.recent}
                 </Text>
-                <Button label={copy.retry} size="sm" variant="secondary" onPress={popular.retry} />
-              </View>
-            ) : popular.loading ? (
-              <SkeletonPulse>
-                <View style={{ gap: GAP }}>
-                  {[0, 1].map((row) => (
-                    <View key={row} style={{ flexDirection: 'row', gap: GAP }}>
-                      {Array.from({ length: columns }, (_, i) => (
-                        <View key={i} style={{ flex: 1 }}>
-                          <SkeletonBlock height={96} radius={16} />
-                        </View>
-                      ))}
-                    </View>
+                <View style={{ gap: 12 }}>
+                  {recent.map((city) => (
+                    <View key={city.placeId}>{cityRow(city)}</View>
                   ))}
                 </View>
-              </SkeletonPulse>
-            ) : (
-              /* Rows of equal flexible tiles, not widths worked out from the screen:
-                 three computed widths can add up to a hair over the row and push the
-                 last tile onto the next line. A short last row keeps its tiles' size. */
-              <Animated.View entering={FadeIn.duration(180)} style={{ gap: GAP }}>
-                {chunk(popularShown, columns).map((row) => (
-                  <View key={row[0]?.id ?? row[0]?.name} style={{ flexDirection: 'row', gap: GAP }}>
-                    {Array.from({ length: columns }, (_, i) => {
-                      const city = row[i];
-                      return (
-                        <View key={city?.id ?? city?.name ?? `empty-${i}`} style={{ flex: 1 }}>
-                          {city ? (
-                            <CityTile
-                              square={fontScale <= 1.2}
-                              name={city.name}
-                              countryCode={city.countryCode}
-                              selected={isHere(city)}
-                              badge={badge(city)}
-                              busy={busy(city)}
-                              onPress={() => choose(city)}
-                            />
-                          ) : null}
-                        </View>
-                      );
-                    })}
-                  </View>
-                ))}
-              </Animated.View>
-            )}
+              </>
+            ) : null}
+            <Text variant="bodySm" tone="muted" className="mt-24 text-center">
+              {copy.searchHint}
+            </Text>
           </Animated.View>
         )}
       </ScrollView>
@@ -411,19 +348,19 @@ function CityBadge({ badge, busy = false }: { badge: Badge; busy?: boolean }) {
   return badge === 'pro' ? <ProTag /> : badge === 'travel' ? <TravelTag /> : null;
 }
 
-function CityTile({
-  square,
+function CityRow({
   name,
-  countryCode,
+  detail,
+  leading,
   selected,
   badge,
   busy,
   onPress,
 }: {
-  /** Square, as drawn; off at large text sizes, where the tile grows to fit instead. */
-  square: boolean;
   name: string;
-  countryCode: string;
+  detail: string;
+  /** The globe for a city; the location arrow for the phone's own place. */
+  leading: 'earth' | 'location';
   selected: boolean;
   badge: Badge;
   busy: boolean;
@@ -435,63 +372,8 @@ function CityTile({
       onPress={onPress}
       accessibilityRole="button"
       accessibilityState={{ selected, busy }}
-      accessibilityLabel={selected ? `${name}, where you are` : badge === 'pro' ? `${name}, Pro` : name}
+      accessibilityLabel={[name, detail, badge === 'pro' ? 'Pro' : null].filter(Boolean).join(', ')}
     >
-      {({ pressed }) => (
-        <View
-          style={{
-            aspectRatio: square ? 1 : undefined,
-            borderRadius: 16,
-            borderWidth: selected ? 2 : 1,
-            borderColor: selected ? theme.selectedForeground : theme.border,
-            backgroundColor: selected ? theme.selectedFill : theme.card,
-            alignItems: 'center',
-            justifyContent: 'center',
-            paddingVertical: 12,
-            gap: 6,
-            opacity: pressed ? 0.7 : 1,
-          }}
-        >
-          <Text style={{ fontSize: 34, lineHeight: 40 }} allowFontScaling={false}>
-            {flagEmoji(countryCode)}
-          </Text>
-          <Text
-            variant="bodySm"
-            numberOfLines={1}
-            style={selected ? { color: theme.selectedForeground } : undefined}
-          >
-            {name}
-          </Text>
-          <CityBadge badge={badge} busy={busy} />
-        </View>
-      )}
-    </Pressable>
-  );
-}
-
-function CityRow({
-  name,
-  country,
-  countryCode,
-  selected,
-  home = false,
-  badge,
-  busy,
-  onPress,
-}: {
-  name: string;
-  country: string;
-  countryCode: string;
-  selected: boolean;
-  /** Tags the person's own city "Home" (Pro). */
-  home?: boolean;
-  badge: Badge;
-  busy: boolean;
-  onPress: () => void;
-}) {
-  const theme = useTheme();
-  return (
-    <Pressable onPress={onPress} accessibilityRole="button" accessibilityState={{ selected, busy }}>
       {({ pressed }) => (
         <View
           style={{
@@ -503,44 +385,29 @@ function CityRow({
             flexDirection: 'row',
             alignItems: 'center',
             paddingHorizontal: 16,
+            paddingVertical: 12,
             gap: 14,
             opacity: pressed ? 0.7 : 1,
           }}
         >
-          {countryCode ? (
-            <Text style={{ fontSize: 30, lineHeight: 36 }} allowFontScaling={false}>
-              {flagEmoji(countryCode)}
-            </Text>
-          ) : (
-            // No country yet (home before the feed has seen it): the globe, not a blank flag.
+          {leading === 'earth' ? (
             <SvgIcon name="earth" size={30} />
+          ) : (
+            <View style={{ width: 30, alignItems: 'center' }}>
+              <Host matchContents pointerEvents="none" ignoreSafeArea="all">
+                <NativeIcon source={icons.location} size={20} color={theme.selectedForeground} />
+              </Host>
+            </View>
           )}
           <View style={{ flex: 1 }}>
-            <View className="flex-row items-center" style={{ gap: 8 }}>
-              <Text
-                variant="bodyMd"
-                style={[{ flexShrink: 1 }, selected ? { color: theme.selectedForeground } : null]}
-              >
-                {name}
-              </Text>
-              {home ? (
-                <View
-                  style={{
-                    backgroundColor: palette.white,
-                    borderRadius: 999,
-                    paddingHorizontal: 8,
-                    paddingVertical: 1,
-                  }}
-                >
-                  <Text variant="bodyXs" style={{ color: palette.inkSecondary }}>
-                    {copy.home}
-                  </Text>
-                </View>
-              ) : null}
-            </View>
-            <Text variant="bodySm" tone="muted" style={selected ? { color: palette.ink } : undefined}>
-              {country || null}
+            <Text variant="bodyMd" style={selected ? { color: theme.selectedForeground } : undefined}>
+              {name}
             </Text>
+            {detail ? (
+              <Text variant="bodySm" tone="muted" style={selected ? { color: palette.ink } : undefined}>
+                {detail}
+              </Text>
+            ) : null}
           </View>
           {selected ? (
             <Host matchContents pointerEvents="none" ignoreSafeArea="all">

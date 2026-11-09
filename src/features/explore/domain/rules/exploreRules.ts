@@ -1,4 +1,4 @@
-import type { MapPin, PostPreview, PostType, ReportReasonCode } from '../entities/Explore';
+import type { Bbox, MapPin, MapPins, PostPreview, PostType, ReportReasonCode } from '../entities/Explore';
 
 /** Posts per page in the Explore list: "Meetups Near You" and search results. */
 export const LIST_PAGE_SIZE = 20;
@@ -27,6 +27,44 @@ export function visiblePins(pins: readonly MapPin[], todayOnly: boolean, now: Da
   return todayOnly ? pins.filter((p) => isHappeningToday(p.startAt, now)) : [...pins];
 }
 
+/**
+ * How wide a box the map may ask pins for (spec §3.11): under 5° a side for
+ * everyone, under 20° for a Travel subscriber. Just under, as the API refuses
+ * the limit itself.
+ */
+export const FREE_BBOX_SPAN = 4.99;
+export const SUBSCRIBER_BBOX_SPAN = 19.99;
+export const maxBboxSpan = (subscribed: boolean) => (subscribed ? SUBSCRIBER_BBOX_SPAN : FREE_BBOX_SPAN);
+
+/** How far a free reader's pins reach from the origin (`reach: 'radius'`). */
+export const FREE_REACH_KM = 30;
+
+const toRad = (deg: number) => (deg * Math.PI) / 180;
+
+/** Great-circle distance, enough for "is this box within 30 km". */
+export function distanceKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
+  const dLat = toRad(b.lat - a.lat);
+  const dLng = toRad(b.lng - a.lng);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLng / 2) ** 2;
+  return 2 * 6371 * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
+/**
+ * Whether the map is looking somewhere its pins can't reach: a free reader
+ * (`reach: 'radius'`) only gets pins within 30 km of the origin, so a box
+ * whose nearest point is further than that is empty whatever is there. The
+ * map then offers Teleport rather than "No activities here yet".
+ */
+export function outsideReach(answer: Pick<MapPins, 'reach' | 'origin'>, bbox: Bbox): boolean {
+  if (answer.reach !== 'radius') return false;
+  const { lat, lng } = answer.origin;
+  const nearest = {
+    lat: Math.min(Math.max(lat, bbox.south), bbox.north),
+    lng: Math.min(Math.max(lng, bbox.west), bbox.east),
+  };
+  return distanceKm(answer.origin, nearest) > FREE_REACH_KM;
+}
+
 /** How many places are left, or null when there is no limit. Never below zero. */
 export function spotsLeft(goingCount: number, capacity: number | null): number | null {
   return capacity === null ? null : Math.max(capacity - goingCount, 0);
@@ -37,10 +75,11 @@ export function spotsLeft(goingCount: number, capacity: number | null): number |
  * The server decides; this only reads what it said.
  */
 export type RsvpAction =
-  /** Join (RSVP) — `price` null is free. Private posts ask instead. */
+  /**
+   * Join (RSVP) — `price` null shows no price (not "Free"). Private posts ask instead. Every post
+   * joins this way; one with a link also opens it (see `useJoinPost`).
+   */
   | { kind: 'join'; request: boolean; price: PostPreview['price'] }
-  /** A paid Event: open its link to book. */
-  | { kind: 'book'; price: PostPreview['price'] }
   | { kind: 'requested' }
   | { kind: 'going' }
   | { kind: 'waitlisted'; position: number | null }
@@ -62,9 +101,20 @@ export function rsvpAction(post: PostPreview): RsvpAction {
     case 'removed':
       return { kind: 'none' };
     default:
-      if (post.joinMode === 'external') return { kind: 'book', price: post.price };
       return { kind: 'join', request: post.visibility === 'private', price: post.price };
   }
+}
+
+/**
+ * The post as the signed-in person sees it. The API asks every card to compare
+ * `host.id` with the viewer's own id (backend answers B9): on their own post it
+ * says `rsvpState: 'none'`, and Join would answer 409, so it is marked as theirs
+ * and the card says "You're hosting" instead of offering Join. Without the id
+ * yet, the server's `isHost` stands.
+ */
+export function asSeenBy(post: PostPreview, myId: string | null): PostPreview {
+  if (post.isHost || !myId || post.hostId !== myId) return post;
+  return { ...post, isHost: true };
 }
 
 /** Optimistic state after tapping Join, until the server answers. */
