@@ -138,15 +138,6 @@ export const createAuthRepository = (): AuthRepository => ({
     return provider === 'apple' ? isAppleSignInAvailable() : isGoogleSignInConfigured();
   },
 
-  async completeAccountLink(challengeId: string, code: string): Promise<AuthSession> {
-    try {
-      return toVerifiedAuthSession(await authApi.completeOAuthLink({ challengeId, code }));
-    } catch (e) {
-      // Wrong, expired or used code and unknown challenge are one indistinguishable 401.
-      throw toCodeError(e, 'linkFailed');
-    }
-  },
-
   async requestPasswordReset(email: string): Promise<void> {
     try {
       await authApi.forgotPassword({ email });

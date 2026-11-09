@@ -1,3 +1,5 @@
+import type { SignInMethod } from './Account';
+
 /**
  * Failures the auth flows know how to explain. A repository maps whatever its
  * backend returns onto one of these, so presentation never parses a server message.
@@ -25,16 +27,11 @@ export type AuthErrorCode =
    */
   | 'stepUpRequired'
   /**
-   * A Google or Apple sign-in matched an account that already exists. The API
-   * emailed that account a code; `challengeId` says which link it confirms.
+   * A Google or Apple sign-in found an account with that email which signs in
+   * another way. The API never joins the two (and sends no email), so the only
+   * way in is the way that account already uses: `signInMethods` lists them.
    */
-  | 'accountLinkRequired'
-  /**
-   * Finishing an account link failed. A wrong, expired or used code and an
-   * unknown challenge all look the same, and the challenge is one-use, so the
-   * only way on is to start again from the provider.
-   */
-  | 'linkFailed'
+  | 'emailAlreadyRegistered'
   /** Google or Apple handed over a token the API would not accept. */
   | 'providerRejected'
   /** The provider cannot be used here: Apple on Android, or Google not set up. */
@@ -74,8 +71,11 @@ export class AuthError extends Error {
    * the person nothing about what to change.
    */
   readonly fieldErrors: AuthFieldError[];
-  /** Set with `accountLinkRequired`: the challenge the emailed code answers. */
-  readonly challengeId: string | null;
+  /**
+   * Set with `emailAlreadyRegistered`: the ways into the account that owns the
+   * email. Empty when the API named none, or for any other code.
+   */
+  readonly signInMethods: SignInMethod[];
   /** Set with `rateLimited` when the server said how long to wait, in seconds. */
   readonly retryAfterSeconds: number | null;
 
@@ -83,14 +83,14 @@ export class AuthError extends Error {
     code: AuthErrorCode,
     message?: string,
     fieldErrors: AuthFieldError[] = [],
-    challengeId: string | null = null,
+    signInMethods: SignInMethod[] = [],
     retryAfterSeconds: number | null = null,
   ) {
     super(message ?? code);
     this.name = 'AuthError';
     this.code = code;
     this.fieldErrors = fieldErrors;
-    this.challengeId = challengeId;
+    this.signInMethods = signInMethods;
     this.retryAfterSeconds = retryAfterSeconds;
   }
 }

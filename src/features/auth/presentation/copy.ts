@@ -1,5 +1,6 @@
 import { formatCountdown } from '@shared/hooks/useCountdown';
 
+import type { SignInMethod } from '../domain/entities/Account';
 import type { AuthErrorCode } from '../domain/entities/AuthError';
 import type { PasswordRuleId } from '../domain/rules/credentialRules';
 import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH } from '../domain/rules/credentialRules';
@@ -119,12 +120,33 @@ export const signInCopy = {
   stepUpFallbackRecipient: 'your email',
 } as const;
 
-/** Linking Google or Apple to an existing account. Not drawn; reuses Verification. */
-export const linkAccountCopy = {
-  header: (provider: string) => `Link ${provider}`,
-  body: (length: number, provider: string) =>
-    `This email already has an Ajala account. We sent a ${length}-digit code to it — enter it to sign in with ${provider} from now on.`,
+/**
+ * Google or Apple found an account with that email that signs in another way
+ * (409 EMAIL_ALREADY_REGISTERED). Not drawn; a native alert, like the other
+ * provider failures. It names the ways in the API listed; with none, it says
+ * only that the account exists.
+ */
+export const emailRegisteredCopy = {
+  title: 'You already have an account',
+  message: (methods: readonly SignInMethod[]) =>
+    methods.length === 0
+      ? 'This email already has an account.'
+      : `This email already has an account. Sign in with ${orList(methods.map((m) => signInMethodNames[m]))} instead.`,
+  button: (method: SignInMethod) => (method === 'password' ? 'Sign in with email' : `Sign in with ${providerNames[method]}`),
+  dismiss: 'Not now',
 } as const;
+
+const signInMethodNames: Record<SignInMethod, string> = {
+  google: 'Google',
+  apple: 'Apple',
+  password: 'your email and password',
+};
+
+/** "Google", "Google or Apple", "Google, Apple or your email and password". */
+function orList(names: readonly string[]): string {
+  if (names.length <= 1) return names[0] ?? '';
+  return `${names.slice(0, -1).join(', ')} or ${names[names.length - 1]}`;
+}
 
 export const authErrorMessages: Record<AuthErrorCode, string> = {
   // There is no "email already taken": sign-up answers the same either way, so
@@ -139,9 +161,8 @@ export const authErrorMessages: Record<AuthErrorCode, string> = {
   invalidDetails: 'Some details need another look.',
   emailNotVerified: 'Confirm your email first — we have sent you a new code.',
   stepUpRequired: 'We emailed you a code to confirm it is you. Enter it to finish signing in.',
-  accountLinkRequired: 'This email already has an Ajala account. Enter the code we sent to link them.',
-  linkFailed:
-    "That code didn't work, and it can't be retried. Go back and continue with Google or Apple again for a new one.",
+  // Shown through emailRegisteredCopy, which names the ways in; this is the bare fallback.
+  emailAlreadyRegistered: 'This email already has an account.',
   providerRejected: "We couldn't sign you in with that account. Please try again.",
   providerUnavailable: "That sign-in option isn't available on this device. Use your email address instead.",
   cancelled: '',

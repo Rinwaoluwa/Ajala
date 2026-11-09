@@ -2,7 +2,6 @@ import { View } from 'react-native';
 
 import { Screen } from '@shared/components';
 
-import type { IdentityProvider } from '../../domain/entities/Account';
 import type { NextStep } from '../../domain/rules/accountRules';
 import { AuthFooterPrompt } from '../components/AuthFooterPrompt';
 import { AuthIntro } from '../components/AuthIntro';
@@ -31,16 +30,20 @@ export type SignUpOptionsScreenProps = {
   onEmail: () => void;
   onSignIn: () => void;
   onSignedIn: (next: NextStep) => void;
-  onLinkRequired: (challengeId: string, provider: IdentityProvider) => void;
+  /**
+   * Google or Apple found an account with that email that signs in with a
+   * password: opens the email sign-in (not sign-up's details form).
+   */
+  onSignInWithPassword: () => void;
 };
 
 export function SignUpOptionsScreen({
   onEmail,
   onSignIn,
   onSignedIn,
-  onLinkRequired,
+  onSignInWithPassword,
 }: SignUpOptionsScreenProps) {
-  const providers = useProviderSignIn({ onSignedIn, onLinkRequired });
+  const providers = useProviderSignIn({ onSignedIn, onUsePassword: onSignInWithPassword });
 
   return (
     <Screen scroll>

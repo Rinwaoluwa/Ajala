@@ -82,12 +82,6 @@ export type GoogleSignInRequestDto = DeviceFieldsDto & {
   timezone?: string;
 };
 
-export type OAuthLinkRequestDto = DeviceFieldsDto & {
-  /** From the 409 ACCOUNT_LINK_REQUIRED answer. */
-  challengeId: string;
-  code: string;
-};
-
 export type ForgotPasswordRequestDto = { email: string };
 
 /** The address the reset was asked for, and the emailed 6 digits. */

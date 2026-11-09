@@ -47,6 +47,10 @@ export function PasswordResetCodeScreen({ onBack, onVerified }: PasswordResetCod
       <PasswordResetStepHeader step={1} onBack={onBack} />
 
       <ScrollView
+
+        // Android draws scrolled content past the edges unless told to clip, over the header above.
+
+        style={{ flex: 1, overflow: 'hidden' }}
         keyboardShouldPersistTaps="handled"
         automaticallyAdjustKeyboardInsets
         contentContainerStyle={{

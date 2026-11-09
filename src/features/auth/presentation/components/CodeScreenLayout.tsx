@@ -31,6 +31,8 @@ export function CodeScreenLayout({ headerTitle, onBack, children }: CodeScreenLa
         <ScreenHeader title={headerTitle} onBack={onBack} />
       </View>
       <ScrollView
+        // Android draws scrolled content past the edges unless told to clip, over the header above.
+        style={{ flex: 1, overflow: 'hidden' }}
         keyboardShouldPersistTaps="handled"
         automaticallyAdjustKeyboardInsets
         contentContainerStyle={{

@@ -10,6 +10,7 @@ export {
   useAuthState,
   useAuthorizedRequest,
   useFreshAccessToken,
+  useMyUserId,
   useSignOut,
 } from './presentation/state/AuthContext';
 export type { AuthorizedRequest } from './authModule';
@@ -27,7 +28,6 @@ export {
   StepUpVerificationScreen,
   type StepUpVerificationScreenProps,
 } from './presentation/screens/StepUpVerificationScreen';
-export { LinkAccountScreen, type LinkAccountScreenProps } from './presentation/screens/LinkAccountScreen';
 export { AcceptTermsScreen, type AcceptTermsScreenProps } from './presentation/screens/AcceptTermsScreen';
 export { ForgotPasswordScreen, type ForgotPasswordScreenProps } from './presentation/screens/ForgotPasswordScreen';
 export {
@@ -45,5 +45,5 @@ export {
   appRoutes,
   nextStepRoutes,
 } from './presentation/navigation/routes';
-export type { IdentityProvider } from './domain/entities/Account';
+export type { IdentityProvider, SignInMethod } from './domain/entities/Account';
 export type { NextStep } from './domain/rules/accountRules';

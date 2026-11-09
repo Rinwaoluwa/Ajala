@@ -3,7 +3,7 @@
 **FRD coverage:** MOB-001 → MOB-006, MOB-010, MOB-011
 **Owner:** _unassigned_ — put your name here when you pick this feature up.
 
-Email sign-up with a 6-digit code, Google & Apple sign-in (with account linking), email sign-in
+Email sign-up with a 6-digit code, Google & Apple sign-in, email sign-in
 (with step-up), forgot password (6-digit code), terms acceptance, the session (refresh, sign-out)
 and the token every other feature's API calls ride on.
 
@@ -16,7 +16,7 @@ The contract is `docs/api/ajala-api-users-common.md` (§2.2, §2.3, §5, §6) an
 | --- | --- | --- |
 | Email sign-up | `sign-up/details` → `sign-up/verify` | `POST /auth/signup/email` (202) → `POST /auth/otp/verify { target, code, password }` (200 session + user). Resend: `POST /auth/otp/resend` |
 | Email sign-in | `sign-in/email` | `POST /auth/login` (200 token pair) → `GET /me`. 403 `EMAIL_NOT_VERIFIED` goes to `sign-up/verify` (no password sent); 403 `STEP_UP_REQUIRED` goes to `sign-in/verify`, which retries the same login with `otpCode` |
-| Google / Apple | `sign-up`, `sign-in` options | `POST /auth/oauth/google` / `apple` with a fresh nonce. 409 `ACCOUNT_LINK_REQUIRED` → `link-account` → `POST /auth/oauth/link { challengeId, code }` |
+| Google / Apple | `sign-up`, `sign-in` options | `POST /auth/oauth/google` / `apple` with a fresh nonce. 409 `EMAIL_ALREADY_REGISTERED` → an alert saying how to get in (below). 403 `SIGNUP_REFUSED` → "We can't create an account with these details" |
 | Forgot password | `forgot-password` → `forgot-password/verify` → `forgot-password/new-password` | `POST /auth/password/forgot { email }` (202, a 6-digit code is emailed) → `POST /auth/password/verify { email, code }` (200 `{ token }`) → `POST /auth/password/reset { token, newPassword }` (204, every device signed out) → sign in |
 | Terms | `terms` | `GET /app/config` for the version, `POST /me/terms/accept` |
 | Session | — | `POST /auth/refresh` (single flight, single-use refresh token), `POST /auth/logout` |
@@ -24,6 +24,29 @@ The contract is `docs/api/ajala-api-users-common.md` (§2.2, §2.3, §5, §6) an
 Where someone goes after signing in comes from `GET /me`: changed terms first, then
 `profileCompletedAt === null` → profile setup, else home. The server decides when a profile is
 complete; the app never works it out.
+
+### Google or Apple on an email that already has an account
+
+The API never joins two accounts (the old `/auth/oauth/link` code flow is gone from Swagger). It
+answers 409 `EMAIL_ALREADY_REGISTERED` with `details.signInMethods` (`'password' | 'google' |
+'apple'`), and `useProviderSignIn` shows a native alert, "You already have an account":
+
+- the message names the ways in: "This email already has an account. Sign in with Google instead."
+  ("…with Google or your email and password instead." for two). An empty list says only "This
+  email already has an account.";
+- a button per way in, at most two (Android's alert holds three, one is "Not now"): "Sign in with
+  Google" / "Sign in with Apple" run that provider at once; "Sign in with email" opens the email
+  sign-in (from the sign-up screen too, with Back to it). The provider just tried is left out, and
+  Apple gets no button on Android (it is still named).
+
+Methods the app doesn't know are dropped in the mapper (`signInMethodsOf`).
+
+### Who am I
+
+`useMyUserId()` (public) is the signed-in person's id, for screens that tell their own things from
+other people's (the chat socket's messages carry no `mine`). A sign-up's session has it; an
+ordinary sign-in's token pair doesn't, so `myUserId` asks `GET /me` once and keeps it with the
+session. Null while unknown and when signed out.
 
 ### Password reset details
 
@@ -40,8 +63,10 @@ complete; the app never works it out.
 
 Mapped in `data/mappers/authErrorMapper.ts`, per call site where a code means different things
 (a 401 is a wrong password on login, a wrong code on the code screens, a dead token on reset).
-`SIGNUP_REFUSED` becomes `signUpRefused`, shown as a deliberately vague "We can't create an
-account with these details". `VERIFICATION_COOLDOWN` was removed from the API and is gone here.
+`SIGNUP_REFUSED` (403, from `/auth/oauth/google` and `/apple` only, so mapped in `PROVIDER_CALL`)
+becomes `signUpRefused`, shown as a deliberately vague "We can't create an account with these
+details". `EMAIL_ALREADY_REGISTERED` becomes `emailAlreadyRegistered` with its `signInMethods`.
+`VERIFICATION_COOLDOWN` and `ACCOUNT_LINK_REQUIRED` were removed from the API and are gone here.
 
 ## Known gaps
 
@@ -49,8 +74,6 @@ account with these details". `VERIFICATION_COOLDOWN` was removed from the API an
   DeviceCheck / Play Integrity module. The API treats it as optional.
 - **Google nonce:** the Google SDK in use cannot pass a nonce to Google, so the ID token carries
   none (see `googleIdentity.ts`).
-- **`SIGNUP_REFUSED`:** no endpoint documents which call returns it (spec §8 q5); it is mapped
-  wherever it turns up.
 - **Hook tests:** the reset hooks are not unit tested (no hook-rendering library in the repo); the
   use cases and repository are.
 
@@ -79,7 +102,7 @@ auth/
 │   ├── datasources/native/     Apple, Google, nonce, password vault
 │   ├── dto/                    wire shapes, from the spec's §6 types
 │   ├── mappers/                DTO → entity, ApiError → AuthError
-│   └── repositories/           AuthRepositoryImpl (real API; demo mode answers it offline)
+│   └── repositories/           AuthRepositoryImpl (real API)
 ├── domain/
 │   ├── entities/               Account, AuthSession, AuthError, …
 │   ├── repositories/           AuthRepository, SessionStore, PasswordVault contracts
@@ -95,7 +118,12 @@ auth/
 
 ## Notes
 
-Tokens go through `core/storage/secure` only — never AsyncStorage. Sign-out (and a session ending
+Tokens go through `core/storage/secure` only — never AsyncStorage.
+
+`useFreshAccessToken()` is for connections that carry the token themselves (the chat socket). It
+takes an optional `refused` token: one the server turned away although its clock says it is good
+(socket `UNAUTHENTICATED`, or `session.expiring`). Handing it back refreshes past it through the
+same single-flight `withSession`, so the refresh-token rules still hold. Sign-out (and a session ending
 any other way) clears the query cache.
 
 Sign-out first runs whatever other features registered with `@core/session/beforeSignOut`, while

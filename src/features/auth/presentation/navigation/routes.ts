@@ -24,8 +24,6 @@ export const signInRoutes = {
 
 /** Shared by sign-up and sign-in: Google and Apple land in the same places. */
 export const accountRoutes = {
-  /** The Verification screen for linking Google or Apple; takes `challengeId` and `provider`. */
-  linkAccount: '/(auth)/link-account',
   terms: '/(auth)/terms',
   /** Profile setup, which the `profile` feature owns; the path is all auth needs. */
   profileSetup: '/(profile-setup)/location',

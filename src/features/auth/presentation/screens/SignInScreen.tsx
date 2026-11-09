@@ -68,6 +68,10 @@ export function SignInScreen({
       </View>
 
       <ScrollView
+
+        // Android draws scrolled content past the edges unless told to clip, over the header above.
+
+        style={{ flex: 1, overflow: 'hidden' }}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="interactive"
         automaticallyAdjustKeyboardInsets

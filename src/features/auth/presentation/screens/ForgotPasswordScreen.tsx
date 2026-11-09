@@ -48,6 +48,10 @@ export function ForgotPasswordScreen({ onBack, onCodeSent, onSignIn }: ForgotPas
       <PasswordResetStepHeader step={0} onBack={onBack} />
 
       <ScrollView
+
+        // Android draws scrolled content past the edges unless told to clip, over the header above.
+
+        style={{ flex: 1, overflow: 'hidden' }}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="interactive"
         automaticallyAdjustKeyboardInsets

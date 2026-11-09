@@ -9,10 +9,10 @@ import { createAuthRepository } from './data/repositories/AuthRepositoryImpl';
 import {
   makeAcceptTerms,
   makeGetCurrentTerms,
+  makeMyUserId,
   makeResolveNextStep,
 } from './domain/usecases/AccountUseCases';
 import {
-  makeCompleteAccountLink,
   makeIsProviderAvailable,
   makeSignInWithProvider,
 } from './domain/usecases/ProviderSignInUseCases';
@@ -59,8 +59,7 @@ function makeAuthorizedRequest(withSession: WithSession): AuthorizedRequest {
  * implementation backs the use cases.
  *
  * It is the real API (`data/repositories/AuthRepositoryImpl`, over the client
- * spec in `docs/api/`). Demo mode (`src/core/demo`) stands in for the API
- * below this line, so working offline needs no other repository.
+ * spec in `docs/api/`).
  *
  * `onSessionEnded` runs when the stored session has been cleared without the
  * person signing out — a refresh refused, or a password reset that signed every
@@ -85,7 +84,6 @@ export function createAuthUseCases({ onSessionEnded }: { onSessionEnded?: () => 
     signIn: makeSignIn(repo),
     signInWithProvider: makeSignInWithProvider(repo),
     isProviderAvailable: makeIsProviderAvailable(repo),
-    completeAccountLink: makeCompleteAccountLink(repo),
     resolveNextStep: makeResolveNextStep(repo, withSession),
     getCurrentTerms: makeGetCurrentTerms(repo),
     acceptTerms: makeAcceptTerms(repo, withSession),
@@ -101,8 +99,20 @@ export function createAuthUseCases({ onSessionEnded }: { onSessionEnded?: () => 
      * The signed-in person's access token, refreshed first when it is about to
      * expire. For connections that carry the token themselves rather than per
      * request: the chat socket asks for it on every (re)connect.
+     *
+     * `refused` is a token the server has just turned away (the socket's
+     * `UNAUTHENTICATED`) although its clock says it is still good. Handing it
+     * back makes this refresh rather than return it again: throwing
+     * `sessionExpired` inside `withSession` is its usual "refused, refresh once
+     * and retry" path, so the single-flight and theft rules still hold, and a
+     * refresh the API refuses ends the session as it would for any call.
      */
-    freshAccessToken: () => withSession(async (accessToken) => accessToken),
+    freshAccessToken: (refused?: string) =>
+      withSession(async (accessToken) => {
+        if (refused && accessToken === refused) throw new AuthError('sessionExpired');
+        return accessToken;
+      }),
+    myUserId: makeMyUserId(repo, store, withSession),
     offerPasswordSave: makeOfferPasswordSave(passwordVault),
     forgetPasswordSaveOffers: makeForgetPasswordSaveOffers(passwordVault),
     /**

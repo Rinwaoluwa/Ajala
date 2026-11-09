@@ -1,4 +1,4 @@
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
 import { postSaves } from '@shared/state/postSaves';
@@ -152,6 +152,24 @@ export function useAuthorizedRequest() {
 /** A current access token, refreshed when needed; see `freshAccessToken`. */
 export function useFreshAccessToken() {
   return useAuth().useCases.freshAccessToken;
+}
+
+/**
+ * The signed-in person's user id, or null while it is being found out (a
+ * sign-in's session does not carry it; `myUserId` asks `GET /me` once) and when
+ * signed out. Keyed by the session, so a new sign-in never sees the last one's.
+ */
+export function useMyUserId(): string | null {
+  const { state, useCases } = useAuth();
+  const sessionId = state.status === 'signedIn' ? state.session.sessionId : null;
+  const known = state.status === 'signedIn' ? state.session.userId : null;
+  const query = useQuery({
+    queryKey: ['auth', 'myUserId', sessionId],
+    queryFn: () => useCases.myUserId(),
+    enabled: sessionId !== null && !known,
+    staleTime: Infinity,
+  });
+  return known ?? query.data ?? null;
 }
 
 export function useCompleteEntryCheck() {

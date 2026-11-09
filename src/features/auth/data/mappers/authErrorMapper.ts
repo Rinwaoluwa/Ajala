@@ -1,5 +1,6 @@
 import { isApiError, type ApiError, type ApiErrorCode } from '@core/api/ApiError';
 
+import type { SignInMethod } from '../../domain/entities/Account';
 import { AuthError, type AuthErrorCode } from '../../domain/entities/AuthError';
 
 /**
@@ -16,11 +17,10 @@ const ERROR_BY_API_CODE: Partial<Record<ApiErrorCode, AuthErrorCode>> = {
   UNAUTHORIZED: 'invalidCredentials',
   EMAIL_NOT_VERIFIED: 'emailNotVerified',
   STEP_UP_REQUIRED: 'stepUpRequired',
-  ACCOUNT_LINK_REQUIRED: 'accountLinkRequired',
+  // 409 from Google/Apple: the email already has an account that signs in
+  // another way. Accounts are never joined; `details.signInMethods` says how in.
+  EMAIL_ALREADY_REGISTERED: 'emailAlreadyRegistered',
   PASSWORD_BREACHED: 'passwordBreached',
-  // In the API's error list, but no endpoint documents which call returns it
-  // (spec §8). Mapped here so whichever does gets the right words.
-  SIGNUP_REFUSED: 'signUpRefused',
   VALIDATION_FAILED: 'invalidDetails',
   BAD_REQUEST: 'invalidDetails',
   UNPROCESSABLE: 'invalidDetails',
@@ -39,8 +39,13 @@ export type AuthErrorOverrides = Partial<Record<ApiErrorCode, AuthErrorCode>>;
 /** Calls that carry an access token: a 401 means the token, never the person's input. */
 export const SESSION_CALL: AuthErrorOverrides = { UNAUTHORIZED: 'sessionExpired' };
 
-/** Google and Apple: a 401 means the provider's token was refused, replayed, or the account is suspended. */
-export const PROVIDER_CALL: AuthErrorOverrides = { UNAUTHORIZED: 'providerRejected' };
+/**
+ * Google and Apple: a 401 means the provider's token was refused, replayed, or
+ * the account is suspended. 403 SIGNUP_REFUSED comes from these two calls only
+ * (Swagger): a new account on an email the API refuses, a banned one. It has no
+ * details, by design.
+ */
+export const PROVIDER_CALL: AuthErrorOverrides = { UNAUTHORIZED: 'providerRejected', SIGNUP_REFUSED: 'signUpRefused' };
 
 /** Whether every field the API complained about is one of `fields`. */
 export function onlyAbout(e: ApiError, ...fields: string[]): boolean {
@@ -52,14 +57,27 @@ export function toAuthError(e: unknown, overrides: AuthErrorOverrides = {}): Aut
   if (e instanceof AuthError) return e;
   if (!isApiError(e)) return new AuthError('unknown');
   const code = overrides[e.code] ?? ERROR_BY_API_CODE[e.code] ?? 'unknown';
-  const challengeId = typeof e.details?.challengeId === 'string' ? e.details.challengeId : null;
   // The message is kept for logs. The field errors are carried because a screen
   // can put them against the input they belong to, which a generic code cannot.
-  return new AuthError(code, e.message, e.fieldErrors, challengeId, e.retryAfterSeconds);
+  return new AuthError(code, e.message, e.fieldErrors, signInMethodsOf(e), e.retryAfterSeconds);
+}
+
+const SIGN_IN_METHODS: readonly SignInMethod[] = ['password', 'google', 'apple'];
+
+/**
+ * `details.signInMethods` from EMAIL_ALREADY_REGISTERED, keeping only the
+ * values the app knows how to offer (a method added later is skipped rather
+ * than shown as gibberish), each once, in the API's order.
+ */
+function signInMethodsOf(e: ApiError): SignInMethod[] {
+  const raw = e.details?.signInMethods;
+  if (!Array.isArray(raw)) return [];
+  const known = raw.filter((m): m is SignInMethod => SIGN_IN_METHODS.includes(m as SignInMethod));
+  return [...new Set(known)];
 }
 
 /**
- * `POST /auth/otp/verify`, `POST /auth/oauth/link` and `POST /auth/password/verify`:
+ * `POST /auth/otp/verify` and `POST /auth/password/verify`:
  * a wrong, expired or used code is a 401 (spec §3.2). A 400 that is only about
  * `code` (a malformed one slipping past) is still about the code. Any other 400
  * is left as itself: reporting "property password should not exist" as "wrong

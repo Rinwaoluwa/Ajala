@@ -35,17 +35,29 @@ describe('toAuthError', () => {
     expect(toAuthError(e)).toMatchObject({ code: 'invalidDetails', fieldErrors: e.fieldErrors });
   });
 
-  it('carries the challenge with ACCOUNT_LINK_REQUIRED', () => {
+  it('carries the ways in with EMAIL_ALREADY_REGISTERED', () => {
     const e = apiError({
-      code: 'ACCOUNT_LINK_REQUIRED',
+      code: 'EMAIL_ALREADY_REGISTERED',
       message: 'x',
       status: 409,
-      details: { challengeId: '9b1f7c2e-5d3a-4e8b-a6c1-2f4d7e9b0c35' },
+      details: { signInMethods: ['google', 'password'] },
     });
     expect(toAuthError(e, PROVIDER_CALL)).toMatchObject({
-      code: 'accountLinkRequired',
-      challengeId: '9b1f7c2e-5d3a-4e8b-a6c1-2f4d7e9b0c35',
+      code: 'emailAlreadyRegistered',
+      signInMethods: ['google', 'password'],
     });
+  });
+
+  it('keeps only the sign-in methods it knows, once each', () => {
+    const e = apiError({
+      code: 'EMAIL_ALREADY_REGISTERED',
+      message: 'x',
+      status: 409,
+      details: { signInMethods: ['apple', 'passkey', 'apple', 7] },
+    });
+    expect(toAuthError(e, PROVIDER_CALL).signInMethods).toEqual(['apple']);
+    const bare = apiError({ code: 'EMAIL_ALREADY_REGISTERED', message: 'x', status: 409 });
+    expect(toAuthError(bare, PROVIDER_CALL)).toMatchObject({ code: 'emailAlreadyRegistered', signInMethods: [] });
   });
 
   it('carries how long to wait with RATE_LIMITED', () => {
@@ -53,9 +65,9 @@ describe('toAuthError', () => {
     expect(toAuthError(e)).toMatchObject({ code: 'rateLimited', retryAfterSeconds: 42 });
   });
 
-  it('maps SIGNUP_REFUSED to its own vague message, not a generic failure', () => {
+  it('maps SIGNUP_REFUSED from Google/Apple to its own vague message, not a generic failure', () => {
     const e = apiError({ code: 'SIGNUP_REFUSED', message: 'Email taken', status: 403 });
-    expect(toAuthError(e).code).toBe('signUpRefused');
+    expect(toAuthError(e, PROVIDER_CALL).code).toBe('signUpRefused');
   });
 
   it('never turns a conflict into "that email is taken"', () => {
@@ -86,7 +98,7 @@ describe('toCodeError', () => {
   it('reads the 401 as a bad code, as the OpenAPI document has it', () => {
     const e = apiError({ code: 'UNAUTHORIZED', message: 'Invalid code', status: 401 });
     expect(toCodeError(e, 'invalidCode').code).toBe('invalidCode');
-    expect(toCodeError(e, 'linkFailed').code).toBe('linkFailed');
+    expect(toCodeError(e, 'expiredCode').code).toBe('expiredCode');
   });
 
   it('reads a 400 about the code alone as a bad code', () => {

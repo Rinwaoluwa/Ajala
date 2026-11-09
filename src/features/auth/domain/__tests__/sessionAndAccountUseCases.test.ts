@@ -4,8 +4,8 @@ import type { AuthSession } from '../entities/AuthSession';
 import { AuthError } from '../entities/AuthError';
 import { nextStepFor } from '../rules/accountRules';
 import { REFRESH_LEEWAY_MS, shouldRefreshBefore } from '../rules/sessionRules';
-import { makeAcceptTerms, makeResolveNextStep } from '../usecases/AccountUseCases';
-import { makeCompleteAccountLink, makeSignInWithProvider } from '../usecases/ProviderSignInUseCases';
+import { makeAcceptTerms, makeMyUserId, makeResolveNextStep } from '../usecases/AccountUseCases';
+import { makeSignInWithProvider } from '../usecases/ProviderSignInUseCases';
 import { makeWithSession } from '../usecases/SessionUseCases';
 import {
   COMPLETE_ACCOUNT,
@@ -27,8 +27,8 @@ function deferred() {
 
 /**
  * The parts of the screen-to-API map that are rules rather than calls: where a
- * signed-in person goes, how an expired token is refreshed, and how Google and
- * Apple hand over to an account link.
+ * signed-in person goes, how an expired token is refreshed, and what Google and
+ * Apple say when the email already has an account.
  */
 
 describe('nextStepFor', () => {
@@ -265,6 +265,31 @@ describe('withSession: single-use refresh tokens', () => {
   });
 });
 
+describe('myUserId', () => {
+  it('reads the id from the session when it has one, without asking', async () => {
+    const { repo, calls } = createFakeAuthRepository();
+    const fake = createFakeSessionStore();
+    await expect(makeMyUserId(repo, fake.store, makeWithSession(repo, fake.store))()).resolves.toBe('user-1');
+    expect(calls.account).toHaveLength(0);
+  });
+
+  it('asks GET /me once when a sign-in left it out, and keeps it with the session', async () => {
+    const { repo, calls } = createFakeAuthRepository();
+    const fake = createFakeSessionStore({ ...TEST_SESSION, userId: null });
+    const myUserId = makeMyUserId(repo, fake.store, makeWithSession(repo, fake.store));
+    await expect(myUserId()).resolves.toBe('user-1');
+    expect(fake.held?.userId).toBe('user-1');
+    await myUserId();
+    expect(calls.account).toHaveLength(1);
+  });
+
+  it('is null when signed out', async () => {
+    const { repo } = createFakeAuthRepository();
+    const fake = createFakeSessionStore(null);
+    await expect(makeMyUserId(repo, fake.store, makeWithSession(repo, fake.store))()).resolves.toBeNull();
+  });
+});
+
 describe('resolveNextStep', () => {
   it('routes on the account', async () => {
     const { repo } = createFakeAuthRepository({ ...COMPLETE_ACCOUNT, profileCompletedAt: null });
@@ -329,26 +354,11 @@ describe('Google and Apple', () => {
     expect(calls.provider).toEqual(['apple']);
   });
 
-  it('hands over the challenge when the email already has an account', async () => {
+  it('says how to get in when the email already has an account another way', async () => {
     const { repo } = createFakeAuthRepository();
     await expect(makeSignInWithProvider(repo)('google')).rejects.toMatchObject({
-      code: 'accountLinkRequired',
-      challengeId: 'challenge-1',
+      code: 'emailAlreadyRegistered',
+      signInMethods: ['password'],
     });
-  });
-
-  it('finishes a link with the emailed code', async () => {
-    const { repo, calls } = createFakeAuthRepository();
-    await expect(makeCompleteAccountLink(repo)('challenge-1', '123456')).resolves.toEqual(TEST_SESSION);
-    expect(calls.link).toEqual([['challenge-1', '123456']]);
-  });
-
-  it('refuses a malformed code or a missing challenge without calling the backend', async () => {
-    const { repo, calls } = createFakeAuthRepository();
-    await expect(makeCompleteAccountLink(repo)('challenge-1', '12a')).rejects.toMatchObject({
-      code: 'invalidCode',
-    });
-    await expect(makeCompleteAccountLink(repo)('', '123456')).rejects.toMatchObject({ code: 'linkFailed' });
-    expect(calls.link).toHaveLength(0);
   });
 });

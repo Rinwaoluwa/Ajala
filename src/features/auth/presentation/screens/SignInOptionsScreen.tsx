@@ -2,7 +2,6 @@ import { View } from 'react-native';
 
 import { Screen } from '@shared/components';
 
-import type { IdentityProvider } from '../../domain/entities/Account';
 import type { NextStep } from '../../domain/rules/accountRules';
 import { AuthFooterPrompt } from '../components/AuthFooterPrompt';
 import { AuthIntro } from '../components/AuthIntro';
@@ -25,16 +24,15 @@ export type SignInOptionsScreenProps = {
   onEmail: () => void;
   onSignUp: () => void;
   onSignedIn: (next: NextStep) => void;
-  onLinkRequired: (challengeId: string, provider: IdentityProvider) => void;
 };
 
 export function SignInOptionsScreen({
   onEmail,
   onSignUp,
   onSignedIn,
-  onLinkRequired,
 }: SignInOptionsScreenProps) {
-  const providers = useProviderSignIn({ onSignedIn, onLinkRequired });
+  // An account that uses a password is sent to the email form, as "Continue with email" is.
+  const providers = useProviderSignIn({ onSignedIn, onUsePassword: onEmail });
 
   return (
     <Screen scroll>

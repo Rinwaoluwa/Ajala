@@ -65,7 +65,6 @@ export function createFakeAuthRepository(
     resend: [] as string[],
     signIn: [] as { email: string; password: string; otpCode?: string }[],
     provider: [] as string[],
-    link: [] as [string, string][],
     forgot: [] as string[],
     resetCode: [] as [string, string][],
     reset: [] as [string, string][],
@@ -100,16 +99,11 @@ export function createFakeAuthRepository(
     signInWithProvider: async (provider) => {
       calls.provider.push(provider);
       if (provider === 'google') {
-        throw new AuthError('accountLinkRequired', undefined, [], 'challenge-1');
+        throw new AuthError('emailAlreadyRegistered', undefined, [], ['password']);
       }
       return { ...TEST_SESSION, isNew: true };
     },
     isProviderAvailable: async (provider) => provider === 'google',
-    completeAccountLink: async (challengeId, code) => {
-      calls.link.push([challengeId, code]);
-      if (code === '000000') throw new AuthError('linkFailed');
-      return TEST_SESSION;
-    },
     requestPasswordReset: async (email) => {
       calls.forgot.push(email);
     },

@@ -22,3 +22,9 @@ export type Account = {
 
 /** The two providers the API accepts tokens from. */
 export type IdentityProvider = 'apple' | 'google';
+
+/**
+ * A way into an account, as 409 EMAIL_ALREADY_REGISTERED lists them
+ * (`details.signInMethods`): the email and password, or one of the providers.
+ */
+export type SignInMethod = 'password' | IdentityProvider;

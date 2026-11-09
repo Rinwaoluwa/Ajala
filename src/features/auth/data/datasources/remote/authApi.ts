@@ -9,7 +9,6 @@ import type {
   GoogleSignInRequestDto,
   LoginRequestDto,
   MeDto,
-  OAuthLinkRequestDto,
   OtpResendRequestDto,
   OtpVerifyRequestDto,
   RefreshRequestDto,
@@ -112,7 +111,12 @@ export const authApi = {
     });
   },
 
-  /** 200, or 409 ACCOUNT_LINK_REQUIRED with `details.challengeId`. */
+  /**
+   * 200 (signed in, or signed up when the email is new). 409
+   * EMAIL_ALREADY_REGISTERED when the email already has an account another way
+   * (`details.signInMethods`); the two are never joined. 403 SIGNUP_REFUSED for
+   * a new account on a banned email.
+   */
   async signInWithApple(
     body: Omit<AppleSignInRequestDto, DeviceFields | 'termsVersion' | 'timezone'>,
   ) {
@@ -128,7 +132,7 @@ export const authApi = {
     });
   },
 
-  /** 200, or 409 ACCOUNT_LINK_REQUIRED with `details.challengeId`. */
+  /** The same answers as Apple: 200, 409 EMAIL_ALREADY_REGISTERED, 403 SIGNUP_REFUSED. */
   async signInWithGoogle(
     body: Omit<GoogleSignInRequestDto, DeviceFields | 'termsVersion' | 'timezone'>,
   ) {
@@ -144,14 +148,6 @@ export const authApi = {
     });
   },
 
-  /** 200: the provider is attached to the existing account and the caller is signed in. */
-  async completeOAuthLink(body: Omit<OAuthLinkRequestDto, DeviceFields>) {
-    return apiRequest<VerifiedSessionDto>({
-      method: 'POST',
-      path: `${AUTH}/oauth/link`,
-      body: { ...body, ...(await deviceFields()) },
-    });
-  },
 
   /**
    * 202, no body: the answer is the same whether or not the address has an

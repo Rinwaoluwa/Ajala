@@ -49,17 +49,16 @@ export interface AuthRepository {
    * Signs in or up with Google or Apple (MOB-003, MOB-004): one call either way,
    * and the session's `isNew` says which happened.
    *
-   * Rejects with `accountLinkRequired` (carrying a `challengeId`) when the
-   * provider's email already has an account, `cancelled` when the person closed
-   * the provider's sheet, and `providerUnavailable` when it cannot run here.
+   * Rejects with `emailAlreadyRegistered` (carrying `signInMethods`) when the
+   * provider's email already has an account that signs in another way — the API
+   * never joins the two — `signUpRefused` for a new account on a refused email,
+   * `cancelled` when the person closed the provider's sheet, and
+   * `providerUnavailable` when it cannot run here.
    */
   signInWithProvider(provider: IdentityProvider): Promise<AuthSession>;
 
   /** Whether the provider can be offered here: Apple only on iOS, Google once configured. */
   isProviderAvailable(provider: IdentityProvider): Promise<boolean>;
-
-  /** Finishes an account link with the code emailed to the existing account. */
-  completeAccountLink(challengeId: string, code: string): Promise<AuthSession>;
 
   /**
    * Starts a password reset (MOB-006): the API emails a 6-digit code, which

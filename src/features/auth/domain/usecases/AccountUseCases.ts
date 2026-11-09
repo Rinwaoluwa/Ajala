@@ -1,5 +1,6 @@
 import { isAuthError } from '../entities/AuthError';
 import type { AuthRepository } from '../repositories/AuthRepository';
+import type { SessionStore } from '../repositories/SessionStore';
 import { nextStepFor, type NextStep } from '../rules/accountRules';
 import type { WithSession } from './SessionUseCases';
 
@@ -65,6 +66,31 @@ export const makeAcceptTerms =
       if (isAuthError(e) && e.code === 'sessionExpired') throw e;
       return 'home';
     }
+  };
+
+/**
+ * The signed-in person's own user id, for screens that must tell their own
+ * things from other people's (the chat socket's `message.new` carries no
+ * `mine`: "compare `sender.id` with your own", spec §2.20).
+ *
+ * A sign-up's session already knows it; an ordinary sign-in's does not (the
+ * API's token pair names no user), so it is asked of `GET /me` once and kept
+ * with the session, so later launches need not ask. It is only written back if
+ * the same session is still stored: one replaced meanwhile (signed out, or in
+ * as someone else) must not be given this id. Null when signed out.
+ */
+export const makeMyUserId =
+  (repo: AuthRepository, store: SessionStore, withSession: WithSession) =>
+  async (): Promise<string | null> => {
+    const session = await store.read();
+    if (!session) return null;
+    if (session.userId) return session.userId;
+    const account = await withSession((token) => repo.getAccount(token));
+    const latest = await store.read();
+    if (latest && latest.sessionId === session.sessionId && !latest.userId) {
+      await store.write({ ...latest, userId: account.id });
+    }
+    return account.id;
   };
 
 export type ResolveNextStepUseCase = ReturnType<typeof makeResolveNextStep>;
