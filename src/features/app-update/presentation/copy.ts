@@ -16,3 +16,15 @@ export const forceUpdateCopy = {
   /** Development builds only: dev versions run behind whatever the API asks for. */
   devBypass: 'Continue anyway (development build)',
 } as const;
+
+/**
+ * Text for the screen shown while an over-the-air update installs. NOT IN
+ * FIGMA: written in the same voice as the forced-update screen, to be replaced
+ * when design draws it.
+ */
+export const otaUpdateCopy = {
+  title: 'Updating Ajala',
+  body: "We're installing the latest improvements. This only takes a moment.",
+  downloading: (percent: number | null) => (percent === null ? 'Downloading…' : `Downloading… ${percent}%`),
+  restarting: 'Restarting Ajala…',
+} as const;

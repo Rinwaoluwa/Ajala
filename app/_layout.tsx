@@ -8,7 +8,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AppLockGate } from '@features/app-lock';
-import { ForceUpdateGate } from '@features/app-update';
+import { ForceUpdateGate, OtaUpdateGate } from '@features/app-update';
 import { AuthProvider } from '@features/auth';
 import { LaunchOverlay } from '@bootstrap/splash/LaunchOverlay';
 import { queryClient } from '@core/api/queryClient/queryClient';
@@ -66,6 +66,8 @@ export default function RootLayout() {
       <StatusBar style="auto" />
       {/* Beneath the launch overlay, so the splash still covers a forced update. */}
       <ForceUpdateGate>
+        {/* "Updating Ajala" while an over-the-air update installs; under a forced update. */}
+        <OtaUpdateGate>
         {/* Biometric unlock, when turned on: over the app, under a forced update. */}
         <AppLockGate>
           <Stack screenOptions={screenOptions}>
@@ -75,6 +77,7 @@ export default function RootLayout() {
             <Stack.Screen name="(onboarding)" options={{ animation: 'none' }} />
           </Stack>
         </AppLockGate>
+        </OtaUpdateGate>
       </ForceUpdateGate>
       {launched ? null : (
         // Ready once the index has routed somewhere: the destination is on screen beneath.

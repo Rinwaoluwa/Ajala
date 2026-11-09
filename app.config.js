@@ -82,6 +82,20 @@
  * has no push token on Android.
  *
  *   GOOGLE_SERVICES_JSON=./google-services.json
+ *
+ * OVER-THE-AIR UPDATES — expo-updates with EAS Update. Each build profile has
+ * its own channel in eas.json (development, preview, production), so
+ * `eas update --channel preview` reaches preview builds only. The runtime
+ * version is the native code's fingerprint: an update only goes to builds with
+ * the same native code, and anything native (a new module, a plugin, a key in
+ * the binary) needs a new build instead. The app checks itself at launch and on
+ * returning to the foreground, and shows "Updating Ajala" while it installs one
+ * (src/features/app-update); expo-updates' own launch check is off.
+ *
+ * An update carries this config, `extra.placesKey` included, so publish with the
+ * environment's variables:
+ *
+ *   npx eas-cli update --channel preview --environment preview --message "…"
  */
 module.exports = ({ config }) => {
   // Xcode 26 rejects expo-modules-core 57.0.23 in Swift 6 mode; see the plugin.
@@ -175,6 +189,22 @@ module.exports = ({ config }) => {
     next = {
       ...next,
       plugins: [...(next.plugins ?? []), ['@react-native-google-signin/google-signin', { iosUrlScheme }]],
+    };
+  }
+
+  // Over-the-air updates (see the header). The project id is app.json's EAS project.
+  const projectId = next.extra?.eas?.projectId;
+  if (projectId) {
+    next = {
+      ...next,
+      runtimeVersion: { policy: 'fingerprint' },
+      updates: {
+        ...next.updates,
+        url: `https://u.expo.dev/${projectId}`,
+        // The app asks itself, so it can show that an update is installing.
+        checkAutomatically: 'NEVER',
+        fallbackToCacheTimeout: 0,
+      },
     };
   }
 
