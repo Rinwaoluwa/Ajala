@@ -50,11 +50,13 @@ export const toThread = (dto: ConversationDto): ChatThread => ({
   title: dto.title ?? null,
   postId: dto.postId ?? null,
   other: dto.other ? toPerson(dto.other) : null,
+  imageUrl: dto.imageUrl || null,
   memberCount: dto.memberCount ?? 0,
   lastMessage: dto.lastMessage
     ? {
         id: id(dto.lastMessage.id),
         senderId: dto.lastMessage.senderId,
+        senderName: dto.lastMessage.senderName?.trim() || null,
         preview: dto.lastMessage.preview ?? null,
         imageCount: dto.lastMessage.imageCount ?? 0,
         sentAt: dto.lastMessage.createdAt,
@@ -73,6 +75,7 @@ const toMember = (dto: MemberDto): ChatMember => ({
 
 export const toThreadDetail = (dto: ConversationDetailDto): ChatThreadDetail => ({
   ...toThread(dto),
+  post: dto.post ? toPost(dto.post) : null,
   onlineCount: dto.onlineCount ?? 0,
   members: (dto.members ?? []).map(toMember),
 });
@@ -82,6 +85,8 @@ export const toMessage = (dto: MessageDto): ChatMessage => ({
   clientMsgId: dto.clientMsgId ?? '',
   conversationId: dto.conversationId,
   sender: toPerson(dto.sender),
+  // The HTTP answers say whose it is. The socket's copy has no `mine`, so it
+  // reads false here and the cache settles it from your id (`isMine`).
   mine: !!dto.mine,
   // A removed message keeps no words or pictures on screen, whatever arrives.
   body: dto.removed ? null : (dto.body ?? null),
@@ -115,12 +120,28 @@ export function toChatEvent(event: string, payload: unknown): ChatEvent | null {
     if (typeof r.conversationId !== 'string' || typeof r.userId !== 'string' || r.messageId == null) return null;
     return { type: 'read', conversationId: r.conversationId, userId: r.userId, messageId: id(r.messageId) };
   }
+  if (event === 'rsvp.update') {
+    // `{ postId, state, goingCount }` (spec §2.13). Only the post matters: its
+    // screens fetch the rest again.
+    return typeof p.postId === 'string' && p.postId ? { type: 'rsvp', postId: p.postId } : null;
+  }
   if (event === 'typing') {
     const t = p as unknown as TypingEventDto;
     if (typeof t.conversationId !== 'string' || typeof t.userId !== 'string') return null;
     return { type: 'typing', conversationId: t.conversationId, userId: t.userId };
   }
   return null;
+}
+
+/**
+ * A chat push (`{ kind: 'chat.message', conversationId }`, backend answers B6)
+ * as a live event, or null for any other push. The push names no message (one
+ * push can cover several), so all it can say is that the conversation moved.
+ */
+export function toChatPushEvent(data: Readonly<Record<string, unknown>>): ChatEvent | null {
+  const conversationId = data.conversationId;
+  if (data.kind !== 'chat.message' || typeof conversationId !== 'string' || !conversationId) return null;
+  return { type: 'pushed', conversationId };
 }
 
 /** Which call failed: the same code means different things on each (ARCHITECTURE §11). */
@@ -138,6 +159,7 @@ const COMMON: Partial<Record<ApiErrorCode, ChatErrorCode>> = {
   UNSUPPORTED_MEDIA_TYPE: 'unsupportedImage',
   RATE_LIMITED: 'rateLimited',
   CHAT_START_LIMIT: 'startLimit',
+  GROUP_CHAT_FULL: 'groupChatFull',
   REPORTING_PAUSED: 'reportingPaused',
   NETWORK: 'network',
   TIMEOUT: 'network',

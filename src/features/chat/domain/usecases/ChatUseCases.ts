@@ -4,6 +4,7 @@ import type {
   ChatLive,
   ChatRepository,
   IdMaker,
+  LiveTokenSource,
   PhotoPicker,
   SafetyBannerStore,
 } from '../repositories/ChatRepository';
@@ -22,7 +23,11 @@ export const makeListThreads =
   (filter: ChatFilter, search: string, cursor: string | null = null) =>
     repo.listThreads(filter, search.trim().slice(0, SEARCH_MAX), cursor, THREADS_PAGE);
 
-/** Exactly one of a person or a post; anything else never reaches the API. */
+/**
+ * Exactly one of a person or a post; anything else never reaches the API. A
+ * post's group chat is never made here: the API makes it when the post goes
+ * live, so `{ postId }` finds the one you are in.
+ */
 export const makeStartThread = (repo: ChatRepository) => (target: Partial<{ userId: string; postId: string }>) => {
   const userId = target.userId?.trim();
   const postId = target.postId?.trim();
@@ -82,16 +87,14 @@ export const makeReportMessage =
 export const canSubmitReport = (reason: ReportReason | null, details: string) =>
   !!reason && (reason !== 'other' || details.trim().length > 0) && details.trim().length <= REPORT_DETAILS_MAX;
 
-export const makeGetMyId = (repo: ChatRepository) => () => repo.getMyId();
-
-export const makeGetPost = (repo: ChatRepository) => (postId: string) => repo.getPost(postId);
+export const makeGetUnreadCount = (repo: ChatRepository) => () => repo.getUnreadCount();
 
 /** Pictures for one message: only as many as are still free of the four. */
 export const makePickPhotos = (pick: PhotoPicker) => (alreadyAttached: number) =>
   pick(Math.max(0, IMAGES_MAX - alreadyAttached));
 
 export const makeLive = (live: ChatLive) => ({
-  hold: (getToken: () => Promise<string | null>) => live.hold(getToken),
+  hold: (getToken: LiveTokenSource) => live.hold(getToken),
   subscribe: (listener: Parameters<ChatLive['subscribe']>[0]) => live.subscribe(listener),
 });
 

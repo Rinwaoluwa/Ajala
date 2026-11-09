@@ -8,6 +8,8 @@ import {
 import { useFocusEffect, useIsFocused } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import { useMyUserId } from '@features/auth';
+
 import type {
   ChatMessage,
   ChatThreadDetail,
@@ -23,16 +25,16 @@ import {
   draftProblem,
   isLaterId,
   messageStatus,
+  myIdFrom,
   newestConfirmed,
   threadAvatar,
   threadName,
 } from '../../domain/rules/chatRules';
 import { chatCopy } from '../copy';
-import { dropMessage, putMessage } from '../state/chatCache';
+import { dropMessage, dropThread, putMessage } from '../state/chatCache';
 import { chatKeys, type TypingState } from '../state/chatQueries';
 import { useChatUseCases } from '../state/useChatUseCases';
 import { useChatRealtime } from './useChatRealtime';
-import { useMyId } from './useMyId';
 
 const errorCode = (e: unknown): ChatErrorCode => (isChatError(e) ? e.code : 'unknown');
 
@@ -57,26 +59,29 @@ const sameImages = (a: readonly LocalImage[], b: readonly LocalImage[]) =>
  *   marked read (`POST …/read { messageId }`), only ever moving forward.
  * - **Sent / Read** under your messages comes from the other members'
  *   `lastReadMessageId`, kept current by the socket's `read.update`.
+ * - **The activity card** is the thread's own `post` (null: no card).
+ * - **Gone**: a 404 from the thread, its messages, a send or a read mark means
+ *   the chat is no longer there for you (you left or were removed, or the post
+ *   was cancelled). It is dropped from the lists, nothing is fetched for it
+ *   again, and `gone` tells the screen to say so and leave.
  */
 export function useConversation(threadId: string) {
   const uc = useChatUseCases();
   const queryClient = useQueryClient();
-  const myId = useMyId();
   const focused = useIsFocused();
   useChatRealtime();
   const messagesKey = chatKeys.messages(threadId);
+  // A send or read mark that answered 404; a fetch's own 404 is read from its query below.
+  const [goneByCall, setGoneByCall] = useState(false);
+  const markGone = useCallback((e: unknown) => {
+    if (errorCode(e) === 'notFound') setGoneByCall(true);
+  }, []);
 
   const thread = useQuery({
     queryKey: chatKeys.thread(threadId),
     queryFn: () => uc.getThread(threadId),
     staleTime: 15_000,
-  });
-  const postId = thread.data?.postId ?? null;
-  const post = useQuery({
-    queryKey: chatKeys.post(postId ?? ''),
-    queryFn: () => uc.getPost(postId ?? ''),
-    enabled: !!postId,
-    staleTime: 5 * 60_000,
+    enabled: !goneByCall,
   });
 
   const messages = useInfiniteQuery({
@@ -85,16 +90,28 @@ export function useConversation(threadId: string) {
     initialPageParam: null as string | null,
     getNextPageParam: (last) => last.nextCursor,
     staleTime: 10_000,
+    enabled: !goneByCall,
   });
+
+  const gone =
+    goneByCall || errorCode(thread.error) === 'notFound' || errorCode(messages.error) === 'notFound';
+  useEffect(() => {
+    if (gone) dropThread(queryClient, threadId);
+  }, [gone, queryClient, threadId]);
 
   // Back in focus (returning from a post, or to the app): fetch both again. The
   // first focus is the mount, which already fetches.
   const { refetch: refetchThread } = thread;
   const { refetch: refetchMessages } = messages;
   const focusedBefore = useRef(false);
+  // A chat that is gone is not asked for again (it would only answer 404 once more).
+  const goneRef = useRef(gone);
+  useEffect(() => {
+    goneRef.current = gone;
+  }, [gone]);
   useFocusEffect(
     useCallback(() => {
-      if (focusedBefore.current) {
+      if (focusedBefore.current && !goneRef.current) {
         void refetchThread();
         void refetchMessages();
       }
@@ -105,6 +122,11 @@ export function useConversation(threadId: string) {
   // ---- read ----
   const newestFirst = useMemo(() => (messages.data?.pages ?? []).flatMap((p) => p.items), [messages.data]);
   const newest = newestConfirmed(newestFirst);
+  // Who you are: from auth, or failing that from your own messages. Enough to
+  // leave out your own typing signal and to draw a message being sent as yours.
+  const myUserId = useMyUserId();
+  const myIdFromMessages = useMemo(() => myIdFrom(newestFirst), [newestFirst]);
+  const myId = myUserId ?? myIdFromMessages;
   const markedUpTo = useRef<string | null>(null);
   const { mutate: markRead } = useMutation({
     mutationFn: (messageId: string) => uc.markRead(threadId, messageId),
@@ -113,22 +135,24 @@ export function useConversation(threadId: string) {
         t ? { ...t, unreadCount: 0 } : t,
       );
       void queryClient.invalidateQueries({ queryKey: chatKeys.threadLists });
+      void queryClient.invalidateQueries({ queryKey: chatKeys.unreadCount });
     },
-    onError: () => {
+    onError: (e) => {
       // Try again with the next message, or the next visit.
       markedUpTo.current = null;
+      markGone(e);
     },
   });
   const unread = thread.data?.unreadCount ?? 0;
   const newestId = newest?.id ?? null;
   const newestMine = newest?.mine ?? false;
   useEffect(() => {
-    if (!focused || !newestId || !isLaterId(newestId, markedUpTo.current)) return;
+    if (gone || !focused || !newestId || !isLaterId(newestId, markedUpTo.current)) return;
     // Your own message needs no read mark unless the server still counts something unread.
     if (newestMine && unread === 0) return;
     markedUpTo.current = newestId;
     markRead(newestId);
-  }, [focused, newestId, newestMine, unread, markRead]);
+  }, [gone, focused, newestId, newestMine, unread, markRead]);
 
   // ---- typing ----
   const typing = useQuery<TypingState>({
@@ -192,9 +216,10 @@ export function useConversation(threadId: string) {
       putMessage(queryClient, message);
       void queryClient.invalidateQueries({ queryKey: chatKeys.threadLists });
     },
-    onError: (_e, draft) => {
+    onError: (e, draft) => {
       failedDraft.current = draft;
       dropMessage(queryClient, threadId, draft.clientMsgId);
+      markGone(e);
     },
   });
 
@@ -228,13 +253,14 @@ export function useConversation(threadId: string) {
   const { pickPhotos } = uc;
 
   const oldestFirst = useMemo(() => [...newestFirst].reverse(), [newestFirst]);
+  const post = thread.data?.post ?? null;
   const items = useMemo(
     () =>
       conversationItems(oldestFirst, {
         group: thread.data?.kind === 'group',
-        hasPost: !!post.data,
+        hasPost: !!post,
       }),
-    [oldestFirst, thread.data?.kind, post.data],
+    [oldestFirst, thread.data?.kind, post],
   );
   const members = thread.data?.members;
   const statusOf = useCallback(
@@ -247,8 +273,9 @@ export function useConversation(threadId: string) {
     thread: thread.data ?? null,
     name: thread.data ? threadName(thread.data, chatCopy.groupFallback) : '',
     avatarUrl: thread.data ? threadAvatar(thread.data) : null,
-    post: post.data ?? null,
+    post,
     items,
+    gone,
     statusOf,
     typers,
     hasMessages: oldestFirst.length > 0,

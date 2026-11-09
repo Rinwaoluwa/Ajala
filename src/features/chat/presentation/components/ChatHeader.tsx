@@ -1,8 +1,8 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Host } from '@expo/ui';
+
 import { TouchableOpacity, View } from 'react-native';
 
-import { Avatar, NativeIcon, SkeletonBlock, SkeletonPulse, Text, icons } from '@shared/components';
+import { Avatar, BackButton, SkeletonBlock, SkeletonPulse, Text } from '@shared/components';
 import { useTheme } from '@shared/hooks/useTheme';
 
 import type { ChatThreadDetail } from '../../domain/entities/Chat';
@@ -56,18 +56,7 @@ export function ChatHeader({
         paddingVertical: 10,
       }}
     >
-      <TouchableOpacity
-        activeOpacity={0.6}
-        onPress={onBack}
-        hitSlop={10}
-        accessibilityRole="button"
-        accessibilityLabel={chatCopy.back}
-        style={{ padding: 4 }}
-      >
-        <Host matchContents pointerEvents="none" ignoreSafeArea="all">
-          <NativeIcon source={icons.chevronLeft} size={18} color={theme.foreground} />
-        </Host>
-      </TouchableOpacity>
+      <BackButton onPress={onBack} label={chatCopy.back} />
       {thread ? (
         <>
           <Avatar name={name} uri={avatarUrl} size={48} />

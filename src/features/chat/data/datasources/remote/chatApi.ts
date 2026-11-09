@@ -2,7 +2,6 @@ import type { ApiRequest } from '@core/api/apiClient';
 
 import type {
   AddMemberDto,
-  ChatPostCardDto,
   ConversationDetailDto,
   ConversationsPageDto,
   MessageDto,
@@ -11,6 +10,7 @@ import type {
   ReportFiledDto,
   ReportMessageDto,
   StartConversationDto,
+  UnreadCountDto,
 } from '../../dto/chatDtos';
 
 /** The API's version prefix, as every other client in the app writes it. */
@@ -47,6 +47,8 @@ export function createChatApi(request: ChatRequest) {
         method: 'GET',
         path: `${V1}/conversations${query({ tab, search, cursor, limit })}`,
       }),
+    /** The Messages badge. A literal path, so it is never read as a conversation id. */
+    unreadCount: () => request<UnreadCountDto>({ method: 'GET', path: `${V1}/conversations/unread-count` }),
     start: (body: StartConversationDto) =>
       request<ConversationDetailDto>({ method: 'POST', path: `${V1}/conversations`, body }),
     detail: (id: string) => request<ConversationDetailDto>({ method: 'GET', path: conversation(id) }),
@@ -87,11 +89,6 @@ export function createChatApi(request: ChatRequest) {
         path: `${conversation(id)}/messages/${encodeURIComponent(messageId)}/report`,
         body,
       }),
-    /** Only the id is read: it tells your own messages apart in a group's list preview. */
-    me: () => request<{ id: string }>({ method: 'GET', path: `${V1}/me` }),
-    /** For the activity card: the post's title, time and place. */
-    post: (postId: string) =>
-      request<ChatPostCardDto>({ method: 'GET', path: `${V1}/posts/${encodeURIComponent(postId)}` }),
   };
 }
 

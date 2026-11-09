@@ -14,10 +14,15 @@ export type ChatKind = 'direct' | 'group';
 
 export type ChatPerson = { id: string; name: string; avatarUrl: string | null; verified: boolean };
 
-/** The list's last line. The API sends who wrote it as an id only, never a name. */
+/** The list's last line. */
 export type LastMessage = {
   id: string;
   senderId: string;
+  /**
+   * The sender's first name, for a group's "Chioma: …". Null for your own
+   * message, which is how "You: …" is told apart; "Deleted user" for a wiped account.
+   */
+  senderName: string | null;
   /** The first 120 characters; null for a picture-only or removed message. */
   preview: string | null;
   imageCount: number;
@@ -34,6 +39,11 @@ export type ChatThread = {
   postId: string | null;
   /** Direct only: the other person. */
   other: ChatPerson | null;
+  /**
+   * A group's picture: its post's cover at 200 px. Null for a direct chat (which
+   * shows the other person) and when you can't see the post.
+   */
+  imageUrl: string | null;
   memberCount: number;
   lastMessage: LastMessage | null;
   /** Capped at 99 by the API. */
@@ -50,8 +60,10 @@ export type ChatMember = {
   lastReadMessageId: string | null;
 };
 
-/** One conversation opened (`ConversationDetailDto`): the row plus who is in it. */
+/** One conversation opened (`ConversationDetailDto`): the row plus who is in it and its post. */
 export type ChatThreadDetail = ChatThread & {
+  /** The activity card at the top of the chat; null when there is no post or you can't see it. */
+  post: ChatPost | null;
   onlineCount: number;
   /** The host first. */
   members: ChatMember[];
@@ -105,10 +117,14 @@ export type ThreadsPage = { items: ChatThread[]; nextCursor: string | null };
 /** Newest first, as the API pages them; `nextCursor` is the next `before`. */
 export type MessagesPage = { items: ChatMessage[]; nextCursor: string | null };
 
-/** What the live connection reports (socket `/chat`). */
+/** What the live connection reports (socket `/chat`), plus chat pushes that arrive while the app is open. */
 export type ChatEvent =
   | { type: 'message'; message: ChatMessage }
   | { type: 'read'; conversationId: string; userId: string; messageId: string }
   | { type: 'typing'; conversationId: string; userId: string }
+  /** A chat push arrived while the app was open: that conversation has something new. */
+  | { type: 'pushed'; conversationId: string }
+  /** My own RSVP on a post changed (`rsvp.update`): whatever shows that post is out of date. */
+  | { type: 'rsvp'; postId: string }
   /** Connected again after a drop: anything may have been missed. */
   | { type: 'reconnected' };

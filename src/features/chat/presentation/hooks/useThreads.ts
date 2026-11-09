@@ -1,16 +1,15 @@
-import { keepPreviousData, useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useInfiniteQuery } from '@tanstack/react-query';
 import { useCallback, useMemo, useState } from 'react';
 
 import { useDebouncedValue } from '@shared/hooks/useDebouncedValue';
 
-import type { ChatFilter, ChatThread, ChatThreadDetail } from '../../domain/entities/Chat';
+import type { ChatFilter, ChatThread } from '../../domain/entities/Chat';
 import { isChatError, type ChatErrorCode } from '../../domain/entities/ChatError';
 import { previewLine, threadAvatar, threadName } from '../../domain/rules/chatRules';
 import { chatCopy } from '../copy';
 import { chatKeys } from '../state/chatQueries';
 import { useChatUseCases } from '../state/useChatUseCases';
 import { useChatRealtime } from './useChatRealtime';
-import { useMyId } from './useMyId';
 
 export type ThreadRowModel = {
   thread: ChatThread;
@@ -27,14 +26,11 @@ export type ThreadRowModel = {
  * going back over the same letters answers at once. The live socket is held
  * while the list is open, so new messages reorder it.
  *
- * A group's last line names its sender by id only. The name is looked up among
- * the members of that conversation when it has been opened (its detail is in
- * the cache); otherwise the line shows without a name.
+ * Each row's last line comes from the row alone: the API names a group's
+ * sender (`senderName`), and leaves it out for your own messages ("You: …").
  */
 export function useThreads() {
   const { listThreads } = useChatUseCases();
-  const queryClient = useQueryClient();
-  const myId = useMyId();
   useChatRealtime();
   const [filter, setFilter] = useState<ChatFilter>('all');
   const [search, setSearch] = useState('');
@@ -52,25 +48,18 @@ export function useThreads() {
     staleTime: 15_000,
   });
 
-  const rows = useMemo<ThreadRowModel[]>(() => {
-    const senderName = (threadId: string) => (userId: string) =>
-      queryClient
-        .getQueryData<ChatThreadDetail>(chatKeys.thread(threadId))
-        ?.members.find((m) => m.person.id === userId)?.person.name ?? null;
-    return (list.data?.pages ?? [])
-      .flatMap((p) => p.items)
-      .map((thread) => ({
-        thread,
-        name: threadName(thread, chatCopy.groupFallback),
-        avatarUrl: threadAvatar(thread),
-        preview: previewLine(thread, {
-          myId,
-          senderName: senderName(thread.id),
-          you: chatCopy.you,
-          photos: chatCopy.photos,
-        }),
-      }));
-  }, [list.data, myId, queryClient]);
+  const rows = useMemo<ThreadRowModel[]>(
+    () =>
+      (list.data?.pages ?? [])
+        .flatMap((p) => p.items)
+        .map((thread) => ({
+          thread,
+          name: threadName(thread, chatCopy.groupFallback),
+          avatarUrl: threadAvatar(thread),
+          preview: previewLine(thread, { you: chatCopy.you, photos: chatCopy.photos }),
+        })),
+    [list.data],
+  );
 
   const error: ChatErrorCode | null = list.error
     ? isChatError(list.error)

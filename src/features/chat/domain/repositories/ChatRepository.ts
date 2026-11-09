@@ -2,7 +2,6 @@ import type {
   ChatEvent,
   ChatFilter,
   ChatMessage,
-  ChatPost,
   ChatThreadDetail,
   LocalImage,
   MessageDraft,
@@ -15,7 +14,11 @@ import type {
 /** The chat API (spec §3.9). Every method throws `ChatError`. */
 export interface ChatRepository {
   listThreads(filter: ChatFilter, search: string, cursor: string | null, limit: number): Promise<ThreadsPage>;
-  /** The existing conversation, or a new one. */
+  /**
+   * A direct chat with someone: the existing one, or a new one. A post's group
+   * chat is made by the API when the post goes live, so for `{ postId }` this
+   * only finds the one you are already in.
+   */
   startThread(target: StartTarget): Promise<ChatThreadDetail>;
   getThread(threadId: string): Promise<ChatThreadDetail>;
   /** Newest first; `before` is the oldest id already held. */
@@ -28,19 +31,24 @@ export interface ChatRepository {
   /** Your own id leaves; the host may remove others. */
   removeMember(threadId: string, userId: string): Promise<void>;
   reportMessage(threadId: string, messageId: string, reason: ReportReason, details: string | null): Promise<void>;
-  /** The signed-in person's id, to tell their messages apart in the list. */
-  getMyId(): Promise<string>;
-  /** The activity card at the top of a chat; null when the post can't be seen. */
-  getPost(postId: string): Promise<ChatPost | null>;
+  /** How many conversations have something unread (not how many messages): the Messages badge. */
+  getUnreadCount(): Promise<number>;
 }
 
 /**
- * The live connection (socket `/chat`). Best effort: a missed event costs
- * nothing, because a thread is fetched again whenever it is opened.
+ * The live connection (socket `/chat`), plus chat pushes that arrive while the
+ * app is open. Best effort: a missed event costs nothing, because a thread is
+ * fetched again whenever it is opened.
  */
+/**
+ * A current access token, or null when signed out. `refused` is one the server
+ * just turned away: the answer must be a different (refreshed) token.
+ */
+export type LiveTokenSource = (refused?: string) => Promise<string | null>;
+
 export interface ChatLive {
   /** Keeps the connection open until the returned function is called. */
-  hold(getToken: () => Promise<string | null>): () => void;
+  hold(getToken: LiveTokenSource): () => void;
   subscribe(listener: (event: ChatEvent) => void): () => void;
 }
 

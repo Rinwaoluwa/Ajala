@@ -1,13 +1,22 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
-import { Host } from '@expo/ui';
-import { useCallback } from 'react';
-import { FlatList, RefreshControl, TouchableOpacity, View } from 'react-native';
 
-import { EmptyState, NativeIcon, PillTabs, Screen, Text, TextField, icons } from '@shared/components';
+import { useCallback } from 'react';
+import { FlatList, RefreshControl, View } from 'react-native';
+
+import {
+  BackButton,
+  EmptyState,
+  NativeIcon,
+  PillTabs,
+  Screen,
+  Text,
+  TextField,
+  icons,
+} from '@shared/components';
 import { useTheme } from '@shared/hooks/useTheme';
 import { SCREEN_GUTTER } from '@shared/theme';
 
 import { SEARCH_MAX } from '../../domain/rules/chatRules';
+import { EmptyArt } from '../components/EmptyArt';
 import { ThreadRow } from '../components/ThreadRow';
 import { ThreadsSkeleton } from '../components/ThreadsSkeleton';
 import { chatCopy, chatErrorMessages } from '../copy';
@@ -58,7 +67,7 @@ export function MessagesScreen({ onBack, onOpenThread, onExplore }: MessagesScre
     if (vm.q) {
       return (
         <EmptyState
-          art={<Art name="search-outline" />}
+          art={<EmptyArt name="search-outline" />}
           title={chatCopy.noResults.title}
           body={chatCopy.noResults.body(vm.q)}
           action={{ label: chatCopy.noResults.action, onPress: vm.clearSearch, variant: 'primary' }}
@@ -66,14 +75,14 @@ export function MessagesScreen({ onBack, onOpenThread, onExplore }: MessagesScre
       );
     }
     if (vm.filter === 'unread') {
-      return <EmptyState art={<Art name="checkmark-done-outline" />} {...chatCopy.noUnread} />;
+      return <EmptyState art={<EmptyArt name="checkmark-done-outline" />} {...chatCopy.noUnread} />;
     }
     if (vm.filter === 'groups') {
-      return <EmptyState art={<Art name="people-outline" />} {...chatCopy.noGroups} />;
+      return <EmptyState art={<EmptyArt name="people-outline" />} {...chatCopy.noGroups} />;
     }
     return (
       <EmptyState
-        art={<Art name="people-outline" />}
+        art={<EmptyArt name="people-outline" />}
         title={chatCopy.empty.title}
         body={chatCopy.empty.body}
         action={{ label: chatCopy.empty.action, onPress: onExplore, variant: 'primary' }}
@@ -85,18 +94,7 @@ export function MessagesScreen({ onBack, onOpenThread, onExplore }: MessagesScre
     <Screen edges={['top']} padded={false}>
       <View style={{ paddingHorizontal: SCREEN_GUTTER, paddingTop: 8, gap: 16 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <TouchableOpacity
-            activeOpacity={0.6}
-            onPress={onBack}
-            hitSlop={10}
-            accessibilityRole="button"
-            accessibilityLabel={chatCopy.back}
-            style={{ marginLeft: -4, padding: 4 }}
-          >
-            <Host matchContents pointerEvents="none" ignoreSafeArea="all">
-              <NativeIcon source={icons.chevronLeft} size={18} color={theme.foreground} />
-            </Host>
-          </TouchableOpacity>
+          <BackButton onPress={onBack} label={chatCopy.back} />
           <Text variant="headingXl" accessibilityRole="header" style={{ flex: 1 }}>
             {chatCopy.title}
           </Text>
@@ -140,26 +138,6 @@ export function MessagesScreen({ onBack, onOpenThread, onExplore }: MessagesScre
           vm.loading ? empty : <View style={{ flex: 1, justifyContent: 'center' }}>{empty}</View>
         }
       />
-
     </Screen>
-  );
-}
-
-/** The empty states' art: a glyph in a mint circle. */
-function Art({ name }: { name: React.ComponentProps<typeof Ionicons>['name'] }) {
-  const theme = useTheme();
-  return (
-    <View
-      style={{
-        width: 104,
-        height: 104,
-        borderRadius: 52,
-        backgroundColor: theme.selectedFill,
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-    >
-      <Ionicons name={name} size={44} color={theme.selectedForeground} />
-    </View>
   );
 }

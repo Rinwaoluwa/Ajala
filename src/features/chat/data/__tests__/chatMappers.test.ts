@@ -4,7 +4,15 @@ import { ApiError, type ApiErrorCode } from '@core/api/ApiError';
 
 import { ChatError } from '../../domain/entities/ChatError';
 import type { MessageDto } from '../dto/chatDtos';
-import { toChatError, toChatEvent, toMessage, toMessagesPage, toThreadDetail } from '../mappers/chatMappers';
+import {
+  toChatError,
+  toChatEvent,
+  toChatPushEvent,
+  toMessage,
+  toMessagesPage,
+  toThreadDetail,
+  toThreadsPage,
+} from '../mappers/chatMappers';
 
 const api = (code: ApiErrorCode) => new ApiError({ code, message: '' });
 
@@ -49,6 +57,10 @@ describe('chat errors', () => {
     expect(toChatError(api('REPORTING_PAUSED'), 'report').code).toBe('reportingPaused');
   });
 
+  it('reads a full group chat as a wait, not a conflict', () => {
+    expect(toChatError(api('GROUP_CHAT_FULL'), 'start').code).toBe('groupChatFull');
+  });
+
   it('no longer reads a missing route as "not available yet"', () => {
     expect(toChatError(api('METHOD_NOT_ALLOWED')).code).toBe('unknown');
   });
@@ -86,17 +98,19 @@ describe('chat shapes', () => {
     });
   });
 
-  it('reads a conversation with its members and read marks', () => {
+  it('reads a conversation with its members, read marks, picture and post', () => {
     const t = toThreadDetail({
       id: 'c1',
       kind: 'group',
       title: 'Crew',
       postId: 'p1',
       other: null,
+      imageUrl: 'https://img/cover-200.jpg',
       memberCount: 2,
-      lastMessage: { id: '7', senderId: 'u-a', preview: null, imageCount: 2, createdAt: 'x' },
+      lastMessage: { id: '7', senderId: 'u-a', senderName: 'Ada', preview: null, imageCount: 2, createdAt: 'x' },
       unreadCount: 150,
       activityAt: 'x',
+      post: { id: 'p1', title: 'Walk', startAt: '2026-11-08T09:00:00Z', placeName: 'Lekki' },
       onlineCount: 1,
       members: [
         { user: card('u-a'), role: 'owner', online: true, lastReadMessageId: '7' },
@@ -107,12 +121,35 @@ describe('chat shapes', () => {
       kind: 'group',
       title: 'Crew',
       unreadCount: 99,
-      lastMessage: { id: '7', imageCount: 2, preview: null, sentAt: 'x' },
+      imageUrl: 'https://img/cover-200.jpg',
+      post: { id: 'p1', title: 'Walk', startAt: '2026-11-08T09:00:00Z', placeName: 'Lekki' },
+      lastMessage: { id: '7', senderName: 'Ada', imageCount: 2, preview: null, sentAt: 'x' },
       members: [
         { role: 'owner', lastReadMessageId: '7', online: true },
         { role: 'member', lastReadMessageId: null },
       ],
     });
+  });
+
+  it('has no picture, post or sender name where the API sends none', () => {
+    const page = toThreadsPage({
+      items: [
+        {
+          id: 'c2',
+          kind: 'direct',
+          title: null,
+          postId: null,
+          other: card('u-maya'),
+          imageUrl: null,
+          memberCount: 2,
+          lastMessage: { id: '9', senderId: 'me', senderName: null, preview: 'Hi', imageCount: 0, createdAt: 'x' },
+          unreadCount: 0,
+          activityAt: 'x',
+        },
+      ],
+      nextCursor: null,
+    });
+    expect(page.items[0]).toMatchObject({ imageUrl: null, lastMessage: { senderName: null } });
   });
 
   it('reads a page of messages, whose cursor is the next `before`', () => {
@@ -135,6 +172,27 @@ describe('chat shapes', () => {
     });
     expect(toChatEvent('reconnected', undefined)).toEqual({ type: 'reconnected' });
     expect(toChatEvent('typing', null)).toBeNull();
-    expect(toChatEvent('rsvp.update', { postId: 'p' })).toBeNull();
+    expect(toChatEvent('rsvp.update', { postId: 'p', state: 'going', goingCount: 3 })).toEqual({
+      type: 'rsvp',
+      postId: 'p',
+    });
+    expect(toChatEvent('rsvp.update', { state: 'going' })).toBeNull();
+    expect(toChatEvent('session.expiring', { inMs: 1000 })).toBeNull();
+  });
+
+  it('reads a socket message without `mine` as not (yet) yours', () => {
+    const { mine: _mine, ...withoutMine } = messageDto();
+    const event = toChatEvent('message.new', withoutMine);
+    expect(event).toMatchObject({ type: 'message', message: { mine: false } });
+  });
+
+  it('reads a chat push as "this conversation moved", and ignores every other push', () => {
+    expect(toChatPushEvent({ kind: 'chat.message', conversationId: 'c1' })).toEqual({
+      type: 'pushed',
+      conversationId: 'c1',
+    });
+    expect(toChatPushEvent({ kind: 'chat.message' })).toBeNull();
+    expect(toChatPushEvent({ kind: 'post.details_changed', postId: 'p1' })).toBeNull();
+    expect(toChatPushEvent({})).toBeNull();
   });
 });

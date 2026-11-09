@@ -1,12 +1,9 @@
-import { isApiError } from '@core/api/ApiError';
-
 import type { ChatRepository } from '../../domain/repositories/ChatRepository';
 import { createChatApi, type ChatRequest } from '../datasources/remote/chatApi';
 import {
   toChatError,
   toMessage,
   toMessagesPage,
-  toPost,
   toThreadDetail,
   toThreadsPage,
   type ChatCall,
@@ -63,16 +60,6 @@ export function createChatRepository(request: ChatRequest): ChatRepository {
       report(async () => {
         await api.report(id, messageId, details ? { reason, details } : { reason });
       }),
-    getMyId: () => other(async () => (await api.me()).id),
-    getPost: (postId) =>
-      other(async () => {
-        try {
-          return toPost(await api.post(postId));
-        } catch (e) {
-          // A post that was deleted or is hidden from you: the chat simply has no card.
-          if (isApiError(e) && (e.code === 'NOT_FOUND' || e.code === 'GONE')) return null;
-          throw e;
-        }
-      }),
+    getUnreadCount: () => other(async () => Math.max(0, Number((await api.unreadCount()).count) || 0)),
   };
 }

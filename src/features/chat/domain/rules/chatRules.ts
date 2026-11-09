@@ -29,60 +29,66 @@ export function compareMessageIds(a: string, b: string): number {
 /** Whether `id` is later than `than` (anything is later than nothing). */
 export const isLaterId = (id: string, than: string | null) => than === null || compareMessageIds(id, than) > 0;
 
-export const firstName = (name: string) => name.trim().split(/\s+/)[0] ?? name;
-
 /** What a conversation is called: the group's title, or the other person's name. */
 export const threadName = (thread: ChatThread, groupFallback: string): string =>
   thread.title ?? thread.other?.name ?? groupFallback;
 
 /**
- * Its photo: the other person's. The API has no picture for a group, so a group
- * shows its initials (an open question for the backend).
+ * Its photo: the other person's in a direct chat, the post's cover in a group.
+ * Null when there is none (a group whose post you can't see): the row then
+ * shows initials.
  */
-export const threadAvatar = (thread: ChatThread): string | null => thread.other?.avatarUrl ?? null;
+export const threadAvatar = (thread: ChatThread): string | null => thread.other?.avatarUrl ?? thread.imageUrl ?? null;
 
-/** Whether the last message in the list was yours. */
-export function lastIsMine(thread: ChatThread, myId: string | null): boolean {
-  const last = thread.lastMessage;
-  if (!last) return false;
-  if (myId) return last.senderId === myId;
-  // Before your id is known, a direct chat still tells: it wasn't the other person.
-  return thread.kind === 'direct' && !!thread.other && last.senderId !== thread.other.id;
-}
+/**
+ * Whether the last message in the list was yours. The API names the sender of
+ * every message but your own (`senderName` is null only for yours), so no id
+ * of yours is needed to tell.
+ */
+export const lastIsMine = (thread: ChatThread): boolean =>
+  !!thread.lastMessage && thread.lastMessage.senderName === null;
 
 /**
  * The line under a conversation's name: "You: I'll send the photos tonight."
  * for your own last message, "Chioma: See you at the meeting point!" in a
  * group, and the text alone in a one-to-one chat. A picture with no words reads
  * "Photo" or "3 photos".
- *
- * The API gives a group's last sender as an id only. `senderName` finds the
- * name among the members when that conversation has been opened (its detail is
- * cached); otherwise the preview shows without a name.
  */
 export function previewLine(
   thread: ChatThread,
-  options: {
-    myId: string | null;
-    senderName?: (userId: string) => string | null;
-    you: string;
-    photos: (count: number) => string;
-  },
+  options: { you: string; photos: (count: number) => string },
 ): string {
   const last = thread.lastMessage;
   if (!last) return '';
   const text = last.preview ?? (last.imageCount > 0 ? options.photos(last.imageCount) : '');
   if (!text) return '';
-  if (lastIsMine(thread, options.myId)) return `${options.you}: ${text}`;
-  if (thread.kind === 'group') {
-    const full = options.senderName?.(last.senderId);
-    if (!full) return text;
-    const name = firstName(full);
+  if (lastIsMine(thread)) return `${options.you}: ${text}`;
+  if (thread.kind === 'group' && last.senderName) {
+    const name = last.senderName;
     // "Kofi shared a new spot to try." already says who: no "Kofi: " in front.
     return text.startsWith(name) ? text : `${name}: ${text}`;
   }
   return text;
 }
+
+/**
+ * Your own id, read from the messages: the API marks yours (`mine`) in what the
+ * HTTP calls return, so any one of them says who you are. Null until one of
+ * yours is loaded. A fallback for when auth does not know the id yet.
+ */
+export const myIdFrom = (messages: readonly ChatMessage[]): string | null =>
+  messages.find((m) => m.mine && !m.pending)?.sender.id ?? null;
+
+/**
+ * Whether a message is yours. The socket's `message.new` has no `mine` (every
+ * member hears it, the sender too: "compare `sender.id` with your own", spec
+ * §2.20), so it is worked out from your id. It only ever turns on: the copy
+ * already held (the dimmed one being sent, or the send's answer) keeps its
+ * side when the socket's copy of the same message replaces it, so your own
+ * message never flips across, even before your id is known.
+ */
+export const isMine = (message: ChatMessage, held: ChatMessage | undefined, myId: string | null): boolean =>
+  message.mine || !!held?.mine || (myId !== null && message.sender.id === myId);
 
 /** Under the header: "Online" for a person, "8 members · 3 online" for a group. */
 export function presence(
@@ -125,11 +131,22 @@ export function withReadMark(members: readonly ChatMember[], userId: string, mes
  * bubble into the confirmed one, and what stops a message that arrives both as
  * the send's answer and over the socket from showing twice.
  */
-export function upsertNewest(items: readonly ChatMessage[], message: ChatMessage): ChatMessage[] {
-  const at = items.findIndex((m) => m.id === message.id || m.clientMsgId === message.clientMsgId);
-  if (at === -1) return [message, ...items];
-  return items.map((m, i) => (i === at ? message : m));
+export function upsertNewest(
+  items: readonly ChatMessage[],
+  message: ChatMessage,
+  myId: string | null = null,
+): ChatMessage[] {
+  const at = items.findIndex((m) => m.id === message.id || sameClientMsg(m, message));
+  const settled = (held: ChatMessage | undefined) => {
+    const mine = isMine(message, held, myId);
+    return mine === message.mine ? message : { ...message, mine };
+  };
+  if (at === -1) return [settled(undefined), ...items];
+  return items.map((m, i) => (i === at ? settled(m) : m));
 }
+
+/** Same `clientMsgId`, ignoring the empty one a message without it is given. */
+const sameClientMsg = (a: ChatMessage, b: ChatMessage) => !!a.clientMsgId && a.clientMsgId === b.clientMsgId;
 
 /** The newest message the server has confirmed, in a newest-first list. */
 export const newestConfirmed = (items: readonly ChatMessage[]): ChatMessage | null =>

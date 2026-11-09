@@ -37,6 +37,17 @@ export const chatCopy = {
     opening: 'Opening the chat',
     back: 'Go back',
     noTarget: 'Open a chat from someone’s profile or from an activity.',
+    /** You're going, but the group chat's 100 places are taken: you're next in line. */
+    full: {
+      title: 'The group chat is full right now',
+      body: 'You’ll be added when a place opens.',
+    },
+  },
+  /** A chat that answered 404: left, removed, or its activity was cancelled. */
+  gone: {
+    title: 'This chat isn’t available',
+    body: 'You may have left it or been removed, or the activity was cancelled.',
+    action: 'Go back',
   },
   thread: {
     online: 'Online',
@@ -126,7 +137,8 @@ export const chatErrorMessages: Record<ChatErrorCode, string> = {
   dmRestricted: 'They only take messages from people they share a post with.',
   startLimit: 'You’ve started a lot of new chats today; try again tomorrow.',
   conflict: 'This chat can’t be opened.',
-  notFound: 'This conversation isn’t available.',
+  groupChatFull: 'The group chat is full right now. You’ll be added when a place opens.',
+  notFound: 'This chat isn’t available.',
   tooLarge: 'Each photo must be 5 MB or smaller.',
   unsupportedImage: 'Use a JPEG, PNG or WebP photo.',
   reportingPaused: 'Reporting is paused on your account; you can still block.',
@@ -137,23 +149,25 @@ export const chatErrorMessages: Record<ChatErrorCode, string> = {
   unknown: 'Something went wrong. Try again.',
 };
 
+/** What the start screen says when a chat can't be opened. `calm`: not a failure, just a wait. */
+export type StartProblem = { title: string; body?: string; calm?: boolean };
+
 /**
- * Starting a chat: a 409 means something different for a person (it's you)
- * and for a post's group (not live, or more than 50 going), and so does a 403
- * (their message settings, or not the host).
+ * Opening a chat. A person's refusals are about them (their message settings,
+ * yourself, today's limit). A post's group chat is made by the API for
+ * everyone going, so the only answers are "full, you're in line" (calm) and
+ * "not there for you": you left or were removed, or the activity was cancelled.
  */
-export const startErrorMessages = (code: ChatErrorCode, forPost: boolean): string => {
+export const startProblem = (code: ChatErrorCode, forPost: boolean): StartProblem => {
+  if (forPost && code === 'groupChatFull') return { ...chatCopy.start.full, calm: true };
+  if (forPost && (code === 'notFound' || code === 'notAllowed' || code === 'dmRestricted')) {
+    return { title: chatCopy.gone.title, body: chatCopy.gone.body };
+  }
   if (code === 'conflict') {
-    return forPost
-      ? 'A group chat can only be started for a live activity with 50 or fewer people going.'
-      : 'You can’t start a chat with this person.';
+    return { title: forPost ? chatErrorMessages.conflict : 'You can’t start a chat with this person.' };
   }
-  if (code === 'notAllowed' || code === 'dmRestricted') {
-    return forPost ? 'Only the host can start this activity’s group chat.' : chatErrorMessages.dmRestricted;
-  }
-  if (code === 'notFound') {
-    return forPost ? 'This activity isn’t available.' : 'This person isn’t available.';
-  }
-  if (code === 'invalid') return chatCopy.start.noTarget;
-  return chatErrorMessages[code];
+  if (code === 'notAllowed' || code === 'dmRestricted') return { title: chatErrorMessages.dmRestricted };
+  if (code === 'notFound') return { title: 'This person isn’t available.' };
+  if (code === 'invalid') return { title: chatCopy.start.noTarget };
+  return { title: chatErrorMessages[code] };
 };

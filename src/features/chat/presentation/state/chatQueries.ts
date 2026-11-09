@@ -10,8 +10,8 @@ export const chatKeys = {
   messages: (id: string) => ['chat', 'messages', id] as const,
   /** Who is typing in a conversation: user id → when to stop showing it (ms). Socket-fed only. */
   typing: (id: string) => ['chat', 'typing', id] as const,
-  post: (id: string) => ['chat', 'post', id] as const,
-  me: ['chat', 'me'] as const,
+  /** Conversations with anything unread: the Messages badge on Home. */
+  unreadCount: ['chat', 'unreadCount'] as const,
   safetyBanner: ['chat', 'safetyBanner'] as const,
 };
 

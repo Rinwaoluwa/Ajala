@@ -12,9 +12,17 @@ export type ChatErrorCode =
   | 'dmRestricted'
   /** Starting: too many new chats today (429 `CHAT_START_LIMIT`). */
   | 'startLimit'
-  /** Starting: yourself, a post that isn't live, or a group over 50. Members: not going, full, or the host leaving. */
+  /** Starting: a chat with yourself. Members: not going, full, or the host leaving. */
   | 'conflict'
-  /** The conversation, person or post is not there (or not visible to you). */
+  /**
+   * Opening a post's group chat: you are going, but its 100 places are taken and
+   * you are in line for the next one (409 `GROUP_CHAT_FULL`). Not a failure.
+   */
+  | 'groupChatFull'
+  /**
+   * The conversation, person or post is not there for you: you left or were
+   * removed, or the post was cancelled or deleted (which removes its chat).
+   */
   | 'notFound'
   /** A picture over 5 MB. */
   | 'tooLarge'

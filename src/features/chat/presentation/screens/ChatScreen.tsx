@@ -38,6 +38,10 @@ import { useSafetyBanner } from '../hooks/useSafetyBanner';
  * The list opens at the newest message and follows new ones while you are at
  * the bottom; scrolling to the top loads older messages without moving what is
  * on screen. A long press on someone else's message reports it.
+ *
+ * When the chat turns out to be gone (a 404: you left or were removed, or the
+ * activity was cancelled), the composer goes and a short sheet says so; either
+ * of its ways out leaves the screen.
  */
 
 export type ChatScreenProps = {
@@ -119,6 +123,14 @@ export function ChatScreen({ threadId, onBack, onOpenPost }: ChatScreenProps) {
     [vm, onOpenPost],
   );
 
+  // The gone sheet's button and its swipe-away can both fire as it closes: leave once.
+  const left = useRef(false);
+  const leave = useCallback(() => {
+    if (left.current) return;
+    left.current = true;
+    onBack();
+  }, [onBack]);
+
   const submitReport = useCallback(
     (reason: Parameters<typeof vm.report>[1], details: string) => {
       if (!reporting) return;
@@ -155,16 +167,16 @@ export function ChatScreen({ threadId, onBack, onOpenPost }: ChatScreenProps) {
           <View style={{ flex: 1, paddingHorizontal: SCREEN_GUTTER, paddingTop: 12, overflow: 'hidden' }}>
             <ConversationSkeleton />
           </View>
-        ) : vm.error && !vm.hasMessages ? (
+        ) : (vm.gone || vm.error) && !vm.hasMessages ? (
           <Animated.View
             entering={FadeIn.duration(200)}
             style={{ flex: 1, justifyContent: 'center', paddingHorizontal: SCREEN_GUTTER }}
           >
             <EmptyState
-              title={vm.error === 'notFound' ? chatErrorMessages.notFound : chatCopy.thread.loadFailed}
-              body={vm.error === 'notFound' ? undefined : chatErrorMessages[vm.error]}
+              title={vm.gone ? chatCopy.gone.title : chatCopy.thread.loadFailed}
+              body={vm.gone || !vm.error ? undefined : chatErrorMessages[vm.error]}
             />
-            {vm.error === 'notFound' ? null : (
+            {vm.gone ? null : (
               <View style={{ alignItems: 'center' }}>
                 <TextLink label={chatCopy.retry} onPress={vm.retry} emphasis="plain" />
               </View>
@@ -205,14 +217,16 @@ export function ChatScreen({ threadId, onBack, onOpenPost }: ChatScreenProps) {
           />
         )}
 
-        <View style={{ borderTopWidth: 1, borderTopColor: theme.border }}>
-          <Composer
-            onSend={vm.submit}
-            onTyping={vm.onTyping}
-            onPickPhotos={vm.pickPhotos}
-            sending={vm.sending}
-          />
-        </View>
+        {vm.gone ? null : (
+          <View style={{ borderTopWidth: 1, borderTopColor: theme.border }}>
+            <Composer
+              onSend={vm.submit}
+              onTyping={vm.onTyping}
+              onPickPhotos={vm.pickPhotos}
+              sending={vm.sending}
+            />
+          </View>
+        )}
       </KeyboardAvoidingView>
 
       <SafetyTipsSheet isPresented={tipsOpen} onDismiss={() => setTipsOpen(false)} />
@@ -222,6 +236,15 @@ export function ChatScreen({ threadId, onBack, onOpenPost }: ChatScreenProps) {
         error={reportError}
         onSubmit={submitReport}
         onDismiss={() => setReporting(null)}
+      />
+      <StatusSheet
+        isPresented={vm.gone}
+        tone="info"
+        title={chatCopy.gone.title}
+        message={chatCopy.gone.body}
+        actionLabel={chatCopy.gone.action}
+        onAction={leave}
+        onDismiss={leave}
       />
       <StatusSheet
         isPresented={reported}

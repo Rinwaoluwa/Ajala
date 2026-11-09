@@ -2,6 +2,7 @@ import * as Crypto from 'expo-crypto';
 
 import { pickImages } from '@core/media/imagePicker';
 import { chatSocket } from '@core/api/websocket/chatSocket';
+import { onPushReceived } from '@core/push/pushNotifications';
 
 import { safetyBannerStore } from './data/datasources/local/safetyBannerStore';
 import { createChatLive } from './data/datasources/realtime/chatLive';
@@ -10,9 +11,8 @@ import { createChatRepository } from './data/repositories/ChatRepositoryImpl';
 import {
   makeAddMember,
   makeGetMessages,
-  makeGetMyId,
-  makeGetPost,
   makeGetThread,
+  makeGetUnreadCount,
   makeListThreads,
   makeLive,
   makeMarkRead,
@@ -32,6 +32,10 @@ import {
  *
  * Pictures go through the app's one picker, which resizes them (long edge
  * 2048) and re-encodes them as JPEG, as every other upload does (spec §1.4).
+ *
+ * The live side hears the socket and, so that the list and the Messages badge
+ * catch up even when the socket is down, chat pushes that arrive while the app
+ * is open.
  */
 export function createChatUseCases(request: ChatRequest) {
   const repo = createChatRepository(request);
@@ -47,10 +51,9 @@ export function createChatUseCases(request: ChatRequest) {
     addMember: makeAddMember(repo),
     removeMember: makeRemoveMember(repo),
     reportMessage: makeReportMessage(repo),
-    getMyId: makeGetMyId(repo),
-    getPost: makeGetPost(repo),
+    getUnreadCount: makeGetUnreadCount(repo),
     pickPhotos: makePickPhotos((limit) => pickImages({ limit })),
-    live: makeLive(createChatLive(chatSocket)),
+    live: makeLive(createChatLive(chatSocket, (listener) => onPushReceived((push) => listener(push.data)))),
     safetyBanner: makeSafetyBanner(safetyBannerStore),
   };
 }

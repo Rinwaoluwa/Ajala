@@ -9,8 +9,11 @@ import {
   draftProblem,
   isLaterId,
   messageStatus,
+  isMine,
+  myIdFrom,
   presence,
   previewLine,
+  threadAvatar,
   threadName,
   upsertNewest,
   withReadMark,
@@ -32,10 +35,12 @@ const thread = (over: Partial<ChatThread> = {}): ChatThread => ({
   title: null,
   postId: null,
   other: person('u-maya', 'Maya Chen'),
+  imageUrl: null,
   memberCount: 2,
   lastMessage: {
     id: '101',
     senderId: 'u-maya',
+    senderName: 'Maya',
     preview: 'Are we still on?',
     imageCount: 0,
     sentAt: '2026-11-03T10:30:00Z',
@@ -54,6 +59,7 @@ const member = (id: string, lastRead: string | null, online = false): ChatMember
 
 const detail = (over: Partial<ChatThreadDetail> = {}): ChatThreadDetail => ({
   ...thread(),
+  post: null,
   onlineCount: 0,
   members: [member('me', '101'), member('u-maya', '100', true)],
   ...over,
@@ -73,12 +79,7 @@ const msg = (id: string, senderId: string, sentAt: string, mine = false): ChatMe
   sentAt,
 });
 
-const opts = (myId: string | null, names: Record<string, string> = {}) => ({
-  myId,
-  senderName: (id: string) => names[id] ?? null,
-  you: 'You',
-  photos: (n: number) => (n === 1 ? 'Photo' : `${n} photos`),
-});
+const opts = { you: 'You', photos: (n: number) => (n === 1 ? 'Photo' : `${n} photos`) };
 
 describe('message ids', () => {
   it('orders 64-bit ids without rounding them', () => {
@@ -93,47 +94,48 @@ describe('message ids', () => {
 });
 
 describe('previewLine', () => {
-  it('shows the text alone in a one-to-one chat', () => {
-    expect(previewLine(thread(), opts('me'))).toBe('Are we still on?');
-  });
-
-  it('starts your own message with "You:"', () => {
-    const t = thread({ lastMessage: { ...thread().lastMessage!, senderId: 'me', preview: 'On my way' } });
-    expect(previewLine(t, opts('me'))).toBe('You: On my way');
-  });
-
-  it('tells your message in a direct chat before your id is known', () => {
-    const t = thread({ lastMessage: { ...thread().lastMessage!, senderId: 'me', preview: 'Hi' } });
-    expect(previewLine(t, opts(null))).toBe('You: Hi');
-  });
-
-  it('names a group sender when the members are known, and not otherwise', () => {
-    const t = thread({
+  const group = (senderName: string | null, preview: string) =>
+    thread({
       kind: 'group',
       other: null,
       title: 'Crew',
-      lastMessage: { ...thread().lastMessage!, senderId: 'u-chioma', preview: 'See you!' },
+      lastMessage: { ...thread().lastMessage!, senderId: 'u-x', senderName, preview },
     });
-    expect(previewLine(t, opts('me', { 'u-chioma': 'Chioma Obi' }))).toBe('Chioma: See you!');
-    expect(previewLine(t, opts('me'))).toBe('See you!');
+
+  it('shows the text alone in a one-to-one chat', () => {
+    expect(previewLine(thread(), opts)).toBe('Are we still on?');
+  });
+
+  it('starts your own message with "You:" (the API names every sender but you)', () => {
+    const t = thread({ lastMessage: { ...thread().lastMessage!, senderId: 'me', senderName: null, preview: 'On my way' } });
+    expect(previewLine(t, opts)).toBe('You: On my way');
+    expect(previewLine(group(null, 'See you there'), opts)).toBe('You: See you there');
+  });
+
+  it('names a group’s sender from the row itself', () => {
+    expect(previewLine(group('Chioma', 'See you!'), opts)).toBe('Chioma: See you!');
+    expect(previewLine(group('Deleted user', 'Hi all'), opts)).toBe('Deleted user: Hi all');
   });
 
   it('does not repeat the name when the message already starts with it', () => {
-    const t = thread({
-      kind: 'group',
-      other: null,
-      lastMessage: { ...thread().lastMessage!, senderId: 'u-kofi', preview: 'Kofi shared a spot.' },
-    });
-    expect(previewLine(t, opts('me', { 'u-kofi': 'Kofi Mensah' }))).toBe('Kofi shared a spot.');
+    expect(previewLine(group('Kofi', 'Kofi shared a spot.'), opts)).toBe('Kofi shared a spot.');
   });
 
   it('says how many photos when there are no words', () => {
     const t = thread({ lastMessage: { ...thread().lastMessage!, preview: null, imageCount: 3 } });
-    expect(previewLine(t, opts('me'))).toBe('3 photos');
+    expect(previewLine(t, opts)).toBe('3 photos');
   });
 
   it('is empty with no messages', () => {
-    expect(previewLine(thread({ lastMessage: null }), opts('me'))).toBe('');
+    expect(previewLine(thread({ lastMessage: null }), opts)).toBe('');
+  });
+});
+
+describe('who you are', () => {
+  it('is read from your own confirmed messages, or unknown without one', () => {
+    expect(myIdFrom([msg('2', 'u-maya', ''), msg('1', 'me', '', true)])).toBe('me');
+    expect(myIdFrom([{ ...msg('c-1', 'tmp', '', true), pending: true }])).toBeNull();
+    expect(myIdFrom([])).toBeNull();
   });
 });
 
@@ -142,6 +144,15 @@ describe('names and presence', () => {
     expect(threadName(thread(), 'Group chat')).toBe('Maya Chen');
     expect(threadName(thread({ kind: 'group', other: null, title: 'Crew' }), 'Group chat')).toBe('Crew');
     expect(threadName(thread({ kind: 'group', other: null, title: null }), 'Group chat')).toBe('Group chat');
+  });
+
+  it('pictures a direct chat by the person and a group by its post’s cover, or nothing', () => {
+    const maya = thread({ other: { ...person('u-maya'), avatarUrl: 'https://a/maya.jpg' } });
+    expect(threadAvatar(maya)).toBe('https://a/maya.jpg');
+    expect(threadAvatar(thread({ kind: 'group', other: null, imageUrl: 'https://a/cover.jpg' }))).toBe(
+      'https://a/cover.jpg',
+    );
+    expect(threadAvatar(thread({ kind: 'group', other: null, imageUrl: null }))).toBeNull();
   });
 
   it('counts members and who is online in a group', () => {
@@ -192,6 +203,33 @@ describe('upsertNewest', () => {
   it('adds a new message once, however often it arrives', () => {
     const once = upsertNewest([msg('400', 'x', '')], msg('401', 'x', ''));
     expect(upsertNewest(once, msg('401', 'x', '')).map((m) => m.id)).toEqual(['401', '400']);
+  });
+
+  it('keeps your message on your side when its socket copy (no `mine`) replaces it', () => {
+    const sent = { ...msg('500', 'me', '', true), clientMsgId: 'c-9' };
+    const socketCopy = { ...msg('500', 'me', ''), clientMsgId: 'c-9' };
+    expect(upsertNewest([sent], socketCopy)[0]?.mine).toBe(true);
+    const pending = { ...msg('c-9', 'me', '', true), clientMsgId: 'c-9', pending: true };
+    expect(upsertNewest([pending], socketCopy)[0]?.mine).toBe(true);
+  });
+
+  it('places a socket message from you on another device by your id', () => {
+    expect(upsertNewest([], msg('501', 'me', ''), 'me')[0]?.mine).toBe(true);
+    expect(upsertNewest([], msg('502', 'u-maya', ''), 'me')[0]?.mine).toBe(false);
+  });
+
+  it('never matches two messages on an empty clientMsgId', () => {
+    const a = { ...msg('600', 'x', ''), clientMsgId: '' };
+    const b = { ...msg('601', 'x', ''), clientMsgId: '' };
+    expect(upsertNewest([a], b).map((m) => m.id)).toEqual(['601', '600']);
+  });
+});
+
+describe('isMine', () => {
+  it('only ever turns on', () => {
+    expect(isMine(msg('1', 'u-maya', ''), msg('1', 'u-maya', '', true), 'me')).toBe(true);
+    expect(isMine(msg('1', 'u-maya', ''), undefined, null)).toBe(false);
+    expect(isMine(msg('1', 'me', ''), undefined, 'me')).toBe(true);
   });
 });
 
@@ -245,8 +283,7 @@ describe('use cases', () => {
     reportMessage: async (_t, _m, reason, details) => {
       log.push([reason, details]);
     },
-    getMyId: async () => 'me',
-    getPost: async () => null,
+    getUnreadCount: async () => 0,
   });
 
   it('trims the search and cuts it to 60 characters', async () => {
