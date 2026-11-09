@@ -73,6 +73,7 @@ export const setupCopy = {
     title: 'What are you into?',
     body: 'Choose 5\u20138 interests to personalise your experience.',
     loadFailed: "We couldn't load the interests.",
+    none: 'There are no interests to choose from yet. Skip for now; you can add them later.',
     retry: 'Try again',
   },
 

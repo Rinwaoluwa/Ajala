@@ -91,7 +91,10 @@ export function createProfileRepository(request: ProfileRequest): ProfileReposit
         const sent = Object.fromEntries(Object.entries(body).filter(([, v]) => v !== undefined));
         return remember(await api.updateMe(sent));
       } catch (e) {
-        throw toProfileError(e, { handle: update.handle !== undefined });
+        throw toProfileError(e, {
+          handle: update.handle !== undefined,
+          places: update.homePlaceId !== undefined || update.favouriteDestinationIds !== undefined,
+        });
       }
     },
 

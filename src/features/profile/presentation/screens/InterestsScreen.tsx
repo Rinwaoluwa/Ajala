@@ -71,6 +71,13 @@ export function InterestsScreen({
               <TextLink label={copy.retry} onPress={vm.retry} emphasis="plain" />
             </View>
           </Animated.View>
+        ) : !vm.interests?.length ? (
+          // The server has none to offer yet: say so, and Skip carries on.
+          <Animated.View entering={FadeIn.duration(200)} className="items-center py-24">
+            <Text variant="bodySm" tone="muted" className="text-center">
+              {copy.none}
+            </Text>
+          </Animated.View>
         ) : (
           <Animated.View entering={enterRise(0)}>
             <ChipGroup gap={8} rowGap={24}>

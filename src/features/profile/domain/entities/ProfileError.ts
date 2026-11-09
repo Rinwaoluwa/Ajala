@@ -22,7 +22,10 @@ export type ProfileErrorCode =
   | 'alreadyReported'
   /** 400 on a report or block of your own profile. */
   | 'ownProfile'
-  /** The city search or "detect my city" could not reach Google (no key, offline, refused). */
+  /**
+   * The city search or "detect my city" could not reach Google (no key, offline,
+   * refused), or the server could not look up a place it was sent (503).
+   */
   | 'placesUnavailable'
   | 'rateLimited'
   | 'network'

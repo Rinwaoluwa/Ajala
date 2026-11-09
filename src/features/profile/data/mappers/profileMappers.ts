@@ -97,7 +97,7 @@ export function toMyProfile(dto: MeDto): MyProfile {
  */
 export function toProfileError(
   e: unknown,
-  context: { handle?: boolean; person?: boolean } = {},
+  context: { handle?: boolean; person?: boolean; places?: boolean } = {},
 ): ProfileError {
   if (e instanceof ProfileError) return e;
   // Google could not be reached or refused the key: every kind reads the same to the person.
@@ -128,6 +128,8 @@ export function toProfileError(
     if (e.code === 'CONFLICT') code = 'handleTaken';
     else if (e.code === 'VALIDATION_FAILED' || e.code === 'BAD_REQUEST') code = 'handleInvalid';
   }
+  // A save naming a place: the server could not look it up (its Google Places is down or not set up).
+  if (!code && context.places && e.code === 'SERVICE_UNAVAILABLE') code = 'placesUnavailable';
   if (!code && (e.code === 'VALIDATION_FAILED' || e.code === 'BAD_REQUEST')) code = 'invalidDetails';
 
   const availableAt = typeof e.details?.availableAt === 'string' ? e.details.availableAt : null;

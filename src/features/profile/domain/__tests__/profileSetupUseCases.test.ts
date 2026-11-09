@@ -1,6 +1,7 @@
 import { describe, expect, it } from '@jest/globals';
 
 import type { MyProfile, ProfileUpdate } from '../entities/Profile';
+import { ProfileError } from '../entities/ProfileError';
 import type { ProfileRepository } from '../repositories/ProfileRepository';
 import { makeCheckHandle, makeChooseHandle, makeSaveSetup, makeSearchCities } from '../usecases/ProfileSetupUseCases';
 
@@ -61,6 +62,34 @@ const answers = {
 };
 
 describe('saving setup', () => {
+  it('still finishes setup without the places when the server cannot look them up', async () => {
+    const { repo, updates } = fakeRepo();
+    const update = repo.updateProfile;
+    repo.updateProfile = async (u) => {
+      if (u.homePlaceId || u.favouriteDestinationIds) {
+        updates.push(u);
+        throw new ProfileError('placesUnavailable');
+      }
+      return update(u);
+    };
+    await makeSaveSetup(repo)({ ...answers, favouriteDestinationIds: ['ChIJ-accra'] });
+    expect(updates).toHaveLength(2);
+    expect(updates[1]).not.toHaveProperty('homePlaceId');
+    expect(updates[1]).not.toHaveProperty('favouriteDestinationIds');
+    expect(updates[1]).toMatchObject({ languages: ['en', 'es'], gender: 'woman' });
+  });
+
+  it('does not retry a save that failed for another reason', async () => {
+    const { repo } = fakeRepo();
+    let calls = 0;
+    repo.updateProfile = async () => {
+      calls += 1;
+      throw new ProfileError('network');
+    };
+    await expect(makeSaveSetup(repo)(answers)).rejects.toMatchObject({ code: 'network' });
+    expect(calls).toBe(1);
+  });
+
   it('sends the whole setup in one update', async () => {
     const { repo, updates } = fakeRepo();
     await makeSaveSetup(repo)({

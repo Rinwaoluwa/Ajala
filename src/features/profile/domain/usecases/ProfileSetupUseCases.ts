@@ -82,7 +82,16 @@ export const makeSaveSetup = (repo: ProfileRepository) => async (answers: SetupA
   const interests = answers.interestIds ?? [];
   if (interests.length >= MIN_INTERESTS) update.interestIds = interests.slice(0, MAX_INTERESTS);
 
-  return repo.updateProfile(update);
+  try {
+    return await repo.updateProfile(update);
+  } catch (e) {
+    // The server could not look the places up: save the rest so setup still
+    // finishes. The city and destinations can be set again from Edit profile.
+    const hasPlaces = update.homePlaceId !== undefined || update.favouriteDestinationIds !== undefined;
+    if (!hasPlaces || !(e instanceof ProfileError) || e.code !== 'placesUnavailable') throw e;
+    const { homePlaceId: _city, favouriteDestinationIds: _destinations, ...rest } = update;
+    return repo.updateProfile(rest);
+  }
 };
 
 /**
