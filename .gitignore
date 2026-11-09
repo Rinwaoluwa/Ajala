@@ -25,3 +25,5 @@ expo-env.d.ts
 # @end expo-cli
 
 .claude/settings.local.json
+# Native build output of local modules
+modules/*/android/build/
