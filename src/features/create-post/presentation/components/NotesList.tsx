@@ -15,7 +15,10 @@ import { wizardCopy } from '../copy';
  * remove it; "+ Add schedule item" below. The first two rows' placeholders are
  * the design's examples ("Doors open", "Main event").
  *
- * The lines are sent in this order as `schedule` or `itinerary`.
+ * The lines are sent in this order as `schedule` or `itinerary`: up to 30 of
+ * 120 characters each (backend answers A2), which the add link and the typing
+ * cap keep to. `error` says when a list still breaks them — a draft saved
+ * elsewhere, or the server turning one down.
  */
 
 export type NotesListProps = {
@@ -27,6 +30,7 @@ export type NotesListProps = {
   onRemove: (key: string) => void;
   onMove: (from: number, to: number) => void;
   onAdd: () => void;
+  error?: string | null;
 };
 
 export function NotesList({
@@ -38,6 +42,7 @@ export function NotesList({
   onRemove,
   onMove,
   onAdd,
+  error,
 }: NotesListProps) {
   const theme = useTheme();
   return (
@@ -65,6 +70,11 @@ export function NotesList({
           )}
         />
       </View>
+      {error ? (
+        <Text variant="bodySm" tone="destructive" accessibilityLiveRegion="polite" style={{ marginTop: 8 }}>
+          {error}
+        </Text>
+      ) : null}
       {notes.length < NOTES_MAX ? (
         <TouchableOpacity
           activeOpacity={0.6}

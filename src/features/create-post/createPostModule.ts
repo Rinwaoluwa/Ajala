@@ -1,5 +1,6 @@
 import { pickImages } from '@core/media/imagePicker';
 
+import { googlePlaceFinder } from './data/datasources/native/placeFinder';
 import { devicePlaceLocator } from './data/datasources/native/placeLocator';
 import type { PostRequest } from './data/datasources/remote/postApi';
 import { createPostRepository } from './data/repositories/PostRepositoryImpl';
@@ -7,14 +8,17 @@ import {
   makeListInterests,
   makeLoadDraft,
   makeLocatePlace,
+  makePlaceDetails,
   makePublishPost,
   makeSaveDraft,
-  makeSearchCities,
+  makeSearchPlaces,
 } from './domain/usecases/CreatePostUseCases';
 
 /**
  * The feature's composition root. `request` makes calls as the signed-in person
- * (auth's `AuthorizedRequest`), handed in by the presentation layer.
+ * (auth's `AuthorizedRequest`), handed in by the presentation layer. Place
+ * search goes to Google through `@core/places`; a typed meeting point that was
+ * not picked from it is found by the phone's own geocoder.
  */
 export function createPostUseCases(request: PostRequest) {
   const repo = createPostRepository(request);
@@ -24,7 +28,9 @@ export function createPostUseCases(request: PostRequest) {
     locatePlace: makeLocatePlace(devicePlaceLocator),
     listInterests: makeListInterests(repo),
     loadDraft: makeLoadDraft(repo),
-    searchCities: makeSearchCities(repo),
+    searchPlaces: makeSearchPlaces(googlePlaceFinder),
+    placeDetails: makePlaceDetails(googlePlaceFinder),
+    endPlaceSearch: () => googlePlaceFinder.endSession(),
   };
 }
 

@@ -21,6 +21,13 @@ export type CreatePostErrorCode =
   | 'suspended'
   /** The meeting point could not be found on the map. */
   | 'placeNotFound'
+  /** Google place search failed (no key, Google down, offline): the pickers can't search. */
+  | 'placesUnavailable'
+  /**
+   * 503 SERVICE_UNAVAILABLE: the server is handling too many uploads, or its
+   * map lookup for the place is down (spec §2.12). Trying again shortly helps.
+   */
+  | 'busy'
   | 'rateLimited'
   | 'network'
   | 'sessionExpired'

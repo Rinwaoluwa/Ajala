@@ -4,9 +4,9 @@ import { Text } from '@shared/components';
 import { useTheme } from '@shared/hooks/useTheme';
 
 /**
- * The worked-out price (Figma "ESTIMATED SPLIT / About ₦15,000 each", or an
- * Event's "ENTRY COST / ₦5,000 per person"): a caps label, the amount large in
- * teal, and a line on what it is based on. The amount fades as it changes.
+ * The price as travellers will read it ("PRICE / ₦5,000 per person"): a caps
+ * label, the amount large in teal, and a line on where it shows. Only drawn
+ * once a price is typed. The amount fades as it changes.
  */
 export function EstimateCard({ label, amount, body }: { label: string; amount: string; body: string }) {
   const theme = useTheme();

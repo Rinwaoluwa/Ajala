@@ -7,7 +7,6 @@ import { createPostApi, type PostRequest } from '../datasources/remote/postApi';
 import {
   toCreateFields,
   toCreatePostError,
-  toDraftCity,
   toInterest,
   toSavedPost,
   toUpdateBody,
@@ -15,8 +14,9 @@ import {
 } from '../mappers/postMappers';
 
 /**
- * `PostRepository` over the API. Nothing is cached here: the interests and the
- * city search are cached by the screens' queries.
+ * `PostRepository` over the API. Nothing is cached here: the interests are
+ * cached by the screens' queries. Place search is not the API's (see
+ * `placeFinder`).
  */
 export function createPostRepository(request: PostRequest): PostRepository {
   const api = createPostApi(request);
@@ -52,7 +52,5 @@ export function createPostRepository(request: PostRequest): PostRepository {
       guard(async () => void (await api.replaceImages(postId, await asFiles(photos)))),
     publish: (postId) => guard(async () => void (await api.publish(postId))),
     listInterests: () => guard(async () => (await api.listInterests()).map(toInterest)),
-    searchCities: (query, limit) =>
-      guard(async () => (await api.searchCities(query, limit)).map(toDraftCity)),
   };
 }

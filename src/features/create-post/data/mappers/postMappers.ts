@@ -1,10 +1,9 @@
 import { isApiError } from '@core/api/ApiError';
 
 import { CreatePostError, type CreatePostErrorCode } from '../../domain/entities/CreatePostError';
-import type { DraftCity, Interest, PostSubmission, SavedPost } from '../../domain/entities/PostDraft';
-import { canRepeat, needsCity, sharesCost } from '../../domain/rules/postDraftRules';
+import type { Interest, PostSubmission, SavedPost } from '../../domain/entities/PostDraft';
+import { canRepeat, hasPrice } from '../../domain/rules/postDraftRules';
 import type {
-  CityDto,
   CreatePostFieldsDto,
   InterestDto,
   SavedPostDto,
@@ -19,16 +18,13 @@ export function toCreateFields(s: PostSubmission, status: 'draft' | 'published')
     description: s.description,
     startAt: s.startAt,
     endAt: s.endAt,
-    cityId: s.cityId,
+    placeId: s.placeId,
     lat: s.lat,
     lng: s.lng,
     placeName: s.placeName,
     capacity: s.capacity,
     priceCents: s.priceCents,
     currency: s.currency,
-    costTotalCents: s.cost?.totalCents,
-    costCurrency: s.cost?.currency,
-    expectedCount: s.cost?.expectedCount,
     externalUrl: s.externalUrl,
     waitlistEnabled: s.waitlistEnabled,
     visibility: s.visibility,
@@ -43,42 +39,47 @@ export function toCreateFields(s: PostSubmission, status: 'draft' | 'published')
 }
 
 /**
+ * Where the post goes on an edit (spec §2.12): a place id or a pin, never both,
+ * and never null. With neither, nothing is sent and the post keeps its place:
+ * the API has no way to clear one (`lat`/`lng` are not nullable).
+ */
+function placeBody(s: PostSubmission): Pick<UpdatePostDto, 'placeId' | 'lat' | 'lng'> {
+  if (s.placeId) return { placeId: s.placeId };
+  if (s.lat !== undefined && s.lng !== undefined) return { lat: s.lat, lng: s.lng };
+  return {};
+}
+
+/**
  * The PATCH body. A field left blank since the last save is cleared with null
- * (spec §6: "send null to clear"); the pin is sent or cleared as a pair, and the
- * cost split as a three.
+ * (spec §6: "send null to clear"), except the place, which can only be moved.
  *
  * Fields only some types take are sent, even as null, only on those types: the
- * API answers a type-only field on the wrong type with a 400. `cityId` is sent
- * only without a pin, since the API refuses it while the post has one.
+ * API answers a type-only field on the wrong type with a 400. So a Plan never
+ * carries a price, currency or link.
  */
 export function toUpdateBody(s: PostSubmission): UpdatePostDto {
-  const pinned = s.lat !== undefined && s.lng !== undefined;
   return {
     title: s.title,
     ...(s.description !== undefined ? { description: s.description } : null),
     ...(s.startAt !== undefined ? { startAt: s.startAt } : null),
     endAt: s.endAt ?? null,
-    lat: s.lat ?? null,
-    lng: s.lng ?? null,
-    // Null here means the host's home city, as a fresh post without either would get.
-    ...(!pinned && needsCity(s.type) ? { cityId: s.cityId ?? null } : null),
+    ...placeBody(s),
     placeName: s.placeName ?? null,
     capacity: s.capacity ?? null,
-    // Cleared on a Plan or Group too: older drafts carried their split as a price.
-    priceCents: s.priceCents ?? null,
-    currency: s.currency ?? null,
-    ...(sharesCost(s.type)
+    // Skipping the price step clears both, so an earlier save's price or link goes too.
+    ...(hasPrice(s.type)
       ? {
-          costTotalCents: s.cost?.totalCents ?? null,
-          costCurrency: s.cost?.currency ?? null,
-          expectedCount: s.cost?.expectedCount ?? null,
+          priceCents: s.priceCents ?? null,
+          currency: s.currency ?? null,
+          externalUrl: s.externalUrl ?? null,
         }
       : null),
-    externalUrl: s.externalUrl ?? null,
     waitlistEnabled: s.waitlistEnabled,
     visibility: s.visibility,
     showOnMap: s.showOnMap,
-    interestIds: s.interestIds,
+    // The API wants 1–3 interests whenever the field is sent, even on a draft, so a
+    // draft saved before any are picked leaves it out (an empty list is a 400).
+    ...(s.interestIds.length ? { interestIds: s.interestIds } : null),
     ...(s.type === 'event' ? { schedule: s.schedule ?? null } : null),
     ...(s.type === 'plan' ? { itinerary: s.itinerary ?? null } : null),
     ...(canRepeat(s.type)
@@ -94,12 +95,6 @@ export const toInterest = (dto: InterestDto): Interest => ({
   id: dto.id,
   name: dto.name,
   emoji: dto.emoji ?? null,
-});
-
-export const toDraftCity = (dto: CityDto): DraftCity => ({
-  id: dto.id,
-  name: dto.name,
-  label: dto.label || dto.name,
 });
 
 /**
@@ -124,6 +119,8 @@ export function toCreatePostError(e: unknown, creatingDraft = false): CreatePost
     UNSUPPORTED_MEDIA_TYPE: 'imageNotSupported',
     FORBIDDEN: 'suspended',
     RATE_LIMITED: 'rateLimited',
+    // Uploads busy, or the server's map lookup is down: worth another go shortly.
+    SERVICE_UNAVAILABLE: 'busy',
     NETWORK: 'network',
     TIMEOUT: 'network',
     UNAUTHORIZED: 'sessionExpired',
@@ -146,19 +143,14 @@ export function toSavedPost(dto: SavedPostDto): SavedPost {
     startAt: dto.startAt ?? null,
     endAt: dto.endAt ?? null,
     placeName: dto.placeName ?? null,
+    placeId: dto.placeId ?? null,
+    formattedAddress: dto.formattedAddress ?? null,
+    localityLabel: dto.localityLabel ?? null,
     lat: dto.lat ?? null,
     lng: dto.lng ?? null,
-    city: dto.city ? { id: dto.city.id, name: dto.city.name, label: dto.city.label } : null,
     capacity: dto.capacity ?? null,
     priceCents,
     currency: dto.price?.currency ?? null,
-    costSplit: dto.costSplit
-      ? {
-          totalCents: hundredths(dto.costSplit.totalCents, dto.costSplit.exponent),
-          currency: dto.costSplit.currency,
-          expectedCount: dto.costSplit.expectedCount,
-        }
-      : null,
     externalUrl: dto.externalUrl ?? null,
     waitlistEnabled: !!dto.waitlistEnabled,
     visibility: dto.visibility === 'private' ? 'private' : 'open',

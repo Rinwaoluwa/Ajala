@@ -6,11 +6,10 @@ import {
   firstIncompleteStep,
   isHttpsUrl,
   move,
-  costOf,
   parseWhole,
-  previewEach,
   priceCentsOf,
   stepOfField,
+  stepsFor,
   stepCapacity,
   stepIssues,
   toIsoWithOffset,
@@ -32,9 +31,9 @@ function ready(kind: PostDraft['kind'] = 'meetup'): PostDraft {
     photos: [photo(1), photo(2)],
     title: 'Black American Cultural Celebration',
     description: 'Soul food, jazz and community.',
-    city:
+    destination:
       kind === 'plan' || kind === 'group'
-        ? { id: 'ams', name: 'Amsterdam', label: 'Amsterdam, Netherlands' }
+        ? { placeId: 'g-ams', name: 'Amsterdam', address: 'Amsterdam, Netherlands', coords: { lat: 52.37, lng: 4.9 } }
         : null,
     date: new Date(2026, 9, 22),
     startTime: new Date(2026, 0, 1, 17, 30),
@@ -55,8 +54,10 @@ describe('the steps', () => {
     });
   });
 
-  it('asks a Plan or Group for its city, and not a Meetup', () => {
-    expect(stepIssues({ ...ready('plan'), city: null }, 'basics', NOW)).toEqual({ city: 'required' });
+  it('asks a Plan or Group for its destination, and not a Meetup', () => {
+    expect(stepIssues({ ...ready('plan'), destination: null }, 'basics', NOW)).toEqual({
+      destination: 'required',
+    });
     expect(canLeaveStep(ready('meetup'), 'basics', NOW)).toBe(true);
   });
 
@@ -70,15 +71,39 @@ describe('the steps', () => {
   it('needs a meeting point for a Meetup or Event, not for a Plan', () => {
     expect(stepIssues({ ...ready('event'), place: '' }, 'schedule', NOW).place).toBe('required');
     expect(stepIssues({ ...ready('plan'), place: '' }, 'schedule', NOW).place).toBeUndefined();
+    expect(stepIssues({ ...ready('plan'), place: '' }, 'schedule', NOW).place).toBeUndefined();
   });
 
-  it('holds a paid Event until it has an https link', () => {
-    const paid = { ...ready('event'), costOn: true, amount: '5000' };
-    expect(stepIssues(paid, 'cost', NOW).externalUrl).toBe('required');
-    expect(stepIssues({ ...paid, externalUrl: 'http://tix.example.com' }, 'cost', NOW).externalUrl).toBe(
+  it('lets a paid Event go on without a link, and holds only a link that is not https', () => {
+    const paid = { ...ready('event'), price: '5000' };
+    expect(canLeaveStep(paid, 'price', NOW)).toBe(true);
+    expect(stepIssues({ ...paid, externalUrl: 'http://tix.example.com' }, 'price', NOW).externalUrl).toBe(
       'notHttps',
     );
-    expect(canLeaveStep({ ...paid, externalUrl: 'https://tix.example.com/a' }, 'cost', NOW)).toBe(true);
+    expect(canLeaveStep({ ...paid, externalUrl: 'https://tix.example.com/a' }, 'price', NOW)).toBe(true);
+  });
+
+  it('lets every priced type leave the price step blank', () => {
+    for (const kind of ['meetup', 'event', 'group'] as const)
+      expect(stepIssues(ready(kind), 'price', NOW)).toEqual({});
+  });
+
+  it('walks a Plan through four steps, with no price step', () => {
+    expect(stepsFor('plan')).toEqual(['basics', 'schedule', 'participants', 'review']);
+    expect(stepsFor('group')).toEqual(['basics', 'schedule', 'participants', 'price', 'review']);
+    // Whatever a Plan's draft holds there, it does not stand in the way of publishing.
+    expect(firstIncompleteStep({ ...ready('plan'), price: 'abc', externalUrl: 'nope' }, NOW)).toBeNull();
+  });
+
+  it('holds an Event schedule or Plan itinerary over 30 lines or 120 characters a line', () => {
+    const lines = (n: number, text = 'Stop') => Array.from({ length: n }, (_, i) => ({ key: `n${i}`, text }));
+    expect(stepIssues({ ...ready('plan'), notes: lines(31) }, 'schedule', NOW).notes).toBe('tooManyLines');
+    expect(stepIssues({ ...ready('event'), notes: lines(1, 'x'.repeat(121)) }, 'schedule', NOW).notes).toBe(
+      'lineTooLong',
+    );
+    expect(stepIssues({ ...ready('plan'), notes: lines(30, 'x'.repeat(120)) }, 'schedule', NOW).notes).toBeUndefined();
+    // A Meetup has no list, so its lines are never checked or sent.
+    expect(stepIssues({ ...ready('meetup'), notes: lines(31) }, 'schedule', NOW).notes).toBeUndefined();
   });
 
   it('holds a monthly Group to the 1st to the 28th, and its last date to after the first', () => {
@@ -122,44 +147,47 @@ describe('money', () => {
     expect(parseWhole('12.5')).toBeNull();
   });
 
-  it("sends a Plan's total and head count, never a per-person price", () => {
-    const draft = { ...ready('plan'), costOn: true, amount: '60000', expected: '4' };
-    expect(costOf(draft)).toEqual({ totalCents: 6_000_000, currency: 'NGN', expectedCount: 4 });
-    expect(priceCentsOf(draft)).toBeNull();
-    // Only a preview for the screen; the server does the real split.
-    expect(previewEach({ ...draft, amount: '100', expected: '3' })).toBe(34);
+  it('takes a Meetup, Event or Group amount as a price per person', () => {
+    expect(priceCentsOf({ ...ready('event'), price: '5000' })).toBe(500_000);
+    expect(priceCentsOf({ ...ready('meetup'), price: '5000' })).toBe(500_000);
+    expect(priceCentsOf({ ...ready('group'), price: '5000' })).toBe(500_000);
   });
 
-  it('takes a Meetup or Event amount as a price per person', () => {
-    expect(priceCentsOf({ ...ready('event'), costOn: true, amount: '5000' })).toBe(500_000);
-    expect(priceCentsOf({ ...ready('meetup'), costOn: true, amount: '5000' })).toBe(500_000);
-    expect(costOf({ ...ready('meetup'), costOn: true, amount: '5000' })).toBeNull();
+  it('never prices a Plan', () => {
+    expect(priceCentsOf({ ...ready('plan'), price: '5000' })).toBeNull();
   });
 
-  it('keeps a shared total and head count within the API limits', () => {
-    const plan = { ...ready('plan'), costOn: true, amount: '20000000', expected: '4' };
-    expect(stepIssues(plan, 'cost', NOW).amount).toBe('totalRange');
-    expect(stepIssues({ ...plan, amount: '100', expected: '200000' }, 'cost', NOW).expected).toBe(
-      'expectedRange',
-    );
+  it('holds a typed price the API would refuse', () => {
+    expect(stepIssues({ ...ready('event'), price: '2000000' }, 'price', NOW).price).toBe('priceRange');
+    expect(stepIssues({ ...ready('event'), price: '12.5' }, 'price', NOW).price).toBe('priceRange');
+    expect(stepIssues({ ...ready('event'), price: '1000000' }, 'price', NOW).price).toBeUndefined();
   });
 });
 
 describe('server errors', () => {
   it('sends each field the server turned down to its step', () => {
-    expect(stepOfField('itinerary[2]')).toBe('schedule');
-    expect(stepOfField('recurrence')).toBe('schedule');
-    expect(stepOfField('endAt')).toBe('schedule');
-    expect(stepOfField('cityId')).toBe('basics');
-    expect(stepOfField('costTotalCents')).toBe('cost');
-    expect(stepOfField('interestIds')).toBe('review');
-    expect(stepOfField('somethingNew')).toBe('review');
+    expect(stepOfField('itinerary[2]', 'plan')).toBe('schedule');
+    expect(stepOfField('schedule', 'event')).toBe('schedule');
+    expect(stepOfField('recurrence', 'group')).toBe('schedule');
+    expect(stepOfField('endAt', 'event')).toBe('schedule');
+    // "A place is needed": a Plan's is its destination, a Meetup's its meeting point.
+    expect(stepOfField('placeId', 'plan')).toBe('basics');
+    expect(stepOfField('placeId', 'meetup')).toBe('schedule');
+    expect(stepOfField('lat', 'event')).toBe('schedule');
+    expect(stepOfField('priceCents', 'event')).toBe('price');
+    expect(stepOfField('externalUrl', 'group')).toBe('price');
+    expect(stepOfField('interestIds', 'meetup')).toBe('review');
+    expect(stepOfField('somethingNew', 'meetup')).toBe('review');
+  });
+
+  it('keeps a price error on a Plan on the review step, as it has no price step', () => {
+    expect(stepOfField('priceCents', 'plan')).toBe('review');
   });
 });
 
 describe('what is sent', () => {
   it('builds the form, leaving blank fields out', () => {
-    const s = toSubmission({ ...ready(), costOn: true, amount: '15000', expected: '4' });
+    const s = toSubmission({ ...ready(), price: '15000' });
     expect(s).toMatchObject({
       type: 'meetup',
       title: 'Black American Cultural Celebration',
@@ -174,8 +202,8 @@ describe('what is sent', () => {
       interestIds: ['food'],
     });
     expect(s.startAt).toMatch(/^2026-10-22T17:30:00[+-]\d{2}:\d{2}$/);
-    // A Meetup has no lines, cost split or repeat in the API, whatever the draft holds.
-    for (const key of ['schedule', 'itinerary', 'cost', 'recurrence', 'cityId', 'endAt', 'externalUrl'])
+    // A Meetup has no lines or repeat in the API, whatever the draft holds.
+    for (const key of ['schedule', 'itinerary', 'recurrence', 'placeId', 'cityId', 'endAt', 'externalUrl'])
       expect(s).not.toHaveProperty(key);
   });
 
@@ -187,7 +215,7 @@ describe('what is sent', () => {
     ).not.toHaveProperty('endAt');
   });
 
-  it("names a Plan's city when it has no pin, and sends its lines as the itinerary", () => {
+  it("sends a Plan's destination as its place when it has no meeting point, and its lines as the itinerary", () => {
     const plan = {
       ...ready('plan'),
       place: '',
@@ -198,13 +226,24 @@ describe('what is sent', () => {
       ],
     };
     const s = toSubmission(plan);
-    expect(s).toMatchObject({ cityId: 'ams', itinerary: ['Day 1 · Arrival + dinner'] });
-    for (const key of ['lat', 'lng', 'placeName', 'schedule']) expect(s).not.toHaveProperty(key);
+    // The label is the city's name, as the server would choose.
+    expect(s).toMatchObject({ placeId: 'g-ams', placeName: 'Amsterdam', itinerary: ['Day 1 · Arrival + dinner'] });
+    for (const key of ['lat', 'lng', 'cityId', 'schedule']) expect(s).not.toHaveProperty(key);
   });
 
-  it('lets the pin decide the city when there is one', () => {
-    expect(toSubmission(ready('plan'))).toMatchObject({ lat: 6.44, lng: 3.47 });
-    expect(toSubmission(ready('plan'))).not.toHaveProperty('cityId');
+  it('sends one place, never a place id with a pin: venue, then typed pin, then destination', () => {
+    const terra = { placeId: 'g-terra', name: 'Terra Kulture', address: 'Victoria Island', coords: { lat: 6.43, lng: 3.42 } };
+    // A picked venue goes by its id, even though its coordinates are known.
+    const picked = toSubmission({ ...ready('meetup'), place: 'Terra Kulture', venue: terra, placeCoords: null });
+    expect(picked).toMatchObject({ placeId: 'g-terra', placeName: 'Terra Kulture' });
+    for (const key of ['lat', 'lng']) expect(picked).not.toHaveProperty(key);
+    // A typed meeting point on a Plan beats the destination.
+    const typed = toSubmission(ready('plan'));
+    expect(typed).toMatchObject({ lat: 6.44, lng: 3.47, placeName: 'Lekki, Lagos' });
+    expect(typed).not.toHaveProperty('placeId');
+    // Nothing found yet on a Meetup: no place at all, rather than a half one.
+    const none = toSubmission({ ...ready('meetup'), placeCoords: null });
+    for (const key of ['placeId', 'lat', 'lng']) expect(none).not.toHaveProperty(key);
   });
 
   it("sends an Event's lines as its schedule and a Group's repeat", () => {
@@ -223,8 +262,26 @@ describe('what is sent', () => {
     expect(s).not.toHaveProperty('itinerary');
   });
 
-  it('sends no price while the cost is off, whatever was typed', () => {
-    expect(toSubmission({ ...ready(), costOn: false, amount: '500' })).not.toHaveProperty('priceCents');
+  it('sends no price or link when they were left blank', () => {
+    const s = toSubmission({ ...ready('event'), price: ' ', externalUrl: '' });
+    for (const key of ['priceCents', 'currency', 'externalUrl']) expect(s).not.toHaveProperty(key);
+  });
+
+  it('sends a paid Event its price and link, and a Group its price', () => {
+    expect(
+      toSubmission({ ...ready('event'), price: '5000', currency: 'USD', externalUrl: ' https://tix.ng/e/1 ' }),
+    ).toMatchObject({ priceCents: 500_000, currency: 'USD', externalUrl: 'https://tix.ng/e/1' });
+    expect(toSubmission({ ...ready('group'), price: '2000' })).toMatchObject({ priceCents: 200_000 });
+  });
+
+  it('never sends a price, currency or link on a Plan, whatever the draft holds', () => {
+    const s = toSubmission({ ...ready('plan'), price: '5000', currency: 'USD', externalUrl: 'https://x.ng/a' });
+    for (const key of ['priceCents', 'currency', 'externalUrl']) expect(s).not.toHaveProperty(key);
+  });
+
+  it('sends every line as typed, not cut to the limits', () => {
+    const long = 'x'.repeat(130);
+    expect(toSubmission({ ...ready('plan'), notes: [{ key: 'a', text: long }] }).itinerary).toEqual([long]);
   });
 
   it("writes the phone's offset into the start", () => {

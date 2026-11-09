@@ -10,14 +10,16 @@ const saved: SavedPost = {
   description: 'Canal walk and dinner.',
   startAt: '2026-11-18T19:30:00+01:00',
   endAt: '2026-11-18T23:00:00+01:00',
+  // A typed meeting point, found as a pin: no place id or address.
   placeName: 'Amsterdam Centrum',
+  placeId: null,
+  formattedAddress: null,
+  localityLabel: 'Amsterdam, Netherlands',
   lat: 52.37,
   lng: 4.9,
-  city: { id: 'ams', name: 'Amsterdam', label: 'Amsterdam, Netherlands' },
   capacity: 8,
   priceCents: null,
   currency: null,
-  costSplit: { totalCents: 6_000_000, currency: 'NGN', expectedCount: 4 },
   externalUrl: null,
   waitlistEnabled: true,
   visibility: 'private',
@@ -36,17 +38,16 @@ describe('carrying on with a saved draft', () => {
       kind: 'plan',
       title: 'Amsterdam After Dark',
       description: 'Canal walk and dinner.',
-      city: { id: 'ams', name: 'Amsterdam', label: 'Amsterdam, Netherlands' },
+      destination: { placeId: null, name: 'Amsterdam', address: 'Amsterdam, Netherlands' },
       place: 'Amsterdam Centrum',
+      venue: null,
       placeCoords: { lat: 52.37, lng: 4.9 },
       capacity: 8,
       visibility: 'private',
       showOnMap: false,
       waitlist: true,
-      costOn: true,
-      currency: 'NGN',
-      amount: '60000',
-      expected: '4',
+      price: '',
+      externalUrl: '',
       interestIds: ['food', 'art', 'music'],
     });
     expect(d.endTime?.getTime()).toBe(new Date('2026-11-18T23:00:00+01:00').getTime());
@@ -55,27 +56,66 @@ describe('carrying on with a saved draft', () => {
     expect(d.date && d.startTime).toBeTruthy();
   });
 
-  it('sends back the same shared cost, end and itinerary it was saved with', () => {
+  it('sends back the same end and itinerary it was saved with', () => {
     const s = toSubmission(draftFromSaved(saved));
-    expect(s).toMatchObject({
-      cost: { totalCents: 6_000_000, currency: 'NGN', expectedCount: 4 },
-      itinerary: ['Day 1 · Arrival', 'Day 2 · Museums'],
-    });
+    expect(s).toMatchObject({ itinerary: ['Day 1 · Arrival', 'Day 2 · Museums'] });
     expect(s).not.toHaveProperty('priceCents');
     expect(new Date(s.endAt ?? '').getTime()).toBe(new Date(saved.endAt ?? '').getTime());
   });
 
-  it('keeps the city of a Plan with no pin, and sends it as cityId', () => {
-    const d = draftFromSaved({ ...saved, lat: null, lng: null, placeName: null });
-    expect(d.city?.id).toBe('ams');
-    expect(toSubmission(d)).toMatchObject({ cityId: 'ams' });
+  it("keeps a Plan's destination as its place when its label is just the city", () => {
+    const d = draftFromSaved({ ...saved, placeId: 'g-ams', placeName: 'Amsterdam' });
+    expect(d).toMatchObject({ destination: { placeId: 'g-ams', name: 'Amsterdam' }, place: '', venue: null });
+    expect(toSubmission(d)).toMatchObject({ placeId: 'g-ams', placeName: 'Amsterdam' });
     expect(toSubmission(d)).not.toHaveProperty('lat');
   });
 
-  it("carries an older Plan's per-person price over as a total for one", () => {
-    const d = draftFromSaved({ ...saved, costSplit: null, priceCents: 1_500_000, currency: 'USD' });
-    expect(d).toMatchObject({ costOn: true, currency: 'USD', amount: '15000', expected: '1' });
-    expect(toSubmission(d).cost).toEqual({ totalCents: 1_500_000, currency: 'USD', expectedCount: 1 });
+  it("restores a picked venue and sends it back by its id, keeping a Plan's destination unsent", () => {
+    const d = draftFromSaved({
+      ...saved,
+      placeId: 'g-ams-centraal',
+      placeName: 'Amsterdam Centraal',
+      formattedAddress: 'Stationsplein, Amsterdam, Netherlands',
+    });
+    expect(d).toMatchObject({
+      place: 'Amsterdam Centraal',
+      venue: { placeId: 'g-ams-centraal', address: 'Stationsplein, Amsterdam, Netherlands' },
+      placeCoords: null,
+      // The server no longer says which Google place the city was.
+      destination: { placeId: null, name: 'Amsterdam' },
+    });
+    const s = toSubmission(d);
+    expect(s).toMatchObject({ placeId: 'g-ams-centraal', placeName: 'Amsterdam Centraal' });
+    for (const key of ['lat', 'lng']) expect(s).not.toHaveProperty(key);
+  });
+
+  it("restores a Meetup's venue, or its typed place with the pin", () => {
+    const meetup = { ...saved, type: 'meetup' as const, itinerary: [] };
+    const venue = draftFromSaved({ ...meetup, placeId: 'g-terra', placeName: 'Terra Kulture' });
+    expect(venue).toMatchObject({ destination: null, place: 'Terra Kulture', venue: { placeId: 'g-terra' } });
+    const typed = draftFromSaved(meetup);
+    expect(typed).toMatchObject({ place: 'Amsterdam Centrum', venue: null, placeCoords: { lat: 52.37, lng: 4.9 } });
+    expect(toSubmission(typed)).toMatchObject({ lat: 52.37, lng: 4.9 });
+  });
+
+  it("drops an older Plan's price and link, since a Plan carries no money now", () => {
+    const d = draftFromSaved({ ...saved, priceCents: 1_500_000, currency: 'USD', externalUrl: 'https://x.ng/a' });
+    expect(d).toMatchObject({ price: '', currency: 'NGN', externalUrl: '' });
+    const s = toSubmission(d);
+    for (const key of ['priceCents', 'currency', 'externalUrl']) expect(s).not.toHaveProperty(key);
+  });
+
+  it("keeps a Group's price and link", () => {
+    const d = draftFromSaved({
+      ...saved,
+      type: 'group',
+      itinerary: [],
+      priceCents: 200_000,
+      currency: 'USD',
+      externalUrl: 'https://club.ng/join',
+    });
+    expect(d).toMatchObject({ price: '2000', currency: 'USD', externalUrl: 'https://club.ng/join' });
+    expect(toSubmission(d)).toMatchObject({ priceCents: 200_000, currency: 'USD', externalUrl: 'https://club.ng/join' });
   });
 
   it("restores a Group's repeat and an Event's price and schedule", () => {
@@ -92,13 +132,12 @@ describe('carrying on with a saved draft', () => {
     const event = draftFromSaved({
       ...saved,
       type: 'event',
-      costSplit: null,
       priceCents: 500_000,
       currency: 'NGN',
       itinerary: [],
       schedule: ['Doors open', 'Main act'],
     });
-    expect(event).toMatchObject({ costOn: true, amount: '5000' });
+    expect(event).toMatchObject({ price: '5000' });
     expect(event.notes.map((n) => n.text)).toEqual(['Doors open', 'Main act']);
     expect(toSubmission(event)).toMatchObject({ priceCents: 500_000, schedule: ['Doors open', 'Main act'] });
   });
@@ -112,12 +151,11 @@ describe('carrying on with a saved draft', () => {
       placeName: null,
       lat: null,
       lng: null,
-      city: null,
+      localityLabel: null,
       capacity: null,
       endAt: null,
       priceCents: null,
       currency: null,
-      costSplit: null,
       itinerary: [],
       imageUrls: [],
     });
@@ -126,7 +164,7 @@ describe('carrying on with a saved draft', () => {
       date: null,
       startTime: null,
       capacity: null,
-      costOn: false,
+      price: '',
       photos: [],
     });
   });

@@ -2,12 +2,13 @@ import { describe, expect, it } from '@jest/globals';
 
 import { CreatePostError } from '../entities/CreatePostError';
 import { emptyDraft } from '../entities/PostDraft';
-import type { PostRepository } from '../repositories/PostRepository';
+import type { PlaceFinder, PostRepository } from '../repositories/PostRepository';
 import {
   makeLocatePlace,
+  makePlaceDetails,
   makePublishPost,
   makeSaveDraft,
-  makeSearchCities,
+  makeSearchPlaces,
 } from '../usecases/CreatePostUseCases';
 
 function fakeRepo() {
@@ -24,10 +25,6 @@ function fakeRepo() {
     replaceImages: async (id, photos) => void calls.push(`images:${id}:${photos.length}`),
     publish: async (id) => void calls.push(`publish:${id}`),
     listInterests: async () => [],
-    searchCities: async (q) => {
-      calls.push(`cities:${q}`);
-      return [];
-    },
   };
   return { repo, calls };
 }
@@ -80,12 +77,31 @@ describe('finding the meeting point', () => {
   });
 });
 
-describe('city search', () => {
-  it('waits for two letters', async () => {
-    const { repo, calls } = fakeRepo();
-    const search = makeSearchCities(repo);
-    expect(await search(' a ')).toEqual([]);
-    await search('Am');
-    expect(calls).toEqual(['cities:Am']);
+describe('place search', () => {
+  function fakeFinder() {
+    const calls: string[] = [];
+    const finder: PlaceFinder = {
+      search: async (kind, text, near, signal) => {
+        calls.push(`${kind}:${text}:${near ? `${near.lat},${near.lng}` : '-'}:${signal ? 'signal' : '-'}`);
+        return [{ placeId: 'g-ams', name: 'Amsterdam', detail: 'Netherlands' }];
+      },
+      details: async (placeId) => ({ placeId, name: 'Amsterdam', address: 'Amsterdam, Netherlands', coords: null }),
+      endSession: () => void calls.push('end'),
+    };
+    return { finder, calls };
+  }
+
+  it('waits for two letters, and passes the area and the abort signal on', async () => {
+    const { finder, calls } = fakeFinder();
+    const search = makeSearchPlaces(finder);
+    expect(await search('cities', ' a ')).toEqual([]);
+    const signal = new AbortController().signal;
+    await search('places', ' Terra ', { lat: 6.4, lng: 3.4 }, signal);
+    expect(calls).toEqual(['places:Terra:6.4,3.4:signal']);
+  });
+
+  it('looks up a picked place', async () => {
+    const { finder } = fakeFinder();
+    expect(await makePlaceDetails(finder)('g-ams')).toMatchObject({ placeId: 'g-ams', name: 'Amsterdam' });
   });
 });

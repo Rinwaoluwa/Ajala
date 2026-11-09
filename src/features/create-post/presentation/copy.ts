@@ -15,8 +15,8 @@ type KindCopy = {
   basics: {
     titlePlaceholder: string;
     descriptionPlaceholder: string;
-    /** Plans and Groups: the city field. */
-    city?: { label: string; placeholder: string };
+    /** Plans and Groups: the destination field, a cities search. */
+    destination?: { label: string; placeholder: string };
     note?: { title: string; body: string };
   };
   schedule: {
@@ -42,22 +42,24 @@ type KindCopy = {
     privateBody: string;
     tip: string;
   };
-  cost: {
+  /**
+   * The price step, which the host may skip. Null for a Plan: Plans carry no
+   * money, since each stop can cost something different and people settle it in
+   * the group chat (backend answers C1/C2).
+   */
+  price: {
     heading: string;
     body: string;
-    toggleTitle: string;
-    toggleBody: string;
-    /** Plans and Groups split a total; Meetups and Events charge per person. */
-    expectedLabel?: string;
-    estimateBody?: (people: number) => string;
+    priceLabel: string;
     noteTitle: string;
     noteBody: string;
-  };
+  } | null;
   review: {
     heading: string;
     body: string;
     peopleLabel: string;
-    costLabel: string;
+    /** The price row's label; a Plan has no price row. */
+    priceLabel?: string;
     publish: string;
   };
   published: { title: string; message: string; action: string };
@@ -93,13 +95,10 @@ export const kindCopy: Record<PostKind, KindCopy> = {
       privateBody: 'You approve attendance requests',
       tip: 'Meet somewhere public for your first meetup.',
     },
-    cost: {
-      // A Meetup cannot split a cost in the API (only Plans and Groups can), so it
-      // takes a price per person, as an Event does.
-      heading: 'Will there be a cost?',
-      body: 'Keep the meetup free or set what each person pays.',
-      toggleTitle: 'Cost per person',
-      toggleBody: 'What each traveller pays to join',
+    price: {
+      heading: 'Is there a price?',
+      body: 'Add what each person pays and a link to pay or book, or skip this if there isn’t one.',
+      priceLabel: 'Price per person (optional)',
       noteTitle: 'Check before paying',
       noteBody:
         'Confirm the event and payment details before sending money. Pressure to pay is a red flag. Read safety tips.',
@@ -108,7 +107,7 @@ export const kindCopy: Record<PostKind, KindCopy> = {
       heading: 'Review your meetup',
       body: 'Make sure everything looks right before you publish.',
       peopleLabel: 'Travellers',
-      costLabel: 'Cost',
+      priceLabel: 'Price',
       publish: 'Publish meetup',
     },
     published: {
@@ -143,11 +142,10 @@ export const kindCopy: Record<PostKind, KindCopy> = {
       privateBody: 'You approve attendance requests',
       tip: 'Meet somewhere public for your meetup.',
     },
-    cost: {
-      heading: 'Ticketing and cost',
-      body: 'Keep the event free or set the amount required to join.',
-      toggleTitle: 'Paid',
-      toggleBody: 'Requires payment to join',
+    price: {
+      heading: 'Ticketing and price',
+      body: 'Add the entry price and a link to pay or book, or skip this if there isn’t one.',
+      priceLabel: 'Entry price per person (optional)',
       noteTitle: sharedNote.title,
       noteBody:
         'This is the entry price per person. Payment arrangements stay between the organiser and attendees.',
@@ -156,7 +154,7 @@ export const kindCopy: Record<PostKind, KindCopy> = {
       heading: 'Review your event',
       body: 'Make sure everything looks right before you publish.',
       peopleLabel: 'Travellers',
-      costLabel: 'Entry price',
+      priceLabel: 'Entry price',
       publish: 'Publish event',
     },
     published: {
@@ -171,7 +169,7 @@ export const kindCopy: Record<PostKind, KindCopy> = {
     basics: {
       titlePlaceholder: 'Name your plan...',
       descriptionPlaceholder: 'What’s the plan? Who should come?',
-      city: { label: 'Destination', placeholder: 'Select city or destination' },
+      destination: { label: 'Destination', placeholder: 'Search for a city' },
       note: {
         title: 'Plan visibility',
         body: 'Your plan can be shown to travellers in the destination you choose.',
@@ -200,22 +198,12 @@ export const kindCopy: Record<PostKind, KindCopy> = {
       privateBody: 'You approve attendance requests',
       tip: 'Meet somewhere public for your first meetup.',
     },
-    cost: {
-      heading: 'How will costs work?',
-      body: 'Keep it free, or show travellers an estimated shared cost.',
-      toggleTitle: 'Total estimated cost',
-      toggleBody: 'Split estimated costs with travellers',
-      expectedLabel: 'Expected travellers',
-      estimateBody: (n) =>
-        `A preview based on ${n} traveller${n === 1 ? '' : 's'}. The split is worked out when you publish, and changes if the group size does.`,
-      noteTitle: sharedNote.title,
-      noteBody: 'This estimate helps everyone plan. Payment arrangements stay between travellers.',
-    },
+    // Plans carry no money, so the wizard skips straight from "Who can join?" to the review.
+    price: null,
     review: {
       heading: 'Review your plan',
       body: 'Make sure everything looks right before you publish.',
       peopleLabel: 'Travellers',
-      costLabel: 'Estimated split',
       publish: 'Publish plan',
     },
     published: {
@@ -230,7 +218,7 @@ export const kindCopy: Record<PostKind, KindCopy> = {
     basics: {
       titlePlaceholder: 'Name your group activity...',
       descriptionPlaceholder: 'What’s the activity about? Who is it for?',
-      city: { label: 'Location', placeholder: 'Select city or area' },
+      destination: { label: 'Location', placeholder: 'Search for a city' },
       note: {
         title: 'Group visibility',
         body: 'Your group activity can be shown to travellers in the location you choose.',
@@ -255,22 +243,18 @@ export const kindCopy: Record<PostKind, KindCopy> = {
       privateBody: 'You approve each new member',
       tip: 'Meet somewhere public for your first group meetup.',
     },
-    cost: {
-      heading: 'Will the group share costs?',
-      body: 'Keep it free, or show members an estimated shared cost.',
-      toggleTitle: 'Total estimated cost',
-      toggleBody: 'Split estimated costs with group members',
-      expectedLabel: 'Expected members',
-      estimateBody: (n) =>
-        `A preview based on ${n} member${n === 1 ? '' : 's'}. The split is worked out when you publish, and changes if the group size does.`,
+    price: {
+      heading: 'Is there a price?',
+      body: 'Add what each member pays and a link to pay or book, or skip this if there isn’t one.',
+      priceLabel: 'Price per person (optional)',
       noteTitle: sharedNote.title,
-      noteBody: 'This estimate helps members plan. Payment arrangements stay between group members.',
+      noteBody: 'Payment arrangements stay between you and your members. Pressure to pay is a red flag.',
     },
     review: {
       heading: 'Review your group activity',
       body: 'Make sure the group details look right before you publish.',
       peopleLabel: 'Members',
-      costLabel: 'Shared cost',
+      priceLabel: 'Price',
       publish: 'Publish group activity',
     },
     published: {
@@ -335,20 +319,18 @@ export const wizardCopy = {
   waitlistTitle: 'Waiting list',
   waitlistBody: 'People can queue for a spot when it’s full',
   amount: 'Amount',
-  linkLabel: 'Link to pay or book',
-  linkLabelOptional: 'Link to pay or book (optional)',
+  currency: 'Currency',
+  linkLabel: 'Link to pay or book (optional)',
   linkPlaceholder: 'https://',
+  /** Moves on from the price step with no price and no link. */
+  skipPrice: 'Skip, no price',
   capacity: 'Capacity',
-  estimatedSplit: 'Estimated split',
-  about: (amount: string) => `About ${amount} each`,
-  entryCost: 'Entry cost',
+  entryCost: 'Price',
   perPerson: (amount: string) => `${amount} per person`,
   shownBeforeJoin: 'Shown to travellers before they join.',
-  free: 'Free',
   noLimitPeople: 'No limit',
   peopleCount: (n: number) => `${n} ${n === 1 ? 'person' : 'people'}`,
-  splitEach: (amount: string) => `≈ ${amount} each`,
-  entry: (amount: string) => `${amount} entry`,
+  link: 'Link',
   joinSetting: 'Join setting',
   meetingPoint: 'Meeting point',
   interests: {
@@ -372,12 +354,13 @@ export const wizardCopy = {
     discard: 'Discard',
     stay: 'Keep editing',
   },
-  city: {
-    sheetTitle: 'Choose a city',
-    search: 'Search city',
-    empty: 'No cities match that search.',
-    failed: 'Cities didn’t load. Check your connection.',
-    hint: 'Type at least two letters.',
+  places: {
+    noCities: 'No cities match that search.',
+    noPlaces: 'No places match. You can keep what you typed.',
+    unavailable: 'Place search isn’t available right now.',
+    /** Under the meeting point when search is down: a typed place still works. */
+    typeInstead: 'Type the full address and we’ll find it on the map.',
+    looking: 'Getting that place…',
   },
   photoChoice: {
     title: 'Add photos',
@@ -393,9 +376,9 @@ export const issueCopy: Record<DraftIssue, string> = {
   inPast: 'Pick a time in the future.',
   endBeforeStart: 'End after the start time.',
   capacityRange: 'Pick a size this type allows.',
-  amountRange: 'Enter an amount between 1 and 1,000,000.',
-  totalRange: 'Enter a total up to 10,000,000.',
-  expectedRange: 'Enter up to 100,000 people.',
+  priceRange: 'Enter a whole amount from 1 to 1,000,000, or skip the price.',
+  tooManyLines: 'Keep it to 30 lines.',
+  lineTooLong: 'Keep each line to 120 characters.',
   monthlyDay: 'A monthly group starts on the 1st to the 28th. Pick an earlier date, or repeat weekly.',
   endsBeforeStart: 'Pick a last date on or after the first.',
   notHttps: 'Use a link that starts with https://',
@@ -407,7 +390,7 @@ export const fieldNames: Record<DraftField, string> = {
   photos: 'Photos (2 to 4)',
   title: 'Title',
   description: 'Description',
-  city: 'Destination',
+  destination: 'Destination',
   date: 'Date',
   startTime: 'Start time',
   endTime: 'End time',
@@ -416,8 +399,7 @@ export const fieldNames: Record<DraftField, string> = {
   recurrence: 'Repeats',
   recurrenceEndsOn: 'Last time it repeats',
   capacity: 'Capacity',
-  amount: 'Amount',
-  expected: 'Expected travellers',
+  price: 'Price',
   externalUrl: 'Link to pay or book',
   interests: 'Interests (1 to 3)',
 };
@@ -430,7 +412,9 @@ export const createPostErrors: Record<CreatePostErrorCode, string> = {
   imageTooLarge: 'A photo is too large. Try a different one.',
   imageNotSupported: 'Use JPEG, PNG or WebP photos.',
   suspended: 'Your account can’t publish right now. Contact support if this seems wrong.',
-  placeNotFound: 'We couldn’t find that place. Add the area or city, like “Lekki, Lagos”.',
+  placeNotFound: 'We couldn’t find that place. Pick one from the list, or add the area or city, like “Lekki, Lagos”.',
+  placesUnavailable: 'Place search isn’t available right now.',
+  busy: 'We’re a little busy. Try again in a moment.',
   rateLimited: 'Too many tries. Wait a moment and try again.',
   network: 'You seem to be offline. Check your connection and try again.',
   sessionExpired: 'Your session ended. Sign in again to continue.',

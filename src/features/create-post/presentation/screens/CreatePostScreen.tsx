@@ -15,15 +15,17 @@ import { createPostErrors, kindCopy, wizardCopy } from '../copy';
 import { useCreatePost } from '../hooks/useCreatePost';
 import { WizardHeader } from '../components/WizardHeader';
 import { BasicsStep } from '../components/steps/BasicsStep';
-import { CostStep } from '../components/steps/CostStep';
 import { ParticipantsStep } from '../components/steps/ParticipantsStep';
+import { PriceStep } from '../components/steps/PriceStep';
 import { ReviewStep } from '../components/steps/ReviewStep';
 import { ScheduleStep } from '../components/steps/ScheduleStep';
 
 /**
  * The create wizard (Figma New meetup / event / plan / group activity, light
- * and dark): five steps under one header, Next at the foot, Publish on the
- * review step, then the published or "That didn't go through" sheet.
+ * and dark): five steps under one header (four for a Plan, which has no price
+ * step), Next at the foot, Publish on the review step, then the published or
+ * "That didn't go through" sheet. The price step adds "Skip" beside Next, since
+ * a price and a link are both optional.
  *
  * Motion: a step slides in a few points from the side it comes from (forward
  * from the right, back from the left) while fading, 240ms; Reduce Motion keeps
@@ -124,6 +126,7 @@ export function CreatePostScreen({ kind, draftId = null, onClose, onPublished }:
           title={copy.header.title}
           subtitle={copy.header.subtitle}
           step={0}
+          stepCount={vm.stepCount}
           onBack={onClose}
           onSaveDraft={() => undefined}
           canSaveDraft={false}
@@ -154,6 +157,7 @@ export function CreatePostScreen({ kind, draftId = null, onClose, onPublished }:
         title={copy.header.title}
         subtitle={copy.header.subtitle}
         step={vm.stepIndex}
+        stepCount={vm.stepCount}
         onBack={() => (vm.stepIndex > 0 ? vm.back() : onClose())}
         onSaveDraft={saveDraft}
         canSaveDraft={vm.canSaveDraft}
@@ -162,6 +166,8 @@ export function CreatePostScreen({ kind, draftId = null, onClose, onPublished }:
       />
 
       <ScrollView
+        // Android draws scrolled content past the edges unless told to clip, over the header above.
+        style={{ flex: 1, overflow: 'hidden' }}
         ref={scroll}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="interactive"
@@ -176,7 +182,7 @@ export function CreatePostScreen({ kind, draftId = null, onClose, onPublished }:
           {vm.step === 'basics' ? <BasicsStep vm={vm} /> : null}
           {vm.step === 'schedule' ? <ScheduleStep vm={vm} /> : null}
           {vm.step === 'participants' ? <ParticipantsStep vm={vm} /> : null}
-          {vm.step === 'cost' ? <CostStep vm={vm} /> : null}
+          {vm.step === 'price' ? <PriceStep vm={vm} /> : null}
           {vm.step === 'review' ? <ReviewStep vm={vm} /> : null}
         </Animated.View>
       </ScrollView>
@@ -192,15 +198,32 @@ export function CreatePostScreen({ kind, draftId = null, onClose, onPublished }:
             backgroundColor: theme.background,
           }}
         >
-          <Button
-            label={vm.locating ? wizardCopy.findingPlace : wizardCopy.next}
-            size="lg"
-            fullWidth
-            onPress={() => void vm.next()}
-            disabled={!vm.canContinue && !vm.locating}
-            loading={vm.locating}
-            testID="create-next"
-          />
+          {/* Skip and Next sit side by side, and stack when large text leaves no room. */}
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
+            {vm.step === 'price' ? (
+              <View style={{ flexGrow: 1, flexBasis: 140 }}>
+                <Button
+                  label={wizardCopy.skipPrice}
+                  variant="secondary"
+                  size="lg"
+                  fullWidth
+                  onPress={vm.skipPrice}
+                  testID="create-skip-price"
+                />
+              </View>
+            ) : null}
+            <View style={{ flexGrow: 1, flexBasis: 140 }}>
+              <Button
+                label={vm.locating ? wizardCopy.findingPlace : wizardCopy.next}
+                size="lg"
+                fullWidth
+                onPress={() => void vm.next()}
+                disabled={!vm.canContinue && !vm.locating}
+                loading={vm.locating}
+                testID="create-next"
+              />
+            </View>
+          </View>
         </View>
       )}
 

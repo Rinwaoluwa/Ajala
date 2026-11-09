@@ -1,8 +1,10 @@
 import type {
   Coordinates,
-  DraftCity,
   DraftPhoto,
+  DraftPlace,
   Interest,
+  PlaceOption,
+  PlaceSearchKind,
   PostSubmission,
   SavedPost,
 } from '../entities/PostDraft';
@@ -24,8 +26,25 @@ export interface PostRepository {
   publish(postId: string): Promise<void>;
   /** `GET /interests`, in the server's order. */
   listInterests(): Promise<Interest[]>;
-  /** `GET /cities?q=`: catalog cities, closest match first. */
-  searchCities(query: string, limit: number): Promise<DraftCity[]>;
+}
+
+/**
+ * Google place search for the pickers (the API has none, spec §1.6). Throws
+ * `CreatePostError('placesUnavailable')` when search is down; a cancelled call
+ * rejects with the caller's own abort error.
+ */
+export interface PlaceFinder {
+  /** Suggestions for what was typed; `near` ranks places around it first. */
+  search(
+    kind: PlaceSearchKind,
+    text: string,
+    near: Coordinates | null,
+    signal?: AbortSignal,
+  ): Promise<PlaceOption[]>;
+  /** A picked suggestion's name, address and coordinates. Ends the billing session. */
+  details(placeId: string, signal?: AbortSignal): Promise<DraftPlace>;
+  /** A picker closed without a pick: the next search starts a new billing session. */
+  endSession(): void;
 }
 
 /** Finds a typed place on the map (the phone's geocoder). Null when it cannot. */

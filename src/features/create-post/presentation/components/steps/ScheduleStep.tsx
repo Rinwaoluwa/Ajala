@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import { View, useWindowDimensions } from 'react-native';
 
-import { DatePickerSheet, icons, NoteCard, SelectField, TextField } from '@shared/components';
+import { DatePickerSheet, icons, NoteCard, SelectField } from '@shared/components';
 
 import { PLACE_MAX } from '../../../domain/rules/postDraftRules';
 import { createPostErrors, issueCopy, kindCopy, wizardCopy } from '../../copy';
@@ -9,6 +9,7 @@ import { formatDay, formatTime } from '../../format';
 import type { CreatePostViewModel } from '../../hooks/useCreatePost';
 
 import { NotesList } from '../NotesList';
+import { PlaceField } from '../PlaceField';
 import { RepeatField } from '../RepeatField';
 import { StepIntro } from '../StepIntro';
 
@@ -16,6 +17,10 @@ import { StepIntro } from '../StepIntro';
  * Step two, "When and where?": the day and time, the meeting point (an Event's
  * venue), an Event's schedule or a Plan's itinerary, a Group's "Repeats", and a
  * safety tip.
+ *
+ * The meeting point is searched with Google as it is typed, nearest the Plan's
+ * or Group's destination first; a pick is sent as its place id. What is typed
+ * without a pick still counts: the phone finds it on the map on Next.
  *
  * The design also draws "Meetup details" and a Group's "Repeat schedule" as free
  * lines. The API has no field for either, so they are not shown: a Group's
@@ -93,13 +98,16 @@ export function ScheduleStep({ vm }: { vm: CreatePostViewModel }) {
           ) : null}
         </View>
       )}
-      <TextField
+      <PlaceField
+        kind="places"
         label={copy.placeLabel}
         placeholder={copy.placePlaceholder}
-        defaultValue={draft.place}
+        text={draft.place}
         onChangeText={vm.setPlace}
+        value={draft.venue}
+        onPick={vm.pickVenue}
+        near={draft.destination?.coords ?? null}
         maxLength={PLACE_MAX}
-        autoCapitalize="words"
         error={placeError}
         testID="create-place"
       />
@@ -113,6 +121,7 @@ export function ScheduleStep({ vm }: { vm: CreatePostViewModel }) {
           onRemove={vm.removeNote}
           onMove={vm.moveNote}
           onAdd={vm.addNote}
+          error={issues.notes ? issueCopy[issues.notes] : null}
         />
       ) : null}
       {copy.repeat ? (

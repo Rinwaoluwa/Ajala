@@ -5,7 +5,7 @@ import { useTheme } from '@shared/hooks/useTheme';
 
 /**
  * A setting in a card: title, muted line, and a switch at the right ("Anyone can
- * join", "Show on map", "Total estimated cost"). The text wraps beside the
+ * join", "Show on map", "Waiting list"). The text wraps beside the
  * switch at any text size. `divider` draws the hairline above it.
  */
 export function ToggleRow({

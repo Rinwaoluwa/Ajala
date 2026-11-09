@@ -1,6 +1,13 @@
 import { CreatePostError } from '../entities/CreatePostError';
-import type { Coordinates, DraftCity, Interest, PostDraft } from '../entities/PostDraft';
-import type { PlaceLocator, PostRepository } from '../repositories/PostRepository';
+import type {
+  Coordinates,
+  DraftPlace,
+  Interest,
+  PlaceOption,
+  PlaceSearchKind,
+  PostDraft,
+} from '../entities/PostDraft';
+import type { PlaceFinder, PlaceLocator, PostRepository } from '../repositories/PostRepository';
 import { draftFromSaved, toSubmission } from '../rules/postDraftRules';
 
 /**
@@ -58,13 +65,30 @@ export const makeLocatePlace =
 
 export const makeListInterests = (repo: PostRepository) => (): Promise<Interest[]> => repo.listInterests();
 
-/** The destination search, from two characters. */
-export const makeSearchCities =
-  (repo: PostRepository) =>
-  async (query: string): Promise<DraftCity[]> => {
+/** Fewer letters than this match too much to be worth a (billed) search. */
+export const PLACE_QUERY_MIN = 2;
+
+/**
+ * The place pickers' search: cities for a destination, any place for a meeting
+ * point. Nothing is searched under two letters.
+ */
+export const makeSearchPlaces =
+  (finder: PlaceFinder) =>
+  async (
+    kind: PlaceSearchKind,
+    query: string,
+    near: Coordinates | null = null,
+    signal?: AbortSignal,
+  ): Promise<PlaceOption[]> => {
     const q = query.trim();
-    return q.length < 2 ? [] : repo.searchCities(q, 10);
+    return q.length < PLACE_QUERY_MIN ? [] : finder.search(kind, q, near, signal);
   };
+
+/** A picked suggestion, with the address and coordinates the screen shows. */
+export const makePlaceDetails =
+  (finder: PlaceFinder) =>
+  (placeId: string, signal?: AbortSignal): Promise<DraftPlace> =>
+    finder.details(placeId, signal);
 
 /** A saved draft, back in the wizard's terms (Settings / Drafts → Continue editing). */
 export const makeLoadDraft =

@@ -1,7 +1,7 @@
 /**
  * Wire shapes for creating a post (spec §6: `CreatePostDto`, `UpdatePostDto`,
- * `PostDetailDto`), trimmed to what the wizard sends and reads back. The repo's
- * OpenAPI copy has no post paths yet, so these follow the client spec.
+ * `PostDetailDto`), trimmed to what the wizard sends and reads back, as the
+ * Swagger of 9 Nov 2026 has them.
  */
 
 export type PostTypeDto = 'meetup' | 'event' | 'plan' | 'group';
@@ -14,14 +14,21 @@ export interface CreatePostFieldsDto {
   description?: string;
   startAt?: string;
   endAt?: string;
-  /** A Plan or Group with no pin. */
-  cityId?: string;
+  /**
+   * A Google place id (a venue, or a Plan's or Group's destination); the server
+   * looks up its coordinates and address. Never with `lat`/`lng`.
+   */
+  placeId?: string;
+  /** A pin, with `lng`. Never with `placeId`. */
   lat?: number;
   lng?: number;
+  /** The label under the card; the place's city name when left out. */
   placeName?: string;
   capacity?: number;
+  /** Meetups, Events and Groups; a Plan carries no money (a 400 on one). */
   priceCents?: number;
   currency?: string;
+  /** Meetups, Events and Groups, as `priceCents`. */
   externalUrl?: string;
   waitlistEnabled?: boolean;
   visibility?: 'open' | 'private';
@@ -31,10 +38,6 @@ export interface CreatePostFieldsDto {
   schedule?: string[];
   /** Plans only; one form field per line. */
   itinerary?: string[];
-  /** Plans and Groups: all three or none. */
-  costTotalCents?: number;
-  costCurrency?: string;
-  expectedCount?: number;
   /** Groups only. */
   recurrence?: RecurrenceDto;
   /** Groups only, YYYY-MM-DD. */
@@ -48,12 +51,18 @@ export interface UpdatePostDto {
   description?: string;
   startAt?: string;
   endAt?: string | null;
-  /** Refused while the post has a pin; null means the host's home city. */
-  cityId?: string | null;
-  lat?: number | null;
-  lng?: number | null;
+  /** Moves the post to a Google place. Not nullable, never with `lat`/`lng`. */
+  placeId?: string;
+  /**
+   * Moves the pin; both or neither. Not nullable: a post keeps a place once it
+   * has one, so to leave it as it is, leave these out.
+   */
+  lat?: number;
+  lng?: number;
+  /** Null clears it (the card then shows the place's city). */
   placeName?: string | null;
   capacity?: number | null;
+  /** Not on a Plan, not even as null. */
   priceCents?: number | null;
   currency?: string | null;
   externalUrl?: string | null;
@@ -61,13 +70,9 @@ export interface UpdatePostDto {
   visibility?: 'open' | 'private';
   showOnMap?: boolean;
   interestIds?: string[];
-  /** The whole list; null clears it. */
+  /** The whole list, at most 30 lines of 120 characters; null clears it. */
   schedule?: string[] | null;
   itinerary?: string[] | null;
-  /** All three, or null on all three. */
-  costTotalCents?: number | null;
-  costCurrency?: string | null;
-  expectedCount?: number | null;
   /** Null stops it repeating. */
   recurrence?: RecurrenceDto | null;
   recurrenceEndsOn?: string | null;
@@ -88,19 +93,17 @@ export interface SavedPostDto {
   startAt: string | null;
   endAt: string | null;
   placeName: string | null;
+  /** The Google place the host picked; null for a dropped pin or no place yet. */
+  placeId: string | null;
+  formattedAddress: string | null;
+  /** The city and country, e.g. "Lagos, Nigeria". */
+  localityLabel: string | null;
+  countryCode: string | null;
   lat: number | null;
   lng: number | null;
-  city: { id: string; name: string; label: string } | null;
   capacity: number | null;
+  /** Null when the host gave no price, and always on a Plan. */
   price: { amountCents: number; currency: string; exponent: number } | null;
-  /** Plans and Groups splitting a cost; the server works out `perPersonCents`. */
-  costSplit: {
-    totalCents: number;
-    currency: string;
-    exponent: number;
-    expectedCount: number;
-    perPersonCents: number;
-  } | null;
   recurrence: { frequency: RecurrenceDto; endsOn: string | null } | null;
   externalUrl: string | null;
   waitlistEnabled: boolean;
@@ -119,17 +122,6 @@ export interface InterestDto {
   slug: string;
   name: string;
   emoji: string | null;
-}
-
-export interface CityDto {
-  id: string;
-  name: string;
-  countryCode: string;
-  label: string;
-  region: string;
-  countryName: string;
-  lat: number;
-  lng: number;
 }
 
 /** A file as React Native's FormData takes it. */

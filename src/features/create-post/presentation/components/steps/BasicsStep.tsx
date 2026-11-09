@@ -3,14 +3,16 @@ import { View } from 'react-native';
 
 import { NoteCard, TextArea, TextField } from '@shared/components';
 
-import { DESCRIPTION_MAX, TITLE_MAX, needsCity } from '../../../domain/rules/postDraftRules';
+import { DESCRIPTION_MAX, TITLE_MAX, needsDestination } from '../../../domain/rules/postDraftRules';
 import { kindCopy, wizardCopy } from '../../copy';
 import type { CreatePostViewModel } from '../../hooks/useCreatePost';
-import { CityField } from '../CityField';
-
 import { PhotoGrid } from '../PhotoGrid';
+import { PlaceField } from '../PlaceField';
 
-/** Step one, "Basic Details": photos, title, description, and a Plan's or Group's city. */
+/**
+ * Step one, "Basic Details": photos, title, description, and a Plan's or
+ * Group's destination, a city searched with Google (sent as its place id).
+ */
 export function BasicsStep({ vm }: { vm: CreatePostViewModel }) {
   const copy = kindCopy[vm.kind].basics;
   const { update, draft } = vm;
@@ -44,12 +46,15 @@ export function BasicsStep({ vm }: { vm: CreatePostViewModel }) {
         helper={`${draft.description.length}/${DESCRIPTION_MAX}`}
         testID="create-description"
       />
-      {needsCity(vm.kind) && copy.city ? (
-        <CityField
-          label={copy.city.label}
-          placeholder={copy.city.placeholder}
-          value={draft.city}
-          onChange={(city) => update({ city })}
+      {needsDestination(vm.kind) && copy.destination ? (
+        <PlaceField
+          kind="cities"
+          label={copy.destination.label}
+          placeholder={copy.destination.placeholder}
+          value={draft.destination}
+          onPick={(destination) => update({ destination })}
+          onClear={() => update({ destination: null })}
+          testID="create-destination"
         />
       ) : null}
       {copy.note ? <NoteCard title={copy.note.title} body={copy.note.body} /> : null}

@@ -3,20 +3,21 @@ import { useCallback, useMemo, useState } from 'react';
 
 import { postMedia } from '../../createPostModule';
 import { CreatePostError, isCreatePostError } from '../../domain/entities/CreatePostError';
-import { emptyDraft, type PostDraft } from '../../domain/entities/PostDraft';
+import { emptyDraft, type DraftPlace, type PostDraft } from '../../domain/entities/PostDraft';
 import type { PostKind } from '../../domain/postKinds';
 import {
   NOTES_MAX,
   PHOTOS_MAX,
-  STEPS,
   canLeaveStep,
   canSaveDraft,
   firstIncompleteStep,
   move,
-  needsPin,
+  needsMeetingPoint,
   stepIssues,
+  stepsFor,
   toggleInterest,
   type DraftIssues,
+  type WizardStep,
 } from '../../domain/rules/postDraftRules';
 import { LISTS_A_NEW_POST_JOINS, createPostKeys } from '../state/createPostQueries';
 import { useCreatePostUseCases } from '../state/useCreatePostUseCases';
@@ -25,10 +26,15 @@ import { useCreatePostUseCases } from '../state/useCreatePostUseCases';
  * View model for the create wizard (API map §5): the draft every step edits,
  * which step is showing, and the two ways out — Publish and Save draft.
  *
- * Everything stays on the phone until one of those is tapped. Moving on from
- * "When and where?" finds the meeting point on the map first (a Meetup or Event
- * cannot publish without a pin); a place that cannot be found stops there with a
+ * Everything stays on the phone until one of those is tapped. Every post needs
+ * a place (spec §2.12): a Plan or Group has its destination; a Meetup or Event
+ * its meeting point. A meeting point picked from the search is sent by its
+ * Google id. One only typed is found on the map when moving on from "When and
+ * where?"; for a Meetup or Event a place that can't be found stops there with a
  * message under the field.
+ *
+ * A Plan has no price step (Plans carry no money), so its wizard is four steps;
+ * the others have five. On the price step the host may skip: no price, no link.
  *
  * After a Save draft the post has an id, and later saves and Publish update it
  * rather than create another. Photos are uploaded again only when they changed.
@@ -81,14 +87,20 @@ export function useCreatePost(kind: PostKind, draftId: string | null = null) {
     setSavedSnapshot(snapshotOf(saved.data));
   }
 
-  const step = STEPS[stepIndex] ?? 'basics';
+  const steps = stepsFor(kind);
+  const step = steps[stepIndex] ?? 'basics';
   const update = useCallback((patch: Partial<PostDraft>) => setDraft((d) => ({ ...d, ...patch })), []);
 
   // ---------- step-specific edits ----------
 
   const setPlace = useCallback((place: string) => {
-    // A new place needs finding again.
-    setDraft((d) => ({ ...d, place, placeCoords: null }));
+    // Typing over the meeting point drops the venue picked for it, and a typed place needs finding again.
+    setDraft((d) => (d.place === place ? d : { ...d, place, venue: null, placeCoords: null }));
+    setPlaceError(null);
+  }, []);
+
+  const pickVenue = useCallback((venue: DraftPlace) => {
+    setDraft((d) => ({ ...d, place: venue.name, venue, placeCoords: null }));
     setPlaceError(null);
   }, []);
 
@@ -146,21 +158,22 @@ export function useCreatePost(kind: PostKind, draftId: string | null = null) {
   const goTo = useCallback(
     (index: number) => {
       setDirection(index >= stepIndex ? 1 : -1);
-      setStepIndex(Math.max(0, Math.min(STEPS.length - 1, index)));
+      setStepIndex(Math.max(0, Math.min(steps.length - 1, index)));
     },
-    [stepIndex],
+    [stepIndex, steps.length],
   );
 
   const next = useCallback(async () => {
     if (!canLeaveStep(draft, step)) return;
-    // The pin comes from the meeting point. Meetups and Events need it; Plans and
-    // Groups use it when it can be found, and send their city (`cityId`) when not.
-    if (step === 'schedule' && draft.place.trim() && !draft.placeCoords) {
+    // A meeting point typed rather than picked is found on the map here. A Meetup
+    // or Event has no other place, so it stops if that fails; a Plan or Group
+    // falls back to its destination.
+    if (step === 'schedule' && draft.place.trim() && !draft.venue && !draft.placeCoords) {
       try {
         const coords = await locate.mutateAsync(draft.place);
         update({ placeCoords: coords });
       } catch (e) {
-        if (needsPin(draft.kind)) {
+        if (needsMeetingPoint(draft.kind)) {
           setPlaceError(isCreatePostError(e) ? e : null);
           return;
         }
@@ -170,6 +183,15 @@ export function useCreatePost(kind: PostKind, draftId: string | null = null) {
   }, [draft, step, stepIndex, locate, update, goTo]);
 
   const back = useCallback(() => goTo(stepIndex - 1), [goTo, stepIndex]);
+
+  /**
+   * "Skip" on the price step: moves on with no price and no link, clearing
+   * anything typed there, so a half-typed amount can't hold the step or be sent.
+   */
+  const skipPrice = useCallback(() => {
+    setDraft((d) => ({ ...d, price: '', externalUrl: '' }));
+    goTo(stepIndex + 1);
+  }, [goTo, stepIndex]);
 
   // ---------- sending ----------
 
@@ -208,8 +230,8 @@ export function useCreatePost(kind: PostKind, draftId: string | null = null) {
     queryKey: createPostKeys.interests,
     queryFn: () => useCases.listInterests(),
     staleTime: 60 * 60_000,
-    // Only the review step shows them; fetching early means they are there when it does.
-    enabled: stepIndex >= STEPS.indexOf('cost'),
+    // Only the review step shows them; fetching a step early means they are there when it does.
+    enabled: stepIndex >= steps.length - 2,
   });
 
   const issues: DraftIssues = useMemo(() => stepIssues(draft, step), [draft, step]);
@@ -228,6 +250,8 @@ export function useCreatePost(kind: PostKind, draftId: string | null = null) {
     update,
     step,
     stepIndex,
+    /** How many steps this type's wizard has: four for a Plan, five otherwise. */
+    stepCount: steps.length,
     direction,
     issues,
     canContinue: Object.keys(issues).length === 0 && !locate.isPending,
@@ -236,15 +260,20 @@ export function useCreatePost(kind: PostKind, draftId: string | null = null) {
     next,
     back,
     goTo,
-    goToStep: (s: (typeof STEPS)[number]) => goTo(STEPS.indexOf(s)),
+    goToStep: (s: WizardStep) => {
+      const index = steps.indexOf(s);
+      if (index >= 0) goTo(index);
+    },
+    skipPrice,
     /** The first step still missing something, for the review step's list. */
     incomplete,
     allIssues: useMemo(
-      () => Object.assign({}, ...STEPS.map((s) => stepIssues(draft, s))) as DraftIssues,
-      [draft],
+      () => Object.assign({}, ...steps.map((s) => stepIssues(draft, s))) as DraftIssues,
+      [draft, steps],
     ),
 
     setPlace,
+    pickVenue,
     addPhotos,
     removePhoto,
     movePhoto,

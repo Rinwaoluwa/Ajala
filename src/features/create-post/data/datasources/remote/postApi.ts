@@ -1,5 +1,4 @@
 import type {
-  CityDto,
   CreatePostFieldsDto,
   InterestDto,
   PostDetailDto,
@@ -20,11 +19,6 @@ export type PostRequest = <T>(request: {
   path: string;
   body?: unknown;
 }) => Promise<T>;
-
-const query = (params: Record<string, string | number>) =>
-  Object.entries(params)
-    .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`)
-    .join('&');
 
 /**
  * The multipart form (spec §2.12): lists (`interestIds`, `schedule`,
@@ -68,9 +62,6 @@ export function createPostApi(request: PostRequest) {
       request<PostDetailDto>({ method: 'POST', path: `${V1}/posts/${encodeURIComponent(postId)}/publish` }),
 
     listInterests: () => request<InterestDto[]>({ method: 'GET', path: `${V1}/interests` }),
-
-    searchCities: (q: string, limit: number) =>
-      request<CityDto[]>({ method: 'GET', path: `${V1}/cities?${query({ q, limit })}` }),
   };
 }
 

@@ -1,17 +1,16 @@
 import { Host } from '@expo/ui';
-import { Pressable, TouchableOpacity, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 
-import { NativeIcon, NativeSpinner, StepProgress, Text, icons } from '@shared/components';
+import { BackButton, NativeSpinner, StepProgress, Text } from '@shared/components';
 import { useTheme } from '@shared/hooks/useTheme';
 
-import { WIZARD_STEPS } from '../../domain/rules/postDraftRules';
 import { wizardCopy } from '../copy';
 
 /**
  * The wizard's top: a back arrow, the type's title and line ("New meetup /
- * Casual in-person gathering"), "Save draft" at the right, then the five-segment
- * indicator with the current step in Marigold.
+ * Casual in-person gathering"), "Save draft" at the right, then the step
+ * indicator (five segments, four for a Plan) with the current step in Marigold.
  *
  * "Save draft" is the mint pill of the design. While saving it shows a spinner;
  * once saved it says so briefly (`justSaved`), fading between the two labels.
@@ -22,6 +21,8 @@ export type WizardHeaderProps = {
   title: string;
   subtitle: string;
   step: number;
+  /** How many steps this wizard has. */
+  stepCount: number;
   onBack: () => void;
   onSaveDraft: () => void;
   canSaveDraft: boolean;
@@ -33,6 +34,7 @@ export function WizardHeader({
   title,
   subtitle,
   step,
+  stepCount,
   onBack,
   onSaveDraft,
   canSaveDraft,
@@ -45,19 +47,7 @@ export function WizardHeader({
   return (
     <View className="px-20 pt-8">
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-        <TouchableOpacity
-          activeOpacity={0.6}
-          onPress={onBack}
-          hitSlop={10}
-          accessibilityRole="button"
-          accessibilityLabel={wizardCopy.back}
-          testID="create-back"
-          style={{ marginLeft: -4, padding: 4 }}
-        >
-          <Host matchContents pointerEvents="none" ignoreSafeArea="all">
-            <NativeIcon source={icons.back} size={18} color={theme.foreground} />
-          </Host>
-        </TouchableOpacity>
+        <BackButton onPress={onBack} label={wizardCopy.back} />
         <View style={{ flex: 1 }}>
           <Text variant="headingMd" accessibilityRole="header">
             {title}
@@ -98,7 +88,7 @@ export function WizardHeader({
         </Pressable>
       </View>
       <View className="mt-16">
-        <StepProgress count={WIZARD_STEPS} current={step} tone="accent" />
+        <StepProgress count={stepCount} current={step} tone="accent" />
       </View>
     </View>
   );
