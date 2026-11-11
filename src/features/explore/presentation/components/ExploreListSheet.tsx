@@ -13,12 +13,14 @@ import {
   SkeletonPulse,
   Text,
   TextField,
+  TextLink,
   UnderlineTabs,
   enterRise,
   icons,
   useListEntrance,
 } from '@shared/components';
 import { useTheme } from '@shared/hooks/useTheme';
+import { SCREEN_GUTTER } from '@shared/theme';
 
 import { SEARCH_MAX, readSearch } from '../../domain/rules/exploreRules';
 import { exploreCopy, exploreErrorMessages } from '../copy';
@@ -26,7 +28,7 @@ import { useInterests } from '../hooks/useInterests';
 import { useNearbyMeetups } from '../hooks/useNearbyMeetups';
 import { useSearchPeople } from '../hooks/useSearchPeople';
 import { useSearchPosts } from '../hooks/useSearchPosts';
-import { InterestGrid } from './InterestGrid';
+import { InterestGrid, columnsFor } from './InterestGrid';
 import { MeetupCard } from './MeetupCard';
 
 /**
@@ -327,13 +329,27 @@ function BrowseAndNearby({ onOpenMeetup }: { onOpenMeetup: (id: string) => void 
   const [interestId, setInterestId] = useState<string | null>(null);
   const interests = useInterests();
   const meetups = useNearbyMeetups(interestId);
+  const [allOpen, setAllOpen] = useState(false);
+  // Two rows of tiles here; the rest are a search away in "View all". The chosen
+  // interest always shows, in the last place if it isn't already among them.
+  const { width, fontScale } = useWindowDimensions();
+  const shownCount = columnsFor(width - SCREEN_GUTTER * 2, fontScale) * 2;
+  const first = interests.interests.slice(0, shownCount);
+  const chosen = interestId ? interests.interests.find((i) => i.id === interestId) : undefined;
+  const shownInterests =
+    chosen && !first.some((i) => i.id === chosen.id) ? [...first.slice(0, shownCount - 1), chosen] : first;
   const enterMeetup = useListEntrance(meetups.items.length > 0);
 
   return (
     <>
-      <Text variant="headingSm" className="mt-24" accessibilityRole="header">
-        {copy.interests}
-      </Text>
+      <View className="mt-24 flex-row items-center justify-between" style={{ gap: 12 }}>
+        <Text variant="headingSm" accessibilityRole="header" style={{ flexShrink: 1 }}>
+          {copy.interests}
+        </Text>
+        {interests.interests.length > shownCount ? (
+          <TextLink label={copy.viewAllInterests} onPress={() => setAllOpen(true)} emphasis="plain" />
+        ) : null}
+      </View>
       <View className="mt-12">
         {interests.loading ? (
           <SkeletonPulse>
@@ -350,10 +366,20 @@ function BrowseAndNearby({ onOpenMeetup }: { onOpenMeetup: (id: string) => void 
           <Inline message={copy.interestsFailed} onRetry={interests.retry} />
         ) : (
           <Animated.View entering={FadeIn.duration(220)}>
-            <InterestGrid interests={interests.interests} selected={interestId} onSelect={setInterestId} />
+            <InterestGrid interests={shownInterests} selected={interestId} onSelect={setInterestId} />
           </Animated.View>
         )}
       </View>
+      <AllInterestsSheet
+        isPresented={allOpen}
+        interests={interests.interests}
+        selected={interestId}
+        onSelect={(id) => {
+          setInterestId(id);
+          setAllOpen(false);
+        }}
+        onDismiss={() => setAllOpen(false)}
+      />
 
       <Text variant="headingSm" className="mt-24" accessibilityRole="header">
         {copy.nearby}
@@ -419,5 +445,48 @@ function Inline({ message, onRetry }: { message: string; onRetry: () => void }) 
       </Text>
       <Button label={exploreCopy.list.retry} size="sm" variant="secondary" onPress={onRetry} />
     </View>
+  );
+}
+
+/** Every interest, with a search: "View all" from the list's interests. Choosing one closes it. */
+function AllInterestsSheet({
+  isPresented,
+  interests,
+  selected,
+  onSelect,
+  onDismiss,
+}: {
+  isPresented: boolean;
+  interests: Parameters<typeof InterestGrid>[0]['interests'];
+  selected: string | null;
+  onSelect: (id: string | null) => void;
+  onDismiss: () => void;
+}) {
+  const copy = exploreCopy.list;
+  const theme = useTheme();
+  const [query, setQuery] = useState('');
+  const words = query.trim().toLowerCase();
+  const matching = words ? interests.filter((i) => i.name.toLowerCase().includes(words)) : interests;
+  return (
+    <Sheet isPresented={isPresented} title={copy.allInterests} onDismiss={onDismiss}>
+      <View style={{ gap: 16 }}>
+        <TextField
+          label={copy.searchInterests}
+          labelHidden
+          placeholder={copy.searchInterests}
+          onChangeText={setQuery}
+          autoCorrect={false}
+          returnKeyType="search"
+          leading={<NativeIcon source={icons.search} size={16} color={theme.muted} />}
+        />
+        {matching.length ? (
+          <InterestGrid interests={matching} selected={selected} onSelect={onSelect} />
+        ) : (
+          <Text variant="bodySm" tone="muted">
+            {copy.noInterestMatches}
+          </Text>
+        )}
+      </View>
+    </Sheet>
   );
 }

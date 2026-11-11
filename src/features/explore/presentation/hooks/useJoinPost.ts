@@ -1,5 +1,5 @@
+import { openInApp } from '@core/links/openInApp';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Linking } from 'react-native';
 
 import type { PostPreview } from '../../domain/entities/Explore';
 import { isExploreError, type ExploreErrorCode } from '../../domain/entities/ExploreError';
@@ -27,7 +27,8 @@ export function useJoinPost() {
 
   const openLink = (post: PostPreview) => {
     if (!post.externalUrl) return;
-    void Linking.openURL(post.externalUrl).catch(() => undefined);
+    // The in-app browser, so the person stays in Ajala and comes straight back.
+    void openInApp(post.externalUrl);
     void recordLinkClick(post.id);
   };
 

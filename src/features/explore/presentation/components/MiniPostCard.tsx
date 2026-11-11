@@ -16,7 +16,7 @@ import {
 } from '@shared/components';
 import { useFontScale } from '@shared/hooks/useFontScale';
 import { useTheme } from '@shared/hooks/useTheme';
-import { palette } from '@shared/theme';
+import { useTypeColors } from '@shared/theme/postTypeColors';
 
 import type { PostPreview } from '../../domain/entities/Explore';
 import type { ExploreErrorCode } from '../../domain/entities/ExploreError';
@@ -124,6 +124,7 @@ function Loaded({
   onClose,
 }: MiniPostCardProps & { post: PostPreview }) {
   const theme = useTheme();
+  const typeColors = useTypeColors();
   const fontScale = useFontScale();
   // Side by side only when the column has room for both labels ("Request to join" and
   // "Preview" need about 210pt): bigger text or a narrower phone stacks them.
@@ -162,13 +163,18 @@ function Loaded({
             paddingHorizontal: 7,
             paddingVertical: 2,
             borderRadius: 999,
-            backgroundColor: theme.accentSoft,
+            // The type's own colour, as its pill on the home feed (`useTypeColors`).
+            backgroundColor: typeColors[post.type].tag,
           }}
         >
           <Text variant="bodyXs" maxFontSizeMultiplier={1.3} style={{ fontSize: 10 }}>
             {typeEmoji[post.type]}
           </Text>
-          <Text variant="labelXs" maxFontSizeMultiplier={1.3} style={{ color: palette.ink, fontSize: 10 }}>
+          <Text
+            variant="labelXs"
+            maxFontSizeMultiplier={1.3}
+            style={{ color: typeColors[post.type].softLabel, fontSize: 10 }}
+          >
             {typeLabels[post.type]}
           </Text>
         </View>

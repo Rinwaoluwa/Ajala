@@ -6,7 +6,7 @@ export const exploreCopy = {
   map: {
     // It finds cities (Google) and people (`GET /search/people`), not activities: those
     // are in the list sheet's search.
-    searchPlaceholder: 'Search cities or people...',
+    searchPlaceholder: 'Search activities...',
     placesHeading: 'Places',
     peopleHeading: 'People',
     noPeople: 'No one by that name or @handle',
@@ -106,6 +106,10 @@ export const exploreCopy = {
     resultsCapped: 'Showing the first 100. Add words to narrow it down.',
     showMore: 'Show more',
     interests: 'Browse By Interest',
+    viewAllInterests: 'View all',
+    allInterests: 'All interests',
+    searchInterests: 'Search interests',
+    noInterestMatches: 'No interest matches that.',
     interestsFailed: "Couldn't load interests.",
     nearby: 'Meetups Near You',
     nearbySubtitle: 'Good company, just around the corner',
