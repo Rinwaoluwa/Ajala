@@ -1,6 +1,7 @@
 import { Share } from 'react-native';
 
 import { PROFILE_LINK_BASE } from './profileViewCopy';
+import { haptics } from '@shared/feedback/haptics';
 
 /**
  * The link that opens a profile in the app. Always the user id, never the
@@ -24,6 +25,7 @@ export async function copyProfileLink(name: string, link: string): Promise<boole
   try {
     const Clipboard = (await import('expo-clipboard')) as typeof import('expo-clipboard');
     await Clipboard.setStringAsync(link);
+    haptics.success();
     return true;
   } catch {
     shareProfile(name, link);

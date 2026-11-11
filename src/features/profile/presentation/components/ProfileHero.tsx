@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { View } from 'react-native';
 import Animated from 'react-native-reanimated';
 
-import { Avatar, PillRows, SvgIcon, Text, VectorIcon, enterRise } from '@shared/components';
+import { Avatar, JellyPress, PillRows, SvgIcon, Text, VectorIcon, enterRise } from '@shared/components';
 import { useTheme } from '@shared/hooks/useTheme';
 
 import type { Interest } from '../../domain/entities/Profile';
@@ -104,7 +104,7 @@ export function ProfileHero({
       </View>
 
       {interests.length ? (
-        <InterestPills labels={interests.map((i) => i.name)} emojis={interests.map((i) => i.emoji)} />
+        <InterestPills labels={interests.map((i) => i.name)} emojis={interests.map((i) => i.emoji)} jelly />
       ) : null}
     </Animated.View>
   );
@@ -165,41 +165,55 @@ export function PillSection({ title, labels }: { title: string; labels: string[]
  * emoji when it has one. Not buttons. One line while they fit, otherwise
  * three rows that scroll sideways (`PillRows`), so a long list does not take
  * over the page. `fill` sets the pill colour for pills on a panel.
+ *
+ * `jelly`: each pill wobbles when touched (`JellyPress`), for the feel of it
+ * only. A tap goes nowhere, and screen readers still read them as plain text.
  */
 export function InterestPills({
   labels,
   emojis,
   fill,
   small = false,
+  jelly = false,
 }: {
   labels: string[];
   emojis?: (string | null)[];
   fill?: string;
   small?: boolean;
+  jelly?: boolean;
 }) {
   const theme = useTheme();
+  const pill = (label: string, i: number) => (
+    <View
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        borderRadius: 999,
+        // The design's sizes: 26pt pills on a profile, 20pt ones inside Travel details.
+        paddingHorizontal: small ? 8 : 12,
+        paddingVertical: small ? 2 : 3,
+        backgroundColor: fill ?? theme.panel,
+      }}
+    >
+      {emojis?.[i] ? <Text variant={small ? 'bodyXs' : 'bodySm'}>{emojis[i]}</Text> : null}
+      <Text variant={small ? 'bodyXs' : 'bodySm'}>{label}</Text>
+    </View>
+  );
   return (
     <PillRows
       maxRows={3}
-      pills={labels.map((label, i) => (
-        <View
-          // Two cities can share a name; the position keeps their keys apart.
-          key={`${i}-${label}`}
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 6,
-            borderRadius: 999,
-            // The design's sizes: 26pt pills on a profile, 20pt ones inside Travel details.
-            paddingHorizontal: small ? 8 : 12,
-            paddingVertical: small ? 2 : 3,
-            backgroundColor: fill ?? theme.panel,
-          }}
-        >
-          {emojis?.[i] ? <Text variant={small ? 'bodyXs' : 'bodySm'}>{emojis[i]}</Text> : null}
-          <Text variant={small ? 'bodyXs' : 'bodySm'}>{label}</Text>
-        </View>
-      ))}
+      // Two cities can share a name; the position keeps their keys apart.
+      pills={labels.map((label, i) =>
+        jelly ? (
+          // No onPress: the wobble is the whole response. Not a button to screen readers.
+          <JellyPress key={`${i}-${label}`} accessible={false}>
+            {pill(label, i)}
+          </JellyPress>
+        ) : (
+          <View key={`${i}-${label}`}>{pill(label, i)}</View>
+        ),
+      )}
     />
   );
 }

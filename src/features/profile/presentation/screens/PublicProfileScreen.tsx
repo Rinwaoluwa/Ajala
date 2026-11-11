@@ -35,6 +35,7 @@ import { profileErrorMessages } from '../copy';
 import { usePerson } from '../hooks/usePerson';
 import { profileViewCopy } from '../profileViewCopy';
 import { copyProfileLink, profileLink, shareProfile } from '../shareProfile';
+import { haptics } from '@shared/feedback/haptics';
 
 /**
  * Another traveller's profile (Figma Other User, "@JamesAllen44"): back and
@@ -167,6 +168,7 @@ export function PublicProfileScreen({
   const link = profileLink(person.handle, person.id);
 
   const confirmBlock = () =>
+    haptics.warning();
     Alert.alert(copy.block.title(first), copy.block.body, [
       { text: copy.block.cancel, style: 'cancel' },
       {
