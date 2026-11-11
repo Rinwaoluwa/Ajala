@@ -55,6 +55,8 @@ export { PillRows, type PillRowsProps } from './layout/PillRows';
 export { LoadFailedState, type LoadFailedStateProps } from './display/LoadFailedState';
 export { NoConnectionArt, ServerDownArt } from './display/FailureArt';
 export { GlassSurface, type GlassSurfaceProps } from './surface/GlassSurface';
+export { EdgeFade } from './surface/EdgeFade';
+export { BlurTarget, ProgressiveBlur, progressiveBlurAvailable } from './surface/ProgressiveBlur';
 export { Pager, type PagerProps } from './layout/Pager';
 export { SortableGrid, type SortableGridProps } from './layout/SortableGrid';
 export { ScrollRow } from './layout/ScrollRow';
