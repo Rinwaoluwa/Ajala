@@ -252,6 +252,7 @@ export function ExploreScreen({ onOpenPost, onTeleport, onOpenPerson }: ExploreS
         <View style={{ paddingHorizontal: SCREEN_GUTTER }}>
           <MapSearchBar
             onChoose={goTo}
+            onOpenPerson={onOpenPerson}
             onOpenFilters={() => setFiltersOpen(true)}
             filtersActive={filtersActive(filters)}
           />
@@ -344,7 +345,8 @@ export function ExploreScreen({ onOpenPost, onTeleport, onOpenPerson }: ExploreS
           <Animated.View
             entering={glass ? undefined : FadeIn.duration(200)}
             exiting={glass ? undefined : FadeOut.duration(150)}
-            style={{ alignSelf: 'flex-start' }}
+            // Centred across the map, clear of the map buttons on the right.
+            style={{ alignSelf: 'center' }}
           >
             <GlassSurface
               fallbackColor={theme.selectedFill}

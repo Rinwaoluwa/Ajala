@@ -4,7 +4,13 @@ import type { PostType } from '../domain/entities/Explore';
 /** Every word Explore shows, in one place. */
 export const exploreCopy = {
   map: {
-    searchPlaceholder: 'Search activities.',
+    // It finds cities (Google) and people (`GET /search/people`), not activities: those
+    // are in the list sheet's search.
+    searchPlaceholder: 'Search cities or people...',
+    placesHeading: 'Places',
+    peopleHeading: 'People',
+    noPeople: 'No one by that name or @handle',
+    peopleFailed: "Couldn't search for people right now",
     // The first chip over the map: every interest, as the design draws it.
     allInterests: 'All interests',
     filters: 'Filter the map',
