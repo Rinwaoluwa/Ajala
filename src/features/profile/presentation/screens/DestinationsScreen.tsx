@@ -137,7 +137,7 @@ export function DestinationsScreen({ onBack, onContinue }: { onBack: () => void;
         </View>
         <Animated.View>
           {chosen.length ? (
-            <ChipGroup>
+            <ChipGroup wrap>
               {chosen.map((city) => (
                 <Chip
                   key={city.placeId}
@@ -160,7 +160,7 @@ export function DestinationsScreen({ onBack, onContinue }: { onBack: () => void;
             <Text variant="labelSm" tone="muted" className="mb-8">
               {copy.tryASearch}
             </Text>
-            <ChipGroup>
+            <ChipGroup wrap>
               {quickSearches.map((name) => (
                 <Chip
                   key={name}

@@ -1,8 +1,7 @@
 import { View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
-import { Button, Chip, ChipGroup, LoadingRing, Text, TextLink, enterRise } from '@shared/components';
-import { palette } from '@shared/theme';
+import { Button, Chip, EmojiBadge, enterRise, FittedChips, LoadingRing, Text, TextLink } from '@shared/components';
 
 import { chipToneFor } from '../chipTones';
 import { SetupHeader } from '../components/SetupHeader';
@@ -20,26 +19,6 @@ import { useInterests } from '../hooks/useInterests';
  * These chips are the taller pill, 8pt apart in rows 24pt apart, as drawn.
  */
 
-const BADGE = 24;
-
-function EmojiBadge({ emoji }: { emoji: string | null }) {
-  return (
-    <View
-      style={{
-        width: BADGE,
-        height: BADGE,
-        borderRadius: BADGE / 2,
-        backgroundColor: palette.white,
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-    >
-      <Text variant="bodyXs" allowFontScaling={false} style={{ fontSize: 14, lineHeight: 18 }}>
-        {emoji ?? '\u2728'}
-      </Text>
-    </View>
-  );
-}
 
 export function InterestsScreen({
   onBack,
@@ -54,10 +33,12 @@ export function InterestsScreen({
   const copy = setupCopy.interests;
 
   return (
-    <SetupScreen header={<SetupHeader step={3} onBack={onBack} />}>
+    <SetupScreen fill header={<SetupHeader step={3} onBack={onBack} />}>
       <SetupIntro title={copy.title} body={copy.body} />
 
-      <View style={{ marginTop: SECTION_GAP, minHeight: 120 }}>
+      {/* Every interest listed, wrapping onto rows that fill the screen and scroll up and
+          down (never sideways), with a search above (`FittedChips`). */}
+      <View style={{ marginTop: SECTION_GAP, minHeight: 120, flex: 1 }}>
         {vm.loading ? (
           <View className="items-center py-32">
             <LoadingRing size={36} accessibilityLabel="Loading interests" />
@@ -79,11 +60,18 @@ export function InterestsScreen({
             </Text>
           </Animated.View>
         ) : (
-          <Animated.View entering={enterRise(0)}>
-            <ChipGroup gap={8} rowGap={24}>
-              {(vm.interests ?? []).map((interest) => (
+          <Animated.View entering={enterRise(0)} style={{ flex: 1 }}>
+            <FittedChips
+              items={vm.interests}
+              keyOf={(interest) => interest.id}
+              labelOf={(interest) => interest.name}
+              isSelected={(interest) => vm.selected.includes(interest.id)}
+              searchPlaceholder={copy.search}
+              noMatches={copy.noMatches}
+              gap={8}
+              rowGap={14}
+              renderChip={(interest) => (
                 <Chip
-                  key={interest.id}
                   label={interest.name}
                   leading={<EmojiBadge emoji={interest.emoji} />}
                   selected={vm.selected.includes(interest.id)}
@@ -91,13 +79,13 @@ export function InterestsScreen({
                   tone={chipToneFor(interest.slug)}
                   onPress={() => vm.choose(interest.id)}
                 />
-              ))}
-            </ChipGroup>
+              )}
+            />
           </Animated.View>
         )}
       </View>
 
-      <View style={{ marginTop: 36 }}>
+      <View style={{ marginTop: 20 }}>
         <Button
           label={setupCopy.continue}
           size="lg"

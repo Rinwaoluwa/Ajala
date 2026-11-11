@@ -99,8 +99,54 @@ export function OwnProfileScreen(props: OwnProfileScreenProps) {
 
   return (
     <Screen edges={['top']} padded={false}>
+      {/* Pinned: the logo, bell and settings stay put while the profile scrolls under them. */}
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 10,
+          paddingTop: 8,
+          paddingBottom: 12,
+          paddingHorizontal: SCREEN_GUTTER,
+          backgroundColor: theme.background,
+        }}
+      >
+        <View style={{ flex: 1, alignItems: 'flex-start' }} accessibilityRole="header" accessibilityLabel="Ajala">
+          <Logo width={LOGO_WIDTH} tone={scheme === 'dark' ? 'inverse' : 'brand'} />
+        </View>
+        <RoundIconButton
+          label={unread > 0 ? copy.unreadNotifications(unread) : copy.notifications}
+          onPress={props.onNotifications}
+        >
+          <View>
+            <VectorIcon name="bell" size={20} color={theme.foreground} />
+            {unread > 0 ? (
+              <View
+                pointerEvents="none"
+                style={{
+                  position: 'absolute',
+                  top: -1,
+                  right: -1,
+                  width: 8,
+                  height: 8,
+                  borderRadius: 4,
+                  backgroundColor: palette.coral,
+                }}
+              />
+            ) : null}
+          </View>
+        </RoundIconButton>
+        <RoundIconButton label={copy.settings} onPress={props.onSettings}>
+          <Host matchContents pointerEvents="none" ignoreSafeArea="all">
+            <NativeIcon source={icons.settings} size={18} color={theme.foreground} />
+          </Host>
+        </RoundIconButton>
+      </View>
       <ScrollView
+        // Android draws scrolled content past the edges unless told to clip, over the header above.
+        style={{ flex: 1, overflow: 'hidden' }}
         contentContainerStyle={{
+          paddingTop: 12,
           paddingHorizontal: SCREEN_GUTTER,
           paddingBottom: TAB_BAR_CLEARANCE + insets.bottom,
           gap: 24,
@@ -109,38 +155,6 @@ export function OwnProfileScreen(props: OwnProfileScreenProps) {
           <RefreshControl refreshing={vm.refreshing} onRefresh={vm.refresh} tintColor={theme.primary} />
         }
       >
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingTop: 8 }}>
-          <View style={{ flex: 1, alignItems: 'flex-start' }} accessibilityRole="header" accessibilityLabel="Ajala">
-            <Logo width={LOGO_WIDTH} tone={scheme === 'dark' ? 'inverse' : 'brand'} />
-          </View>
-          <RoundIconButton
-            label={unread > 0 ? copy.unreadNotifications(unread) : copy.notifications}
-            onPress={props.onNotifications}
-          >
-            <View>
-              <VectorIcon name="bell" size={20} color={theme.foreground} />
-              {unread > 0 ? (
-                <View
-                  pointerEvents="none"
-                  style={{
-                    position: 'absolute',
-                    top: -1,
-                    right: -1,
-                    width: 8,
-                    height: 8,
-                    borderRadius: 4,
-                    backgroundColor: palette.coral,
-                  }}
-                />
-              ) : null}
-            </View>
-          </RoundIconButton>
-          <RoundIconButton label={copy.settings} onPress={props.onSettings}>
-            <Host matchContents pointerEvents="none" ignoreSafeArea="all">
-              <NativeIcon source={icons.settings} size={18} color={theme.foreground} />
-            </Host>
-          </RoundIconButton>
-        </View>
 
         <ProfileHero
           name={name}

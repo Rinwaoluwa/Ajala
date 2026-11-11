@@ -58,11 +58,11 @@ export function SavedActivitiesScreen({
     </View>
   ) : vm.failed ? (
     <View className="flex-1 justify-center">
-      <EmptyState title={copy.failed} action={{ label: copy.retry, onPress: vm.retry, variant: 'primary' }} />
+      <EmptyState icon="cloud-offline-outline" title={copy.failed} action={{ label: copy.retry, onPress: vm.retry, variant: 'primary' }} />
     </View>
   ) : (
     <View className="flex-1 justify-center">
-      <EmptyState
+      <EmptyState icon="bookmark-outline"
         title={vm.filter === 'all' ? copy.emptyTitle : copy.emptyFiltered}
         body={vm.filter === 'all' ? copy.emptyBody : undefined}
         action={{ label: copy.explore, onPress: onExplore }}

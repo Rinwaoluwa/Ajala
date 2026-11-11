@@ -54,6 +54,8 @@ export const setupCopy = {
     title: 'How do you like to travel?',
     body: 'Choose up to 10 styles that best describe your trips.',
     section: 'Travel style',
+    search: 'Search travel styles',
+    noMatches: 'No travel style matches that.',
   },
 
   destinations: {
@@ -75,6 +77,8 @@ export const setupCopy = {
     loadFailed: "We couldn't load the interests.",
     none: 'There are no interests to choose from yet. Skip for now; you can add them later.',
     retry: 'Try again',
+    search: 'Search interests',
+    noMatches: 'No interest matches that.',
   },
 
   saving: {

@@ -12,6 +12,7 @@ import {
   enterRise,
   icons,
 } from '@shared/components';
+import { FORM_FIELD_GAP } from '@shared/theme';
 
 import { GENDERS, LANGUAGES } from '../../domain/rules/profileSetupRules';
 import { chipToneFor } from '../chipTones';
@@ -58,7 +59,7 @@ export function ProfileBasicsScreen({ onContinue }: ProfileBasicsScreenProps) {
 
       <Animated.View entering={enterRise(120)} style={{ marginTop: SECTION_GAP }}>
         {vm.missing.name ? (
-          <View className="mb-18">
+          <View style={{ marginBottom: FORM_FIELD_GAP }}>
             <TextField
               label={copy.fullName.label}
               placeholder={copy.fullName.placeholder}
@@ -73,7 +74,7 @@ export function ProfileBasicsScreen({ onContinue }: ProfileBasicsScreenProps) {
           </View>
         ) : null}
         {vm.missing.dateOfBirth ? (
-          <View className="mb-18">
+          <View style={{ marginBottom: FORM_FIELD_GAP }}>
             <SelectField
               label={copy.dateOfBirth.label}
               placeholder={copy.dateOfBirth.placeholder}
@@ -101,7 +102,7 @@ export function ProfileBasicsScreen({ onContinue }: ProfileBasicsScreenProps) {
         <Text variant="bodyMd" className="mb-12">
           {copy.languages}
         </Text>
-        <ChipGroup>
+        <ChipGroup wrap>
           {LANGUAGES.map((language) => (
             <Chip
               key={language.value}
@@ -117,7 +118,7 @@ export function ProfileBasicsScreen({ onContinue }: ProfileBasicsScreenProps) {
           {copy.gender}
         </Text>
         <View accessibilityRole="radiogroup">
-          <ChipGroup>
+          <ChipGroup wrap>
             {GENDERS.map((gender) => (
               <Chip
                 key={gender.value}

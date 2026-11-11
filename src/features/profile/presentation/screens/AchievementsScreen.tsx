@@ -87,7 +87,7 @@ export function AchievementsScreen({
         </View>
       ) : vm.failed ? (
         <View className="flex-1 justify-center px-20">
-          <EmptyState
+          <EmptyState icon="cloud-offline-outline"
             title={profileViewCopy.failed.title}
             action={{ label: profileViewCopy.failed.retry, onPress: vm.retry, variant: 'primary' }}
           />
@@ -139,7 +139,7 @@ export function AchievementsScreen({
             <View style={{ paddingHorizontal: SCREEN_GUTTER, paddingTop: 16, gap: 12 }}>
               {vm.earned === 0 && vm.inProgress === 0 ? (
                 <View style={{ paddingBottom: 8 }}>
-                  <EmptyState
+                  <EmptyState icon="ribbon-outline"
                     title={theirs?.emptyBadgesTitle ?? copy.emptyTitle}
                     body={theirs?.emptyBadgesBody ?? copy.emptyBody}
                   />
@@ -166,7 +166,7 @@ export function AchievementsScreen({
             {vm.stamps.length ? (
               <StampsView stamps={vm.stamps} owner={person?.firstName} />
             ) : (
-              <EmptyState
+              <EmptyState icon="earth-outline"
                 title={profileViewCopy.stamps.emptyTitle}
                 body={theirs?.emptyStampsBody ?? profileViewCopy.stamps.emptyBody}
                 action={theirs ? undefined : { label: copy.exploreMore, onPress: onExplore }}

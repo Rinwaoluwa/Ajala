@@ -145,7 +145,7 @@ export function PublicProfileScreen({
         {header('')}
         <View className="flex-1 justify-center px-20">
           {notFound ? (
-            <EmptyState
+            <EmptyState icon="person-outline"
               title={copy.unavailable.title}
               body={copy.unavailable.body}
               action={{ label: copy.unavailable.back, onPress: onBack, variant: 'primary' }}
@@ -167,7 +167,7 @@ export function PublicProfileScreen({
   const first = person.displayName.split(' ')[0] ?? person.displayName;
   const link = profileLink(person.handle, person.id);
 
-  const confirmBlock = () =>
+  const confirmBlock = () => {
     haptics.warning();
     Alert.alert(copy.block.title(first), copy.block.body, [
       { text: copy.block.cancel, style: 'cancel' },
@@ -182,6 +182,7 @@ export function PublicProfileScreen({
             ),
       },
     ]);
+  };
 
   const listHeader = (
     <View style={{ gap: 24, paddingBottom: 16 }}>

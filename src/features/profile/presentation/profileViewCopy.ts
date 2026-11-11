@@ -22,6 +22,8 @@ export const profileViewCopy = {
     emptyStampsBody: `Every city ${name} joins an activity in adds a stamp to their passport.`,
   }),
   travelDetails: 'Travel details',
+  showMore: (count: number) => `Show ${count} more`,
+  showLess: 'Show less',
   travelJournal: 'Travel journal',
   openLink: (where: string) => `Opens ${where}`,
   settings: 'Settings',
