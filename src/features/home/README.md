@@ -16,7 +16,7 @@ and the feed carries the point it looks around (`origin { lat, lng, label, regio
 | Screen element | Call |
 | --- | --- |
 | Cards | `GET /feed?type&cursor&limit` → `FeedPageDto`; every `PostCardDto` field is typed, including the place fields `placeId`, `formattedAddress`, `localityLabel`, `countryCode`. The card's place line is `placeName`, else `localityLabel` ("Lagos, Nigeria") for a dropped pin. No shared cost or join mode (backend answers, Nov 9) |
-| Header | The feed's `origin`: a teleport shows its short name ("Accra") and "Teleported to Accra, Ghana" (`origin.label`); the phone's own location shows `origin.region` ("Lagos"), else "Near you", and "Exploring where you are" |
+| Header | The feed's `origin`: a teleport shows its short name ("Accra") and "Teleported to Accra, Ghana" (`origin.label`); the phone's own location shows `origin.region` ("Lagos"), else "Near you", and "Exploring your current city" |
 | No location, no teleport | 404 `NO_LOCATION` → "See what's around you": **Turn on location** (the system prompt, or Settings once refused for good) and **Choose a place** (Travel). Not an error state; there is no home-city fallback |
 | Header before the feed answers, Travel's state | `GET /me` → `MeTravelDto` (`teleport: { placeId } \| null`, `homePlace`), under Home's own key `['home', 'travelState']` (`useTravelState`). `teleport` is Swagger's `TeleportDto`, the id alone (spec §8 Q1): its name comes from the feed's `origin.label`, from the city just picked, or else one `placeDetails` lookup cached for the run (`usePlaceName`) |
 | Bookmark on a card | the shared `PostCard` (`useSavePost`), starting from the card's `saved` |

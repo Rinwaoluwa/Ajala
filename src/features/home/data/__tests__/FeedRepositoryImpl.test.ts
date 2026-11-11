@@ -146,6 +146,7 @@ describe('feed repository', () => {
     const LAGOS = { placeId: 'g-lagos', label: 'Lagos, Nigeria', countryCode: 'NG' };
     const { request, calls } = fake(() => ({ id: 'u1', homePlace: LAGOS, teleport: { placeId: 'g-accra' } }));
     expect(await createFeedRepository(request).getTravelState()).toEqual({
+      viewerId: 'u1',
       teleport: { placeId: 'g-accra' },
       homePlace: LAGOS,
     });
@@ -154,7 +155,11 @@ describe('feed repository', () => {
 
   it('reads no teleport as null (none, or the subscription ended)', async () => {
     const { request } = fake(() => ({ id: 'u1', homePlace: null, teleport: null }));
-    expect(await createFeedRepository(request).getTravelState()).toEqual({ teleport: null, homePlace: null });
+    expect(await createFeedRepository(request).getTravelState()).toEqual({
+      viewerId: 'u1',
+      teleport: null,
+      homePlace: null,
+    });
   });
 
   it('teleports by place id and comes home with a DELETE', async () => {

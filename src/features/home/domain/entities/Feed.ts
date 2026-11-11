@@ -52,9 +52,16 @@ export type PostCard = {
   /** The city and country, e.g. "Lagos, Nigeria". */
   localityLabel: string | null;
   countryCode: string | null;
-  host: { name: string; avatarUrl: string | null; verified: boolean };
+  host: { id: string; name: string; avatarUrl: string | null; verified: boolean };
   /** Null without the location header. */
   distanceKm: number | null;
+  /**
+   * A line about the post, when the server sends one. `PostCardDto` has no
+   * description today (it belongs to `PostDetailDto`); the card shows it as soon
+   * as the backend adds it (backend request B4).
+   */
+  description: string | null;
+  visibility: 'open' | 'private';
   goingCount: number;
   capacity: number | null;
   /** Null when free or not given: a card shows the price or nothing (there is no shared cost). */
@@ -82,6 +89,8 @@ export type FeedPage = {
  * place centres nothing any more; it only gives the paywall its home flag.
  */
 export type TravelState = {
+  /** The signed-in person's id, to tell their own posts in the feed apart. */
+  viewerId: string | null;
   teleport: { placeId: string } | null;
   homePlace: { placeId: string; label: string; countryCode: string | null } | null;
 };

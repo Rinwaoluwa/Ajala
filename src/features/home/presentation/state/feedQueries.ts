@@ -18,6 +18,8 @@ export const feedKeys = {
    * and shape: the shared `['me']` cache holds the profile feature's shape.
    */
   travelState: ['home', 'travelState'] as const,
+  /** A card's description from its post page (B4). Not origin-bound: a post's words don't move. */
+  postDescription: (postId: string) => ['home', 'postDescription', postId] as const,
 };
 
 /**

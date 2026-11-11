@@ -4,7 +4,7 @@ import type { PostType } from '../domain/entities/Feed';
 
 export const homeCopy = {
   // Not drawn: the frames show a home city, which the feed no longer has; it follows the phone.
-  deviceSubtitle: 'Exploring where you are',
+  deviceSubtitle: 'Exploring your current city',
   // The header's big line when the server names no region for the phone's location.
   nearYou: 'Near you',
   // Not drawn; the spec's wording (§2.11) for a feed a Travel teleport has moved.

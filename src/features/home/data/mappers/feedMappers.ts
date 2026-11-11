@@ -24,8 +24,15 @@ export function toPostCard(dto: PostCardDto): PostCard {
     formattedAddress: dto.formattedAddress ?? null,
     localityLabel: dto.localityLabel ?? null,
     countryCode: dto.countryCode ?? null,
-    host: { name: dto.host.displayName, avatarUrl: dto.host.avatarUrl ?? null, verified: dto.host.verified },
+    host: {
+      id: dto.host?.id ?? '',
+      name: dto.host?.displayName ?? '',
+      avatarUrl: dto.host?.avatarUrl ?? null,
+      verified: dto.host?.verified ?? false,
+    },
     distanceKm: dto.distanceKm ?? null,
+    description: dto.description?.trim() || null,
+    visibility: dto.visibility === 'private' ? 'private' : 'open',
     goingCount: dto.goingCount ?? 0,
     capacity: dto.capacity ?? null,
     price: dto.price
@@ -52,6 +59,7 @@ export function toFeedPage(dto: FeedPageDto): FeedPage {
 }
 
 export const toTravelState = (dto: MeTravelDto): TravelState => ({
+  viewerId: dto.id ?? null,
   teleport: dto.teleport?.placeId ? { placeId: dto.teleport.placeId } : null,
   homePlace: dto.homePlace
     ? { placeId: dto.homePlace.placeId, label: dto.homePlace.label, countryCode: dto.homePlace.countryCode ?? null }

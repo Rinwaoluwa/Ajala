@@ -1,8 +1,7 @@
-import { Host } from '@expo/ui';
 import { Pressable, View, useColorScheme } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
-import { GlassSurface, NativeIcon, SkeletonBlock, Text, VectorIcon, icons } from '@shared/components';
+import { Host, GlassSurface, NativeIcon, SkeletonBlock, Text, VectorIcon, icons } from '@shared/components';
 import { useFontScale } from '@shared/hooks/useFontScale';
 import { useTheme } from '@shared/hooks/useTheme';
 import { palette } from '@shared/theme';

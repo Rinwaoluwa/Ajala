@@ -1,9 +1,9 @@
-import { Host } from '@expo/ui';
 import { Pressable, ScrollView, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
+  Host,
   Button,
   NativeIcon,
   NativeSpinner,
@@ -344,7 +344,13 @@ type Badge = 'pro' | 'travel' | 'none';
 
 /** The tag on a city, or a spinner while Travel is moving the feed there. */
 function CityBadge({ badge, busy = false }: { badge: Badge; busy?: boolean }) {
-  if (busy) return <NativeSpinner size={14} color={palette.inkSecondary} />;
+  // In a Host: a native (SwiftUI) spinner bare in a React Native row crashes the app.
+  if (busy)
+    return (
+      <Host matchContents pointerEvents="none">
+        <NativeSpinner size={14} color={palette.inkSecondary} />
+      </Host>
+    );
   return badge === 'pro' ? <ProTag /> : badge === 'travel' ? <TravelTag /> : null;
 }
 

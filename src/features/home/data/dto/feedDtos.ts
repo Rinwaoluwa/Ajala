@@ -102,6 +102,8 @@ export interface PostCardDto {
   host: HostCardDto;
   interests: InterestDto[];
   distanceKm: number | null;
+  /** Not in `PostCardDto` yet (asked for, backend request B4); read when it arrives. */
+  description?: string | null;
 }
 
 export interface FeedPageDto {
@@ -124,6 +126,8 @@ export interface TeleportDto {
  * feature's shape.
  */
 export interface MeTravelDto {
+  /** Who is signed in: a card whose host this is offers no RSVP. */
+  id: string;
   homePlace: PlaceRefDto | null;
   teleport: TeleportDto | null;
 }

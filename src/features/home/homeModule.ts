@@ -3,6 +3,7 @@ import type { FeedRequest } from './data/datasources/remote/feedApi';
 import {
   makeEndCitySearch,
   makeLoadFeed,
+  makeLoadPostDescription,
   makeLoadTravelState,
   makePlaceName,
   makeReturnHome,
@@ -18,6 +19,7 @@ export function createHomeUseCases(request: FeedRequest) {
   const repo = createFeedRepository(request);
   return {
     loadFeed: makeLoadFeed(repo),
+    loadPostDescription: makeLoadPostDescription(repo),
     searchCities: makeSearchCities(repo),
     placeName: makePlaceName(repo),
     endCitySearch: makeEndCitySearch(repo),

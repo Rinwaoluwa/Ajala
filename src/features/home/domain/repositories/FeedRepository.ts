@@ -5,6 +5,11 @@ export interface FeedRepository {
   /** The server picks the point (teleport, then the phone's location); the app never sends a place. */
   getFeed(filter: FeedFilter, cursor: string | null, limit: number): Promise<FeedPage>;
   /**
+   * A post's description, for a card: feed cards don't carry it yet (backend
+   * request B4). Null when it has none or the post could not be read; never rejects.
+   */
+  getPostDescription(postId: string): Promise<string | null>;
+  /**
    * Cities matching what was typed, from the place search on the phone (the
    * API has none). `signal` cancels a search that typing has overtaken.
    */

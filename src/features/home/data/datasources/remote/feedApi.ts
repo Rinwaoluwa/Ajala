@@ -41,6 +41,13 @@ export function createFeedApi(request: FeedRequest) {
         headers: headers ?? undefined,
       }),
 
+    /**
+     * A post's own page, read only for its description: `PostCardDto` has none
+     * yet (backend request B4), so a card fetches it from `PostDetailDto`.
+     */
+    getPostDescription: (postId: string) =>
+      request<{ description?: string | null }>({ method: 'GET', path: `${V1}/posts/${encodeURIComponent(postId)}` }),
+
     /** 204; 400 unknown place or not a city, 402 PAYMENT_REQUIRED without Travel, 503 map vendor down. */
     teleport: (body: TeleportDto) => request<void>({ method: 'POST', path: `${V1}/me/teleport`, body }),
 

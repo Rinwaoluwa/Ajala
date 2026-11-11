@@ -37,6 +37,14 @@ export function createFeedRepository(request: FeedRequest): FeedRepository {
   return {
     getFeed: (filter, cursor, limit) =>
       guard(async () => toFeedPage(await api.getFeed(filter, cursor, limit, await getClientLocationHeader()))),
+    getPostDescription: async (postId) => {
+      try {
+        return (await api.getPostDescription(postId)).description?.trim() || null;
+      } catch {
+        // A card without its description is still a card.
+        return null;
+      }
+    },
     searchCities: (query, signal) =>
       guard(async () => (await searchCities(query, null, signal)).map(toTravelCity)),
     placeName: (placeId, signal) => guard(async () => (await placeDetails(placeId, signal)).name),
