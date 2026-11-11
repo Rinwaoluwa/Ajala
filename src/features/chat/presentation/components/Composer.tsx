@@ -5,7 +5,7 @@ import { Platform, ScrollView, TouchableOpacity, View } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Host, NativeIcon, Text, TextField, icons } from '@shared/components';
+import { SvgIcon, Text, TextField } from '@shared/components';
 import { useKeyboardShown } from '@shared/hooks/useKeyboardShown';
 import { useTheme } from '@shared/hooks/useTheme';
 import { palette } from '@shared/theme';
@@ -180,9 +180,8 @@ export function Composer({
             justifyContent: 'center',
           }}
         >
-          <Host matchContents pointerEvents="none" ignoreSafeArea="all">
-            <NativeIcon source={icons.send} size={20} color={palette.white} />
-          </Host>
+          {/* The supplied send mark (`assets/icons/send.svg`), in white. */}
+          <SvgIcon name="send" size={20} tint={palette.white} />
         </TouchableOpacity>
       </View>
     </View>
