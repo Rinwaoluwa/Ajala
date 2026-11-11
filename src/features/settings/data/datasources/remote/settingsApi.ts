@@ -5,12 +5,15 @@ import type {
   DataExportDto,
   DeletionScheduledDto,
   HandleAvailabilityDto,
+  InterestDto,
   MeDto,
   MyPostDto,
   MyReportDto,
   Page,
+  ProfilePhotoDto,
   PublicProfileDto,
   ReauthDto,
+  ReorderPhotosDto,
   SessionDto,
   UpdateProfileDto,
   UpdateUserSettingsDto,
@@ -47,6 +50,19 @@ export function createSettingsApi(request: SettingsRequest) {
       appendFile(form, 'file', file);
       return request<{ avatarUrl: string | null }>({ method: 'POST', path: `${V1}/me/avatar`, body: form });
     },
+    /** The gallery (spec §2.4): multipart `file`; 409 once there are six. */
+    addPhoto: (file: { uri: string; name: string; type: string }) => {
+      const form = new FormData();
+      appendFile(form, 'file', file);
+      return request<ProfilePhotoDto>({ method: 'POST', path: `${V1}/me/photos`, body: form });
+    },
+    removePhoto: (photoId: string) =>
+      request<void>({ method: 'DELETE', path: `${V1}/me/photos/${id(photoId)}` }),
+    /** Every photo id in the new order (400 otherwise); answers the gallery as it now stands. */
+    reorderPhotos: (body: ReorderPhotosDto) =>
+      request<ProfilePhotoDto[]>({ method: 'PUT', path: `${V1}/me/photos/order`, body }),
+    /** The interests on offer, in display order. */
+    listInterests: () => request<InterestDto[]>({ method: 'GET', path: `${V1}/interests` }),
     /** Throttled to 10 a minute: the caller debounces, and a GET is not retried here. */
     checkHandle: (handle: string) =>
       request<HandleAvailabilityDto>({

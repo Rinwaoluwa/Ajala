@@ -1,9 +1,10 @@
-import { Host } from '@expo/ui';
+import { Image } from 'expo-image';
 import { useState } from 'react';
 import { Alert, TouchableOpacity, View } from 'react-native';
-import Animated, { FadeIn, FadeOut, LinearTransition } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 
 import {
+  Host,
   Button,
   Chip,
   ChipGroup,
@@ -11,6 +12,7 @@ import {
   NativeSpinner,
   SkeletonBlock,
   SkeletonPulse,
+  SortableGrid,
   StatusSheet,
   Text,
   TextArea,
@@ -20,11 +22,13 @@ import {
 } from '@shared/components';
 import { useTheme } from '@shared/hooks/useTheme';
 
-import type { Account, AccountPlace } from '../../domain/entities/Settings';
+import type { Account, AccountPlace, ProfilePhoto } from '../../domain/entities/Settings';
 import {
   BIO_MAX,
   FAVOURITE_DESTINATIONS_MAX,
   HANDLE_MAX,
+  INTERESTS_MAX,
+  PHOTOS_MAX,
   POPULAR_DESTINATION_SEARCHES,
   TRAVEL_STYLES_MAX,
 } from '../../domain/rules/settingsRules';
@@ -40,17 +44,21 @@ import { useAccount } from '../hooks/useSettingsData';
 
 /**
  * Edit profile (Figma, light and dark): the photo card ("Change photo", saved at
- * once), Display name, Username (checked as you type), Current city (from the
+ * once), the gallery (up to six photos, each saved or removed at once), Display
+ * name, Username (checked as you type), Current city (from the
  * phone's location, not editable), Social links ("Add More"), Bio, Languages spoken, Travel style
- * (up to 10 of the API's 36) and Favourite destinations (up to 10 Google
- * cities, searched, with a few well-known cities as quick searches), each
- * behind "Manage". A city search Google cannot answer says "Place search isn't
- * available right now".
+ * (up to 10 of the API's 36), Favourite destinations (up to 10 Google
+ * cities, searched, with a few well-known cities as quick searches) and
+ * Interests (3 to 8 of the server's list), each behind "Manage". A city search
+ * Google cannot answer says "Place search isn't available right now".
  * Save sends only what changed; leaving with unsaved changes asks first.
+ *
+ * A read that fails after the account was seen once keeps showing that copy:
+ * the failure only shows when there is nothing to draw.
  */
 export function EditProfileScreen({ onBack }: { onBack: () => void }) {
   const account = useAccount();
-  if (account.isError) {
+  if (!account.data && account.isError) {
     return (
       <SettingsFrame title={settingsCopy.edit.title} onBack={onBack}>
         <LoadFailed onRetry={() => void account.refetch()} />
@@ -126,6 +134,8 @@ function EditProfileForm({ account, onBack }: { account: Account; onBack: () => 
         ) : null}
       </View>
 
+      <GallerySection vm={vm} />
+
       <TextField
         label={copy.displayName}
         defaultValue={vm.displayName}
@@ -146,6 +156,7 @@ function EditProfileForm({ account, onBack }: { account: Account; onBack: () => 
         lines={3}
         helper={`${vm.bio.length}/${BIO_MAX}`}
       />
+      <InterestsSection vm={vm} />
       <LanguagesSection vm={vm} />
       <TravelStyleSection vm={vm} />
       <FavouritesSection vm={vm} />
@@ -199,7 +210,9 @@ function UsernameField({ vm }: { vm: EditProfileViewModel }) {
           ? copy.usernameChecking
           : vm.handleStatus === 'available'
             ? copy.usernameAvailable
-            : null
+            : vm.handleStatus === 'checkFailed'
+              ? copy.usernameCheckFailed
+              : null
       }
       trailing={
         vm.handleStatus === 'checking' ? (
@@ -213,8 +226,259 @@ function UsernameField({ vm }: { vm: EditProfileViewModel }) {
 }
 
 /**
+ * The gallery (spec §2.4, up to six): square thumbnails three to a row, each
+ * with a small ✕ (asked first), and an "Add photo" tile while there is room.
+ * Each photo is saved or removed at once; a tile spins while its upload runs.
+ *
+ * Hold a photo and drag it to change the order (`PUT /me/photos/order`): the
+ * first is the one travellers see first. Saved as soon as it is dropped.
+ */
+function GallerySection({ vm }: { vm: EditProfileViewModel }) {
+  const theme = useTheme();
+  const copy = settingsCopy.edit;
+  const confirmRemove = (photo: ProfilePhoto) =>
+    Alert.alert(copy.removePhotoTitle, copy.removePhotoBody, [
+      { text: copy.keepPhoto, style: 'cancel' },
+      { text: copy.removePhotoConfirm, style: 'destructive', onPress: () => vm.removePhoto(photo) },
+    ]);
+  const tile = {
+    flex: 1,
+    borderRadius: 14,
+    overflow: 'hidden' as const,
+    backgroundColor: theme.skeleton,
+  };
+  // After the saved photos, which move: the uploads on their way, then the add tile.
+  const fixed = [
+    ...Array.from({ length: vm.uploadingPhotos }, (_, i) => (
+      <View key={`up-${i}`} style={[tile, { alignItems: 'center', justifyContent: 'center' }]}>
+        <Host matchContents>
+          <NativeSpinner size={18} color={theme.muted} />
+        </Host>
+      </View>
+    )),
+    ...(vm.photos.length + vm.uploadingPhotos < PHOTOS_MAX
+      ? [
+          <TouchableOpacity
+            key="add"
+            activeOpacity={0.7}
+            onPress={vm.addPhotos}
+            accessibilityRole="button"
+            accessibilityLabel={copy.addPhoto}
+            style={[
+              tile,
+              {
+                backgroundColor: theme.chipFill,
+                borderWidth: 1,
+                borderColor: theme.controlBorder,
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 6,
+              },
+            ]}
+          >
+            <Host matchContents pointerEvents="none" ignoreSafeArea="all">
+              <NativeIcon source={icons.add} size={18} color={theme.primary} />
+            </Host>
+            <Text variant="bodyXs" tone="primary">
+              {copy.addPhoto}
+            </Text>
+          </TouchableOpacity>,
+        ]
+      : []),
+  ];
+
+  return (
+    <View style={{ gap: 10 }}>
+      <Text variant="labelXs" tone="muted">
+        {`${copy.photos} · ${copy.pickedCount(vm.photos.length, PHOTOS_MAX)}`}
+      </Text>
+      <SortableGrid
+        items={vm.photos}
+        keyOf={(p) => p.id}
+        columns={3}
+        gap={8}
+        cellHeight={(w) => w}
+        onMove={vm.movePhoto}
+        disabled={!vm.canReorder}
+        itemLabel={(i) => copy.photoItem(i + 1)}
+        footer={fixed}
+        renderItem={(photo, index) => (
+          <View style={tile} accessible accessibilityLabel={copy.photoItem(index + 1)}>
+            <Image source={{ uri: photo.thumbUrl }} style={{ flex: 1 }} contentFit="cover" transition={200} />
+            <View
+              pointerEvents="none"
+              style={{
+                position: 'absolute',
+                top: 6,
+                left: 6,
+                minWidth: 22,
+                height: 22,
+                paddingHorizontal: 5,
+                borderRadius: 11,
+                backgroundColor: 'rgba(0,0,0,0.55)',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Text variant="bodyXs" maxFontSizeMultiplier={1.3} style={{ color: '#FFFFFF' }}>
+                {index + 1}
+              </Text>
+            </View>
+            {vm.removingPhotoId === photo.id ? (
+              <View
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: 'rgba(0,0,0,0.35)',
+                }}
+              >
+                <Host matchContents>
+                  <NativeSpinner size={18} color="#FFFFFF" />
+                </Host>
+              </View>
+            ) : (
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => confirmRemove(photo)}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel={copy.removePhoto}
+                style={{
+                  position: 'absolute',
+                  top: 6,
+                  right: 6,
+                  width: 26,
+                  height: 26,
+                  borderRadius: 13,
+                  backgroundColor: 'rgba(0,0,0,0.55)',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Host matchContents pointerEvents="none" ignoreSafeArea="all">
+                  <NativeIcon source={icons.close} size={11} color="#FFFFFF" />
+                </Host>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+      />
+      <Text variant="bodyXs" tone="muted">
+        {vm.photos.length > 1 ? copy.photosReorderHelper(PHOTOS_MAX) : copy.photosHelper(PHOTOS_MAX)}
+      </Text>
+      {vm.galleryError ? (
+        <Text variant="bodyXs" tone="destructive" accessibilityLiveRegion="polite">
+          {settingsErrors[vm.galleryError]}
+        </Text>
+      ) : null}
+    </View>
+  );
+}
+
+const EMOJI_BADGE = 24;
+
+/** An interest's emoji in a white disc, as profile setup draws it (the API has no pictures). */
+function EmojiBadge({ emoji }: { emoji: string | null }) {
+  return (
+    <View
+      style={{
+        width: EMOJI_BADGE,
+        height: EMOJI_BADGE,
+        borderRadius: EMOJI_BADGE / 2,
+        backgroundColor: '#FFFFFF',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      <Text variant="bodyXs" allowFontScaling={false} style={{ fontSize: 14, lineHeight: 18 }}>
+        {emoji ?? '\u2728'}
+      </Text>
+    </View>
+  );
+}
+
+/**
+ * Interests (`PATCH /me { interestIds }`, 3–8 of `GET /interests`): the chosen
+ * ones as chips, and behind "Manage" the whole list to pick from. One or two
+ * chosen cannot be saved; the line under says so.
+ */
+function InterestsSection({ vm }: { vm: EditProfileViewModel }) {
+  const copy = settingsCopy.edit;
+  const [managing, setManaging] = useState(false);
+  const chosen = (vm.allInterests ?? []).filter((i) => vm.interestIds.includes(i.id));
+  return (
+    <Animated.View style={{ gap: 10 }}>
+      <SectionHeader
+        title={copy.interests}
+        managing={managing}
+        onToggle={() => setManaging((m) => !m)}
+        count={copy.pickedCount(vm.interestIds.length, INTERESTS_MAX)}
+      />
+      {vm.interestsLoading ? (
+        <SkeletonPulse>
+          <ChipGroup gap={8} rowGap={8}>
+            {[90, 120, 70, 100].map((w, i) => (
+              <SkeletonBlock key={i} width={w} height={36} radius={18} />
+            ))}
+          </ChipGroup>
+        </SkeletonPulse>
+      ) : vm.interestsFailed && !vm.allInterests ? (
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: 12 }}>
+          <Text variant="bodySm" tone="muted">
+            {copy.interestsLoadFailed}
+          </Text>
+          <TextLink label={copy.retry} onPress={vm.retryInterests} emphasis="plain" />
+        </View>
+      ) : managing ? (
+        <Animated.View entering={FadeIn.duration(180)}>
+          <ChipGroup gap={8} rowGap={10}>
+            {(vm.allInterests ?? []).map((interest) => {
+              const selected = vm.interestIds.includes(interest.id);
+              return (
+                <Chip
+                  key={interest.id}
+                  label={interest.name}
+                  leading={<EmojiBadge emoji={interest.emoji} />}
+                  selected={selected}
+                  disabled={vm.interestsFull && !selected}
+                  onPress={() => vm.toggleInterest(interest.id)}
+                />
+              );
+            })}
+          </ChipGroup>
+        </Animated.View>
+      ) : chosen.length ? (
+        <ChipGroup gap={8} rowGap={10}>
+          {chosen.map((interest) => (
+            <Chip
+              key={interest.id}
+              label={interest.name}
+              leading={<EmojiBadge emoji={interest.emoji} />}
+              selected={false}
+              onPress={() => setManaging(true)}
+            />
+          ))}
+        </ChipGroup>
+      ) : (
+        <Text variant="bodySm" tone="muted">
+          {copy.noInterests}
+        </Text>
+      )}
+      {!vm.interestsOk ? (
+        <Text variant="bodyXs" tone="destructive" accessibilityLiveRegion="polite">
+          {copy.interestsRule}
+        </Text>
+      ) : null}
+    </Animated.View>
+  );
+}
+
+/**
  * "Current city", read-only: always where the phone is (looked up on open), so
- * there is nothing to search. Without location it keeps the saved city.
+ * there is nothing to search. Without location it keeps the saved city; with
+ * neither it says location is off, and offers Settings when only they can turn it on.
  */
 function CityPicker({ vm }: { vm: EditProfileViewModel }) {
   const theme = useTheme();
@@ -254,9 +518,20 @@ function CityPicker({ vm }: { vm: EditProfileViewModel }) {
           </Text>
         ) : null}
       </View>
-      <Text variant="bodyXs" tone="muted">
-        {copy.cityHelper}
-      </Text>
+      {vm.cityNeedsLocation ? (
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: 12 }}>
+          <Text variant="bodyXs" tone="muted">
+            {copy.cityNeedsLocation}
+          </Text>
+          {vm.cityBlocked ? (
+            <TextLink label={copy.cityOpenSettings} onPress={vm.openLocationSettings} emphasis="plain" />
+          ) : null}
+        </View>
+      ) : (
+        <Text variant="bodyXs" tone="muted">
+          {copy.cityHelper}
+        </Text>
+      )}
     </View>
   );
 }
@@ -265,7 +540,7 @@ function SocialLinksFields({ vm }: { vm: EditProfileViewModel }) {
   const copy = settingsCopy.edit;
   const [more, setMore] = useState(Boolean(vm.links.tiktok || vm.links.website));
   return (
-    <Animated.View layout={LinearTransition.duration(200)} style={{ gap: 12 }}>
+    <Animated.View style={{ gap: 12 }}>
       <Text variant="labelXs" tone="muted">
         {copy.socialLinks}
       </Text>
@@ -343,7 +618,7 @@ function LanguagesSection({ vm }: { vm: EditProfileViewModel }) {
   const copy = settingsCopy.edit;
   const [managing, setManaging] = useState(false);
   return (
-    <Animated.View layout={LinearTransition.duration(220)} style={{ gap: 10 }}>
+    <Animated.View style={{ gap: 10 }}>
       <SectionHeader title={copy.languages} managing={managing} onToggle={() => setManaging((m) => !m)} />
       {managing ? (
         <Animated.View entering={FadeIn.duration(180)}>
@@ -377,7 +652,7 @@ function TravelStyleSection({ vm }: { vm: EditProfileViewModel }) {
   const copy = settingsCopy.edit;
   const [managing, setManaging] = useState(false);
   return (
-    <Animated.View layout={LinearTransition.duration(220)} style={{ gap: 10 }}>
+    <Animated.View style={{ gap: 10 }}>
       <SectionHeader
         title={copy.travelStyle}
         managing={managing}
@@ -443,7 +718,7 @@ function FavouritesSection({ vm }: { vm: EditProfileViewModel }) {
   };
 
   return (
-    <Animated.View layout={LinearTransition.duration(220)} style={{ gap: 10 }}>
+    <Animated.View style={{ gap: 10 }}>
       <SectionHeader
         title={copy.favouriteLocations}
         managing={managing}
@@ -521,8 +796,12 @@ function FavouritesSection({ vm }: { vm: EditProfileViewModel }) {
                     <Text variant="bodySm" style={{ flex: 1 }}>
                       {c.label}
                     </Text>
+                    {/* A native (SwiftUI) icon must sit in a Host: bare inside this row it crashed the
+                        app the moment a city was picked. */}
                     {picked ? (
-                      <NativeIcon source={icons.checkCircle} size={16} color={theme.success} />
+                      <Host matchContents pointerEvents="none">
+                        <NativeIcon source={icons.checkCircle} size={16} color={theme.success} />
+                      </Host>
                     ) : null}
                   </TouchableOpacity>
                 );

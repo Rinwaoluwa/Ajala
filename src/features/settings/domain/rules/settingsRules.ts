@@ -14,6 +14,15 @@ export const SOCIAL_LINK_MAX = 200;
 /** `extras.travelStyles` and `extras.favouriteDestinationIds` each take up to 10 (spec §4; an 11th is a 400). */
 export const TRAVEL_STYLES_MAX = 10;
 export const FAVOURITE_DESTINATIONS_MAX = 10;
+/** `interestIds` takes 3–8 (spec §4 `UpdateProfileDto`); fewer or more is a 400. */
+export const INTERESTS_MIN = 3;
+export const INTERESTS_MAX = 8;
+/** The gallery holds six photos (spec §2.4; a seventh is a 409). */
+export const PHOTOS_MAX = 6;
+
+/** Whether a set of interests may be saved: none at all leaves them alone, else 3–8. */
+export const interestsCountOk = (count: number) =>
+  count === 0 || (count >= INTERESTS_MIN && count <= INTERESTS_MAX);
 
 /**
  * Quick searches under Favourite destinations. The API's popular cities
@@ -116,6 +125,8 @@ export function diffProfile(account: Account, next: ProfileEdit): ProfileEdit {
     next.favouriteDestinationIds.join() !== account.favouriteDestinations.map((c) => c.placeId).join()
   )
     out.favouriteDestinationIds = next.favouriteDestinationIds;
+  if (next.interestIds && next.interestIds.join() !== account.interests.map((i) => i.id).join())
+    out.interestIds = next.interestIds;
   return out;
 }
 

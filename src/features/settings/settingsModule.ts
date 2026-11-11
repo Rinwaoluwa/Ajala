@@ -1,8 +1,9 @@
-import { pickSquareImage } from '@core/media/imagePicker';
+import { pickImages, pickSquareImage } from '@core/media/imagePicker';
 
 import type { SettingsRequest } from './data/datasources/remote/settingsApi';
 import { createSettingsRepository } from './data/repositories/SettingsRepositoryImpl';
 import {
+  makeAddPhoto,
   makeChangePassword,
   makeCheckHandle,
   makeConfirmEmailChange,
@@ -17,9 +18,12 @@ import {
   makeGetSupportLinks,
   makeListBlocked,
   makeListDrafts,
+  makeListInterests,
   makeListReports,
   makeListSessions,
   makeReauthenticate,
+  makeRemovePhoto,
+  makeReorderPhotos,
   makeRequestExport,
   makeSaveProfile,
   makeSearchCities,
@@ -44,6 +48,10 @@ export function createSettingsUseCases(request: SettingsRequest) {
     getAccount: makeGetAccount(repo),
     saveProfile: makeSaveProfile(repo),
     uploadAvatar: makeUploadAvatar(repo),
+    addPhoto: makeAddPhoto(repo),
+    removePhoto: makeRemovePhoto(repo),
+    reorderPhotos: makeReorderPhotos(repo),
+    listInterests: makeListInterests(repo),
     checkHandle: makeCheckHandle(repo),
     searchCities: makeSearchCities(repo),
     endCitySearch: makeEndCitySearch(repo),
@@ -75,5 +83,8 @@ export function createSettingsUseCases(request: SettingsRequest) {
 
 export type SettingsUseCases = ReturnType<typeof createSettingsUseCases>;
 
-/** Picking a profile photo: cropped square, resized and compressed for upload (spec §1.4). */
-export const settingsMedia = { pickSquareImage };
+/**
+ * Picking a profile photo (cropped square) and gallery photos (their own shape),
+ * each resized and compressed for upload (spec §1.4).
+ */
+export const settingsMedia = { pickSquareImage, pickImages };

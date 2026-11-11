@@ -53,6 +53,8 @@ const ME = {
     unknown
   >,
   favouriteDestinations: [{ placeId: 'ChIJ-accra', countryCode: 'GH', label: 'Accra, Ghana' }],
+  interests: [{ id: 'i-hiking', slug: 'hiking', name: 'Hiking', emoji: null }],
+  photos: [{ id: 'p1', url: 'https://m/p1.jpg', thumbUrl: 'https://m/p1-thumb.jpg', position: 0 }],
   identities: [{ provider: 'google' }],
 };
 
@@ -90,8 +92,46 @@ describe('SettingsRepository over the API', () => {
       // A slug outside the API's list could not be saved back, so it is dropped.
       travelStyles: ['solo'],
       favouriteDestinations: [{ placeId: 'ChIJ-accra', name: 'Accra', label: 'Accra, Ghana' }],
+      interests: [{ id: 'i-hiking', slug: 'hiking', name: 'Hiking', emoji: null }],
+      photos: [{ id: 'p1', url: 'https://m/p1.jpg', thumbUrl: 'https://m/p1-thumb.jpg' }],
       identities: [{ provider: 'google' }],
     });
+  });
+
+  it('sends interest ids at the top level, not in extras', async () => {
+    const { repo, calls } = fake(() => ME);
+    const current = (await repo.getAccount()) as Account;
+    await repo.updateAccount({ interestIds: ['a', 'b', 'c'] }, current);
+    expect(calls[1]).toMatchObject({ method: 'PATCH', path: '/api/v1/me', body: { interestIds: ['a', 'b', 'c'] } });
+    expect((calls[1].body as Record<string, unknown>).extras).toBeUndefined();
+  });
+
+  it('adds, removes and lists gallery photos, and reads a full gallery', async () => {
+    const photo = { id: 'p2', url: 'https://m/p2.jpg', thumbUrl: 'https://m/p2-thumb.jpg', position: 1 };
+    const { repo, calls } = fake((call) =>
+      call.method === 'POST' && call.path === '/api/v1/me/photos'
+        ? photo
+        : call.method === 'GET'
+          ? [{ id: 'i', slug: 's', name: 'S', emoji: '✨' }]
+          : undefined,
+    );
+    expect(await repo.addPhoto({ uri: 'file:///a.jpg', name: 'a.jpg', type: 'image/jpeg' })).toEqual({
+      id: 'p2',
+      url: 'https://m/p2.jpg',
+      thumbUrl: 'https://m/p2-thumb.jpg',
+    });
+    await repo.removePhoto('p2');
+    expect(await repo.listInterests()).toEqual([{ id: 'i', slug: 's', name: 'S', emoji: '✨' }]);
+    expect(calls.map((c) => `${c.method} ${c.path}`)).toEqual([
+      'POST /api/v1/me/photos',
+      'DELETE /api/v1/me/photos/p2',
+      'GET /api/v1/interests',
+    ]);
+
+    const full = fake(() => new ApiError({ code: 'CONFLICT', message: 'Gallery full', status: 409 }));
+    await expect(
+      full.repo.addPhoto({ uri: 'file:///a.jpg', name: 'a.jpg', type: 'image/jpeg' }),
+    ).rejects.toMatchObject({ code: 'galleryFull' });
   });
 
   it('sends the home place, and travel styles and favourite destinations inside extras', async () => {

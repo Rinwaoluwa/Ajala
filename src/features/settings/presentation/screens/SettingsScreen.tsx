@@ -1,5 +1,6 @@
 import { Alert, Linking } from 'react-native';
 
+import { openInApp } from '@core/links/openInApp';
 import { useSignOut } from '@features/auth';
 import { ListGroup, ListRow } from '@shared/components';
 import { useAppearancePreference } from '@shared/state/appearance';
@@ -39,7 +40,8 @@ export function SettingsScreen({ onBack, onNavigate, onOpenProfile }: SettingsSc
   const help = () => {
     const links = support.data;
     if (!links) return;
-    void Linking.openURL(links.faqUrl).catch(() => Linking.openURL(`mailto:${links.supportEmail}`));
+    // The FAQ opens inside the app; if it cannot, the mail app is the way to reach support.
+    void openInApp(links.faqUrl).catch(() => Linking.openURL(`mailto:${links.supportEmail}`));
   };
 
   return (

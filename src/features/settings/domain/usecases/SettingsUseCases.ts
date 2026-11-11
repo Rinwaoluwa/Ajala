@@ -5,6 +5,9 @@ import {
   BIO_MAX,
   DELETE_REASON_MAX,
   FAVOURITE_DESTINATIONS_MAX,
+  INTERESTS_MAX,
+  INTERESTS_MIN,
+  PHOTOS_MAX,
   TRAVEL_STYLES_MAX,
   diffProfile,
   isEmailLike,
@@ -33,6 +36,10 @@ export const makeSaveProfile =
     if ((edit.travelStyles?.length ?? 0) > TRAVEL_STYLES_MAX) throw new SettingsError('invalidDetails');
     if ((edit.favouriteDestinationIds?.length ?? 0) > FAVOURITE_DESTINATIONS_MAX)
       throw new SettingsError('invalidDetails');
+    // The API takes 3–8 interests; an empty set means "leave them alone", not "clear them".
+    if (edit.interestIds && edit.interestIds.length === 0) delete edit.interestIds;
+    if (edit.interestIds && (edit.interestIds.length < INTERESTS_MIN || edit.interestIds.length > INTERESTS_MAX))
+      throw new SettingsError('invalidDetails');
     if (Object.keys(edit).length === 0) return account;
     return repo.updateAccount(edit, account);
   };
@@ -40,6 +47,16 @@ export const makeSaveProfile =
 export const makeUploadAvatar =
   (repo: SettingsRepository) => (file: { uri: string; name: string; type: string }) =>
     repo.uploadAvatar(file);
+
+/** A gallery photo; a full gallery is refused before a request is spent. */
+export const makeAddPhoto =
+  (repo: SettingsRepository) => async (file: { uri: string; name: string; type: string }, current: Account) => {
+    if (current.photos.length >= PHOTOS_MAX) throw new SettingsError('galleryFull');
+    return repo.addPhoto(file);
+  };
+export const makeRemovePhoto = (repo: SettingsRepository) => (photoId: string) => repo.removePhoto(photoId);
+export const makeReorderPhotos = (repo: SettingsRepository) => (ids: string[]) => repo.reorderPhotos(ids);
+export const makeListInterests = (repo: SettingsRepository) => () => repo.listInterests();
 
 /** Format first (no request for "a!"), then the server. */
 export const makeCheckHandle = (repo: SettingsRepository) => async (raw: string) => {

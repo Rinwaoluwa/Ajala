@@ -18,6 +18,26 @@ export interface SocialLinksDto {
   website?: string | null;
 }
 
+export interface InterestDto {
+  id: string;
+  slug: string;
+  name: string;
+  emoji: string | null;
+}
+
+/** A gallery photo (`ProfilePhotoDto`): 1280 px and 400 px copies. */
+export interface ProfilePhotoDto {
+  id: string;
+  url: string;
+  thumbUrl: string;
+  position: number;
+}
+
+export interface ReorderPhotosDto {
+  /** Every photo id, in the new order. */
+  ids: string[];
+}
+
 export interface MeDto {
   id: string;
   firstName: string | null;
@@ -37,6 +57,10 @@ export interface MeDto {
     | null;
   /** The cities behind `extras.favouriteDestinationIds`, in order. */
   favouriteDestinations: PlaceRefDto[] | null;
+  /** The interests picked (3–8). Missing on older servers. */
+  interests?: InterestDto[] | null;
+  /** The gallery, in the person's order (up to 6). Missing on older servers. */
+  photos?: ProfilePhotoDto[] | null;
   /** Provider only: `verifiedAt` left the API (spec §8). */
   identities: { provider: 'email' | 'google' | 'apple' }[] | null;
 }
@@ -48,6 +72,8 @@ export interface UpdateProfileDto {
   bio?: string | null;
   /** A city's Google place id; a venue or street address is a 400. */
   homePlaceId?: string | null;
+  /** 3–8 active interest ids; replaces the whole set. */
+  interestIds?: string[];
   extras?: Record<string, unknown>;
 }
 

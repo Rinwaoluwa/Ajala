@@ -1,5 +1,9 @@
 import { getAppConfig } from '@core/config/appConfig';
-import { getCurrentCoordinates, getLocationPermission } from '@core/location/deviceLocation';
+import {
+  getCurrentCoordinates,
+  getLocationPermission,
+  requestLocationPermission,
+} from '@core/location/deviceLocation';
 import { cityAt, endPlacesSession, searchCities } from '@core/places';
 
 import type { SettingsRepository } from '../../domain/repositories/SettingsRepository';
@@ -11,6 +15,8 @@ import {
   toCitySuggestion,
   toDataExport,
   toDraft,
+  toInterest,
+  toProfilePhoto,
   toReport,
   toSession,
   toSettings,
@@ -45,6 +51,7 @@ export function createSettingsRepository(request: SettingsRequest): SettingsRepo
               ...(edit.handle !== undefined ? { handle: edit.handle } : null),
               ...(edit.bio !== undefined ? { bio: edit.bio } : null),
               ...(edit.homePlaceId !== undefined ? { homePlaceId: edit.homePlaceId } : null),
+              ...(edit.interestIds !== undefined ? { interestIds: edit.interestIds } : null),
               ...(editsExtras(edit)
                 ? {
                     extras: mergeExtras(current.extras, {
@@ -58,6 +65,10 @@ export function createSettingsRepository(request: SettingsRequest): SettingsRepo
         edit.handle !== undefined ? 'handle' : undefined,
       ),
     uploadAvatar: (file) => guard(async () => (await api.uploadAvatar(file)).avatarUrl ?? null),
+    addPhoto: (file) => guard(async () => toProfilePhoto(await api.addPhoto(file)), 'photo'),
+    removePhoto: (photoId) => guard(() => api.removePhoto(photoId)),
+    reorderPhotos: (ids) => guard(async () => (await api.reorderPhotos({ ids })).map(toProfilePhoto)),
+    listInterests: () => guard(async () => (await api.listInterests()).map(toInterest)),
     checkHandle: (handle) =>
       guard(async () => {
         const r = await api.checkHandle(handle);
@@ -74,7 +85,11 @@ export function createSettingsRepository(request: SettingsRequest): SettingsRepo
     },
     endCitySearch: () => endPlacesSession(),
     detectCurrentCity: async () => {
-      if ((await getLocationPermission()) !== 'granted') return null;
+      let permission = await getLocationPermission();
+      if (permission === 'undetermined' || permission === 'deniedCanAsk') {
+        permission = await requestLocationPermission();
+      }
+      if (permission !== 'granted') return null;
       const coords = await getCurrentCoordinates();
       if (!coords) return null;
       try {

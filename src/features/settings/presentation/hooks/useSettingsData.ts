@@ -1,6 +1,7 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { sharedQueryKeys } from '@core/api/queryClient/queryClient';
+import { POST_LIST_PREFIXES } from '@shared/state/postQueryKeys';
 
 import type { Account, SettingsPatch, UserSettings } from '../../domain/entities/Settings';
 import { isSettingsError, type SettingsErrorCode } from '../../domain/entities/SettingsError';
@@ -138,7 +139,9 @@ export function useBlocked() {
         list?.filter((b) => b.id !== id),
       );
       // Their posts and profile can appear again elsewhere.
-      void queryClient.invalidateQueries({ queryKey: ['feed'] });
+      for (const prefix of [...POST_LIST_PREFIXES, ['profile', 'person', id]]) {
+        void queryClient.invalidateQueries({ queryKey: [...prefix] });
+      }
     },
   });
   return {

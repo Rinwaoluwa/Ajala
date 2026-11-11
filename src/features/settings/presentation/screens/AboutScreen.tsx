@@ -1,6 +1,7 @@
-import { Linking, View } from 'react-native';
+import { View } from 'react-native';
 
 import { getInstalledAppVersion } from '@core/config/appVersion';
+import { openInApp } from '@core/links/openInApp';
 import { ListGroup, ListRow, Logo, Text } from '@shared/components';
 
 import { LoadFailed } from '../components/LoadFailed';
@@ -8,12 +9,15 @@ import { SettingsFrame } from '../components/SettingsFrame';
 import { settingsCopy } from '../copy';
 import { useSupportLinks } from '../hooks/useSettingsData';
 
-/** About AJALA: the mark, this build's version, and the policies from `GET /app/config`. */
+/**
+ * About AJALA: the mark, this build's version, and the policies from `GET
+ * /app/config`, each opened inside the app (`openInApp`) rather than in Safari.
+ */
 export function AboutScreen({ onBack }: { onBack: () => void }) {
   const copy = settingsCopy.about;
   const support = useSupportLinks();
   const version = getInstalledAppVersion();
-  const open = (url: string) => void Linking.openURL(url).catch(() => undefined);
+  const open = (url: string) => void openInApp(url);
 
   return (
     <SettingsFrame title={copy.title} onBack={onBack}>

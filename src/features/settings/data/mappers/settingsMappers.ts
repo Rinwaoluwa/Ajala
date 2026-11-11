@@ -8,7 +8,9 @@ import type {
   CitySuggestion,
   DataExport,
   Draft,
+  Interest,
   MyReport,
+  ProfilePhoto,
   Session,
   UserSettings,
 } from '../../domain/entities/Settings';
@@ -16,10 +18,12 @@ import { SettingsError, type SettingsErrorCode } from '../../domain/entities/Set
 import { isTravelStyle } from '../../domain/rules/travelStyles';
 import type {
   DataExportDto,
+  InterestDto,
   MeDto,
   MyPostDto,
   MyReportDto,
   PlaceRefDto,
+  ProfilePhotoDto,
   PublicProfileDto,
   SessionDto,
   UserSettingsDto,
@@ -52,10 +56,25 @@ export function toAccount(dto: MeDto): Account {
     // A slug outside the API's fixed list could not be saved back, so it is dropped here.
     travelStyles: Array.isArray(extras.travelStyles) ? extras.travelStyles.filter(isTravelStyle) : [],
     favouriteDestinations,
+    interests: (dto.interests ?? []).map(toInterest),
+    photos: (dto.photos ?? []).map(toProfilePhoto),
     identities: (dto.identities ?? []).map((i) => ({ provider: i.provider })),
     extras,
   };
 }
+
+export const toInterest = (dto: InterestDto): Interest => ({
+  id: dto.id,
+  slug: dto.slug,
+  name: dto.name,
+  emoji: dto.emoji ?? null,
+});
+
+export const toProfilePhoto = (dto: ProfilePhotoDto): ProfilePhoto => ({
+  id: dto.id,
+  url: dto.url,
+  thumbUrl: dto.thumbUrl || dto.url,
+});
 
 /** The server sends one label ("Lagos, Nigeria"); a chip shows what comes before the first comma. */
 const toAccountPlace = (dto: PlaceRefDto): AccountPlace => {
@@ -144,7 +163,8 @@ export type ErrorContext =
   | 'emailConfirm'
   | 'handle'
   | 'deleteDraft'
-  | 'export';
+  | 'export'
+  | 'photo';
 
 /** By the API's code (spec §5), never its message. */
 export function toSettingsError(e: unknown, context?: ErrorContext): SettingsError {
@@ -199,7 +219,9 @@ export function toSettingsError(e: unknown, context?: ErrorContext): SettingsErr
               ? 'alreadyHasPassword'
               : context === 'export'
                 ? 'exportTooSoon'
-                : 'unknown';
+                : context === 'photo'
+                  ? 'galleryFull'
+                  : 'unknown';
   }
   if (!code && (e.code === 'VALIDATION_FAILED' || e.code === 'BAD_REQUEST')) code = 'invalidDetails';
 

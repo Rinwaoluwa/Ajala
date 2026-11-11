@@ -1,7 +1,6 @@
-import { Host } from '@expo/ui';
 import { TouchableOpacity, View, useColorScheme } from 'react-native';
 
-import { NativeIcon, NativeSpinner, Text, icons } from '@shared/components';
+import { Host, NativeIcon, NativeSpinner, Text, icons } from '@shared/components';
 import { useFontScale } from '@shared/hooks/useFontScale';
 import { useTheme } from '@shared/hooks/useTheme';
 import { palette } from '@shared/theme';

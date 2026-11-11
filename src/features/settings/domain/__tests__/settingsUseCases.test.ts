@@ -3,6 +3,7 @@ import { describe, expect, it } from '@jest/globals';
 import type { Account } from '../entities/Settings';
 import type { SettingsRepository } from '../repositories/SettingsRepository';
 import {
+  makeAddPhoto,
   makeChangePassword,
   makeCheckHandle,
   makeConfirmEmailChange,
@@ -21,6 +22,8 @@ const account = {
   socialLinks: { instagram: null, tiktok: null, website: null },
   travelStyles: [],
   favouriteDestinations: [],
+  interests: [],
+  photos: [],
 } as unknown as Account;
 
 function repo(calls: string[]): SettingsRepository {
@@ -74,6 +77,25 @@ describe('settings use cases', () => {
     expect(calls).toEqual([]);
     await makeReauthenticate(repo(calls))({ code: '123456' });
     expect(calls).toEqual(['reauthenticate:{"code":"123456"}']);
+  });
+
+  it('refuses one or two interests, and treats none as leaving them alone', async () => {
+    const calls: string[] = [];
+    await expect(makeSaveProfile(repo(calls))(account, { interestIds: ['a', 'b'] })).rejects.toMatchObject({
+      code: 'invalidDetails',
+    });
+    expect(await makeSaveProfile(repo(calls))(account, { interestIds: [] })).toBe(account);
+    await makeSaveProfile(repo(calls))(account, { interestIds: ['a', 'b', 'c'] });
+    expect(calls).toEqual(['updateAccount:{"interestIds":["a","b","c"]}']);
+  });
+
+  it('refuses a seventh gallery photo before a request', async () => {
+    const calls: string[] = [];
+    const full = { ...account, photos: Array.from({ length: 6 }, (_, i) => ({ id: `p${i}`, url: '', thumbUrl: '' })) };
+    await expect(
+      makeAddPhoto(repo(calls))({ uri: 'file:///a.jpg', name: 'a.jpg', type: 'image/jpeg' }, full),
+    ).rejects.toMatchObject({ code: 'galleryFull' });
+    expect(calls).toEqual([]);
   });
 
   it('refuses more than ten travel styles or favourite destinations (an 11th is a 400)', async () => {

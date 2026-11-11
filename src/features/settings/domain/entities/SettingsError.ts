@@ -34,6 +34,8 @@ export type SettingsErrorCode =
   | 'hasAttendees'
   | 'imageTooLarge'
   | 'imageNotSupported'
+  /** 409 on adding a gallery photo: six already. */
+  | 'galleryFull'
   /** 400 VALIDATION_FAILED on anything else. */
   | 'invalidDetails'
   | 'notFound'

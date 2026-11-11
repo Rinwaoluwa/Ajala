@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Alert, View } from 'react-native';
-import Animated, { FadeOut, LinearTransition } from 'react-native-reanimated';
+import Animated, { FadeOut } from 'react-native-reanimated';
 
 import { EmptyState, PillTabs, SkeletonBlock, SkeletonPulse, Text } from '@shared/components';
 
@@ -90,7 +90,6 @@ export function DraftsScreen({
             <Animated.View
               key={draft.id}
               exiting={FadeOut.duration(180)}
-              layout={LinearTransition.duration(220)}
             >
               <DraftCard
                 draft={draft}

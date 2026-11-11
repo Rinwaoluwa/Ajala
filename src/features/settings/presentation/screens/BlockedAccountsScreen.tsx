@@ -1,5 +1,5 @@
 import { Alert, View } from 'react-native';
-import Animated, { FadeOut, LinearTransition } from 'react-native-reanimated';
+import Animated, { FadeOut } from 'react-native-reanimated';
 
 import { Avatar, Button, EmptyState, SkeletonBlock, SkeletonPulse, Text } from '@shared/components';
 import { useFontScale } from '@shared/hooks/useFontScale';
@@ -46,7 +46,6 @@ export function BlockedAccountsScreen({ onBack }: { onBack: () => void }) {
             <Animated.View
               key={person.id}
               exiting={FadeOut.duration(160)}
-              layout={LinearTransition.duration(200)}
               style={{
                 // At large text "Unblock" goes under the name (past the photo) instead of squeezing it.
                 flexDirection: stacked ? 'column' : 'row',

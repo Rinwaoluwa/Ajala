@@ -1,5 +1,5 @@
 import { Alert, View } from 'react-native';
-import Animated, { FadeIn, FadeOut, LinearTransition } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 
 import { Button, NoteCard, SkeletonBlock, SkeletonPulse, Tag, Text } from '@shared/components';
 import { useFontScale } from '@shared/hooks/useFontScale';
@@ -64,7 +64,6 @@ export function ConnectedAccountsScreen({
             <Animated.View
               key={i.provider}
               exiting={FadeOut.duration(160)}
-              layout={LinearTransition.duration(200)}
               style={{
                 // At large text the button goes under the name instead of squeezing it.
                 flexDirection: stacked ? 'column' : 'row',

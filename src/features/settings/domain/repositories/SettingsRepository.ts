@@ -6,8 +6,10 @@ import type {
   DataExport,
   Draft,
   HandleCheck,
+  Interest,
   LinkedProvider,
   ProfileEdit,
+  ProfilePhoto,
   ReauthProof,
   ReportsPage,
   Session,
@@ -25,6 +27,13 @@ export interface SettingsRepository {
   /** `PATCH /me`; the extras record is merged here, not by the caller. */
   updateAccount(edit: ProfileEdit, current: Account): Promise<Account>;
   uploadAvatar(file: { uri: string; name: string; type: string }): Promise<string | null>;
+  /** `POST /me/photos`: the new photo; `galleryFull` once there are six. */
+  addPhoto(file: { uri: string; name: string; type: string }): Promise<ProfilePhoto>;
+  removePhoto(photoId: string): Promise<void>;
+  /** Every photo id in the new order; answers the gallery as it now stands. */
+  reorderPhotos(ids: string[]): Promise<ProfilePhoto[]>;
+  /** `GET /interests`: what the profile may pick from, in display order. */
+  listInterests(): Promise<Interest[]>;
   checkHandle(handle: string): Promise<HandleCheck>;
   /**
    * Cities matching what was typed, from Google places (`@core/places`; the API
@@ -34,8 +43,9 @@ export interface SettingsRepository {
   /** A city search closed without looking a place up: the next one starts a new billing session. */
   endCitySearch(): void;
   /**
-   * The city the phone is in, for "Current city". Null when location is not
-   * allowed (it never prompts here), unreadable, or no city is found. Never rejects.
+   * The city the phone is in, for "Current city". Asks for location when the
+   * system still allows the prompt. Null when location is refused, unreadable,
+   * or no city is found. Never rejects.
    */
   detectCurrentCity(): Promise<AccountPlace | null>;
 

@@ -1,5 +1,5 @@
 import { Alert, View } from 'react-native';
-import Animated, { FadeOut, LinearTransition } from 'react-native-reanimated';
+import Animated, { FadeOut } from 'react-native-reanimated';
 
 import { Button, EmptyState, SkeletonBlock, SkeletonPulse, Tag, Text } from '@shared/components';
 import { useFontScale } from '@shared/hooks/useFontScale';
@@ -60,7 +60,6 @@ export function SessionsScreen({ onBack }: { onBack: () => void }) {
             <Animated.View
               key={s.id}
               exiting={FadeOut.duration(160)}
-              layout={LinearTransition.duration(200)}
               style={{
                 // At large text "Sign out" goes under the device instead of squeezing its name.
                 flexDirection: stacked ? 'column' : 'row',

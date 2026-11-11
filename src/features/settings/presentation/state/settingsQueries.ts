@@ -17,4 +17,6 @@ export const settingsKeys = {
   /** Google city search (`@core/places`), per lower-cased query. */
   cities: (query: string) => ['settings', 'citySearch', query] as const,
   currentCity: ['settings', 'currentCity'] as const,
+  /** `GET /interests`: a short, server-curated list, cached for an hour. */
+  interests: ['settings', 'interests'] as const,
 };

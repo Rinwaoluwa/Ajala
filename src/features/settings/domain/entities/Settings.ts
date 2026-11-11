@@ -66,6 +66,12 @@ export type AccountPlace = { placeId: string; name: string; label: string };
 /** A row of the city search: the city, and the line under its name ("Nigeria"). */
 export type CitySuggestion = AccountPlace & { detail: string };
 
+/** One of the server's interests (`InterestDto`), as picked on the profile. */
+export type Interest = { id: string; slug: string; name: string; emoji: string | null };
+
+/** A photo in the person's gallery (`ProfilePhotoDto`): 1280px and 400px. */
+export type ProfilePhoto = { id: string; url: string; thumbUrl: string };
+
 export type Account = {
   id: string;
   firstName: string;
@@ -83,6 +89,10 @@ export type Account = {
   travelStyles: TravelStyle[];
   /** Up to 10 cities (`MeDto.favouriteDestinations`, sent back as `extras.favouriteDestinationIds`). */
   favouriteDestinations: AccountPlace[];
+  /** 3–8 of the server's interests (`MeDto.interests`), in the person's order. */
+  interests: Interest[];
+  /** The gallery (`MeDto.photos`), up to 6, in the person's order. */
+  photos: ProfilePhoto[];
   identities: Identity[];
   /**
    * Every extras field as the server last sent it. `PATCH /me` replaces extras
@@ -104,6 +114,8 @@ export type ProfileEdit = {
   travelStyles?: TravelStyle[];
   /** Cities' Google place ids, up to 10. */
   favouriteDestinationIds?: string[];
+  /** Interest ids, 3–8; replaces the whole set. */
+  interestIds?: string[];
 };
 
 /** `UserSettingsDto`: the stored switches the Settings screens show. */

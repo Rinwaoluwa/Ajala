@@ -4,6 +4,7 @@ import type { Account } from '../entities/Settings';
 import {
   canRequestExport,
   diffProfile,
+  interestsCountOk,
   editedAgo,
   filterDrafts,
   hasPassword,
@@ -31,6 +32,12 @@ const account: Account = {
   socialLinks: { instagram: '@mayawanders', tiktok: null, website: null },
   travelStyles: ['solo', 'foodie'],
   favouriteDestinations: [{ placeId: 'ChIJ-accra', name: 'Accra', label: 'Accra, Ghana' }],
+  interests: [
+    { id: 'i-hiking', slug: 'hiking', name: 'Hiking', emoji: '🥾' },
+    { id: 'i-food', slug: 'food', name: 'Food & drink', emoji: '🍜' },
+    { id: 'i-art', slug: 'art', name: 'Arts & culture', emoji: '🎨' },
+  ],
+  photos: [{ id: 'p1', url: 'https://m/p1.jpg', thumbUrl: 'https://m/p1-thumb.jpg' }],
   identities: [{ provider: 'email' }],
   extras: { languages: ['en', 'zh'], pronouns: 'she/her', socialLinks: { instagram: '@mayawanders' } },
 };
@@ -69,6 +76,19 @@ describe('profile edits', () => {
       pronouns: 'she/her',
       socialLinks: { instagram: '@m', tiktok: null, website: 'https://maya.com' },
     });
+  });
+});
+
+describe('interests', () => {
+  it('sends the ids only when the set changed', () => {
+    expect(diffProfile(account, { interestIds: ['i-hiking', 'i-food', 'i-art'] })).toEqual({});
+    expect(diffProfile(account, { interestIds: ['i-hiking', 'i-food', 'i-art', 'i-jazz'] })).toEqual({
+      interestIds: ['i-hiking', 'i-food', 'i-art', 'i-jazz'],
+    });
+  });
+
+  it('allows none, or three to eight', () => {
+    expect([0, 1, 2, 3, 8, 9].map(interestsCountOk)).toEqual([true, false, false, true, true, false]);
   });
 });
 
