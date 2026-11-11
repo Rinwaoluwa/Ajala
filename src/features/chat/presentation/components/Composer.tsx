@@ -1,12 +1,11 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Host } from '@expo/ui';
 import { Image } from 'expo-image';
 import { useCallback, useEffect, useState } from 'react';
-import { ScrollView, TouchableOpacity, View } from 'react-native';
+import { Platform, ScrollView, TouchableOpacity, View } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { NativeIcon, Text, TextField, icons } from '@shared/components';
+import { Host, NativeIcon, Text, TextField, icons } from '@shared/components';
 import { useKeyboardShown } from '@shared/hooks/useKeyboardShown';
 import { useTheme } from '@shared/hooks/useTheme';
 import { palette } from '@shared/theme';
@@ -91,7 +90,9 @@ export function Composer({
         backgroundColor: theme.background,
         paddingHorizontal: 20,
         paddingTop: 10,
-        paddingBottom: keyboardShown ? 12 : Math.max(insets.bottom, 12),
+        // On iOS the bar rides the keyboard (`KeyboardStickyBar`) and keeps its padding; on
+        // Android the app shrinks above the keyboard, so the home-indicator padding goes.
+        paddingBottom: Platform.OS === 'android' && keyboardShown ? 12 : Math.max(insets.bottom, 12),
         gap: 8,
       }}
     >

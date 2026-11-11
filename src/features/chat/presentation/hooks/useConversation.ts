@@ -34,7 +34,6 @@ import { chatCopy } from '../copy';
 import { dropMessage, dropThread, putMessage } from '../state/chatCache';
 import { chatKeys, type TypingState } from '../state/chatQueries';
 import { useChatUseCases } from '../state/useChatUseCases';
-import { useChatRealtime } from './useChatRealtime';
 
 const errorCode = (e: unknown): ChatErrorCode => (isChatError(e) ? e.code : 'unknown');
 
@@ -69,7 +68,6 @@ export function useConversation(threadId: string) {
   const uc = useChatUseCases();
   const queryClient = useQueryClient();
   const focused = useIsFocused();
-  useChatRealtime();
   const messagesKey = chatKeys.messages(threadId);
   // A send or read mark that answered 404; a fetch's own 404 is read from its query below.
   const [goneByCall, setGoneByCall] = useState(false);

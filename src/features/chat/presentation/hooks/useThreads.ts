@@ -9,7 +9,6 @@ import { previewLine, threadAvatar, threadName } from '../../domain/rules/chatRu
 import { chatCopy } from '../copy';
 import { chatKeys } from '../state/chatQueries';
 import { useChatUseCases } from '../state/useChatUseCases';
-import { useChatRealtime } from './useChatRealtime';
 
 export type ThreadRowModel = {
   thread: ChatThread;
@@ -23,15 +22,14 @@ export type ThreadRowModel = {
  * for a tab (All / Unread / Groups) and a search, latest activity first, paged.
  *
  * The search goes out when typing pauses (250ms) and is cached per text, so
- * going back over the same letters answers at once. The live socket is held
- * while the list is open, so new messages reorder it.
+ * going back over the same letters answers at once. The app-wide live socket
+ * (`ChatRealtime`, in the signed-in layout) keeps it current, so new messages reorder it.
  *
  * Each row's last line comes from the row alone: the API names a group's
  * sender (`senderName`), and leaves it out for your own messages ("You: …").
  */
 export function useThreads() {
   const { listThreads } = useChatUseCases();
-  useChatRealtime();
   const [filter, setFilter] = useState<ChatFilter>('all');
   const [search, setSearch] = useState('');
   // Remounting the uncontrolled search field is how it is cleared.

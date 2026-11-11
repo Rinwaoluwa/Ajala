@@ -1,15 +1,8 @@
 import { useCallback, useRef, useState } from 'react';
-import {
-  FlatList,
-  KeyboardAvoidingView,
-  Platform,
-  View,
-  type NativeScrollEvent,
-  type NativeSyntheticEvent,
-} from 'react-native';
+import { FlatList, View, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
-import { EmptyState, LoadingRing, Screen, StatusSheet, TextLink } from '@shared/components';
+import { EmptyState, KeyboardStickyBar, LoadingRing, Screen, StatusSheet, TextLink } from '@shared/components';
 import { useTheme } from '@shared/hooks/useTheme';
 import { SCREEN_GUTTER } from '@shared/theme';
 
@@ -48,12 +41,14 @@ export type ChatScreenProps = {
   threadId: string;
   onBack: () => void;
   onOpenPost: (postId: string) => void;
+  /** The other person's profile, from the header of a direct chat. */
+  onOpenProfile?: (userId: string) => void;
 };
 
 /** How close to the bottom still counts as "at the newest message". */
 const NEAR_BOTTOM = 80;
 
-export function ChatScreen({ threadId, onBack, onOpenPost }: ChatScreenProps) {
+export function ChatScreen({ threadId, onBack, onOpenPost, onOpenProfile }: ChatScreenProps) {
   const theme = useTheme();
   const vm = useConversation(threadId);
   const banner = useSafetyBanner();
@@ -148,7 +143,9 @@ export function ChatScreen({ threadId, onBack, onOpenPost }: ChatScreenProps) {
 
   return (
     <Screen edges={['top']} padded={false}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      {/* No KeyboardAvoidingView: the composer rides the keyboard by itself (`KeyboardStickyBar`)
+          and the list keeps its size, so nothing on screen jumps when the field is tapped. */}
+      <View style={{ flex: 1 }}>
         <ChatHeader
           thread={vm.thread}
           name={vm.name}
@@ -156,6 +153,7 @@ export function ChatScreen({ threadId, onBack, onOpenPost }: ChatScreenProps) {
           typers={vm.typers}
           onBack={onBack}
           onSafety={() => setTipsOpen(true)}
+          onOpenPerson={onOpenProfile}
         />
         {banner.visible ? (
           <View style={{ paddingHorizontal: SCREEN_GUTTER, paddingBottom: 8 }}>
@@ -196,6 +194,8 @@ export function ChatScreen({ threadId, onBack, onOpenPost }: ChatScreenProps) {
             maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="interactive"
+            // iOS: the newest messages stay reachable above the keyboard without resizing the list.
+            automaticallyAdjustKeyboardInsets
             contentContainerStyle={{
               paddingHorizontal: SCREEN_GUTTER,
               paddingVertical: 12,
@@ -218,16 +218,18 @@ export function ChatScreen({ threadId, onBack, onOpenPost }: ChatScreenProps) {
         )}
 
         {vm.gone ? null : (
-          <View style={{ borderTopWidth: 1, borderTopColor: theme.border }}>
-            <Composer
-              onSend={vm.submit}
-              onTyping={vm.onTyping}
-              onPickPhotos={vm.pickPhotos}
-              sending={vm.sending}
-            />
-          </View>
+          <KeyboardStickyBar>
+            <View style={{ borderTopWidth: 1, borderTopColor: theme.border }}>
+              <Composer
+                onSend={vm.submit}
+                onTyping={vm.onTyping}
+                onPickPhotos={vm.pickPhotos}
+                sending={vm.sending}
+              />
+            </View>
+          </KeyboardStickyBar>
         )}
-      </KeyboardAvoidingView>
+      </View>
 
       <SafetyTipsSheet isPresented={tipsOpen} onDismiss={() => setTipsOpen(false)} />
       <ReportMessageDialog

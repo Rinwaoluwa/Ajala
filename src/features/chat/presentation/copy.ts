@@ -51,6 +51,7 @@ export const chatCopy = {
   },
   thread: {
     online: 'Online',
+    openProfile: (name: string) => `Open ${name}’s profile`,
     group: (members: number, online: number) => `${members} members · ${online} online`,
     typing: (names: readonly string[], group: boolean) =>
       !group || names.length === 0

@@ -24,6 +24,7 @@ export function ChatHeader({
   typers,
   onBack,
   onSafety,
+  onOpenPerson,
 }: {
   thread: ChatThreadDetail | null;
   name: string;
@@ -32,6 +33,8 @@ export function ChatHeader({
   typers: readonly string[];
   onBack: () => void;
   onSafety: () => void;
+  /** In a direct chat, the other person's photo and name open their profile. */
+  onOpenPerson?: (userId: string) => void;
 }) {
   const theme = useTheme();
   const p = thread ? presence(thread) : null;
@@ -58,7 +61,14 @@ export function ChatHeader({
     >
       <BackButton onPress={onBack} label={chatCopy.back} />
       {thread ? (
-        <>
+        <TouchableOpacity
+          activeOpacity={0.6}
+          disabled={!thread.other || !onOpenPerson}
+          onPress={() => thread.other && onOpenPerson?.(thread.other.id)}
+          accessibilityRole={thread.other && onOpenPerson ? 'button' : undefined}
+          accessibilityLabel={thread.other && onOpenPerson ? chatCopy.thread.openProfile(name) : undefined}
+          style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 }}
+        >
           <Avatar name={name} uri={avatarUrl} size={48} />
           <View style={{ flex: 1 }}>
             <Text variant="headingMd" numberOfLines={2} accessibilityRole="header">
@@ -70,7 +80,7 @@ export function ChatHeader({
               </Text>
             ) : null}
           </View>
-        </>
+        </TouchableOpacity>
       ) : (
         // Who it is with, while the conversation loads: the photo and two lines, as placeholders.
         <View style={{ flex: 1 }}>
