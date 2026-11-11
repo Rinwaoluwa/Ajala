@@ -12,4 +12,10 @@ export const apiConfig = {
   baseUrl: (process.env.EXPO_PUBLIC_API_URL ?? DEFAULT_BASE_URL).replace(/\/+$/, ''),
   /** Long enough for a cold serverless start, short enough to fail before the user does. */
   timeoutMs: 15000,
+  /**
+   * An upload (multipart: photos) is bounded by the phone's upload speed, not
+   * the server: two post photos on a phone connection could pass 15 seconds,
+   * and Save draft and Publish were cut off halfway as "no connection".
+   */
+  uploadTimeoutMs: 120000,
 } as const;

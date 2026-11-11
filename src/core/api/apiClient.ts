@@ -87,12 +87,29 @@ const RETRYABLE: ReadonlySet<ApiErrorCode> = new Set(['NETWORK', 'INTERNAL', 'SE
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
+/**
+ * The one dropped connection any method may retry: iOS's "The network
+ * connection was lost" (NSURLErrorNetworkConnectionLost, -1005). It is what a
+ * request gets when it goes out on a pooled connection the server or Cloudflare
+ * has already closed: the first upload after the app sat idle — a Save draft, a
+ * profile photo — failed this way every time, and the same request sent again a
+ * moment later went through. The request never reached the server, so sending
+ * it once more cannot post twice.
+ */
+const isStaleConnection = (e: unknown) =>
+  e instanceof ApiError && e.code === 'NETWORK' && e.details?.staleConnection === true;
+
 export async function apiRequest<T>(request: ApiRequest): Promise<T> {
   const retries = request.method === 'GET' && request.retry !== false ? GET_RETRY_DELAYS_MS : [];
+  let staleRetried = false;
   for (let attempt = 0; ; attempt += 1) {
     try {
       return await sendOnce<T>(request);
     } catch (e) {
+      if (!staleRetried && isStaleConnection(e) && !request.signal?.aborted) {
+        staleRetried = true;
+        continue;
+      }
       const delay = retries[attempt];
       const retryable = e instanceof ApiError && RETRYABLE.has(e.code) && !request.signal?.aborted;
       if (delay === undefined || !retryable) throw e;
@@ -102,14 +119,16 @@ export async function apiRequest<T>(request: ApiRequest): Promise<T> {
 }
 
 async function sendOnce<T>(request: ApiRequest): Promise<T> {
+  const multipart = request.body instanceof FormData;
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), apiConfig.timeoutMs);
+  const timer = setTimeout(
+    () => controller.abort(),
+    multipart ? apiConfig.uploadTimeoutMs : apiConfig.timeoutMs,
+  );
 
   // The caller's own cancellation still works alongside the timeout.
   const onAbort = () => controller.abort();
   request.signal?.addEventListener('abort', onAbort);
-
-  const multipart = request.body instanceof FormData;
 
   let response: Response;
   try {
@@ -130,13 +149,17 @@ async function sendOnce<T>(request: ApiRequest): Promise<T> {
       signal: controller.signal,
     });
   } catch (e) {
-    // An abort here is the timeout firing, or the caller cancelling.
-    const aborted = e instanceof Error && e.name === 'AbortError';
+    // An abort here is the timeout firing, or the caller cancelling. Expo's fetch reports it
+    // as its own "FetchRequestCanceledException", not an AbortError, so the signal decides.
+    const aborted = controller.signal.aborted || (e instanceof Error && e.name === 'AbortError');
     // The platform's own reason ("Network request failed", a file it could not read) is only in dev logs.
     if (__DEV__ && !aborted) console.warn(`[api] ${request.method} ${request.path} did not go out:`, e);
+    const reason = e instanceof Error ? e.message : String(e);
     const error = new ApiError({
       code: aborted ? 'TIMEOUT' : 'NETWORK',
       message: aborted ? 'The request timed out.' : 'Could not reach the server.',
+      // See `isStaleConnection`: the one network failure safe to send again.
+      details: !aborted && /network connection was lost/i.test(reason) ? { staleConnection: true } : null,
     });
     logFailure(request, error);
     throw error;

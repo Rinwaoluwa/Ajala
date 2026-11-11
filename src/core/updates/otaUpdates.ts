@@ -10,6 +10,8 @@
  * the person on the version they have, which still works.
  */
 
+import { requireOptionalNativeModule } from 'expo';
+
 type UpdatesModule = typeof import('expo-updates');
 
 /**
@@ -18,6 +20,10 @@ type UpdatesModule = typeof import('expo-updates');
  * build simply has no over-the-air updates.
  */
 const Updates: UpdatesModule | null = (() => {
+  // Asked first without throwing: on a build without it, requiring the library
+  // raised an uncaught "Cannot find native module 'ExpoUpdates'" that the
+  // try/catch below did not stop, and the app opened on the error screen.
+  if (!requireOptionalNativeModule('ExpoUpdates')) return null;
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     return require('expo-updates') as UpdatesModule;
@@ -25,6 +31,15 @@ const Updates: UpdatesModule | null = (() => {
     return null;
   }
 })();
+
+/** The running over-the-air update's id; null on the bundle the build shipped with, or without expo-updates. */
+export function currentUpdateId(): string | null {
+  try {
+    return Updates?.updateId ?? null;
+  } catch {
+    return null;
+  }
+}
 
 /** Whether this build can take updates at all (a release build with expo-updates on). */
 export const otaUpdatesEnabled = !__DEV__ && !!Updates?.isEnabled;

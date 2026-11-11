@@ -11,7 +11,8 @@ import { AppState } from 'react-native';
  *     Mutations are never retried (a POST may have landed).
  *   - `staleTime` one minute — screens revisited within it draw from the cache
  *     with no request; after it, they show the cache and refresh behind it.
- *   - `gcTime` ten minutes — how long an unused answer is kept.
+ *   - `gcTime` a day — how long an unused answer is kept: as long as the copy
+ *     saved on the phone (`persist.ts`), or it would drop out of that copy too.
  *   - Returning to the app counts as "window focus", so stale screens refresh
  *     when someone comes back (React Native has no window to focus).
  *
@@ -20,7 +21,7 @@ import { AppState } from 'react-native';
  */
 export const queryClient = new QueryClient({
   defaultOptions: {
-    queries: { retry: false, staleTime: 60_000, gcTime: 10 * 60_000, refetchOnWindowFocus: true },
+    queries: { retry: false, staleTime: 60_000, gcTime: 24 * 60 * 60_000, refetchOnWindowFocus: true },
     mutations: { retry: false },
   },
 });
