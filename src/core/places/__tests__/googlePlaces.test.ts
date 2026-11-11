@@ -83,6 +83,13 @@ describe('placesCredentials', () => {
     expect(placesCredentials()?.headers['X-Android-Cert']).toBe('F34FCF95');
   });
 
+  it('ignores a configured SHA-1 that is not text, as builds carried `{}` (11 Nov)', () => {
+    setPlatform('android');
+    setExtra({ placesKey: { android: 'android-key' }, placesAndroidCert: {} });
+    // Before the fix this threw, and every Android place search said "isn't available".
+    expect(placesCredentials()?.headers['X-Android-Cert']).toBe(ANDROID_CERT_SHA1.debug);
+  });
+
   it('is null without a key for this platform', () => {
     setExtra({ placesKey: { ios: null, android: 'android-key' } });
     expect(placesCredentials()).toBeNull();

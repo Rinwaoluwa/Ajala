@@ -31,7 +31,8 @@ export const ANDROID_CERT_SHA1 = {
 
 type PlacesExtra = {
   placesKey?: { ios?: string | null; android?: string | null } | null;
-  placesAndroidCert?: string | null;
+  /** Text when set. Read defensively: builds have carried `{}` here (see `placesCredentials`). */
+  placesAndroidCert?: unknown;
 };
 
 export type PlacesCredentials = {
@@ -60,8 +61,12 @@ export function placesCredentials(): PlacesCredentials | null {
     if (!key) return null;
     // A development bundle most often runs in a debug build; anything else was
     // built by EAS. Wrong guesses still work while both fingerprints are on the key.
+    // Only text counts: builds made before 11 Nov embed `{}` when no override is set,
+    // and calling a string method on it threw before any request was made.
+    const configured =
+      typeof extra.placesAndroidCert === 'string' ? extra.placesAndroidCert.replace(/:/g, '').trim() : '';
     const cert =
-      extra.placesAndroidCert?.replace(/:/g, '').trim() ||
+      configured ||
       (__DEV__ ? ANDROID_CERT_SHA1.debug : ANDROID_CERT_SHA1.easUpload);
     return {
       key,
