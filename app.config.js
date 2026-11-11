@@ -152,11 +152,7 @@ module.exports = ({ config }) => {
       googleMapsIos: Boolean(iosMapsKey),
       // Places (see the header). Null without a key: place search then says it isn't available.
       placesKey: { ios: iosMapsKey || null, android: androidMapsKey || null },
-      // Only when set: an unset value written as null was embedded as {} in the builds,
-      // which the app then failed on (every Android place search said "isn't available").
-      ...(process.env.GOOGLE_ANDROID_CERT_SHA1?.trim()
-        ? { placesAndroidCert: process.env.GOOGLE_ANDROID_CERT_SHA1.trim() }
-        : null),
+      placesAndroidCert: process.env.GOOGLE_ANDROID_CERT_SHA1?.trim() || null,
     },
     plugins: [
       ...(next.plugins ?? []),

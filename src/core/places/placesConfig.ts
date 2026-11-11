@@ -31,7 +31,7 @@ export const ANDROID_CERT_SHA1 = {
 
 type PlacesExtra = {
   placesKey?: { ios?: string | null; android?: string | null } | null;
-  /** Text when set. Read defensively: builds have carried `{}` here (see `placesCredentials`). */
+  /** Text when set. Read defensively: builds carry `{}` here when unset (see `placesCredentials`). */
   placesAndroidCert?: unknown;
 };
 
@@ -61,8 +61,11 @@ export function placesCredentials(): PlacesCredentials | null {
     if (!key) return null;
     // A development bundle most often runs in a debug build; anything else was
     // built by EAS. Wrong guesses still work while both fingerprints are on the key.
-    // Only text counts: builds made before 11 Nov embed `{}` when no override is set,
-    // and calling a string method on it threw before any request was made.
+    // Only text counts: with no override set, the builds embed `{}` here (app.config.js
+    // writes null, which the embedded config keeps as an empty object). Calling a string
+    // method on it threw before any request was made, so every Android search failed.
+    // The config is left as it is: changing it would change the runtime fingerprint and
+    // cut the installed builds off from over-the-air updates.
     const configured =
       typeof extra.placesAndroidCert === 'string' ? extra.placesAndroidCert.replace(/:/g, '').trim() : '';
     const cert =
