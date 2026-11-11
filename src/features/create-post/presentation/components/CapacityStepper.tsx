@@ -1,10 +1,10 @@
-import { Host } from '@expo/ui';
-import { useEffect, useRef } from 'react';
-import { TouchableOpacity, View } from 'react-native';
-import Animated, { FadeIn } from 'react-native-reanimated';
+import { useEffect, useRef, useState } from 'react';
+import { TextInput, TouchableOpacity, View } from 'react-native';
 
-import { NativeIcon, Text, icons } from '@shared/components';
+import { Host, NativeIcon, Text, icons } from '@shared/components';
+import { MAX_TEXT_SCALE } from '@shared/hooks/useFontScale';
 import { useTheme } from '@shared/hooks/useTheme';
+import { textStyles } from '@shared/theme';
 
 import { wizardCopy } from '../copy';
 
@@ -13,8 +13,10 @@ import { wizardCopy } from '../copy';
  * the number in a pale card. Holding a button repeats it, faster after a moment,
  * so 150 is a hold rather than 140 taps. Null reads "No limit".
  *
- * For a screen reader the number is one adjustable element: swipe up or down.
- * The number fades as it changes (120ms).
+ * The number is also a field: tap it and type. What is typed counts as it is
+ * typed (`onType`), and is put back in range when the field is left
+ * (`onCommit`), so 0 becomes the smallest allowed and blank is "No limit" where
+ * the kind allows one.
  */
 
 const REPEAT_FIRST_MS = 350;
@@ -24,12 +26,21 @@ export type CapacityStepperProps = {
   label: string;
   value: number | null;
   onStep: (delta: 1 | -1) => void;
+  /** Each keystroke: the whole number typed, or null when blank. */
+  onType: (value: number | null) => void;
+  /** The field was left: put the value back in range. */
+  onCommit: () => void;
   hint?: string | null;
 };
 
-export function CapacityStepper({ label, value, onStep, hint }: CapacityStepperProps) {
+export function CapacityStepper({ label, value, onStep, onType, onCommit, hint }: CapacityStepperProps) {
   const theme = useTheme();
-  const shown = value === null ? wizardCopy.noLimit : String(value);
+  const [focused, setFocused] = useState(false);
+  // While typing, the field shows exactly what was typed (blank included), until
+  // − or + changes the number underneath it.
+  const [typed, setTyped] = useState('');
+  const typedValue = typed ? Number(typed) : null;
+  const shown = focused && typedValue === value ? typed : value === null ? '' : String(value);
 
   return (
     <View>
@@ -51,26 +62,42 @@ export function CapacityStepper({ label, value, onStep, hint }: CapacityStepperP
         }}
       >
         <StepButton icon="minus" label={wizardCopy.fewerPeople} onStep={() => onStep(-1)} />
-        <View
-          accessible
-          accessibilityRole="adjustable"
-          accessibilityLabel={label}
-          accessibilityValue={{ text: value === null ? wizardCopy.noLimit : `${value} ${wizardCopy.people}` }}
-          accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
-          onAccessibilityAction={(e) => onStep(e.nativeEvent.actionName === 'increment' ? 1 : -1)}
-          style={{ flex: 1, alignItems: 'center' }}
-        >
-          {/* One line that shrinks to fit: at large text "No limit" must not break mid-word. */}
-          <Animated.View key={shown} entering={FadeIn.duration(120)} style={{ maxWidth: '100%' }}>
-            <Text
-              variant={value === null ? 'headingSm' : 'headingLg'}
-              numberOfLines={1}
-              adjustsFontSizeToFit
-              minimumFontScale={0.6}
-            >
-              {shown}
-            </Text>
-          </Animated.View>
+        <View style={{ flex: 1, alignItems: 'center' }}>
+          <TextInput
+            value={shown}
+            placeholder={wizardCopy.noLimit}
+            placeholderTextColor={theme.muted}
+            onFocus={() => {
+              setTyped(value === null ? '' : String(value));
+              setFocused(true);
+            }}
+            onChangeText={(text) => {
+              const digits = text.replace(/\D/g, '');
+              setTyped(digits);
+              onType(digits ? Number(digits) : null);
+            }}
+            onBlur={() => {
+              setFocused(false);
+              onCommit();
+            }}
+            keyboardType="number-pad"
+            returnKeyType="done"
+            maxLength={6}
+            selectTextOnFocus
+            accessibilityLabel={label}
+            accessibilityHint={wizardCopy.typeCapacity}
+            maxFontSizeMultiplier={MAX_TEXT_SCALE}
+            testID="create-capacity"
+            style={{
+              alignSelf: 'stretch',
+              textAlign: 'center',
+              paddingVertical: 0,
+              color: theme.foreground,
+              fontFamily: textStyles.headingLg.fontFamily,
+              fontSize: value === null && !focused ? textStyles.headingSm.fontSize : textStyles.headingLg.fontSize,
+              lineHeight: textStyles.headingLg.lineHeight,
+            }}
+          />
         </View>
         <StepButton icon="plus" label={wizardCopy.morePeople} onStep={() => onStep(1)} />
         <Text variant="bodyMd" tone="muted" importantForAccessibility="no" maxFontSizeMultiplier={1.5}>
@@ -89,6 +116,12 @@ export function CapacityStepper({ label, value, onStep, hint }: CapacityStepperP
 function StepButton({ icon, label, onStep }: { icon: 'minus' | 'plus'; label: string; onStep: () => void }) {
   const theme = useTheme();
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // The latest step, so a held button keeps counting from the current number
+  // rather than the one it was pressed on.
+  const latest = useRef(onStep);
+  useEffect(() => {
+    latest.current = onStep;
+  }, [onStep]);
   const stop = () => {
     if (timer.current) clearTimeout(timer.current);
     timer.current = null;
@@ -97,7 +130,7 @@ function StepButton({ icon, label, onStep }: { icon: 'minus' | 'plus'; label: st
 
   const repeat = (delay: number) => {
     timer.current = setTimeout(() => {
-      onStep();
+      latest.current();
       repeat(REPEAT_MS);
     }, delay);
   };
@@ -111,7 +144,6 @@ function StepButton({ icon, label, onStep }: { icon: 'minus' | 'plus'; label: st
       onPressOut={stop}
       accessibilityRole="button"
       accessibilityLabel={label}
-      importantForAccessibility="no-hide-descendants"
       hitSlop={6}
       style={{
         width: 40,

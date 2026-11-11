@@ -18,8 +18,11 @@ export interface PostRepository {
   getPost(postId: string): Promise<SavedPost>;
   /** `POST /posts` (multipart): the whole post in one request. Returns its id. */
   create(submission: PostSubmission, status: 'draft' | 'published'): Promise<string>;
-  /** `PATCH /posts/:id` (JSON): every field but type, status and photos. */
-  update(postId: string, submission: PostSubmission): Promise<void>;
+  /**
+   * `PATCH /posts/:id` (JSON): every field but type, status and photos — and,
+   * on a `live` post, the price, which cannot change once published.
+   */
+  update(postId: string, submission: PostSubmission, options?: { live: boolean }): Promise<void>;
   /** `PUT /posts/:id/images`: the whole carousel, in order. */
   replaceImages(postId: string, photos: DraftPhoto[]): Promise<void>;
   /** `POST /posts/:id/publish`: a saved draft goes live. */

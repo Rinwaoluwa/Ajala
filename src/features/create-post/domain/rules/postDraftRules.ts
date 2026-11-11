@@ -138,6 +138,16 @@ export function stepCapacity(kind: PostKind, capacity: number | null, delta: 1 |
   return Math.min(range.max, next);
 }
 
+/**
+ * A typed capacity, once the field is left: kept in range. Blank is "no limit"
+ * where the kind allows one, and the smallest it can be otherwise.
+ */
+export function clampCapacity(kind: PostKind, typed: number | null): number | null {
+  const range = capacityRange(kind);
+  if (typed === null) return range.unlimited ? null : range.min;
+  return Math.min(range.max, Math.max(range.min, typed));
+}
+
 // ---------- money ----------
 
 /** A whole, positive number typed into a field ("60000", "60,000"), or null. */
@@ -173,8 +183,24 @@ export function startOf(draft: PostDraft): Date | null {
   return draft.date && draft.startTime ? onDay(draft.date, draft.startTime) : null;
 }
 
+/**
+ * When it ends. An end time earlier in the day than the start is the next day:
+ * 10:00 PM to 2:00 AM runs overnight, rather than ending before it starts. Only
+ * an end at the very same time as the start is refused (`endBeforeStart`).
+ */
 export function endOf(draft: PostDraft): Date | null {
-  return draft.date && draft.endTime ? onDay(draft.date, draft.endTime) : null;
+  if (!draft.date || !draft.endTime) return null;
+  const end = onDay(draft.date, draft.endTime);
+  const start = startOf(draft);
+  if (start && end.getTime() < start.getTime()) end.setDate(end.getDate() + 1);
+  return end;
+}
+
+/** True when the end time falls on the day after the start (`endOf`). */
+export function endsNextDay(draft: PostDraft): boolean {
+  const start = startOf(draft);
+  const end = endOf(draft);
+  return !!start && !!end && end.getDate() !== start.getDate();
 }
 
 function onDay(day: Date, time: Date): Date {

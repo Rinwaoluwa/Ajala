@@ -57,7 +57,12 @@ function placeBody(s: PostSubmission): Pick<UpdatePostDto, 'placeId' | 'lat' | '
  * API answers a type-only field on the wrong type with a 400. So a Plan never
  * carries a price, currency or link.
  */
-export function toUpdateBody(s: PostSubmission): UpdatePostDto {
+/**
+ * `live`: the post is published already (Edit post). Its price cannot change
+ * (the API answers 409 even to the same value), so the price fields stay out
+ * of the body; the link may still change.
+ */
+export function toUpdateBody(s: PostSubmission, live = false): UpdatePostDto {
   return {
     title: s.title,
     ...(s.description !== undefined ? { description: s.description } : null),
@@ -69,8 +74,7 @@ export function toUpdateBody(s: PostSubmission): UpdatePostDto {
     // Skipping the price step clears both, so an earlier save's price or link goes too.
     ...(hasPrice(s.type)
       ? {
-          priceCents: s.priceCents ?? null,
-          currency: s.currency ?? null,
+          ...(live ? null : { priceCents: s.priceCents ?? null, currency: s.currency ?? null }),
           externalUrl: s.externalUrl ?? null,
         }
       : null),

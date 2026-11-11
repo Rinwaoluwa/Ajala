@@ -5,7 +5,7 @@ import { Alert, ScrollView, View } from 'react-native';
 import Animated, { FadeInLeft, FadeInRight, ReduceMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Button, LoadingRing, Screen, StatusSheet, Text } from '@shared/components';
+import { Button, LoadingRing, Screen, StatusSheet, Text, Toast } from '@shared/components';
 import { useTheme } from '@shared/hooks/useTheme';
 import { SCREEN_GUTTER } from '@shared/theme';
 
@@ -13,6 +13,7 @@ import type { CreatePostError } from '../../domain/entities/CreatePostError';
 import type { PostKind } from '../../domain/postKinds';
 import { createPostErrors, kindCopy, wizardCopy } from '../copy';
 import { useCreatePost } from '../hooks/useCreatePost';
+import { PublishedSheet } from '../components/PublishedSheet';
 import { WizardHeader } from '../components/WizardHeader';
 import { BasicsStep } from '../components/steps/BasicsStep';
 import { ParticipantsStep } from '../components/steps/ParticipantsStep';
@@ -44,17 +45,33 @@ export type CreatePostScreenProps = {
   kind: PostKind;
   /** A saved draft to carry on with (Settings / Drafts → Continue editing). */
   draftId?: string | null;
+  /** A live post to edit (Edit post from its page): the wizard opens filled in and saves changes. */
+  editId?: string | null;
   onClose: () => void;
+  /** Published, or (editing) the changes saved: the post's page follows. */
   onPublished: (postId: string) => void;
 };
 
-export function CreatePostScreen({ kind, draftId = null, onClose, onPublished }: CreatePostScreenProps) {
-  const vm = useCreatePost(kind, draftId);
+export function CreatePostScreen({
+  kind,
+  draftId = null,
+  editId = null,
+  onClose,
+  onPublished,
+}: CreatePostScreenProps) {
+  const editing = editId !== null;
+  const vm = useCreatePost(kind, editId ?? draftId, editing ? 'edit' : 'create');
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const scroll = useRef<ScrollView>(null);
   const copy = kindCopy[kind];
+  const header = editing
+    ? { title: wizardCopy.edit.title(copy.noun), subtitle: wizardCopy.edit.subtitle }
+    : copy.header;
+  const done = editing
+    ? { title: wizardCopy.edit.savedTitle, message: wizardCopy.edit.savedMessage, action: wizardCopy.edit.savedAction }
+    : copy.published;
   const justSaved = useJustSaved(vm.draftSavedAt);
 
   useEffect(() => {
@@ -89,7 +106,7 @@ export function CreatePostScreen({ kind, draftId = null, onClose, onPublished }:
               onPress: () =>
                 void vm.saveDraft().then((error) => {
                   if (!error) leave();
-                  else Alert.alert(wizardCopy.saveDraft, failureMessage(error, copy.noun));
+                  else Alert.alert(wizardCopy.saveDraft, failureMessage(error, copy.noun, true));
                 }),
             },
           ]
@@ -101,7 +118,7 @@ export function CreatePostScreen({ kind, draftId = null, onClose, onPublished }:
 
   const saveDraft = () =>
     void vm.saveDraft().then((error) => {
-      if (error) Alert.alert(wizardCopy.saveDraft, failureMessage(error, copy.noun));
+      if (error) Alert.alert(wizardCopy.saveDraft, failureMessage(error, copy.noun, true));
     });
 
   // The sheet's button and its dismissal both lead on; only the first may.
@@ -123,8 +140,8 @@ export function CreatePostScreen({ kind, draftId = null, onClose, onPublished }:
     return (
       <Screen edges={['top']} padded={false}>
         <WizardHeader
-          title={copy.header.title}
-          subtitle={copy.header.subtitle}
+          title={header.title}
+          subtitle={header.subtitle}
           step={0}
           stepCount={vm.stepCount}
           onBack={onClose}
@@ -132,6 +149,7 @@ export function CreatePostScreen({ kind, draftId = null, onClose, onPublished }:
           canSaveDraft={false}
           saving={false}
           justSaved={false}
+          showSaveDraft={!editing}
         />
         <View
           style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: SCREEN_GUTTER, gap: 16 }}
@@ -154,8 +172,8 @@ export function CreatePostScreen({ kind, draftId = null, onClose, onPublished }:
   return (
     <Screen edges={['top']} padded={false}>
       <WizardHeader
-        title={copy.header.title}
-        subtitle={copy.header.subtitle}
+        title={header.title}
+        subtitle={header.subtitle}
         step={vm.stepIndex}
         stepCount={vm.stepCount}
         onBack={() => (vm.stepIndex > 0 ? vm.back() : onClose())}
@@ -163,6 +181,7 @@ export function CreatePostScreen({ kind, draftId = null, onClose, onPublished }:
         canSaveDraft={vm.canSaveDraft}
         saving={vm.savingDraft}
         justSaved={justSaved}
+        showSaveDraft={!editing}
       />
 
       <ScrollView
@@ -200,7 +219,8 @@ export function CreatePostScreen({ kind, draftId = null, onClose, onPublished }:
         >
           {/* Skip and Next sit side by side, and stack when large text leaves no room. */}
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
-            {vm.step === 'price' ? (
+            {/* No Skip when editing a live post: its price is fixed, and Skip would clear the link. */}
+            {vm.step === 'price' && !editing ? (
               <View style={{ flexGrow: 1, flexBasis: 140 }}>
                 <Button
                   label={wizardCopy.skipPrice}
@@ -227,20 +247,26 @@ export function CreatePostScreen({ kind, draftId = null, onClose, onPublished }:
         </View>
       )}
 
-      <StatusSheet
+      {/* Above the footer's buttons, so it never covers Next. */}
+      <Toast
+        visible={justSaved}
+        message={wizardCopy.draftSaved}
+        bottom={(vm.step === 'review' ? 0 : 80) + Math.max(insets.bottom, 16) + 8}
+      />
+
+      <PublishedSheet
         isPresented={vm.outcome.kind === 'published'}
-        tone="success"
-        title={copy.published.title}
-        message={copy.published.message}
-        actionLabel={copy.published.action}
+        kind={kind}
+        title={done.title}
+        message={done.message}
+        actionLabel={done.action}
         onAction={finish}
-        onDismiss={finish}
       />
       <StatusSheet
         isPresented={failed !== null}
         tone="error"
         title={wizardCopy.publishFailed.title}
-        message={failureMessage(failed, copy.noun)}
+        message={failureMessage(failed, copy.noun, editing)}
         actionLabel={wizardCopy.publishFailed.action}
         onAction={vm.publish}
         onDismiss={vm.clearOutcome}
@@ -250,9 +276,10 @@ export function CreatePostScreen({ kind, draftId = null, onClose, onPublished }:
 }
 
 /** What the error sheet says: the design's line for a dropped connection, the reason otherwise. */
-function failureMessage(error: CreatePostError | null, noun: string): string {
+/** `saving`: the failure was a Save draft (or Save changes), not a Publish, so it says "save". */
+function failureMessage(error: CreatePostError | null, noun: string, saving = false): string {
   if (!error || error.code === 'network' || error.code === 'unknown') {
-    return wizardCopy.publishFailed.message(noun);
+    return saving ? wizardCopy.publishFailed.draftMessage(noun) : wizardCopy.publishFailed.message(noun);
   }
   // Save draft has no review list to show them on, so what the server turned down is said here.
   if (error.code === 'invalid' && error.fieldErrors.length) {

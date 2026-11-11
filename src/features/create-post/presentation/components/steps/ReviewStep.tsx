@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import { View } from 'react-native';
-import Animated, { FadeIn, LinearTransition } from 'react-native-reanimated';
+import Animated, { FadeIn } from 'react-native-reanimated';
 
 import { Button, Chip, ChipGroup, SkeletonBlock, SkeletonPulse, Text, TextLink } from '@shared/components';
 import { useTheme } from '@shared/hooks/useTheme';
@@ -52,7 +52,7 @@ export function ReviewStep({ vm }: { vm: CreatePostViewModel }) {
       : []),
     ...(copy.priceLabel && link ? [[wizardCopy.link, link] as [string, string]] : []),
     [
-      wizardCopy.meetingPoint,
+      wizardCopy.venue,
       draft.place.trim() || draft.destination?.address || draft.destination?.name || '—',
     ],
   ];
@@ -66,7 +66,7 @@ export function ReviewStep({ vm }: { vm: CreatePostViewModel }) {
 
   return (
     <View style={{ gap: 20 }}>
-      <StepIntro heading={copy.heading} body={copy.body} />
+      <StepIntro heading={copy.heading} body={vm.mode === 'edit' ? wizardCopy.edit.reviewBody : copy.body} />
 
       <View
         style={{
@@ -116,7 +116,6 @@ export function ReviewStep({ vm }: { vm: CreatePostViewModel }) {
       {missing.length > 0 || serverErrors.length > 0 ? (
         <Animated.View
           entering={FadeIn.duration(200)}
-          layout={LinearTransition.duration(200)}
           accessibilityLiveRegion="polite"
           style={{ borderRadius: 12, padding: 16, gap: 8, backgroundColor: theme.dangerSoft }}
         >
@@ -127,7 +126,7 @@ export function ReviewStep({ vm }: { vm: CreatePostViewModel }) {
             <View key={field} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <Text variant="bodySm" style={{ flex: 1, color: theme.chipForeground }}>
                 {field === 'place'
-                  ? kind.schedule.placeLabel
+                  ? wizardCopy.venue
                   : field === 'destination'
                     ? (kind.basics.destination?.label ?? fieldNames.destination)
                     : field === 'notes'
@@ -157,7 +156,7 @@ export function ReviewStep({ vm }: { vm: CreatePostViewModel }) {
       ) : null}
 
       <Button
-        label={copy.publish}
+        label={vm.mode === 'edit' ? wizardCopy.edit.save : copy.publish}
         variant="cta"
         size="lg"
         fullWidth

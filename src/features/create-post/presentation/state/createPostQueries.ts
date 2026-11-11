@@ -1,3 +1,5 @@
+import { POST_LIST_PREFIXES } from '@shared/state/postQueryKeys';
+
 /** The create wizard's TanStack Query keys, under `createPost` so they never meet another feature's. */
 export const createPostKeys = {
   interests: ['createPost', 'interests'] as const,
@@ -11,7 +13,7 @@ export const createPostKeys = {
 };
 
 /**
- * Lists a new post can appear in, refreshed after one is published. The home
- * feed and Explore own these keys; only their prefixes are named here.
+ * Lists a new or edited post can appear in, refreshed after it is published:
+ * the feed, the map and search, Trips, Saved and the profile's lists.
  */
-export const LISTS_A_NEW_POST_JOINS = [['feed'], ['explore']] as const;
+export const LISTS_A_NEW_POST_JOINS = POST_LIST_PREFIXES;

@@ -10,6 +10,7 @@ import {
   makeLocatePlace,
   makePlaceDetails,
   makePublishPost,
+  makeSaveChanges,
   makeSaveDraft,
   makeSearchPlaces,
 } from './domain/usecases/CreatePostUseCases';
@@ -25,6 +26,7 @@ export function createPostUseCases(request: PostRequest) {
   return {
     publish: makePublishPost(repo),
     saveDraft: makeSaveDraft(repo),
+    saveChanges: makeSaveChanges(repo),
     locatePlace: makeLocatePlace(devicePlaceLocator),
     listInterests: makeListInterests(repo),
     loadDraft: makeLoadDraft(repo),

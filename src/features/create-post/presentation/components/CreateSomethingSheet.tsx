@@ -1,5 +1,3 @@
-import { Host } from '@expo/ui';
-import { useEffect, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import Animated, {
   Easing,
@@ -9,58 +7,47 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-import { Illustration, NativeIcon, Sheet, Text, icons, type IllustrationName } from '@shared/components';
+import { Illustration, Sheet, Text, type IllustrationName } from '@shared/components';
 import { useTheme } from '@shared/hooks/useTheme';
 
 import { POST_KINDS, type PostKind } from '../../domain/postKinds';
+import { KIND_ART } from '../kindArt';
 
 /**
  * "Create something" (Figma modal, light and dark): four cards — Meetup, Event,
- * Plan, Group activity — each with its art, a title, a line, and a radio.
+ * Plan, Group activity — each with its art, a title and a line.
  *
  * Each card shows its art in colour (the supplied `assets/icons/colored_*.svg`,
- * as the "More" modal draws them). Picking one fills the card mint with a teal
- * outline and ticks the radio, holds for a beat (`CONFIRM_MS`) so the choice is
- * seen, then closes and reports it. Everything cross-fades in 180ms.
+ * as the "More" modal draws them). A card answers the finger at once: it fills
+ * mint with a teal outline while pressed, and the choice is reported the moment
+ * it is tapped, with no radio to tick and no pause before the wizard opens.
  */
 
-const CONFIRM_MS = 260;
-
-const ART: Record<PostKind, { name: IllustrationName; width: number }> = {
-  meetup: { name: 'meet', width: 44 },
-  event: { name: 'confetti', width: 36 },
-  plan: { name: 'calendar', width: 36 },
-  group: { name: 'group', width: 42 },
-};
 
 export type CreateSomethingSheetProps = {
   isPresented: boolean;
   onDismiss: () => void;
   onChoose: (kind: PostKind) => void;
+  /**
+   * Kinds that need Travel Pro (a Plan): their card carries a PRO tag. Choosing
+   * one is still reported; the caller decides whether it opens the wizard or
+   * the paywall.
+   */
+  proOnly?: readonly PostKind[];
 };
 
-export function CreateSomethingSheet({ isPresented, onDismiss, onChoose }: CreateSomethingSheetProps) {
-  const [chosen, setChosen] = useState<PostKind | null>(null);
-
-  // A fresh sheet starts with nothing chosen.
-  if (!isPresented && chosen !== null) setChosen(null);
-
-  const choose = (kind: PostKind) => {
-    setChosen(kind);
-    setTimeout(() => onChoose(kind), CONFIRM_MS);
-  };
-
+export function CreateSomethingSheet({ isPresented, onDismiss, onChoose, proOnly = [] }: CreateSomethingSheetProps) {
   return (
     <Sheet isPresented={isPresented} title="Create something" onDismiss={onDismiss}>
-      <View style={{ gap: 12 }} accessibilityRole="radiogroup">
+      <View style={{ gap: 12 }}>
         {POST_KINDS.map((option) => (
           <KindCard
             key={option.kind}
             title={option.title}
             body={option.body}
-            art={ART[option.kind]}
-            selected={chosen === option.kind}
-            onPress={() => choose(option.kind)}
+            art={KIND_ART[option.kind]}
+            pro={proOnly.includes(option.kind)}
+            onPress={() => onChoose(option.kind)}
           />
         ))}
       </View>
@@ -72,21 +59,18 @@ function KindCard({
   title,
   body,
   art,
-  selected,
+  pro,
   onPress,
 }: {
   title: string;
   body: string;
   art: { name: IllustrationName; width: number };
-  selected: boolean;
+  pro: boolean;
   onPress: () => void;
 }) {
   const theme = useTheme();
-  const on = useSharedValue(selected ? 1 : 0);
-
-  useEffect(() => {
-    on.value = withTiming(selected ? 1 : 0, { duration: 180, easing: Easing.out(Easing.quad) });
-  }, [selected, on]);
+  // Lit while the finger is down: the fill and outline cross-fade in 120ms, out in 180ms.
+  const on = useSharedValue(0);
 
   const cardStyle = useAnimatedStyle(() => ({
     backgroundColor: interpolateColor(on.value, [0, 1], [theme.card, theme.selectedFill]),
@@ -96,9 +80,10 @@ function KindCard({
   return (
     <Pressable
       onPress={onPress}
-      accessibilityRole="radio"
-      accessibilityState={{ checked: selected }}
-      accessibilityLabel={`${title}. ${body}`}
+      onPressIn={() => on.set(withTiming(1, { duration: 120, easing: Easing.out(Easing.quad) }))}
+      onPressOut={() => on.set(withTiming(0, { duration: 180, easing: Easing.out(Easing.quad) }))}
+      accessibilityRole="button"
+      accessibilityLabel={pro ? `${title}. ${body}. Travel Pro` : `${title}. ${body}`}
     >
       <Animated.View
         style={[
@@ -119,30 +104,21 @@ function KindCard({
           <Illustration name={art.name} width={art.width} active />
         </View>
         <View style={{ flex: 1 }}>
-          <Text variant="headingSm" style={selected ? { color: theme.selectedForeground } : undefined}>
-            {title}
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Text variant="headingSm">{title}</Text>
+            {pro ? (
+              <View
+                style={{ backgroundColor: theme.accent, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 1 }}
+              >
+                <Text variant="labelXs" style={{ color: theme.accentForeground }}>
+                  PRO
+                </Text>
+              </View>
+            ) : null}
+          </View>
           <Text variant="bodySm" tone="muted">
             {body}
           </Text>
-        </View>
-        <View
-          style={{
-            width: 22,
-            height: 22,
-            borderRadius: 11,
-            borderWidth: selected ? 0 : 1.5,
-            borderColor: theme.track,
-            backgroundColor: selected ? theme.primaryFill : 'transparent',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          {selected ? (
-            <Host matchContents pointerEvents="none" ignoreSafeArea="all">
-              <NativeIcon source={icons.check} size={11} color={theme.primaryFillForeground} />
-            </Host>
-          ) : null}
         </View>
       </Animated.View>
     </Pressable>

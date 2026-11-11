@@ -36,17 +36,25 @@ export function PriceStep({ vm }: { vm: CreatePostViewModel }) {
 
   return (
     <View style={{ gap: 24 }}>
-      <StepIntro heading={copy.heading} body={copy.body} />
-      <PriceCard
-        label={copy.priceLabel}
-        currency={draft.currency}
-        onCurrency={(currency) => update({ currency })}
-        amount={draft.price}
-        onAmount={setAmount}
-        error={issues.price ? issueCopy[issues.price] : null}
-      />
+      <StepIntro heading={copy.heading} body={vm.mode === 'edit' ? wizardCopy.edit.priceBody : copy.body} />
+      {/* A live post's price cannot change (the API refuses it), so editing one shows it fixed. */}
+      {vm.mode === 'edit' ? (
+        <NoteCard
+          title={price !== null ? wizardCopy.perPerson(formatMoney(price, draft.currency)) : wizardCopy.edit.noPrice}
+          body={wizardCopy.edit.priceFixed}
+        />
+      ) : (
+        <PriceCard
+          label={copy.priceLabel}
+          currency={draft.currency}
+          onCurrency={(currency) => update({ currency })}
+          amount={draft.price}
+          onAmount={setAmount}
+          error={issues.price ? issueCopy[issues.price] : null}
+        />
+      )}
 
-      {price !== null ? (
+      {price !== null && vm.mode !== 'edit' ? (
         <EstimateCard
           label={wizardCopy.entryCost}
           amount={wizardCopy.perPerson(formatMoney(price, draft.currency))}

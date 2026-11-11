@@ -47,7 +47,8 @@ export function createPostRepository(request: PostRequest): PostRepository {
     getPost: (postId) => guard(async () => toSavedPost(await api.getPost(postId))),
     create: (s, status) =>
       guard(async () => (await api.create(toCreateFields(s, status), toUploadFiles(s))).id, status === 'draft'),
-    update: (postId, s) => guard(async () => void (await api.update(postId, toUpdateBody(s)))),
+    update: (postId, s, options) =>
+      guard(async () => void (await api.update(postId, toUpdateBody(s, options?.live ?? false)))),
     replaceImages: (postId, photos) =>
       guard(async () => void (await api.replaceImages(postId, await asFiles(photos)))),
     publish: (postId) => guard(async () => void (await api.publish(postId))),

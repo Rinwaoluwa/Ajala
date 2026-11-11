@@ -2,7 +2,7 @@ import { View } from 'react-native';
 
 import { NoteCard } from '@shared/components';
 
-import { stepCapacity } from '../../../domain/rules/postDraftRules';
+import { clampCapacity, stepCapacity } from '../../../domain/rules/postDraftRules';
 import { kindCopy, wizardCopy } from '../../copy';
 import type { CreatePostViewModel } from '../../hooks/useCreatePost';
 import { CapacityStepper } from '../CapacityStepper';
@@ -38,6 +38,8 @@ export function ParticipantsStep({ vm }: { vm: CreatePostViewModel }) {
         label={copy.capacityLabel}
         value={draft.capacity}
         onStep={(delta) => update({ capacity: stepCapacity(vm.kind, draft.capacity, delta) })}
+        onType={(capacity) => update({ capacity })}
+        onCommit={() => update({ capacity: clampCapacity(vm.kind, draft.capacity) })}
         hint={hint}
       />
       <SettingsCard>

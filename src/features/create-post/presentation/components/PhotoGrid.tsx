@@ -1,11 +1,10 @@
-import { Host } from '@expo/ui';
 import { Image } from 'expo-image';
 import { useState } from 'react';
 import { Pressable, TouchableOpacity, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import Svg, { Path, Rect } from 'react-native-svg';
 
-import { NativeIcon, SortableGrid, Text, icons } from '@shared/components';
+import { Host, NativeIcon, SortableGrid, Text, icons } from '@shared/components';
 import { useTheme } from '@shared/hooks/useTheme';
 import { palette } from '@shared/theme';
 

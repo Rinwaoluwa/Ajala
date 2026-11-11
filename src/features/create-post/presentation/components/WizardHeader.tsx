@@ -1,8 +1,7 @@
-import { Host } from '@expo/ui';
 import { Pressable, View } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 
-import { BackButton, NativeSpinner, StepProgress, Text } from '@shared/components';
+import { Host, BackButton, NativeSpinner, StepProgress, Text } from '@shared/components';
 import { useTheme } from '@shared/hooks/useTheme';
 
 import { wizardCopy } from '../copy';
@@ -23,6 +22,8 @@ export type WizardHeaderProps = {
   step: number;
   /** How many steps this wizard has. */
   stepCount: number;
+  /** Off when editing a live post: there is no draft to save. */
+  showSaveDraft?: boolean;
   onBack: () => void;
   onSaveDraft: () => void;
   canSaveDraft: boolean;
@@ -40,6 +41,7 @@ export function WizardHeader({
   canSaveDraft,
   saving,
   justSaved,
+  showSaveDraft = true,
 }: WizardHeaderProps) {
   const theme = useTheme();
   const label = saving ? wizardCopy.savingDraft : justSaved ? wizardCopy.draftSaved : wizardCopy.saveDraft;
@@ -56,6 +58,7 @@ export function WizardHeader({
             {subtitle}
           </Text>
         </View>
+        {showSaveDraft ? (
         <Pressable
           onPress={onSaveDraft}
           disabled={!canSaveDraft || saving}
@@ -86,6 +89,7 @@ export function WizardHeader({
             </Text>
           </Animated.View>
         </Pressable>
+        ) : null}
       </View>
       <View className="mt-16">
         <StepProgress count={stepCount} current={step} tone="accent" />

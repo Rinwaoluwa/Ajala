@@ -3,7 +3,7 @@ import { View, useWindowDimensions } from 'react-native';
 
 import { DatePickerSheet, icons, NoteCard, SelectField } from '@shared/components';
 
-import { PLACE_MAX } from '../../../domain/rules/postDraftRules';
+import { PLACE_MAX, endsNextDay } from '../../../domain/rules/postDraftRules';
 import { createPostErrors, issueCopy, kindCopy, wizardCopy } from '../../copy';
 import { formatDay, formatTime } from '../../format';
 import type { CreatePostViewModel } from '../../hooks/useCreatePost';
@@ -93,6 +93,8 @@ export function ScheduleStep({ vm }: { vm: CreatePostViewModel }) {
               icon={icons.clock}
               onPress={() => setPicker('end')}
               error={issues.endTime === 'endBeforeStart' ? issueCopy.endBeforeStart : null}
+              // An end earlier in the day than the start runs overnight (`endOf`), so say so.
+              helper={endsNextDay(draft) ? wizardCopy.endsNextDay : null}
               testID="create-end-time"
             />
           ) : null}

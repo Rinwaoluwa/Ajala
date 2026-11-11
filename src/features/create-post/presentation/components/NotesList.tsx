@@ -1,8 +1,7 @@
-import { Host } from '@expo/ui';
 import { useCallback } from 'react';
 import { TouchableOpacity, View } from 'react-native';
 
-import { NativeIcon, SortableGrid, Text, TextField, icons } from '@shared/components';
+import { Host, NativeIcon, SortableGrid, Text, TextField, icons } from '@shared/components';
 import { useTheme } from '@shared/hooks/useTheme';
 
 import type { DraftNote } from '../../domain/entities/PostDraft';

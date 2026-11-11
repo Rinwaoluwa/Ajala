@@ -30,9 +30,14 @@ export type SendInput = {
   photosChanged: boolean;
 };
 
-async function bringUpToDate(repo: PostRepository, postId: string, { draft, photosChanged }: SendInput) {
+async function bringUpToDate(
+  repo: PostRepository,
+  postId: string,
+  { draft, photosChanged }: SendInput,
+  live = false,
+) {
   const submission = toSubmission(draft);
-  await repo.update(postId, submission);
+  await repo.update(postId, submission, { live });
   // A draft may have no photos; the images call needs at least one.
   if (photosChanged && submission.photos.length > 0) await repo.replaceImages(postId, submission.photos);
 }
@@ -51,6 +56,19 @@ export const makeSaveDraft =
   async (input: SendInput): Promise<string> => {
     if (!input.postId) return repo.create(toSubmission(input.draft), 'draft');
     await bringUpToDate(repo, input.postId, input);
+    return input.postId;
+  };
+
+/**
+ * Editing a post that is already live (Edit post from its page): the same
+ * `PATCH`, and its photos when they changed, but no publish — it is published
+ * already. Only an existing post can be edited.
+ */
+export const makeSaveChanges =
+  (repo: PostRepository) =>
+  async (input: SendInput): Promise<string> => {
+    if (!input.postId) throw new CreatePostError('unknown');
+    await bringUpToDate(repo, input.postId, input, true);
     return input.postId;
   };
 

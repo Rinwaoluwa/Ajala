@@ -3,6 +3,8 @@ import { describe, expect, it } from '@jest/globals';
 import { emptyDraft, type PostDraft } from '../entities/PostDraft';
 import {
   canLeaveStep,
+  clampCapacity,
+  endsNextDay,
   firstIncompleteStep,
   isHttpsUrl,
   move,
@@ -64,8 +66,16 @@ describe('the steps', () => {
   it('refuses a start in the past and an end before the start', () => {
     const past = { ...ready(), date: new Date(2026, 9, 20), startTime: new Date(2026, 0, 1, 9, 0) };
     expect(stepIssues(past, 'schedule', NOW).startTime).toBe('inPast');
-    const backwards = { ...ready('event'), endTime: new Date(2026, 0, 1, 16, 0) };
-    expect(stepIssues(backwards, 'schedule', NOW).endTime).toBe('endBeforeStart');
+    const same = { ...ready('event'), endTime: new Date(2026, 0, 1, 17, 30) };
+    expect(stepIssues(same, 'schedule', NOW).endTime).toBe('endBeforeStart');
+  });
+
+  it('reads an end time earlier in the day than the start as the next day', () => {
+    const overnight = { ...ready('event'), endTime: new Date(2026, 0, 1, 9, 0) };
+    expect(stepIssues(overnight, 'schedule', NOW).endTime).toBeUndefined();
+    expect(endsNextDay(overnight)).toBe(true);
+    expect(endsNextDay({ ...ready('event'), endTime: new Date(2026, 0, 1, 22, 0) })).toBe(false);
+    expect(toSubmission(overnight).endAt).toMatch(/^2026-10-23T09:00:00[+-]\d{2}:\d{2}$/);
   });
 
   it('needs a meeting point for a Meetup or Event, not for a Plan', () => {
@@ -211,7 +221,7 @@ describe('what is sent', () => {
     const s = toSubmission({ ...ready('event'), endTime: new Date(2026, 0, 1, 22, 0) });
     expect(s.endAt).toMatch(/^2026-10-22T22:00:00[+-]\d{2}:\d{2}$/);
     expect(
-      toSubmission({ ...ready('event'), endTime: new Date(2026, 0, 1, 16, 0) }),
+      toSubmission({ ...ready('event'), endTime: new Date(2026, 0, 1, 17, 30) }),
     ).not.toHaveProperty('endAt');
   });
 
@@ -306,5 +316,16 @@ describe('helpers', () => {
     expect(isHttpsUrl('https://tix.ng/e/1')).toBe(true);
     expect(isHttpsUrl('http://tix.ng')).toBe(false);
     expect(isHttpsUrl('tix.ng')).toBe(false);
+  });
+});
+
+describe('typing a capacity', () => {
+  it('keeps it in range once the field is left, and blank is no limit only where allowed', () => {
+    expect(clampCapacity('meetup', 0)).toBe(1);
+    expect(clampCapacity('meetup', 25)).toBe(25);
+    expect(clampCapacity('group', 500)).toBe(100);
+    expect(clampCapacity('meetup', null)).toBe(1);
+    expect(clampCapacity('event', null)).toBeNull();
+    expect(clampCapacity('event', 20)).toBe(101);
   });
 });

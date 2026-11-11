@@ -1,6 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo, useState } from 'react';
 
+import { DRAFTS_KEY, postPageKey } from '@shared/state/postQueryKeys';
+
 import { postMedia } from '../../createPostModule';
 import { CreatePostError, isCreatePostError } from '../../domain/entities/CreatePostError';
 import { emptyDraft, type DraftPlace, type PostDraft } from '../../domain/entities/PostDraft';
@@ -41,7 +43,14 @@ import { useCreatePostUseCases } from '../state/useCreatePostUseCases';
  *
  * Interests are required to publish but missing from the design (API map §12),
  * so the review step asks for them; the list is a query cached for an hour.
+ *
+ * `mode: 'edit'` is the same wizard over a post that is already live (Edit post
+ * from its page): it opens filled in, there is no Save draft, and the review
+ * step's button saves the changes (`PATCH`, and the photos when they changed)
+ * without publishing again.
  */
+
+export type WizardMode = 'create' | 'edit';
 
 export type PublishOutcome =
   { kind: 'idle' } | { kind: 'published'; postId: string } | { kind: 'failed'; error: CreatePostError };
@@ -49,7 +58,8 @@ export type PublishOutcome =
 let keySeed = 0;
 const nextKey = (prefix: string) => `${prefix}-${Date.now().toString(36)}-${(keySeed += 1)}`;
 
-export function useCreatePost(kind: PostKind, draftId: string | null = null) {
+export function useCreatePost(kind: PostKind, draftId: string | null = null, mode: WizardMode = 'create') {
+  const editing = mode === 'edit';
   const useCases = useCreatePostUseCases();
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState<PostDraft>(() => emptyDraft(kind));
@@ -213,13 +223,19 @@ export function useCreatePost(kind: PostKind, draftId: string | null = null) {
     },
   });
 
+  const currentSnapshot = useMemo(() => snapshotOf(draft), [draft]);
+
   const publish = useMutation({
-    mutationFn: () => useCases.publish(sendInput()),
+    mutationFn: () => (editing ? useCases.saveChanges(sendInput()) : useCases.publish(sendInput())),
     onSuccess: (id) => {
       setPostId(id);
       setUploadedPhotos(photosSignature);
+      setSavedSnapshot(currentSnapshot);
       setOutcome({ kind: 'published', postId: id });
-      LISTS_A_NEW_POST_JOINS.forEach((queryKey) => void queryClient.invalidateQueries({ queryKey }));
+      // The post's own page, every list that shows it, and the drafts it may have left.
+      for (const queryKey of [...LISTS_A_NEW_POST_JOINS, postPageKey(id), DRAFTS_KEY]) {
+        void queryClient.invalidateQueries({ queryKey: [...queryKey] });
+      }
     },
     onError: (e) => {
       if (isCreatePostError(e)) setOutcome({ kind: 'failed', error: e });
@@ -237,11 +253,11 @@ export function useCreatePost(kind: PostKind, draftId: string | null = null) {
   const issues: DraftIssues = useMemo(() => stepIssues(draft, step), [draft, step]);
   const incomplete = useMemo(() => firstIncompleteStep(draft), [draft]);
   const hasContent = draft.photos.length > 0 || draft.title.trim() !== '' || draft.description.trim() !== '';
-  const currentSnapshot = useMemo(() => snapshotOf(draft), [draft]);
   const unsavedChanges = savedSnapshot === null ? hasContent : currentSnapshot !== savedSnapshot;
 
   return {
     kind,
+    mode,
     /** A saved draft is being fetched (Continue editing); the steps wait for it. */
     loadingDraft: draftId !== null && hydratedFrom !== draftId && !saved.isError,
     draftFailed: saved.isError,
@@ -291,7 +307,7 @@ export function useCreatePost(kind: PostKind, draftId: string | null = null) {
     hasContent,
     /** Whether leaving now would lose something: edits since the last save, or content never saved. */
     unsavedChanges,
-    canSaveDraft: canSaveDraft(draft) && !saveDraft.isPending && !publish.isPending,
+    canSaveDraft: !editing && canSaveDraft(draft) && !saveDraft.isPending && !publish.isPending,
     savingDraft: saveDraft.isPending,
     draftSavedAt,
     /** Resolves with the reason it failed, or null once saved. */

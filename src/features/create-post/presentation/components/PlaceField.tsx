@@ -1,9 +1,8 @@
-import { Host } from '@expo/ui';
 import { useState } from 'react';
 import { TouchableOpacity, View } from 'react-native';
-import Animated, { FadeIn, FadeOut, LinearTransition } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 
-import { NativeIcon, NativeSpinner, SelectField, Text, TextField, icons } from '@shared/components';
+import { Host, NativeIcon, NativeSpinner, SelectField, Text, TextField, icons } from '@shared/components';
 import { useTheme } from '@shared/hooks/useTheme';
 
 import type { Coordinates, DraftPlace, PlaceOption, PlaceSearchKind } from '../../domain/entities/PostDraft';
@@ -97,7 +96,7 @@ export function PlaceField(props: PlaceFieldProps) {
       : (venue?.address ?? null);
 
   return (
-    <Animated.View layout={LinearTransition.duration(200)}>
+    <Animated.View>
       <TextField
         key={picks}
         label={label}

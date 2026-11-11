@@ -83,7 +83,7 @@ export const kindCopy: Record<PostKind, KindCopy> = {
       endTime: false,
       placeLabel: 'Meeting point',
       placePlaceholder: 'Enter a public meeting point',
-      tip: 'Choose a clear public meeting point for your first meetup.',
+      tip: 'Choose a clear public meeting point for your meetup.',
     },
     participants: {
       heading: 'Who can join?',
@@ -93,7 +93,7 @@ export const kindCopy: Record<PostKind, KindCopy> = {
       openBody: 'Anyone can join while spots are available',
       privateTitle: 'Request to join',
       privateBody: 'You approve attendance requests',
-      tip: 'Meet somewhere public for your first meetup.',
+      tip: 'Meet somewhere public for your meetup.',
     },
     price: {
       heading: 'Is there a price?',
@@ -186,7 +186,7 @@ export const kindCopy: Record<PostKind, KindCopy> = {
         placeholders: ['Day 1 · Arrival + dinner', 'Day 2 · Explore + activity'],
         add: 'Add stop or activity',
       },
-      tip: 'Choose a clear public meeting point for your first meetup.',
+      tip: 'Choose a clear public meeting point for your meetup.',
     },
     participants: {
       heading: 'Who can join?',
@@ -196,7 +196,7 @@ export const kindCopy: Record<PostKind, KindCopy> = {
       openBody: 'Anyone can join while spots are available',
       privateTitle: 'Request to join',
       privateBody: 'You approve attendance requests',
-      tip: 'Meet somewhere public for your first meetup.',
+      tip: 'Meet somewhere public for your meetup.',
     },
     // Plans carry no money, so the wizard skips straight from "Who can join?" to the review.
     price: null,
@@ -231,7 +231,7 @@ export const kindCopy: Record<PostKind, KindCopy> = {
       placeLabel: 'Meeting point',
       placePlaceholder: 'Enter a public meeting point',
       repeat: true,
-      tip: 'Choose a clear public meeting point for the first meetup.',
+      tip: 'Choose a clear public meeting point for the meetup.',
     },
     participants: {
       heading: 'Who can join the group?',
@@ -241,7 +241,7 @@ export const kindCopy: Record<PostKind, KindCopy> = {
       openBody: 'Anyone can join while there’s space',
       privateTitle: 'Approve join requests',
       privateBody: 'You approve each new member',
-      tip: 'Meet somewhere public for your first group meetup.',
+      tip: 'Meet somewhere public for your group meetup.',
     },
     price: {
       heading: 'Is there a price?',
@@ -266,6 +266,19 @@ export const kindCopy: Record<PostKind, KindCopy> = {
 };
 
 export const wizardCopy = {
+  // Editing a post that is already live (Edit post from its page).
+  edit: {
+    title: (noun: string) => `Edit ${noun}`,
+    subtitle: 'Changes show to everyone right away',
+    save: 'Save changes',
+    reviewBody: 'Check your changes before you save them. The price of a live post can’t change.',
+    noPrice: 'No price',
+    priceBody: 'The price stays as it was published. You can change the link to pay or book.',
+    priceFixed: 'The price of a live post can’t change. You can still change the link to pay or book.',
+    savedTitle: 'Changes saved',
+    savedMessage: 'Everyone sees the updated post from now on.',
+    savedAction: 'View post',
+  },
   saveDraft: 'Save draft',
   loadingDraft: 'Opening your draft',
   draftLoadFailed: 'This draft didn’t open. Check your connection and try again.',
@@ -290,6 +303,7 @@ export const wizardCopy = {
   time: 'Time',
   startTime: 'Start time',
   endTime: 'End time (optional)',
+  endsNextDay: 'Ends the next day',
   selectDate: 'Select a date',
   selectTime: 'Select a time',
   findingPlace: 'Finding that place…',
@@ -312,6 +326,7 @@ export const wizardCopy = {
   noLimit: 'No limit',
   fewerPeople: 'Fewer people',
   morePeople: 'More people',
+  typeCapacity: 'Type a number, or use the minus and plus buttons.',
   eventCapacityHint: 'Events are for more than 100 people, or have no limit.',
   groupCapacityHint: 'Groups are for 1 to 100 people.',
   showOnMapTitle: 'Show on map',
@@ -332,7 +347,8 @@ export const wizardCopy = {
   peopleCount: (n: number) => `${n} ${n === 1 ? 'person' : 'people'}`,
   link: 'Link',
   joinSetting: 'Join setting',
-  meetingPoint: 'Meeting point',
+  // The summary says "Venue" for every kind; the schedule step keeps each kind's own label.
+  venue: 'Venue',
   interests: {
     label: 'Interests',
     hint: 'Pick 1 to 3, so the right travellers find it.',
@@ -345,6 +361,8 @@ export const wizardCopy = {
   publishFailed: {
     title: 'That didn’t go through',
     message: (noun: string) => `We couldn’t publish your ${noun}. Check your connection and try again.`,
+    // Not drawn: the same failure on Save draft, or on Save changes when editing a live post.
+    draftMessage: (noun: string) => `We couldn’t save your ${noun}. Check your connection and try again.`,
     action: 'Try again',
   },
   leave: {
@@ -374,7 +392,7 @@ export const issueCopy: Record<DraftIssue, string> = {
   required: 'This is needed.',
   tooFewPhotos: 'Add at least 2 photos.',
   inPast: 'Pick a time in the future.',
-  endBeforeStart: 'End after the start time.',
+  endBeforeStart: 'Pick an end time different from the start.',
   capacityRange: 'Pick a size this type allows.',
   priceRange: 'Enter a whole amount from 1 to 1,000,000, or skip the price.',
   tooManyLines: 'Keep it to 30 lines.',
@@ -394,7 +412,7 @@ export const fieldNames: Record<DraftField, string> = {
   date: 'Date',
   startTime: 'Start time',
   endTime: 'End time',
-  place: 'Meeting point',
+  place: 'Venue',
   notes: 'Details',
   recurrence: 'Repeats',
   recurrenceEndsOn: 'Last time it repeats',
