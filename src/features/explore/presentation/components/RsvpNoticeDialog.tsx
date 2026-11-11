@@ -1,7 +1,6 @@
-import { Host } from '@expo/ui';
 import { Pressable, View } from 'react-native';
 
-import { Button, Dialog, NativeIcon, Text, icons } from '@shared/components';
+import { Host, Button, Dialog, NativeIcon, Text, icons } from '@shared/components';
 import { useTheme } from '@shared/hooks/useTheme';
 
 import { exploreCopy } from '../copy';

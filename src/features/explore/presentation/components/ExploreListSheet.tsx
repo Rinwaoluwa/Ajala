@@ -1,9 +1,11 @@
 import { useState } from 'react';
-import { FlatList, ScrollView, View, useWindowDimensions } from 'react-native';
+import { FlatList, ScrollView, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
 import {
+  Avatar,
   Button,
+  Host,
   LoadingRing,
   NativeIcon,
   Sheet,
@@ -11,8 +13,10 @@ import {
   SkeletonPulse,
   Text,
   TextField,
+  UnderlineTabs,
   enterRise,
   icons,
+  useListEntrance,
 } from '@shared/components';
 import { useTheme } from '@shared/hooks/useTheme';
 
@@ -20,6 +24,7 @@ import { SEARCH_MAX, readSearch } from '../../domain/rules/exploreRules';
 import { exploreCopy, exploreErrorMessages } from '../copy';
 import { useInterests } from '../hooks/useInterests';
 import { useNearbyMeetups } from '../hooks/useNearbyMeetups';
+import { useSearchPeople } from '../hooks/useSearchPeople';
 import { useSearchPosts } from '../hooks/useSearchPosts';
 import { InterestGrid } from './InterestGrid';
 import { MeetupCard } from './MeetupCard';
@@ -28,9 +33,11 @@ import { MeetupCard } from './MeetupCard';
  * "Explore" (Figma, opened by View List): "Find your people. Discover your city.",
  * a search box, Browse By Interest, then Meetups Near You.
  *
- * The search box searches posts within 30 km of where the feed looks, on submit (`GET
- * /search/posts?q=`, 2–100 characters; no typeahead, as the spec asks). Its
- * results replace the interests and meetups until the box is cleared. Fewer than
+ * The search box searches on submit (2–100 characters; no typeahead, as the spec
+ * asks), in two tabs: Activities, posts within 30 km of where the feed looks
+ * (`GET /search/posts?q=`), and People, travellers by first name or handle
+ * (`GET /search/people?q=`; opened on their profile). The results replace the
+ * interests and meetups until the box is cleared. Fewer than
  * two characters gets a hint under the box rather than a call the server would
  * refuse.
  *
@@ -43,19 +50,29 @@ export function ExploreListSheet({
   isPresented,
   onDismiss,
   onOpenMeetup,
+  onOpenPerson,
 }: {
   isPresented: boolean;
   onDismiss: () => void;
   onOpenMeetup: (id: string) => void;
+  onOpenPerson: (userId: string) => void;
 }) {
   return (
     <Sheet isPresented={isPresented} title={exploreCopy.list.title} onDismiss={onDismiss}>
-      <ListBody onOpenMeetup={onOpenMeetup} />
+      <ListBody onOpenMeetup={onOpenMeetup} onOpenPerson={onOpenPerson} />
     </Sheet>
   );
 }
 
-function ListBody({ onOpenMeetup }: { onOpenMeetup: (id: string) => void }) {
+type SearchScope = 'activities' | 'people';
+
+function ListBody({
+  onOpenMeetup,
+  onOpenPerson,
+}: {
+  onOpenMeetup: (id: string) => void;
+  onOpenPerson: (userId: string) => void;
+}) {
   const theme = useTheme();
   const { height } = useWindowDimensions();
   const copy = exploreCopy.list;
@@ -65,7 +82,15 @@ function ListBody({ onOpenMeetup }: { onOpenMeetup: (id: string) => void }) {
   const [tooShort, setTooShort] = useState(false);
   // Remounting the uncontrolled field is how it is cleared.
   const [fieldKey, setFieldKey] = useState(0);
-  const search = useSearchPosts(words);
+  const [scope, setScope] = useState<SearchScope>('activities');
+  const search = useSearchPosts(scope === 'activities' ? words : null);
+  // Asked only once People is opened; kept after, so switching back and forth is instant.
+  const [peopleAsked, setPeopleAsked] = useState(false);
+  const people = useSearchPeople(words, peopleAsked || scope === 'people');
+  const chooseScope = (next: SearchScope) => {
+    setScope(next);
+    if (next === 'people') setPeopleAsked(true);
+  };
 
   const change = (text: string) => {
     setDraft(text);
@@ -117,7 +142,23 @@ function ListBody({ onOpenMeetup }: { onOpenMeetup: (id: string) => void }) {
       </View>
 
       {words !== null ? (
-        <Results search={search} onOpen={onOpenMeetup} />
+        <>
+          <View className="mt-16">
+            <UnderlineTabs
+              options={[
+                { value: 'activities' as const, label: copy.scopes.activities },
+                { value: 'people' as const, label: copy.scopes.people },
+              ]}
+              value={scope}
+              onChange={chooseScope}
+            />
+          </View>
+          {scope === 'activities' ? (
+            <Results search={search} onOpen={onOpenMeetup} />
+          ) : (
+            <PeopleResults people={people} onOpen={onOpenPerson} />
+          )}
+        </>
       ) : (
         <BrowseAndNearby onOpenMeetup={onOpenMeetup} />
       )}
@@ -190,11 +231,103 @@ function Results({
   );
 }
 
+/** People results: avatar, name, then @handle and where they're based; a tap opens their profile. */
+function PeopleResults({
+  people,
+  onOpen,
+}: {
+  people: ReturnType<typeof useSearchPeople>;
+  onOpen: (userId: string) => void;
+}) {
+  const theme = useTheme();
+  const copy = exploreCopy.list;
+  return (
+    <Animated.View entering={FadeIn.duration(180)} className="mt-16">
+      {people.loading ? (
+        <SkeletonPulse>
+          <View style={{ gap: 16 }}>
+            {[0, 1, 2].map((i) => (
+              <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                <SkeletonBlock width={44} height={44} radius={22} />
+                <View style={{ flex: 1, gap: 6 }}>
+                  <SkeletonBlock width="50%" height={14} />
+                  <SkeletonBlock width="70%" height={10} />
+                </View>
+              </View>
+            ))}
+          </View>
+        </SkeletonPulse>
+      ) : people.error ? (
+        <Inline message={copy.peopleFailed} onRetry={people.retry} />
+      ) : people.items.length === 0 ? (
+        <Text variant="bodySm" tone="muted" className="py-12" accessibilityLiveRegion="polite">
+          {copy.peopleEmpty}
+        </Text>
+      ) : (
+        <View>
+          {people.items.map((person, index) => {
+            const detail = [person.handle ? `@${person.handle}` : null, person.place].filter(Boolean).join(' · ');
+            return (
+              <TouchableOpacity
+                key={person.id}
+                activeOpacity={0.6}
+                onPress={() => onOpen(person.id)}
+                accessibilityRole="button"
+                accessibilityLabel={copy.openPerson(person.displayName)}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 12,
+                  paddingVertical: 12,
+                  borderTopWidth: index === 0 ? 0 : 1,
+                  borderTopColor: theme.border,
+                }}
+              >
+                <Avatar name={person.displayName} uri={person.avatarUrl} size={44} />
+                <View style={{ flex: 1, gap: 2 }}>
+                  <Text variant="labelMd" numberOfLines={1}>
+                    {person.displayName}
+                  </Text>
+                  {detail ? (
+                    <Text variant="bodyXs" tone="muted" numberOfLines={1}>
+                      {detail}
+                    </Text>
+                  ) : null}
+                </View>
+                <Host matchContents pointerEvents="none">
+                  <NativeIcon source={icons.chevronRight} size={14} color={theme.muted} />
+                </Host>
+              </TouchableOpacity>
+            );
+          })}
+          {people.hasMore ? (
+            <View style={{ alignSelf: 'center', marginTop: 8 }}>
+              <Button
+                label={copy.showMore}
+                size="sm"
+                variant="secondary"
+                loading={people.loadingMore}
+                onPress={people.loadMore}
+              />
+            </View>
+          ) : null}
+          {people.capped ? (
+            <Text variant="bodySm" tone="muted" className="text-center mt-8">
+              {copy.peopleCapped}
+            </Text>
+          ) : null}
+        </View>
+      )}
+    </Animated.View>
+  );
+}
+
 function BrowseAndNearby({ onOpenMeetup }: { onOpenMeetup: (id: string) => void }) {
   const copy = exploreCopy.list;
   const [interestId, setInterestId] = useState<string | null>(null);
   const interests = useInterests();
   const meetups = useNearbyMeetups(interestId);
+  const enterMeetup = useListEntrance(meetups.items.length > 0);
 
   return (
     <>
@@ -258,7 +391,7 @@ function BrowseAndNearby({ onOpenMeetup }: { onOpenMeetup: (id: string) => void 
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={{ gap: 12 }}
             renderItem={({ item, index }) => (
-              <Animated.View entering={index < 3 ? enterRise(index * 60) : undefined}>
+              <Animated.View entering={enterMeetup(index)}>
                 <MeetupCard meetup={item} onPress={() => onOpenMeetup(item.id)} />
               </Animated.View>
             )}

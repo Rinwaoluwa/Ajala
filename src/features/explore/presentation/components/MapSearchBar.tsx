@@ -1,9 +1,8 @@
-import { Host } from '@expo/ui';
 import { useState } from 'react';
 import { TouchableOpacity, View } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 
-import { GlassSurface, NativeIcon, NativeSpinner, Text, TextField, icons } from '@shared/components';
+import { Host, GlassSurface, NativeIcon, NativeSpinner, Text, TextField, icons } from '@shared/components';
 import { useLiquidGlass } from '@shared/hooks/useLiquidGlass';
 import { useTheme } from '@shared/hooks/useTheme';
 

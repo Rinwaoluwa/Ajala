@@ -3,6 +3,7 @@ import type {
   InterestDto,
   MapPinsDto,
   MeIdDto,
+  PeoplePageDto,
   PostDetailDto,
   PostSearchPageDto,
   PostTypeDto,
@@ -87,12 +88,16 @@ export function createExploreApi(request: ExploreRequest) {
     listInterests: () => request<InterestDto[]>({ method: 'GET', path: `${V1}/interests` }),
 
     /** The feed of one type (Explore asks for `meetup`); the server picks where it looks. */
-    getFeed: (type: PostTypeDto, cursor: string | null, limit: number, headers: Headers) =>
+    getFeed: (type: PostTypeDto | 'all', cursor: string | null, limit: number, headers: Headers) =>
       request<FeedPageDto>({
         method: 'GET',
         path: `${V1}/feed?${query({ type, cursor, limit })}`,
         headers: headers ?? undefined,
       }),
+
+    /** First name or handle (a leading `@` is fine), 2–100 characters; not tied to where the feed looks. */
+    searchPeople: (q: string, cursor: string | null, limit: number) =>
+      request<PeoplePageDto>({ method: 'GET', path: `${V1}/search/people?${query({ q, cursor, limit })}` }),
 
     /** 400 with neither `q` nor interests; 404 NO_LOCATION. */
     searchPosts: (params: PostSearchParams, cursor: string | null, limit: number, headers: Headers) =>

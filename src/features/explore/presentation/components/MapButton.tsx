@@ -1,4 +1,3 @@
-import { Host } from '@expo/ui';
 import { Pressable, View } from 'react-native';
 import Animated, {
   useAnimatedStyle,
@@ -7,7 +6,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-import { GlassSurface, NativeIcon, type NativeIconSource } from '@shared/components';
+import { Host, GlassSurface, NativeIcon, type NativeIconSource } from '@shared/components';
 import { useLiquidGlass } from '@shared/hooks/useLiquidGlass';
 import { useTheme } from '@shared/hooks/useTheme';
 

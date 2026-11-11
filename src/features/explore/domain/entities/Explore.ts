@@ -92,6 +92,9 @@ export type RsvpResult = {
 
 export type Interest = { id: string; name: string; emoji: string | null };
 
+/** The signed-in person: their id, and the interests they picked (`GET /me`). */
+export type Me = { id: string; interests: Interest[] };
+
 /** A card in the Explore list: under "Meetups Near You", or a search result (any type). */
 export type ListedPost = {
   id: string;
@@ -112,6 +115,20 @@ export type ListedPost = {
 };
 
 export type PostsPage = { items: ListedPost[]; nextCursor: string | null };
+
+/** A traveller the people search found. */
+export type FoundPerson = {
+  id: string;
+  handle: string | null;
+  /** First name and last initial: "Adeboye O." */
+  displayName: string;
+  avatarUrl: string | null;
+  verified: boolean;
+  /** Where they're based, e.g. "Ikeja, Lagos, Nigeria"; null when hidden or unset. */
+  place: string | null;
+};
+
+export type PeoplePage = { items: FoundPerson[]; nextCursor: string | null };
 
 /**
  * A city the map search suggests (the place search on the phone). Where it is

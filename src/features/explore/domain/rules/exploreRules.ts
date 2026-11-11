@@ -1,4 +1,4 @@
-import type { Bbox, MapPin, MapPins, PostPreview, PostType, ReportReasonCode } from '../entities/Explore';
+import type { Bbox, MapPin, MapPins, PostPreview, PostPrice, PostType, ReportReasonCode } from '../entities/Explore';
 
 /** Posts per page in the Explore list: "Meetups Near You" and search results. */
 export const LIST_PAGE_SIZE = 20;
@@ -22,9 +22,84 @@ export function isHappeningToday(startAt: string, now: Date): boolean {
   );
 }
 
-/** The bolt's "Happening today" filter, over the pins the API sent; off, every pin. */
-export function visiblePins(pins: readonly MapPin[], todayOnly: boolean, now: Date): MapPin[] {
-  return todayOnly ? pins.filter((p) => isHappeningToday(p.startAt, now)) : [...pins];
+// ---------- the map's filters (the Filters sheet, and the bolt for "Today") ----------
+
+export type DateFilter = 'any' | 'today' | 'weekend';
+export type PriceFilter = 'any' | 'free' | 'paid';
+
+/**
+ * What the Filters sheet chose. `maxPrice` is in whole units of
+ * `FILTER_CURRENCY` (naira), or null for "No limit"; it means nothing with Free.
+ */
+export type MapFilters = { date: DateFilter; price: PriceFilter; maxPrice: number | null };
+
+export const NO_FILTERS: MapFilters = { date: 'any', price: 'any', maxPrice: null };
+
+/** The currency "Maximum price" is in, as the design labels it. */
+export const FILTER_CURRENCY = 'NGN';
+
+/** Whether any filter narrows the map (the filter button shows it). */
+export const filtersActive = (f: MapFilters) => f.date !== 'any' || f.price !== 'any' || f.maxPrice !== null;
+
+/** Whether a price filter is on: pins carry no price, so the map then needs one per pin. */
+export const needsPrices = (f: MapFilters) => f.price !== 'any' || f.maxPrice !== null;
+
+/**
+ * Whether a post starts this weekend, where the phone is: Saturday and Sunday
+ * of this week, or what is left of them when it is already the weekend.
+ */
+export function isThisWeekend(startAt: string, now: Date): boolean {
+  const start = new Date(startAt);
+  if (Number.isNaN(start.getTime())) return false;
+  const day = now.getDay(); // 0 Sunday … 6 Saturday
+  const saturday = new Date(now.getFullYear(), now.getMonth(), now.getDate() + (day === 0 ? -1 : 6 - day));
+  const mondayAfter = new Date(saturday.getFullYear(), saturday.getMonth(), saturday.getDate() + 2);
+  return start >= saturday && start < mondayAfter;
+}
+
+export function matchesDate(startAt: string, date: DateFilter, now: Date): boolean {
+  if (date === 'today') return isHappeningToday(startAt, now);
+  if (date === 'weekend') return isThisWeekend(startAt, now);
+  return true;
+}
+
+/**
+ * Whether a post's price passes the filter. `price` null is free; `undefined`
+ * is not known (a pin the price lookup did not cover), which only passes with
+ * no price filter on. A maximum compares posts priced in naira; one in another
+ * currency is left out rather than guessed at.
+ */
+export function matchesPrice(price: PostPrice | null | undefined, f: MapFilters): boolean {
+  if (!needsPrices(f)) return true;
+  if (price === undefined) return false;
+  if (f.price === 'free') return price === null;
+  if (f.price === 'paid' && price === null) return false;
+  if (f.maxPrice === null || price === null) return true;
+  if (price.currency !== FILTER_CURRENCY) return false;
+  return price.amountCents / 10 ** price.exponent <= f.maxPrice;
+}
+
+/**
+ * The pins the filters keep, from those the API sent. `prices` is each post's
+ * price by id (null when free), needed only while a price filter is on.
+ */
+export function visiblePins(
+  pins: readonly MapPin[],
+  filters: MapFilters,
+  now: Date,
+  prices: ReadonlyMap<string, PostPrice | null> | null = null,
+): MapPin[] {
+  return pins.filter(
+    (p) => matchesDate(p.startAt, filters.date, now) && matchesPrice(prices ? prices.get(p.id) : undefined, filters),
+  );
+}
+
+/** "No limit", or a whole number of naira typed into the field (digits only; anything else is no limit). */
+export function readMaxPrice(text: string): number | null {
+  const digits = text.replace(/[^0-9]/g, '');
+  if (!digits) return null;
+  const n = Number(digits);
+  return Number.isFinite(n) && n > 0 ? n : null;
 }
 
 /**

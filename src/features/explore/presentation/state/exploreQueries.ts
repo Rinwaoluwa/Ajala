@@ -16,6 +16,9 @@ const boxKey = (b: Bbox) => [b.west, b.south, b.east, b.north].map((n) => n.toFi
 export const exploreKeys = {
   pins: (bbox: Bbox, type: PostType | null, titleFilter: string | null) =>
     ['mapPins', boxKey(bbox), type ?? 'all', titleFilter ?? ''] as const,
+  /** Pins by interest come from the post search, so they sit under its prefix and reset with it. */
+  pinsByInterest: (interestId: string, type: PostType | null) =>
+    ['searchPosts', 'pins', interestId, type ?? 'all'] as const,
   post: (postId: string) => ['explore', 'post', postId] as const,
   interests: ['explore', 'interests'] as const,
   /** No interest: the feed's meetups. With one: a search by it. */
@@ -25,9 +28,13 @@ export const exploreKeys = {
       : (['feed', 'explore-meetups'] as const),
   /** The list's search box: words only, every type. */
   search: (words: string) => ['searchPosts', words, [], 'all'] as const,
+  /** Post prices for the map's price filter, from the feed: origin-bound, so under `feed`. */
+  prices: (type: PostType | null) => ['feed', 'explore-prices', type ?? 'all'] as const,
+  /** The list's people search. Not origin-bound: who matches a name doesn't depend on where the feed looks. */
+  people: (words: string) => ['explore', 'people', words] as const,
   /** The map's city search on the phone, by what was typed. */
   places: (query: string) => ['explore', 'places', query] as const,
   rsvpNotice: ['explore', 'rsvpNotice'] as const,
-  /** The signed-in person's id. It never changes within a session, and signing out clears the cache. */
-  me: ['explore', 'me'] as const,
+  /** The signed-in person (id and interests). The id never changes within a session; signing out clears the cache. */
+  me: ['me', 'explore'] as const,
 };

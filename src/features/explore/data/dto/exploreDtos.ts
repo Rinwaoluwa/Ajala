@@ -106,9 +106,13 @@ export interface PostDetailDto extends PostCardDto {
   waitlistPosition: number | null;
 }
 
-/** The one field of `MeDto` Explore reads: who is signed in, to spot their own posts. */
+/**
+ * The two fields of `MeDto` Explore reads: who is signed in (to spot their own
+ * posts) and their interests (the chips over the map).
+ */
 export interface MeIdDto {
   id: string;
+  interests: InterestDto[] | null;
 }
 
 export interface RsvpStateResponseDto {
@@ -124,6 +128,24 @@ export interface FeedPageDto {
   nextCursor: string | null;
   origin: FeedOriginDto;
   originSource: OriginSourceDto;
+}
+
+/** A person in `GET /search/people`: matched on first name and handle, closest first. */
+export interface PersonCardDto {
+  id: string;
+  handle: string | null;
+  /** First name and last initial. */
+  displayName: string;
+  avatarUrl: string | null;
+  verified: boolean;
+  /** Their home place, when set and shown. */
+  homePlace: { placeId: string; label: string; countryCode: string | null } | null;
+}
+
+/** `GET /search/people`: pages of 20 (at most 50), at most 100 results per search. */
+export interface PeoplePageDto {
+  items: PersonCardDto[];
+  nextCursor: string | null;
 }
 
 /** `GET /search/posts`: best match first, within 30 km of where the feed looks. */

@@ -2,16 +2,19 @@ import { createExploreRepository } from './data/repositories/ExploreRepositoryIm
 import type { ExploreRequest } from './data/datasources/remote/exploreApi';
 import {
   makeEndPlaceSearch,
-  makeGetMyId,
+  makeGetMe,
   makeJoin,
   makeListInterests,
   makeLoadMeetups,
   makeLoadPins,
+  makeLoadPinsByInterest,
   makeLoadPost,
+  makeLoadPrices,
   makePlaceLocation,
   makeRecordLinkClick,
   makeReportPost,
   makeRsvpNotice,
+  makeSearchPeople,
   makeSearchPlaces,
   makeSearchPosts,
 } from './domain/usecases/ExploreUseCases';
@@ -24,10 +27,11 @@ export function createExploreUseCases(request: ExploreRequest) {
   const repo = createExploreRepository(request);
   return {
     loadPins: makeLoadPins(repo),
+    loadPinsByInterest: makeLoadPinsByInterest(repo),
     loadPost: makeLoadPost(repo),
     join: makeJoin(repo),
     recordLinkClick: makeRecordLinkClick(repo),
-    getMyId: makeGetMyId(repo),
+    getMe: makeGetMe(repo),
     reportPost: makeReportPost(repo),
     listInterests: makeListInterests(repo),
     loadMeetups: makeLoadMeetups(repo),
@@ -35,6 +39,8 @@ export function createExploreUseCases(request: ExploreRequest) {
     placeLocation: makePlaceLocation(repo),
     endPlaceSearch: makeEndPlaceSearch(repo),
     searchPosts: makeSearchPosts(repo),
+    searchPeople: makeSearchPeople(repo),
+    loadPrices: makeLoadPrices(repo),
     rsvpNotice: makeRsvpNotice(repo),
   };
 }

@@ -174,7 +174,7 @@ describe('explore repository', () => {
     const { request, calls } = fake((c) => (c.path === '/api/v1/me' ? { id: 'me-1' } : undefined));
     const repo = createExploreRepository(request, notice);
     await repo.recordLinkClick('p1');
-    expect(await repo.getMyId()).toBe('me-1');
+    expect((await repo.getMe()).id).toBe('me-1');
     expect(calls.map((c) => [c.method, c.path])).toEqual([
       ['POST', '/api/v1/posts/p1/link-click'],
       ['GET', '/api/v1/me'],
@@ -330,5 +330,37 @@ describe('explore repository', () => {
     await expect(createExploreRepository(request, notice).listInterests()).rejects.toMatchObject({
       code: 'network',
     });
+  });
+});
+
+describe('pins by interest', () => {
+  const page = (items: unknown[], nextCursor: string | null) => ({
+    items,
+    nextCursor,
+    origin: { lat: 6.45, lng: 3.4, label: null, region: 'Lagos' },
+    originSource: 'device',
+  });
+
+  it('searches posts with the interest, pages on, and places only posts that have a point', async () => {
+    const { request, calls } = fake((call) =>
+      call.path.includes('cursor=c2')
+        ? page([{ ...POST, id: 'p3', lat: 6.5, lng: 3.5 }], null)
+        : page([{ ...POST, id: 'p1', lat: 6.46, lng: 3.41 }, { ...POST, id: 'p2', lat: null, lng: null }], 'c2'),
+    );
+    const result = await createExploreRepository(request, notice).getPinsByInterest('i1', 'meetup');
+    expect(calls.map((c) => c.path)).toEqual([
+      '/api/v1/search/posts?interestIds=i1&type=meetup&limit=50',
+      '/api/v1/search/posts?interestIds=i1&type=meetup&cursor=c2&limit=50',
+    ]);
+    expect(calls[0]?.headers).toEqual({ 'X-Client-Location': '6.453,3.396' });
+    expect(result.reach).toBe('radius');
+    expect(result.origin.region).toBe('Lagos');
+    expect(result.pins.map((p) => p.id)).toEqual(['p1', 'p3']);
+  });
+
+  it('reads the person with their interests', async () => {
+    const { request } = fake(() => ({ id: 'me', interests: [{ id: 'i1', slug: 'hiking', name: 'Hiking', emoji: null }] }));
+    const me = await createExploreRepository(request, notice).getMe();
+    expect(me).toEqual({ id: 'me', interests: [{ id: 'i1', name: 'Hiking', emoji: null }] });
   });
 });

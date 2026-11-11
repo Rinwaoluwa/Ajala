@@ -5,7 +5,12 @@ import {
   REPORT_DETAILS_MAX,
   asSeenBy,
   canSubmitReport,
+  NO_FILTERS,
+  filtersActive,
   isHappeningToday,
+  isThisWeekend,
+  matchesPrice,
+  readMaxPrice,
   maxBboxSpan,
   outsideReach,
   optimisticJoin,
@@ -58,8 +63,52 @@ describe('happening today', () => {
 
   it('filters pins only when on', () => {
     const pins = [pin('today', new Date(2026, 9, 28, 20)), pin('later', new Date(2026, 10, 2, 20))];
-    expect(visiblePins(pins, false, now).map((p) => p.id)).toEqual(['today', 'later']);
-    expect(visiblePins(pins, true, now).map((p) => p.id)).toEqual(['today']);
+    expect(visiblePins(pins, NO_FILTERS, now).map((p) => p.id)).toEqual(['today', 'later']);
+    expect(visiblePins(pins, { ...NO_FILTERS, date: 'today' }, now).map((p) => p.id)).toEqual(['today']);
+  });
+});
+
+describe('this weekend', () => {
+  // Wednesday 28 October 2026: the weekend is Saturday 31 and Sunday 1 November.
+  const wednesday = new Date(2026, 9, 28, 9, 0);
+  it('is the coming Saturday and Sunday, where the phone is', () => {
+    expect(isThisWeekend(new Date(2026, 9, 31, 10).toISOString(), wednesday)).toBe(true);
+    expect(isThisWeekend(new Date(2026, 10, 1, 23, 30).toISOString(), wednesday)).toBe(true);
+    expect(isThisWeekend(new Date(2026, 9, 30, 22).toISOString(), wednesday)).toBe(false);
+    expect(isThisWeekend(new Date(2026, 10, 2, 0, 30).toISOString(), wednesday)).toBe(false);
+  });
+  it('on a Sunday is that Sunday, not the next weekend', () => {
+    const sunday = new Date(2026, 10, 1, 12);
+    expect(isThisWeekend(new Date(2026, 10, 1, 18).toISOString(), sunday)).toBe(true);
+    expect(isThisWeekend(new Date(2026, 10, 7, 18).toISOString(), sunday)).toBe(false);
+  });
+});
+
+describe('price filter', () => {
+  const naira = (n: number) => ({ amountCents: n * 100, currency: 'NGN', exponent: 2 });
+  it('passes everything with no price filter, even an unknown price', () => {
+    expect(matchesPrice(undefined, NO_FILTERS)).toBe(true);
+  });
+  it('free and paid', () => {
+    expect(matchesPrice(null, { ...NO_FILTERS, price: 'free' })).toBe(true);
+    expect(matchesPrice(naira(500), { ...NO_FILTERS, price: 'free' })).toBe(false);
+    expect(matchesPrice(null, { ...NO_FILTERS, price: 'paid' })).toBe(false);
+    expect(matchesPrice(naira(500), { ...NO_FILTERS, price: 'paid' })).toBe(true);
+  });
+  it('a maximum keeps free posts and naira prices up to it, and leaves out other currencies and unknowns', () => {
+    const f = { ...NO_FILTERS, maxPrice: 5000 };
+    expect(matchesPrice(null, f)).toBe(true);
+    expect(matchesPrice(naira(5000), f)).toBe(true);
+    expect(matchesPrice(naira(5001), f)).toBe(false);
+    expect(matchesPrice({ amountCents: 1000, currency: 'USD', exponent: 2 }, f)).toBe(false);
+    expect(matchesPrice(undefined, f)).toBe(false);
+  });
+  it('reads the maximum field as whole naira, or no limit', () => {
+    expect(readMaxPrice('')).toBeNull();
+    expect(readMaxPrice('5,000')).toBe(5000);
+    expect(readMaxPrice('0')).toBeNull();
+    expect(filtersActive({ ...NO_FILTERS, price: 'free', maxPrice: 3000 })).toBe(true);
+    expect(filtersActive(NO_FILTERS)).toBe(false);
   });
 });
 

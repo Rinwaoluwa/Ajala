@@ -5,6 +5,7 @@ import { isExploreError, type ExploreErrorCode } from '../../domain/entities/Exp
 import { asSeenBy } from '../../domain/rules/exploreRules';
 import { exploreKeys } from '../state/exploreQueries';
 import { useExploreUseCases } from '../state/useExploreUseCases';
+import { useMe } from './useMe';
 
 /**
  * The post behind a tapped pin (`GET /posts/:id`): the pin alone has no photo or
@@ -12,9 +13,9 @@ import { useExploreUseCases } from '../state/useExploreUseCases';
  * offers Join (`asSeenBy`).
  */
 export function usePostPreview(postId: string | null) {
-  const { loadPost, getMyId } = useExploreUseCases();
-  // Asked once a session; a failure just leaves the server's `isHost` to decide.
-  const me = useQuery({ queryKey: exploreKeys.me, queryFn: () => getMyId(), staleTime: Infinity });
+  const { loadPost } = useExploreUseCases();
+  // A failure just leaves the server's `isHost` to decide.
+  const me = useMe();
   const query = useQuery({
     queryKey: exploreKeys.post(postId ?? ''),
     queryFn: () => loadPost(postId!),
@@ -26,7 +27,7 @@ export function usePostPreview(postId: string | null) {
       ? query.error.code
       : 'unknown'
     : null;
-  const myId = me.data ?? null;
+  const myId = me.data?.id ?? null;
   const post = useMemo(() => (query.data ? asSeenBy(query.data, myId) : null), [query.data, myId]);
   return {
     post,

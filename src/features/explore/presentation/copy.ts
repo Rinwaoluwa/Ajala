@@ -4,7 +4,9 @@ import type { PostType } from '../domain/entities/Explore';
 /** Every word Explore shows, in one place. */
 export const exploreCopy = {
   map: {
-    searchPlaceholder: 'Search city or country...',
+    searchPlaceholder: 'Search activities.',
+    // The first chip over the map: every interest, as the design draws it.
+    allInterests: 'All interests',
     filters: 'Filter the map',
     filtersActive: 'Filter the map, filters on',
     locate: 'Show where I am',
@@ -16,6 +18,9 @@ export const exploreCopy = {
     retry: 'Retry',
     empty: 'No activities here yet',
     emptyToday: 'Nothing happening here today',
+    emptyFiltered: 'Nothing here matches your filters',
+    clearFilters: 'Clear filters',
+    pricesFailed: "Couldn't check prices for the price filter.",
     noPlaces: 'No matching cities',
     placesFailed: "Place search isn't available right now",
     // Not drawn: a free reader's map only reaches 30 km round where they are (`reach: 'radius'`).
@@ -26,11 +31,19 @@ export const exploreCopy = {
     choosePlace: 'Choose a place',
   },
   filters: {
-    title: 'Filter the map',
-    types: 'Show',
-    all: 'All types',
-    today: 'Happening today',
-    todayBody: 'Only activities that start today',
+    title: 'Filters',
+    date: 'Date',
+    anyDate: 'Any date',
+    today: 'Today',
+    weekend: 'This weekend',
+    price: 'Price',
+    anyPrice: 'Any price',
+    free: 'Free',
+    paid: 'Paid',
+    maxPrice: (currency: string) => `Maximum price (${currency})`,
+    noLimit: 'No limit',
+    reset: 'Reset',
+    apply: 'Apply filters',
   },
   card: {
     close: 'Close',
@@ -72,11 +85,16 @@ export const exploreCopy = {
   list: {
     title: 'Explore',
     subtitle: 'Find your people. Discover your city.',
-    searchPlaceholder: 'Search meetups, events, plans...',
+    searchPlaceholder: 'Search activities or people...',
     clearSearch: 'Clear search',
     // Not drawn: search needs two characters (spec §2.18).
     searchTooShort: 'Type at least 2 characters to search.',
     results: 'Results',
+    scopes: { activities: 'Activities', people: 'People' },
+    peopleEmpty: 'No one by that name or handle. Try their first name or @handle.',
+    peopleFailed: "Couldn't search for people right now.",
+    peopleCapped: 'Showing the first 100. Try a fuller name or the @handle.',
+    openPerson: (name: string) => `Open ${name}'s profile`,
     resultsEmpty: 'Nothing matches that. Try other words.',
     resultsFailed: "Couldn't search right now.",
     resultsCapped: 'Showing the first 100. Add words to narrow it down.',

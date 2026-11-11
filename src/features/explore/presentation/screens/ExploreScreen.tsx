@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Host } from '@expo/ui';
 
 import { getCurrentCoordinates } from '@core/location/deviceLocation';
 import {
@@ -14,16 +13,25 @@ import {
   type MapKind,
   type MapRegion,
 } from '@core/maps';
-import { GlassSurface, LoadingRing, NativeIcon, StatusSheet, Text, icons } from '@shared/components';
+import { Host, GlassSurface, LoadingRing, NativeIcon, StatusSheet, Text, icons } from '@shared/components';
 import { useLiquidGlass } from '@shared/hooks/useLiquidGlass';
 import { useTheme } from '@shared/hooks/useTheme';
 import { SCREEN_GUTTER } from '@shared/theme';
 
 import { useSubscription } from '@features/payment';
 
-import type { Bbox, PlaceLocation, PostPreview, PostType } from '../../domain/entities/Explore';
-import { maxBboxSpan, type ReportReasonKey, type RsvpAction } from '../../domain/rules/exploreRules';
+import type { Bbox, PlaceLocation, PostPreview } from '../../domain/entities/Explore';
+import {
+  NO_FILTERS,
+  filtersActive,
+  maxBboxSpan,
+  needsPrices,
+  type MapFilters,
+  type ReportReasonKey,
+  type RsvpAction,
+} from '../../domain/rules/exploreRules';
 import { FilterSheet } from '../components/FilterSheet';
+import { InterestChips } from '../components/InterestChips';
 import { ExploreListSheet } from '../components/ExploreListSheet';
 import { MapButton } from '../components/MapButton';
 import { MapSearchBar } from '../components/MapSearchBar';
@@ -31,7 +39,6 @@ import { MiniPostCard, miniCardEntering, miniCardExiting } from '../components/M
 import { PinMarker } from '../components/PinMarker';
 import { ReportActivityDialog } from '../components/ReportActivityDialog';
 import { RsvpNoticeDialog } from '../components/RsvpNoticeDialog';
-import { TypeChips } from '../components/TypeChips';
 import { exploreCopy, exploreErrorMessages, typeLabels } from '../copy';
 import { useJoinPost } from '../hooks/useJoinPost';
 import { useMapPins } from '../hooks/useMapPins';
@@ -43,7 +50,9 @@ import { useRsvpNotice } from '../hooks/useRsvpNotice';
  * The Explore tab (Figma Explore map, light and dark; API map §7): the map
  * around where the feed looks, full screen under the tab bar, with its pins.
  *
- * Over it: the city search and the filter button, the type chips, the map
+ * Over it: the city search and the filter button, the interest chips ("All
+ * interests" and the person's own; a chosen one draws the posts with it, from
+ * the post search), the map
  * controls on the right (locate me, map style, "Happening today"), and View List,
  * which opens the Explore sheet. Tapping a pin opens its mini card above the tab
  * bar; joining from it shows "Before you RSVP" the first time.
@@ -72,13 +81,15 @@ export type ExploreScreenProps = {
   onOpenPost: (postId: string) => void;
   /** Opens Travel (Home's city picker), to look somewhere the map can't reach. */
   onTeleport: () => void;
+  /** Opens a traveller's profile, from the list's people search. */
+  onOpenPerson: (userId: string) => void;
 };
 
 /** Rounded to about 100 m, so the same origin answered twice is one place. */
 const originKey = (o: { lat: number; lng: number; source: string }) =>
   `${o.source}:${o.lat.toFixed(3)},${o.lng.toFixed(3)}`;
 
-export function ExploreScreen({ onOpenPost, onTeleport }: ExploreScreenProps) {
+export function ExploreScreen({ onOpenPost, onTeleport, onOpenPerson }: ExploreScreenProps) {
   const glass = useLiquidGlass();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
@@ -88,8 +99,8 @@ export function ExploreScreen({ onOpenPost, onTeleport }: ExploreScreenProps) {
 
   const [initialRegion, setInitialRegion] = useState<MapRegion | null>(null);
   const [bbox, setBbox] = useState<Bbox | null>(null);
-  const [type, setType] = useState<PostType | null>(null);
-  const [todayOnly, setTodayOnly] = useState(false);
+  const [interestId, setInterestId] = useState<string | null>(null);
+  const [filters, setFilters] = useState<MapFilters>(NO_FILTERS);
   const [kind, setKind] = useState<MapKind>('standard');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [listOpen, setListOpen] = useState(false);
@@ -98,7 +109,7 @@ export function ExploreScreen({ onOpenPost, onTeleport }: ExploreScreenProps) {
   const [reportFor, setReportFor] = useState<string | null>(null);
   const [reportSent, setReportSent] = useState(false);
 
-  const pins = useMapPins(bbox, type, todayOnly);
+  const pins = useMapPins(bbox, null, filters, null, interestId);
   const preview = usePostPreview(selectedId);
   const joining = useJoinPost();
   const notice = useRsvpNotice();
@@ -186,13 +197,20 @@ export function ExploreScreen({ onOpenPost, onTeleport }: ExploreScreenProps) {
           action: { label: exploreCopy.map.choosePlace, onPress: onTeleport },
         }
       : { text: exploreCopy.map.loadFailed, action: { label: exploreCopy.map.retry, onPress: pins.retry } }
+    : pins.pricesFailed
+      ? { text: exploreCopy.map.pricesFailed, action: { label: exploreCopy.map.retry, onPress: pins.retry } }
     : pins.outsideReach
       ? {
           text: reachPlace ? exploreCopy.map.outsideReachTeleported(reachPlace) : exploreCopy.map.outsideReach,
           action: { label: exploreCopy.map.teleport, onPress: onTeleport },
         }
       : pins.loaded && !pins.fetching && pins.pins.length === 0
-        ? { text: todayOnly ? exploreCopy.map.emptyToday : exploreCopy.map.empty, action: null }
+        ? filtersActive(filters)
+          ? {
+              text: filters.date === 'today' && !needsPrices(filters) ? exploreCopy.map.emptyToday : exploreCopy.map.emptyFiltered,
+              action: { label: exploreCopy.map.clearFilters, onPress: () => setFilters(NO_FILTERS) },
+            }
+          : { text: exploreCopy.map.empty, action: null }
         : null;
 
   return (
@@ -235,11 +253,11 @@ export function ExploreScreen({ onOpenPost, onTeleport }: ExploreScreenProps) {
           <MapSearchBar
             onChoose={goTo}
             onOpenFilters={() => setFiltersOpen(true)}
-            filtersActive={type !== null || todayOnly}
+            filtersActive={filtersActive(filters)}
           />
         </View>
         <View className="mt-10">
-          <TypeChips value={type} onChange={setType} />
+          <InterestChips value={interestId} onChange={setInterestId} />
         </View>
         {status ? (
           <Animated.View
@@ -295,9 +313,9 @@ export function ExploreScreen({ onOpenPost, onTeleport }: ExploreScreenProps) {
         <MapButton
           icon={icons.bolt}
           tone="primary"
-          active={todayOnly}
+          active={filters.date === 'today'}
           accessibilityLabel={exploreCopy.map.today}
-          onPress={() => setTodayOnly((on) => !on)}
+          onPress={() => setFilters((f) => ({ ...f, date: f.date === 'today' ? 'any' : 'today' }))}
         />
       </View>
 
@@ -359,10 +377,11 @@ export function ExploreScreen({ onOpenPost, onTeleport }: ExploreScreenProps) {
 
       <FilterSheet
         isPresented={filtersOpen}
-        type={type}
-        todayOnly={todayOnly}
-        onChangeType={setType}
-        onChangeToday={setTodayOnly}
+        value={filters}
+        onApply={(next) => {
+          setFilters(next);
+          setFiltersOpen(false);
+        }}
         onDismiss={() => setFiltersOpen(false)}
       />
       <ExploreListSheet
@@ -371,6 +390,10 @@ export function ExploreScreen({ onOpenPost, onTeleport }: ExploreScreenProps) {
         onOpenMeetup={(id) => {
           setListOpen(false);
           onOpenPost(id);
+        }}
+        onOpenPerson={(id) => {
+          setListOpen(false);
+          onOpenPerson(id);
         }}
       />
       <RsvpNoticeDialog

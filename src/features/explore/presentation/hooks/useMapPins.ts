@@ -3,7 +3,7 @@ import { useMemo, useState } from 'react';
 
 import type { Bbox, PostType } from '../../domain/entities/Explore';
 import { isExploreError, type ExploreErrorCode } from '../../domain/entities/ExploreError';
-import { outsideReach, visiblePins } from '../../domain/rules/exploreRules';
+import { needsPrices, outsideReach, visiblePins, type MapFilters } from '../../domain/rules/exploreRules';
 import { exploreKeys } from '../state/exploreQueries';
 import { useExploreUseCases } from '../state/useExploreUseCases';
 
@@ -13,7 +13,10 @@ import { useExploreUseCases } from '../state/useExploreUseCases';
  * "region change complete", so a pan asks once, when it stops.
  *
  * The last box's pins stay on the map while the next box loads, so pins never
- * blink out during a pan. "Happening today" narrows them on the phone.
+ * blink out during a pan. The Filters sheet's date and price narrow them on the
+ * phone: `GET /map/pins` takes neither. Pins carry no price, so while a price
+ * filter is on each post's price is read from the feed (`loadPrices`), and a pin
+ * it does not cover is left out.
  *
  * Each answer says where the server looks (`origin`: a teleport, or the
  * phone) and how far its pins reach (`reach`). A free reader (`radius`) only
@@ -25,33 +28,56 @@ import { useExploreUseCases } from '../state/useExploreUseCases';
  * `titleFilter` is the API's `q` (pins whose title contains it). The map has no
  * field for it yet — its search moves the camera between cities — so the screen
  * passes nothing; it is here so a pin filter is one prop away.
+ *
+ * With an interest chosen (`interestId`, the chips over the map) the pins are
+ * the posts with it, from the post search: `GET /map/pins` cannot filter by
+ * interest. Search looks within 30 km of the origin whatever the box shows, so
+ * the box is not sent, and the answer reads as `radius` reach (panning away
+ * offers Teleport as it does for a free reader).
  */
 export function useMapPins(
   bbox: Bbox | null,
   type: PostType | null,
-  todayOnly: boolean,
+  filters: MapFilters,
   titleFilter: string | null = null,
+  interestId: string | null = null,
 ) {
-  const { loadPins } = useExploreUseCases();
-  // Today's date for the filter; re-read whenever the filter is turned on.
+  const { loadPins, loadPinsByInterest, loadPrices } = useExploreUseCases();
+  // Today's date for the date filter; re-read whenever it changes.
   const [now, setNow] = useState(() => new Date());
-  const [lastToday, setLastToday] = useState(todayOnly);
-  if (todayOnly !== lastToday) {
-    setLastToday(todayOnly);
-    if (todayOnly) setNow(new Date());
+  const [lastDate, setLastDate] = useState(filters.date);
+  if (filters.date !== lastDate) {
+    setLastDate(filters.date);
+    setNow(new Date());
   }
 
+  const priced = needsPrices(filters);
+  const prices = useQuery({
+    queryKey: exploreKeys.prices(type),
+    queryFn: () => loadPrices(type),
+    enabled: priced,
+    staleTime: 60_000,
+  });
+  const priceMap = useMemo(
+    () => (prices.data ? new Map(Object.entries(prices.data)) : null),
+    [prices.data],
+  );
+
   const query = useQuery({
-    queryKey: bbox ? exploreKeys.pins(bbox, type, titleFilter) : ['mapPins', 'none'],
-    queryFn: () => loadPins(bbox!, type, titleFilter),
-    enabled: bbox !== null,
+    queryKey: interestId
+      ? exploreKeys.pinsByInterest(interestId, type)
+      : bbox
+        ? exploreKeys.pins(bbox, type, titleFilter)
+        : ['mapPins', 'none'],
+    queryFn: () => (interestId ? loadPinsByInterest(interestId, type) : loadPins(bbox!, type, titleFilter)),
+    enabled: interestId !== null || bbox !== null,
     placeholderData: keepPreviousData,
     staleTime: 60_000,
   });
 
   const pins = useMemo(
-    () => visiblePins(query.data?.pins ?? [], todayOnly, now),
-    [query.data, todayOnly, now],
+    () => visiblePins(query.data?.pins ?? [], filters, now, priced ? priceMap : null),
+    [query.data, filters, now, priced, priceMap],
   );
   const error: ExploreErrorCode | null = query.error
     ? isExploreError(query.error)
@@ -68,8 +94,13 @@ export function useMapPins(
     outsideReach: !!answer && !!bbox && !query.isPlaceholderData && outsideReach(answer, bbox),
     /** Loaded at least once for some box; an empty map then means "nothing here". */
     loaded: query.isSuccess,
-    fetching: query.isFetching,
+    fetching: query.isFetching || (priced && prices.isFetching),
     error,
-    retry: () => void query.refetch(),
+    /** A price filter is on but the prices could not be read: the map can't tell which pins match. */
+    pricesFailed: priced && prices.isError && !prices.data,
+    retry: () => {
+      void query.refetch();
+      if (priced) void prices.refetch();
+    },
   };
 }

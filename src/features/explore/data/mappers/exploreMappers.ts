@@ -2,11 +2,15 @@ import { isApiError } from '@core/api/ApiError';
 import { isPlacesError, type PlaceSuggestion } from '@core/places';
 
 import type {
+  FoundPerson,
   Interest,
   ListedPost,
+  MapPin,
   MapPins,
+  Me,
   PlaceResult,
   PostPreview,
+  PostPrice,
   PostsPage,
   RsvpResult,
 } from '../../domain/entities/Explore';
@@ -14,8 +18,12 @@ import { ExploreError } from '../../domain/entities/ExploreError';
 import type {
   InterestDto,
   MapPinsDto,
+  MeIdDto,
+  PeoplePageDto,
+  PersonCardDto,
   PostCardDto,
   PostDetailDto,
+  PostSearchPageDto,
   RsvpStateResponseDto,
 } from '../dto/exploreDtos';
 
@@ -64,11 +72,7 @@ export const toPostPreview = (dto: PostDetailDto): PostPreview => ({
   ...placeOf(dto),
   capacity: dto.capacity ?? null,
   goingCount: dto.goingCount ?? 0,
-  // A Plan carries no money (the API refuses it), so a card never shows a price for one.
-  price:
-    dto.type !== 'plan' && dto.price
-      ? { amountCents: dto.price.amountCents, currency: dto.price.currency, exponent: dto.price.exponent }
-      : null,
+  price: toPrice(dto),
   externalUrl: dto.externalUrl ?? null,
   visibility: dto.visibility ?? 'open',
   rsvpState: dto.rsvpState ?? 'none',
@@ -89,6 +93,40 @@ export const toInterest = (dto: InterestDto): Interest => ({
   name: dto.name,
   emoji: dto.emoji ?? null,
 });
+
+export const toMe = (dto: MeIdDto): Me => ({
+  id: dto.id,
+  interests: (dto.interests ?? []).map(toInterest),
+});
+
+/**
+ * Pins from a post search (`GET /search/posts?interestIds=`): the map has no
+ * interest filter of its own, so the posts found are placed by their own
+ * point. A post hidden from the map has no point (`lat`/`lng` null) and is
+ * left out, as is a draft (no `startAt`). Search looks within 30 km of the
+ * origin, which is a `radius` reach.
+ */
+export const toPinsFromSearch = (pages: readonly PostSearchPageDto[]): MapPins => {
+  const first = pages[0];
+  const pins: MapPin[] = [];
+  for (const page of pages) {
+    for (const p of page.items ?? []) {
+      if (p.lat === null || p.lng === null || !p.startAt) continue;
+      pins.push({ id: p.id, type: p.type, lat: p.lat, lng: p.lng, title: p.title, startAt: p.startAt });
+    }
+  }
+  return {
+    origin: {
+      lat: first?.origin.lat ?? 0,
+      lng: first?.origin.lng ?? 0,
+      label: first?.origin.label || null,
+      region: first?.origin.region || null,
+    },
+    originSource: first?.originSource === 'teleport' ? 'teleport' : 'device',
+    reach: 'radius',
+    pins,
+  };
+};
 
 const toListedPost = (dto: PostCardDto): ListedPost => ({
   id: dto.id,
@@ -162,3 +200,28 @@ export function toExploreError(e: unknown, context: 'report' | 'other' = 'other'
   const code = (e as { code?: unknown } | null)?.code;
   return new ExploreError(code === 'sessionExpired' ? 'sessionExpired' : 'unknown');
 }
+
+export const toFoundPerson = (dto: PersonCardDto): FoundPerson => ({
+  id: dto.id,
+  handle: dto.handle ?? null,
+  displayName: dto.displayName,
+  avatarUrl: dto.avatarUrl ?? null,
+  verified: !!dto.verified,
+  place: dto.homePlace?.label ?? null,
+});
+
+export const toPeoplePage = (dto: PeoplePageDto) => ({
+  items: (dto.items ?? []).map(toFoundPerson),
+  nextCursor: dto.nextCursor ?? null,
+});
+
+/** A post's price, or null when free. A Plan carries no money (the API refuses it), so it is always free. */
+export function toPrice(dto: Pick<PostCardDto, 'type' | 'price'>): PostPrice | null {
+  return dto.type !== 'plan' && dto.price
+    ? { amountCents: dto.price.amountCents, currency: dto.price.currency, exponent: dto.price.exponent }
+    : null;
+}
+
+/** Each post's price by id, from feed pages, for the map's price filter. */
+export const toPrices = (pages: readonly { items: PostCardDto[] | null }[]): Record<string, PostPrice | null> =>
+  Object.fromEntries(pages.flatMap((p) => p.items ?? []).map((dto) => [dto.id, toPrice(dto)]));

@@ -9,11 +9,23 @@ import {
   toExploreError,
   toInterest,
   toMapPins,
+  toMe,
+  toPeoplePage,
+  toPinsFromSearch,
+  toPrices,
   toPlaceResult,
   toPostPreview,
   toPostsPage,
   toRsvpResult,
 } from '../mappers/exploreMappers';
+
+/** How far the price lookup reads the feed: five pages of a hundred (the API's most), as pins stop at 500. */
+const PRICE_PAGES = 5;
+const PRICE_PAGE_SIZE = 100;
+
+/** How much of a search the map draws as pins: up to four pages of fifty (the API's most per page). */
+const SEARCH_PIN_PAGES = 4;
+const SEARCH_PIN_PAGE_SIZE = 50;
 
 /** A search the caller cancelled: handed back as it is, so the query layer sees a cancel, not a failure. */
 const isAbort = (e: unknown) => (e as { name?: unknown } | null)?.name === 'AbortError';
@@ -51,7 +63,21 @@ export function createExploreRepository(
       guard(async () => toPostPreview(await api.getPost(postId, await getClientLocationHeader()))),
     rsvp: (postId) => guard(async () => toRsvpResult(await api.rsvp(postId))),
     recordLinkClick: (postId) => guard(() => api.linkClick(postId)),
-    getMyId: () => guard(async () => (await api.me()).id),
+    getMe: () => guard(async () => toMe(await api.me())),
+    getPinsByInterest: (interestId, type) =>
+      guard(async () => {
+        const headers = await getClientLocationHeader();
+        const pages = [];
+        let cursor: string | null = null;
+        // A few pages at most: the map wants the posts nearby, not every one in the city.
+        for (let i = 0; i < SEARCH_PIN_PAGES; i += 1) {
+          const page = await api.searchPosts({ q: null, interestIds: [interestId], type }, cursor, SEARCH_PIN_PAGE_SIZE, headers);
+          pages.push(page);
+          cursor = page.nextCursor ?? null;
+          if (!cursor) break;
+        }
+        return toPinsFromSearch(pages);
+      }),
     report: (postId, reason, details) =>
       guard(async () => {
         await api.report(postId, { reason, details });
@@ -70,6 +96,21 @@ export function createExploreRepository(
           ),
         ),
       ),
+    getPrices: (type) =>
+      guard(async () => {
+        const headers = await getClientLocationHeader();
+        const pages = [];
+        let cursor: string | null = null;
+        for (let i = 0; i < PRICE_PAGES; i += 1) {
+          const page = await api.getFeed(type ?? 'all', cursor, PRICE_PAGE_SIZE, headers);
+          pages.push(page);
+          cursor = page.nextCursor;
+          if (!cursor) break;
+        }
+        return toPrices(pages);
+      }),
+    searchPeople: (words, cursor, limit) =>
+      guard(async () => toPeoplePage(await api.searchPeople(words, cursor, limit))),
     searchPlaces: (q, signal) => guard(async () => (await searchCities(q, null, signal)).map(toPlaceResult)),
     placeLocation: (placeId, signal) =>
       guard(async () => {

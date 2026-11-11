@@ -1,8 +1,7 @@
-import { Host } from '@expo/ui';
 import { useState } from 'react';
 import { Pressable, View } from 'react-native';
 
-import { Button, CheckboxRow, Dialog, NativeIcon, Text, TextArea, icons } from '@shared/components';
+import { Host, Button, CheckboxRow, Dialog, NativeIcon, Text, TextArea, icons } from '@shared/components';
 import { useFontScale } from '@shared/hooks/useFontScale';
 import { useTheme } from '@shared/hooks/useTheme';
 

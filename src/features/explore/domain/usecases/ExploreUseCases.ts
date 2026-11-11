@@ -7,6 +7,11 @@ export const makeLoadPins =
   (bbox: Bbox, type: PostType | null, titleFilter: string | null = null) =>
     repo.getPins(bbox, type, titleFilter?.trim().slice(0, 80) || null);
 
+/** Pins by interest come from the post search; the map's box does not apply (search looks 30 km round the origin). */
+export const makeLoadPinsByInterest =
+  (repo: ExploreRepository) => (interestId: string, type: PostType | null) =>
+    repo.getPinsByInterest(interestId, type);
+
 export const makeLoadPost = (repo: ExploreRepository) => (postId: string) => repo.getPost(postId);
 
 export const makeJoin = (repo: ExploreRepository) => (postId: string) => repo.rsvp(postId);
@@ -20,7 +25,7 @@ export const makeRecordLinkClick = (repo: ExploreRepository) => async (postId: s
   }
 };
 
-export const makeGetMyId = (repo: ExploreRepository) => () => repo.getMyId();
+export const makeGetMe = (repo: ExploreRepository) => () => repo.getMe();
 
 export const makeReportPost =
   (repo: ExploreRepository) => (postId: string, keys: readonly ReportReasonKey[], details: string) => {
@@ -50,6 +55,18 @@ export const makeSearchPosts =
     const input = readSearch(text);
     if (input.kind !== 'ready') return { items: [], nextCursor: null };
     return repo.searchPosts({ words: input.words, interestIds: [], type: null }, cursor, LIST_PAGE_SIZE);
+  };
+
+/** Prices for the map's price filter (pins carry none): see `ExploreRepository.getPrices`. */
+export const makeLoadPrices = (repo: ExploreRepository) => (type: PostType | null) => repo.getPrices(type);
+
+/** The list's people search (`GET /search/people?q=`), on the same submitted words as the post search. */
+export const makeSearchPeople =
+  (repo: ExploreRepository) =>
+  async (text: string, cursor: string | null = null) => {
+    const input = readSearch(text);
+    if (input.kind !== 'ready') return { items: [], nextCursor: null };
+    return repo.searchPeople(input.words, cursor, LIST_PAGE_SIZE);
   };
 
 /** The map's city search, from two characters. */

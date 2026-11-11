@@ -1,10 +1,10 @@
-import { Host } from '@expo/ui';
 import { Image } from 'expo-image';
 import { useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { Easing, FadeInDown, FadeOutDown, ReduceMotion } from 'react-native-reanimated';
 
 import {
+  Host,
   Button,
   MenuButton,
   NativeIcon,
