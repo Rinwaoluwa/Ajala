@@ -114,7 +114,9 @@ export function FeedHeader({
     : homeCopy.locationOff;
 
   return (
-    <View className="flex-row items-center px-20 pt-8">
+    // 8pt under the row: the pinned pills below have an opaque background, which cut off
+    // the bottom of the bell's and chat's shadows when it started right under them.
+    <View className="flex-row items-center px-20 pt-8" style={{ paddingBottom: 8 }}>
       <Pressable
         onPress={onChooseCity}
         disabled={!shown}

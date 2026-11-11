@@ -17,6 +17,7 @@ import { RsvpNoticeDialog, useRsvpNotice } from '@features/explore';
 import { useSubscription } from '@features/payment';
 import {
   Button,
+  EmptyState,
   LoadFailedState,
   LoadingRing,
   PostCard as PostCardView,
@@ -105,8 +106,6 @@ const PILLS_ROW: Row = { kind: 'pills' };
 const STICKY_WITH_HEADER = [1];
 const STICKY_WITHOUT_HEADER = [0];
 
-/** A card inside a link: the link opens the post, so the card's own press does nothing. */
-const OPENED_BY_LINK = () => undefined;
 
 export function HomeScreen({
   onChooseCity,
@@ -289,17 +288,16 @@ export function HomeScreen({
               />
             </View>
           ) : feed.items.length === 0 ? (
-            <Animated.View entering={FadeIn.duration(220)} className="flex-1 items-center justify-center px-20 py-48">
-              <Text variant="headingMd" className="text-center">
-                {homeCopy.empty.title}
-              </Text>
-              <Text variant="bodySm" tone="muted" className="mt-8 text-center">
-                {homeCopy.empty.body(
+            <View className="flex-1 px-20 py-48">
+              <EmptyState
+                icon="compass-outline"
+                title={homeCopy.empty.title}
+                body={homeCopy.empty.body(
                   feed.filter === 'all' ? 'posts' : typeLabel,
                   feed.place?.name ? homeCopy.empty.near(feed.place.name) : homeCopy.empty.nearYou,
                 )}
-              </Text>
-            </Animated.View>
+              />
+            </View>
           ) : feed.loadingMore ? (
             <View className="items-center py-8">
               <LoadingRing size={28} accessibilityLabel="Loading more" />
@@ -328,6 +326,7 @@ const FeedCard = memo(function FeedCard({
   onOpenPost,
   onOpenHost,
   onBeforeRsvp,
+  onPress: onLinkPress,
 }: {
   post: PostCard;
   mine: boolean;
@@ -336,6 +335,12 @@ const FeedCard = memo(function FeedCard({
   onOpenPost: (post: PostCard) => void;
   onOpenHost: ComponentProps<typeof PostCardView>['onOpenHost'];
   onBeforeRsvp: ComponentProps<typeof PostCardView>['onBeforeRsvp'];
+  /**
+   * Handed in by the route's `Link asChild` when the card sits in one: the link's
+   * own open (with the zoom transition). It must reach the card's press, or a tap
+   * on the card does nothing and only "View details" opens the post.
+   */
+  onPress?: () => void;
 }) {
   const description = useCardDescription(post);
   const shown = useMemo(
@@ -346,7 +351,7 @@ const FeedCard = memo(function FeedCard({
   return (
     <PostCardView
       post={shown}
-      onPress={linked ? OPENED_BY_LINK : open}
+      onPress={linked ? (onLinkPress ?? open) : open}
       onViewDetails={open}
       onOpenHost={onOpenHost}
       onBeforeRsvp={onBeforeRsvp}
