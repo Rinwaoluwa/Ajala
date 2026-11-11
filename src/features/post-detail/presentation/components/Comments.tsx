@@ -5,18 +5,16 @@ import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
-  Host,
   Avatar,
   EmptyState,
   MenuButton,
-  NativeIcon,
   SkeletonBlock,
   SkeletonPulse,
+  SvgIcon,
   Text,
   TextField,
   TextLink,
   enterRise,
-  icons,
   type MenuAction,
 } from '@shared/components';
 import { useKeyboardShown } from '@shared/hooks/useKeyboardShown';
@@ -441,9 +439,8 @@ export function CommentBar({
                 justifyContent: 'center',
               }}
             >
-              <Host matchContents pointerEvents="none" ignoreSafeArea="all">
-                <NativeIcon source={icons.send} size={16} color={text.trim() ? '#FFFFFF' : theme.muted} />
-              </Host>
+              {/* The supplied send mark (`assets/icons/send.svg`), as in chat. */}
+              <SvgIcon name="send" size={16} tint={text.trim() ? '#FFFFFF' : theme.muted} />
             </TouchableOpacity>
           </View>
         </>

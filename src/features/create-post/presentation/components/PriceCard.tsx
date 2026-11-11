@@ -3,7 +3,7 @@ import { Pressable, View } from 'react-native';
 
 import { Text, TextField } from '@shared/components';
 import { useTheme } from '@shared/hooks/useTheme';
-import { palette } from '@shared/theme';
+import { layout, palette } from '@shared/theme';
 
 import type { Currency } from '../../domain/entities/PostDraft';
 import { wizardCopy } from '../copy';
@@ -76,9 +76,12 @@ function CurrencyPills({ value, onChange }: { value: Currency; onChange: (c: Cur
             onPress={() => onChange(c)}
             accessibilityRole="radio"
             accessibilityState={{ checked: selected }}
+            // The amount field's height (the design's input height, inside this border),
+            // so the two sit level; both grow with the text size.
             style={{
+              minHeight: layout.input.height - 2,
+              justifyContent: 'center',
               paddingHorizontal: 16,
-              paddingVertical: 12,
               backgroundColor: selected ? theme.primaryFill : 'transparent',
             }}
           >

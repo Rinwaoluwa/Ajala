@@ -232,7 +232,9 @@ export function PublicProfileScreen({
                 label={copy.achievementsButton}
                 size="md"
                 fullWidth
-                tint={{ fill: theme.surfaceMuted, label: theme.chipForeground }}
+                // The label follows the scheme: ink on the pale fill, light on the dark one (ink
+                // on dark made "Achievements" vanish in dark mode).
+                tint={{ fill: theme.surfaceMuted, label: theme.foreground }}
                 onPress={() => onAchievements(first)}
               />
             </View>
