@@ -23,6 +23,13 @@ const FEATURE_BOUNDARY_PATTERNS = [
     group: ['../../features/*', '../../../features/*'],
     message: 'Use the @features/<name> alias, never a relative path across features.',
   },
+  {
+    group: ['@expo/ui'],
+    importNames: ['Host'],
+    message:
+      "Use Host from @shared/components: Expo UI's own applies a content-sized Host's size late, " +
+      'so views sat in the wrong place until something else re-rendered.',
+  },
 ];
 
 const restrict = (...patterns) => [
@@ -79,5 +86,10 @@ module.exports = defineConfig([
           'module wires the repository implementation behind it.',
       }),
     },
+  },
+  {
+    // The one file that wraps Expo UI's Host (see src/shared/components/ui/Host.tsx).
+    files: ['src/shared/components/ui/Host.tsx'],
+    rules: { 'no-restricted-imports': 'off' },
   },
 ]);
