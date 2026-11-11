@@ -15,6 +15,7 @@ import { useSignInFlow } from '../state/SignInFlowContext';
 import { useSignUpFlow } from '../state/SignUpFlowContext';
 import { useBackoff } from './useBackoff';
 import { useFinishSignIn } from './useFinishSignIn';
+import { haptics } from '@shared/feedback/haptics';
 
 /**
  * View model for the Sign In form (FRD MOB-005, `POST /auth/login`).
@@ -118,6 +119,8 @@ export function useSignIn({ onSignedIn, onNeedsVerification, onStepUpRequired }:
         signUpFieldErrorMessages,
       );
       setServerEmailError(fields.email ?? null);
+      // Felt only when something is said (not on the way to verifying an email).
+      haptics.error();
       setFormError(fields.email && rest.length === 0 ? null : authErrorMessages[code]);
     } finally {
       inFlight.current = false;

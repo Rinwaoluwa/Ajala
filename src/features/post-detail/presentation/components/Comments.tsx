@@ -17,6 +17,7 @@ import {
   enterRise,
   type MenuAction,
 } from '@shared/components';
+import { haptics } from '@shared/feedback/haptics';
 import { useKeyboardShown } from '@shared/hooks/useKeyboardShown';
 import { useTheme } from '@shared/hooks/useTheme';
 
@@ -343,10 +344,12 @@ export function CommentBar({
 
   const send = useCallback(() => {
     if (!text.trim() || sending || closed) return;
+    haptics.tap();
     void onSend(text).then((problem) => {
       // Closed has its own line below; anything else is said for a moment.
       if (problem === 'postCancelled') return;
       if (problem) {
+        haptics.error();
         setNotice(postErrorMessages[problem]);
         return;
       }

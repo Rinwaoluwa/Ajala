@@ -46,6 +46,7 @@ import { PostHero } from '../components/PostHero';
 import { PostSkeleton } from '../components/PostSkeleton';
 import { ReportCommentDialog } from '../components/ReportCommentDialog';
 import { WhoIsGoing } from '../components/WhoIsGoing';
+import { haptics } from '@shared/feedback/haptics';
 
 /**
  * The post page (Figma post detail, API map §6): the photos (with the bookmark),
@@ -224,6 +225,7 @@ export function PostDetailScreen({
 
   const confirmDeleteComment = (comment: PostComment) => {
     const c = postCopy.comments;
+    haptics.warning();
     Alert.alert(c.deleteTitle, c.deleteBody, [
       { text: c.keep, style: 'cancel' },
       {
@@ -237,6 +239,7 @@ export function PostDetailScreen({
   const confirmLeave = () => {
     const withdraw = post.rsvpState !== 'going';
     const l = postCopy.leave;
+    haptics.warning();
     Alert.alert(withdraw ? l.withdrawTitle : l.title(post.type), withdraw ? l.withdrawBody : l.body, [
       { text: l.stay, style: 'cancel' },
       { text: withdraw ? l.withdraw : l.confirm, style: 'destructive', onPress: vm.leave },
@@ -259,6 +262,7 @@ export function PostDetailScreen({
 
   const confirmCancel = () => {
     const h = postCopy.host;
+    haptics.warning();
     Alert.alert(h.cancelTitle, h.cancelBody, [
       { text: h.keep, style: 'cancel' },
       {
@@ -271,6 +275,7 @@ export function PostDetailScreen({
 
   const confirmDelete = () => {
     const h = postCopy.host;
+    haptics.warning();
     Alert.alert(h.deleteTitle, h.deleteBody, [
       { text: h.keep, style: 'cancel' },
       {
@@ -282,6 +287,7 @@ export function PostDetailScreen({
             .then(onBack)
             .catch((e: unknown) => {
               if (isPostDetailError(e) && e.code === 'hasAttendees') {
+                haptics.warning();
                 Alert.alert(h.hasAttendees, undefined, [
                   { text: h.keep, style: 'cancel' },
                   { text: h.cancelConfirm, style: 'destructive', onPress: confirmCancel },

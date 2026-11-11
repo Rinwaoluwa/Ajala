@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 
+import { haptics } from '@shared/feedback/haptics';
 import type { OtpInputHandle } from '@shared/components';
 import { useCountdown } from '@shared/hooks/useCountdown';
 
@@ -93,6 +94,8 @@ export function useCodeEntry({
       await verify(code);
     } catch (e) {
       const { errorCode, message } = messageFor(e);
+      // A wrong or expired code: felt as well as seen.
+      haptics.error();
       if (errorCode === 'invalidCode' && onWrongCode) {
         // Emptied now, focused when the report is dismissed: the keyboard would
         // otherwise come up over the sheet.

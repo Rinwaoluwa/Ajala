@@ -12,6 +12,7 @@ import {
   TextField,
   icons,
 } from '@shared/components';
+import { haptics } from '@shared/feedback/haptics';
 import { useTheme } from '@shared/hooks/useTheme';
 import { SCREEN_GUTTER } from '@shared/theme';
 
@@ -131,7 +132,10 @@ export function MessagesScreen({ onBack, onOpenThread, onExplore }: MessagesScre
         onEndReached={vm.loadMore}
         onEndReachedThreshold={0.5}
         refreshControl={
-          <RefreshControl refreshing={vm.refreshing} onRefresh={vm.refresh} tintColor={theme.primary} />
+          <RefreshControl refreshing={vm.refreshing} onRefresh={() => {
+              haptics.tap();
+              vm.refresh();
+            }} tintColor={theme.primary} />
         }
         ListEmptyComponent={
           // The skeleton sits where the rows will land; the empty states sit in the middle.

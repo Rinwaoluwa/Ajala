@@ -7,6 +7,7 @@ import type { NextStep } from '../../domain/rules/accountRules';
 import { authErrorMessages, emailRegisteredCopy, providerNames } from '../copy';
 import { useAuthUseCases } from '../state/AuthContext';
 import { useFinishSignIn } from './useFinishSignIn';
+import { haptics } from '@shared/feedback/haptics';
 
 /**
  * View model for the Google and Apple buttons, shared by the sign-up and sign-in
@@ -74,6 +75,7 @@ export function useProviderSignIn({ onSignedIn, onUsePassword }: UseProviderSign
           offerOtherWays(e.signInMethods.filter((m) => m !== provider));
           return;
         }
+        haptics.error();
         Alert.alert(`${providerNames[provider]} sign-in didn't work`, authErrorMessages[code]);
       } finally {
         inFlight.current = false;

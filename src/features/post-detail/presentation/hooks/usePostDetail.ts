@@ -7,6 +7,7 @@ import { isPostDetailError, type PostDetailErrorCode } from '../../domain/entiti
 import { asSeenBy, expectJoin, expectLeave, joinAction, withRsvp } from '../../domain/rules/postDetailRules';
 import { LISTS_SHOWING_POSTS, postDetailKeys } from '../state/postDetailQueries';
 import { usePostDetailUseCases } from '../state/usePostDetailUseCases';
+import { haptics } from '@shared/feedback/haptics';
 
 const codeOf = (e: unknown): PostDetailErrorCode | null =>
   e ? (isPostDetailError(e) ? e.code : 'unknown') : null;
@@ -78,7 +79,8 @@ export function usePostDetail(postId: string) {
     onError: (_e, _mode, context) => {
       if (context?.before) queryClient.setQueryData(key, context.before);
     },
-    onSuccess: (result) => {
+    onSuccess: (result, mode) => {
+      if (mode === 'join') haptics.success();
       if (result) queryClient.setQueryData<PostDetail>(key, (p) => (p ? withRsvp(p, result) : p));
     },
     onSettled: (_r, error) => {

@@ -15,6 +15,7 @@ import {
   enterRise,
   useListEntrance,
 } from '@shared/components';
+import { haptics } from '@shared/feedback/haptics';
 import { useTheme } from '@shared/hooks/useTheme';
 import { SCREEN_GUTTER } from '@shared/theme';
 
@@ -177,7 +178,10 @@ export function TripsScreen({ onOpenTrip, onExplore }: TripsScreenProps) {
           onEndReached={list.loadMore}
           onEndReachedThreshold={0.6}
           refreshControl={
-            <RefreshControl refreshing={list.refreshing} onRefresh={list.refresh} tintColor={theme.primary} />
+            <RefreshControl refreshing={list.refreshing} onRefresh={() => {
+              haptics.tap();
+              list.refresh();
+            }} tintColor={theme.primary} />
           }
           ListEmptyComponent={empty}
           ListFooterComponent={

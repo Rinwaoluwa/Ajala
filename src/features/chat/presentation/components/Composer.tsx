@@ -5,6 +5,7 @@ import { Platform, ScrollView, TouchableOpacity, View } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { haptics } from '@shared/feedback/haptics';
 import { SvgIcon, Text, TextField } from '@shared/components';
 import { useKeyboardShown } from '@shared/hooks/useKeyboardShown';
 import { useTheme } from '@shared/hooks/useTheme';
@@ -67,8 +68,10 @@ export function Composer({
 
   const send = useCallback(() => {
     if (!ready || sending) return;
+    haptics.tap();
     void onSend(text, images).then((problem) => {
       if (problem) {
+        haptics.error();
         setNotice(chatErrorMessages[problem]);
         return;
       }
