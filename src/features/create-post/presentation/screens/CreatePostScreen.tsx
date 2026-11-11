@@ -129,9 +129,14 @@ export function CreatePostScreen({
     onPublished(vm.outcome.postId);
   };
 
-  const entering = (vm.direction > 0 ? FadeInRight : FadeInLeft)
-    .duration(SLIDE_MS)
-    .reduceMotion(ReduceMotion.System);
+  // The first step arrives with the screen's own push; only later steps slide in.
+  // Fading it in as well added a quarter of a second before the wizard could be used.
+  const [openedOn] = useState(vm.stepIndex);
+  const [stepped, setStepped] = useState(false);
+  if (!stepped && vm.stepIndex !== openedOn) setStepped(true);
+  const entering = stepped
+    ? (vm.direction > 0 ? FadeInRight : FadeInLeft).duration(SLIDE_MS).reduceMotion(ReduceMotion.System)
+    : undefined;
 
   const failed =
     vm.outcome.kind === 'failed' && vm.outcome.error.code !== 'invalid' ? vm.outcome.error : null;

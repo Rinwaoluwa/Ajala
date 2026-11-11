@@ -56,11 +56,15 @@ export default function TabsLayout() {
         proOnly={isPro ? [] : PRO_ONLY}
         onChoose={(type) => {
           setCreating(false);
-          if (!isPro && PRO_ONLY.includes(type)) {
-            router.push({ pathname: paymentRoutes.travelPaywall, params: { reason: 'plans' } });
-            return;
-          }
-          router.push({ pathname: createPostRoutes.wizard, params: { type } });
+          // A frame later, so the sheet starts closing at once: pushed in the same moment,
+          // the whole wizard rendered first and the sheet sat still until it was done.
+          requestAnimationFrame(() => {
+            if (!isPro && PRO_ONLY.includes(type)) {
+              router.push({ pathname: paymentRoutes.travelPaywall, params: { reason: 'plans' } });
+              return;
+            }
+            router.push({ pathname: createPostRoutes.wizard, params: { type } });
+          });
         }}
       />
     </>
