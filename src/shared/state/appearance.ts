@@ -3,6 +3,8 @@ import { colorScheme } from 'nativewind';
 import { useSyncExternalStore } from 'react';
 import { Appearance } from 'react-native';
 
+import { getTheme } from '../theme';
+
 /**
  * Light, dark, or the phone's own setting (Figma Settings / Appearance). Chosen
  * on this phone and kept here (it is not an account setting: API map §10,
@@ -19,6 +21,8 @@ import { Appearance } from 'react-native';
  */
 
 export type AppearancePreference = 'system' | 'light' | 'dark';
+
+const coverFor = (scheme: 'light' | 'dark') => getTheme(scheme).background;
 
 const KEY = 'ajala.appearance.v1';
 
@@ -54,14 +58,57 @@ export async function restoreAppearance(): Promise<void> {
   }
 }
 
+/**
+ * A switch in progress, for `ThemeCrossfade`: the colour to cover the screen in
+ * (the background being left) and the switch to make once it is covered.
+ */
+export type AppearanceTransition = { id: number; cover: string; run: () => void };
+let transition: AppearanceTransition | null = null;
+const transitionListeners = new Set<() => void>();
+let transitionId = 0;
+
 export function setAppearance(next: AppearancePreference): void {
   if (next === preference) return;
   preference = next;
   listeners.forEach((l) => l());
-  // The tick on the chosen row draws first; the app-wide repaint follows a frame later,
-  // so the tap answers at once instead of waiting on every screen's re-render.
-  requestAnimationFrame(() => apply(next));
   void AsyncStorage.setItem(KEY, next).catch(() => undefined);
+
+  // The switch itself repaints the screen piece by piece (native views, glass and
+  // icons each catch up in their own frame), which read as sluggish and jagged. So the
+  // screen is covered in the background it is leaving, switched underneath, and the
+  // cover fades away (`ThemeCrossfade`): one smooth fade, as iOS does its own switch.
+  // Without a crossfade mounted, it switches a frame later, as before.
+  const leaving = Appearance.getColorScheme() === 'dark' ? 'dark' : 'light';
+  const id = ++transitionId;
+  let ran = false;
+  const run = () => {
+    if (ran) return;
+    ran = true;
+    apply(next);
+  };
+  transition = { id, cover: coverFor(leaving), run };
+  transitionListeners.forEach((l) => l());
+  if (transitionListeners.size === 0) requestAnimationFrame(run);
+}
+
+/** Called by `ThemeCrossfade` once its cover has faded: the transition is over. */
+export function endAppearanceTransition(id: number): void {
+  if (transition?.id !== id) return;
+  transition = null;
+  transitionListeners.forEach((l) => l());
+}
+
+export function useAppearanceTransition(): AppearanceTransition | null {
+  return useSyncExternalStore(
+    (listener) => {
+      transitionListeners.add(listener);
+      return () => {
+        transitionListeners.delete(listener);
+      };
+    },
+    () => transition,
+    () => transition,
+  );
 }
 
 export function useAppearancePreference(): AppearancePreference {

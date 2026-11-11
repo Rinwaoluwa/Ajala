@@ -19,3 +19,11 @@ export const spacing = Object.fromEntries(
 export const layout = tokens.layout;
 
 export const SCREEN_GUTTER = tokens.layout.screenGutter;
+
+/**
+ * Space between one field and the next field's label in a form (sign in, sign
+ * up, profile setup, Settings). 24pt everywhere: the design's 18
+ * (`layout.input.fieldGap`) read as cramped on the phone, and screens had drifted
+ * between 0 and 20 (11 Nov).
+ */
+export const FORM_FIELD_GAP = 24;

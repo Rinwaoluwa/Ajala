@@ -152,32 +152,7 @@ export function ButtonCore({
   const radius =
     variant === 'neutral' ? layout.socialButton.radius : Math.min(layout.button.radius, height / 2);
 
-  // One lookup rather than a chain of conditionals: adding a variant is one entry.
-  const enabled: Record<ButtonVariant, VariantColors> = {
-    primary: { background: theme.primaryFill, label: theme.primaryFillForeground },
-    cta: { background: theme.cta, label: theme.ctaForeground },
-    // The dark welcome design labels this in brand teal, which is 3:1 on Night —
-    // too faint for 14pt text — so the label takes Teal Light there instead.
-    secondary: { border: theme.outline, label: theme.primary },
-    neutral: { border: theme.controlBorder, label: theme.foreground },
-    ghost: { label: theme.foreground },
-  };
-  // Disabled, from the Create Account design: filled buttons keep their shape in a
-  // muted fill, outlined ones keep their outline in the track colour, and every
-  // label goes grey. No opacity, so the grey is the grey the design asked for.
-  // Filled ones stay a light pill in dark mode too, as the dark frames draw them.
-  const inactive: Record<ButtonVariant, VariantColors> = {
-    primary: { background: theme.disabledFill, label: theme.disabledForeground },
-    cta: { background: theme.disabledFill, label: theme.disabledForeground },
-    secondary: { border: theme.track, label: theme.muted },
-    neutral: { border: theme.track, label: theme.muted },
-    ghost: { label: theme.muted },
-  };
-  const { background, border, label: labelColor } = disabled
-    ? inactive[variant]
-    : tint
-      ? { background: tint.fill, border: undefined, label: tint.label }
-      : enabled[variant];
+  const { background, border, label: labelColor } = buttonColors(theme, variant, disabled, tint);
 
   // Platform decides whether the stroke rides on `style` or on a SwiftUI modifier.
   const outline = resolveButtonOutline(
@@ -288,10 +263,57 @@ function reservedWidth(label: string, variant: ButtonVariant | undefined, fontSc
   return Math.round(label.length * glyph + layout.button.paddingX * 2);
 }
 
+/** A variant's colours, enabled or disabled, or a one-off `tint`. */
+function buttonColors(
+  theme: ReturnType<typeof useTheme>,
+  variant: ButtonVariant,
+  disabled: boolean,
+  tint: ButtonCoreProps['tint'],
+): VariantColors {
+  // One lookup rather than a chain of conditionals: adding a variant is one entry.
+  const enabled: Record<ButtonVariant, VariantColors> = {
+    primary: { background: theme.primaryFill, label: theme.primaryFillForeground },
+    cta: { background: theme.cta, label: theme.ctaForeground },
+    // The dark welcome design labels this in brand teal, which is 3:1 on Night —
+    // too faint for 14pt text — so the label takes Teal Light there instead.
+    secondary: { border: theme.outline, label: theme.primary },
+    neutral: { border: theme.controlBorder, label: theme.foreground },
+    ghost: { label: theme.foreground },
+  };
+  // Disabled, from the Create Account design: filled buttons keep their shape in a
+  // muted fill, outlined ones keep their outline in the track colour, and every
+  // label goes grey. No opacity, so the grey is the grey the design asked for.
+  // Filled ones stay a light pill in dark mode too, as the dark frames draw them.
+  const inactive: Record<ButtonVariant, VariantColors> = {
+    primary: { background: theme.disabledFill, label: theme.disabledForeground },
+    cta: { background: theme.disabledFill, label: theme.disabledForeground },
+    secondary: { border: theme.track, label: theme.muted },
+    neutral: { border: theme.track, label: theme.muted },
+    ghost: { label: theme.muted },
+  };
+  return disabled
+    ? inactive[variant]
+    : tint
+      ? { background: tint.fill, border: undefined, label: tint.label }
+      : enabled[variant];
+}
+
 export function Button({ fullWidth = false, size = 'md', ...props }: ButtonProps) {
   const [measuredWidth, setMeasuredWidth] = useState(0);
   const fontScale = useFontScale();
+  const theme = useTheme();
   const height = HEIGHT[size];
+  const variant = props.variant ?? 'primary';
+  // Android and web: the outline is a ring drawn here, over the native button, at the
+  // button's own size (see buttonOutline.ts). iOS strokes it natively and returns none.
+  const ring = resolveButtonOutline(
+    buttonColors(theme, variant, props.disabled ?? false, props.tint).border,
+    layout.button.borderWidth,
+    0,
+    theme.background,
+  ).ring;
+  const radius =
+    variant === 'neutral' ? layout.socialButton.radius : Math.min(layout.button.radius, height / 2);
 
   const handleLayout = useCallback((e: LayoutChangeEvent) => {
     setMeasuredWidth(e.nativeEvent.layout.width);
@@ -313,16 +335,25 @@ export function Button({ fullWidth = false, size = 'md', ...props }: ButtonProps
       }}
     >
       {awaitingMeasure ? null : (
-        <Host
-          // A fresh native view per sizing mode — see note 2 above. Without this,
-          // a Button reused from a hug-width slot keeps its old width.
-          key={fullWidth ? 'fill' : 'hug'}
-          // Height always follows the native button, so it can grow with the label.
-          matchContents={fullWidth ? { vertical: true } : true}
-          style={fullWidth ? { width: '100%' } : undefined}
-        >
-          <ButtonCore {...props} size={size} width={fullWidth ? measuredWidth : undefined} />
-        </Host>
+        // Hugs the native button exactly, so the ring drawn over it matches its bounds.
+        <View style={fullWidth ? { width: '100%' } : { alignSelf: 'flex-start' }}>
+          <Host
+            // A fresh native view per sizing mode — see note 2 above. Without this,
+            // a Button reused from a hug-width slot keeps its old width.
+            key={fullWidth ? 'fill' : 'hug'}
+            // Height always follows the native button, so it can grow with the label.
+            matchContents={fullWidth ? { vertical: true } : true}
+            style={fullWidth ? { width: '100%' } : undefined}
+          >
+            <ButtonCore {...props} size={size} width={fullWidth ? measuredWidth : undefined} />
+          </Host>
+          {ring ? (
+            <View
+              pointerEvents="none"
+              style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: radius, ...ring }}
+            />
+          ) : null}
+        </View>
       )}
     </View>
   );

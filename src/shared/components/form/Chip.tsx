@@ -125,8 +125,10 @@ function ChipComponent({
       >
         {leading ? <View importantForAccessibility="no-hide-descendants">{leading}</View> : null}
         {/* Animated.Text, not `Text`: the label's colour is animated with the fill. */}
+        {/* One line always: a chip's name never breaks (Android measured some a hair short). */}
         <Animated.Text
           key={fontScale}
+          numberOfLines={1}
           maxFontSizeMultiplier={MAX_TEXT_SCALE}
           style={[
             {
@@ -154,6 +156,8 @@ export type ChipGroupProps = {
   rowGap?: number;
   /** Rows used once the chips no longer fit on one line (`PillRows`). */
   maxRows?: number;
+  /** Every chip on as many rows as it takes, never scrolling sideways (setup screens). */
+  wrap?: boolean;
 };
 
 /**
@@ -161,7 +165,10 @@ export type ChipGroupProps = {
  * sideways together (`PillRows`), so a long list (36 travel styles, every
  * language) never takes over the page.
  */
-export function ChipGroup({ children, gap = 6, rowGap = 8, maxRows = 3 }: ChipGroupProps) {
+export function ChipGroup({ children, gap = 6, rowGap = 8, maxRows = 3, wrap = false }: ChipGroupProps) {
   const pills = Children.toArray(children).filter(isValidElement);
+  if (wrap) {
+    return <View style={{ flexDirection: 'row', flexWrap: 'wrap', columnGap: gap, rowGap }}>{pills}</View>;
+  }
   return <PillRows pills={pills} maxRows={maxRows} gap={gap} rowGap={rowGap} />;
 }

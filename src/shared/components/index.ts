@@ -29,6 +29,7 @@ export { SelectField, type SelectFieldProps } from './form/SelectField';
 export { TextArea, type TextAreaProps } from './form/TextArea';
 export { Toggle, type ToggleProps } from './form/Toggle';
 export { Chip, ChipGroup, type ChipProps, type ChipGroupProps, type ChipTone } from './form/Chip';
+export { FittedChips, type FittedChipsProps } from './form/FittedChips';
 export { ScreenHeader, SCREEN_HEADER_HEIGHT, type ScreenHeaderProps } from './layout/ScreenHeader';
 export { DatePickerSheet, type DatePickerSheetProps } from './overlay/DatePickerSheet';
 export {
@@ -64,7 +65,8 @@ export { ScrollRow } from './layout/ScrollRow';
 export { CenteredHeader } from './layout/CenteredHeader';
 export { BackButton, BACK_BUTTON_SIZE, type BackButtonProps } from './navigation/BackButton';
 export { Avatar, AvatarStack, type AvatarProps } from './display/Avatar';
-export { EmptyState, type EmptyStateProps } from './display/EmptyState';
+export { EmojiBadge } from './display/EmojiBadge';
+export { EmptyState, type EmptyStateIcon, type EmptyStateProps } from './display/EmptyState';
 export { NoteCard } from './display/NoteCard';
 export { Tag, type TagTone } from './display/Tag';
 export { ListGroup, ListRow, type ListRowProps } from './list/ListGroup';
@@ -76,6 +78,7 @@ export { StepProgress, type StepProgressProps, type StepProgressTone } from './f
 
 // Reanimated
 export { ProgressReveal, type ProgressRevealProps } from './motion/ProgressReveal';
+export { ThemeCrossfade } from './motion/ThemeCrossfade';
 export { enterRise, useListEntrance, ENTER_MS } from './motion/enter';
 export { LoadingRing, type LoadingRingProps } from './feedback/LoadingRing';
 export { Toast, type ToastProps } from './feedback/Toast';

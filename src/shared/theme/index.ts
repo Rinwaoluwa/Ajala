@@ -236,7 +236,7 @@ export const themes: Record<ColorScheme, SemanticColors> = { light, dark };
 export const getTheme = (scheme: ColorScheme): SemanticColors => themes[scheme];
 
 export { palette, contrast, COLOR_USAGE_RULES, type PaletteColor } from './tokens/colors';
-export { spacing, layout, SCREEN_GUTTER } from './tokens/spacing';
+export { spacing, layout, SCREEN_GUTTER, FORM_FIELD_GAP } from './tokens/spacing';
 export { radii, borderWidth, type BorderWidthToken } from './tokens/radii';
 export {
   fontFamily,

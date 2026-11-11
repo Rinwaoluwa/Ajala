@@ -16,6 +16,7 @@ import { useMeasuredWidth } from '@shared/hooks/useMeasuredWidth';
 import { useRsvpPost } from '@shared/hooks/useRsvpPost';
 import { useSavePost } from '@shared/hooks/useSavePost';
 import { useTheme } from '@shared/hooks/useTheme';
+import { useTypeColors } from '@shared/theme/postTypeColors';
 import { palette } from '@shared/theme';
 import type { RsvpState } from '@shared/state/postRsvps';
 
@@ -133,6 +134,7 @@ const PALE_GLASS = 'rgba(255,255,255,0.72)';
 
 function PostCardComponent({ post, onPress, onViewDetails, onOpenHost, onBeforeRsvp }: PostCardProps) {
   const theme = useTheme();
+  const typeColors = useTypeColors();
   const glass = useLiquidGlass();
   const paleTint = glass ? PALE_GLASS : null;
   const reduceMotion = useReducedMotion();
@@ -217,15 +219,16 @@ function PostCardComponent({ post, onPress, onViewDetails, onOpenHost, onBeforeR
           />
 
           <View className="flex-row items-start justify-between p-16">
+            {/* The type's own colour, as its pill on the home feed (`useTypeColors`). */}
             <View
               style={{
-                backgroundColor: theme.accentSoft,
+                backgroundColor: typeColors[post.type].tag,
                 borderRadius: 999,
                 paddingHorizontal: 14,
                 paddingVertical: 6,
               }}
             >
-              <Text variant="bodyMd" style={{ color: palette.ink }}>
+              <Text variant="bodyMd" style={{ color: typeColors[post.type].softLabel }}>
                 {TYPE_LABEL[post.type]}
               </Text>
             </View>

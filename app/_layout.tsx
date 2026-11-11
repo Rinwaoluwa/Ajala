@@ -17,6 +17,7 @@ import { queryClient } from '@core/api/queryClient/queryClient';
 import { useStackScreenOptions } from '@shared/hooks/useStackScreenOptions';
 import { restoreAppearance } from '@shared/state/appearance';
 import { LaunchStateProvider } from '@shared/state/LaunchState';
+import { ThemeCrossfade } from '@shared/components';
 import { fontAssets } from '@shared/theme';
 
 import '../global.css';
@@ -88,6 +89,8 @@ export default function RootLayout() {
         </AppLockGate>
         </OtaUpdateGate>
       </ForceUpdateGate>
+      {/* Covers the app while the theme switches, then fades: one smooth change. */}
+      <ThemeCrossfade />
       {launched ? null : (
         // Ready once the index has routed somewhere: the destination is on screen beneath.
         <LaunchOverlay
