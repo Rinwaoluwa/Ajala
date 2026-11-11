@@ -39,7 +39,7 @@ export function BlockedAccountsScreen({ onBack }: { onBack: () => void }) {
           </View>
         </SkeletonPulse>
       ) : blocked.blocked.length === 0 ? (
-        <EmptyState title={copy.emptyTitle} body={copy.emptyBody} />
+        <EmptyState icon="ban-outline" title={copy.emptyTitle} body={copy.emptyBody} />
       ) : (
         <View style={{ gap: 4 }}>
           {blocked.blocked.map((person) => (

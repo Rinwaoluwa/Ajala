@@ -32,12 +32,13 @@ export function SettingsScreen({ onBack, onNavigate, onOpenProfile }: SettingsSc
   const appearance = useAppearancePreference();
   const signOut = useSignOut();
 
-  const logOut = () =>
+  const logOut = () => {
     haptics.warning();
     Alert.alert(copy.logOutConfirm, copy.logOutBody, [
       { text: copy.cancel, style: 'cancel' },
       { text: copy.logOut, style: 'destructive', onPress: () => void signOut() },
     ]);
+  };
 
   const help = () => {
     const links = support.data;

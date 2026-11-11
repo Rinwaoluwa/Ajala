@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react';
 import { Alert } from 'react-native';
 
 import { useSignOut } from '@features/auth';
-import { Button, StatusSheet, Text, TextArea } from '@shared/components';
+import { Button, Text, TextArea } from '@shared/components';
 
 import { DELETE_REASON_MAX } from '../../domain/rules/settingsRules';
 import { ConfirmItsYouDialog } from '../components/ConfirmItsYouDialog';
@@ -14,26 +14,34 @@ import { haptics } from '@shared/feedback/haptics';
 /**
  * Delete account (`DELETE /me`): what happens (14 days' grace, every device
  * signed out), an optional reason, then a confirmation. When the server asks,
- * "Confirm it's you" comes first. Once scheduled, a sheet gives the date and
- * this phone signs out.
+ * "Confirm it's you" comes first. Once scheduled, this phone signs out and an
+ * alert gives the date it will be erased, over the sign-in screen. An alert, not
+ * a sheet: the sign-out unmounts this screen at once (the deletion signs out
+ * every device), and a sheet opened here was left as a blank white screen.
  */
 export function DeleteAccountScreen({ onBack }: { onBack: () => void }) {
   const copy = settingsCopy.remove;
-  const flow = useDeleteAccount();
   const signOut = useSignOut();
+  const flow = useDeleteAccount({
+    onScheduled: (purgeAt) => {
+      const date = purgeAt
+        ? new Date(purgeAt).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' })
+        : '';
+      haptics.success();
+      Alert.alert(copy.done, copy.doneBody(date), [{ text: settingsCopy.ok }]);
+      void signOut();
+    },
+  });
   const [reason, setReason] = useState('');
   const change = useCallback((t: string) => setReason(t), []);
 
-  const confirm = () =>
+  const confirm = () => {
     haptics.warning();
     Alert.alert(copy.confirmTitle, copy.confirmBody, [
       { text: settingsCopy.hub.cancel, style: 'cancel' },
       { text: copy.confirm, style: 'destructive', onPress: () => flow.submit(reason) },
     ]);
-
-  const purgeDate = flow.purgeAt
-    ? new Date(flow.purgeAt).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' })
-    : '';
+  };
 
   return (
     <SettingsFrame
@@ -70,15 +78,6 @@ export function DeleteAccountScreen({ onBack }: { onBack: () => void }) {
         isPresented={flow.needsReauth}
         onDismiss={flow.cancelReauth}
         onConfirmed={flow.retryAfterReauth}
-      />
-      <StatusSheet
-        isPresented={flow.purgeAt !== null}
-        tone="info"
-        title={copy.done}
-        message={copy.doneBody(purgeDate)}
-        actionLabel={settingsCopy.ok}
-        onAction={() => void signOut()}
-        onDismiss={() => void signOut()}
       />
     </SettingsFrame>
   );

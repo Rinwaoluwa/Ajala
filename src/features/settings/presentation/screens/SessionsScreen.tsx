@@ -95,7 +95,7 @@ export function SessionsScreen({ onBack }: { onBack: () => void }) {
               )}
             </Animated.View>
           ))}
-          {sessions.sessions.every((s) => s.current) ? <EmptyState title={copy.empty} /> : null}
+          {sessions.sessions.every((s) => s.current) ? <EmptyState icon="phone-portrait-outline" title={copy.empty} /> : null}
         </View>
       )}
       {sessions.error ? (

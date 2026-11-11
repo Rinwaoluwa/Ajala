@@ -4,10 +4,12 @@ import { Alert, TouchableOpacity, View } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 
 import {
-  Host,
   Button,
   Chip,
   ChipGroup,
+  EmojiBadge,
+  Host,
+  icons,
   NativeIcon,
   NativeSpinner,
   SkeletonBlock,
@@ -18,7 +20,6 @@ import {
   TextArea,
   TextField,
   TextLink,
-  icons,
 } from '@shared/components';
 import { useTheme } from '@shared/hooks/useTheme';
 import { palette } from '@shared/theme';
@@ -387,27 +388,6 @@ function GallerySection({ vm }: { vm: EditProfileViewModel }) {
   );
 }
 
-const EMOJI_BADGE = 24;
-
-/** An interest's emoji in a white disc, as profile setup draws it (the API has no pictures). */
-function EmojiBadge({ emoji }: { emoji: string | null }) {
-  return (
-    <View
-      style={{
-        width: EMOJI_BADGE,
-        height: EMOJI_BADGE,
-        borderRadius: EMOJI_BADGE / 2,
-        backgroundColor: '#FFFFFF',
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-    >
-      <Text variant="bodyXs" allowFontScaling={false} style={{ fontSize: 14, lineHeight: 18 }}>
-        {emoji ?? '\u2728'}
-      </Text>
-    </View>
-  );
-}
 
 /**
  * Interests (`PATCH /me { interestIds }`, 3–8 of `GET /interests`): the chosen

@@ -10,6 +10,7 @@ import {
   StatusSheet,
   Text,
 } from '@shared/components';
+import { FORM_FIELD_GAP } from '@shared/theme';
 
 import type { Account } from '../../domain/entities/Settings';
 import { hasPassword, isPasswordValid, passwordChecks } from '../../domain/rules/settingsRules';
@@ -54,7 +55,7 @@ export function ChangePasswordScreen({ onBack }: { onBack: () => void }) {
     return (
       <SettingsFrame title={title} onBack={onBack}>
         <SkeletonPulse>
-          <View style={{ gap: 20 }}>
+          <View style={{ gap: FORM_FIELD_GAP }}>
             <SkeletonBlock height={58} radius={8} />
             <SkeletonBlock height={58} radius={8} />
           </View>
@@ -99,7 +100,7 @@ function ChangeForm({ onBack }: { onBack: () => void }) {
         />
       }
     >
-      <View style={{ gap: 20 }}>
+      <View style={{ gap: FORM_FIELD_GAP }}>
         <PasswordField
           label={copy.current}
           onChangeText={changeCurrent}
@@ -150,7 +151,7 @@ function SetForm({ account, onBack }: { account: Account; onBack: () => void }) 
         />
       }
     >
-      <View style={{ gap: 20 }}>
+      <View style={{ gap: FORM_FIELD_GAP }}>
         <Text variant="bodySm" tone="muted">
           {copy.setIntro(account.email)}
         </Text>

@@ -52,7 +52,7 @@ export function ReportsScreen({ onBack }: { onBack: () => void }) {
           </View>
         </SkeletonPulse>
       ) : reports.reports.length === 0 ? (
-        <EmptyState title={copy.emptyTitle} body={copy.emptyBody} />
+        <EmptyState icon="flag-outline" title={copy.emptyTitle} body={copy.emptyBody} />
       ) : (
         <View style={{ gap: 12 }}>
           {reports.reports.map((r) => (

@@ -79,7 +79,7 @@ export function DraftsScreen({
           </View>
         </SkeletonPulse>
       ) : shown.length === 0 ? (
-        <EmptyState
+        <EmptyState icon="document-text-outline"
           title={copy.emptyTitle}
           body={
             filter === 'all'

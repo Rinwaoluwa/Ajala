@@ -256,11 +256,18 @@ export function useChangeEmail() {
   };
 }
 
-export function useDeleteAccount() {
+/**
+ * `onScheduled` runs the moment the server has scheduled the deletion, with the
+ * date it will be erased. It is a mutation-level callback on purpose: deleting
+ * signs out every device, so the app's next request is refused and it signs out
+ * at once, often before the screen that asked could show anything.
+ */
+export function useDeleteAccount({ onScheduled }: { onScheduled?: (purgeAt: string) => void } = {}) {
   const { deleteAccount } = useSettingsUseCases();
   const gate = useReauthGate<string>();
   const mutation = useMutation({
     mutationFn: (reason: string) => deleteAccount(reason),
+    onSuccess: (purgeAt) => onScheduled?.(purgeAt ?? ''),
     onError: (e, reason) => {
       if (isReauth(e)) gate.hold(reason);
     },
