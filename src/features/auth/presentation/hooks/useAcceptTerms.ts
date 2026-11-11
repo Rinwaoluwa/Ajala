@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Linking } from 'react-native';
+
+import { openInApp } from '@core/links/openInApp';
 
 import { isAuthError } from '../../domain/entities/AuthError';
 import type { NextStep } from '../../domain/rules/accountRules';
@@ -15,7 +16,8 @@ import { useAuthUseCases } from '../state/AuthContext';
  * before profile setup (`nextStepFor`), so someone with both outstanding goes on
  * to finish their profile.
  *
- * The links come from `GET /app/config`, so a moved policy page needs no release.
+ * The links come from `GET /app/config`, so a moved policy page needs no release;
+ * they open inside the app (`openInApp`).
  */
 export function useAcceptTerms({ onAccepted }: { onAccepted: (next: NextStep) => void }) {
   const useCases = useAuthUseCases();
@@ -51,8 +53,8 @@ export function useAcceptTerms({ onAccepted }: { onAccepted: (next: NextStep) =>
   }, [useCases, onAccepted]);
 
   return {
-    openTerms: links ? () => void Linking.openURL(links.url) : null,
-    openPrivacy: links ? () => void Linking.openURL(links.privacyUrl) : null,
+    openTerms: links ? () => void openInApp(links.url) : null,
+    openPrivacy: links ? () => void openInApp(links.privacyUrl) : null,
     submitting,
     error,
     accept: useCallback(() => void accept(), [accept]),

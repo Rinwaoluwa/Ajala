@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
+import { postRsvps } from '@shared/state/postRsvps';
 import { postSaves } from '@shared/state/postSaves';
 
 import { createAuthUseCases, type AuthUseCases } from '../../authModule';
@@ -58,6 +59,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // Nothing cached for the account may outlive its session (spec §7).
           queryClient.clear();
           postSaves.reset();
+          postRsvps.reset();
           setState({ status: 'signedOut' });
         },
       }),
@@ -109,6 +111,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await useCases.signOut();
     queryClient.clear();
     postSaves.reset();
+    postRsvps.reset();
     setState({ status: 'signedOut' });
   }, [useCases, queryClient]);
 

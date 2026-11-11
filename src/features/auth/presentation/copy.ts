@@ -108,7 +108,7 @@ export const passwordResetCopy = {
 /** Sign in with email and password, and its step-up code (Figma "Sign In"). */
 export const signInCopy = {
   header: 'Sign in',
-  title: 'Welcome back, traveler',
+  title: 'Welcome back to Ajala',
   body: 'Sign in to continue discovering places and connecting with travellers.',
   // The design's placeholder reads "Create your password", which belongs to the
   // sign-up screen. Flagged to design.
