@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { TextInput, TouchableOpacity, View } from 'react-native';
 
+import { haptics } from '@shared/feedback/haptics';
 import { Host, NativeIcon, Text, icons } from '@shared/components';
 import { MAX_TEXT_SCALE } from '@shared/hooks/useFontScale';
 import { useTheme } from '@shared/hooks/useTheme';
@@ -130,6 +131,7 @@ function StepButton({ icon, label, onStep }: { icon: 'minus' | 'plus'; label: st
 
   const repeat = (delay: number) => {
     timer.current = setTimeout(() => {
+      haptics.select();
       latest.current();
       repeat(REPEAT_MS);
     }, delay);
@@ -138,7 +140,10 @@ function StepButton({ icon, label, onStep }: { icon: 'minus' | 'plus'; label: st
   return (
     <TouchableOpacity
       activeOpacity={0.6}
-      onPress={onStep}
+      onPress={() => {
+        haptics.select();
+        onStep();
+      }}
       onLongPress={() => repeat(0)}
       delayLongPress={REPEAT_FIRST_MS}
       onPressOut={stop}

@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { Pressable, View } from 'react-native';
 
+import { haptics } from '@shared/feedback/haptics';
 import { Text, TextField } from '@shared/components';
 import { useTheme } from '@shared/hooks/useTheme';
 import { layout, palette } from '@shared/theme';
@@ -73,7 +74,10 @@ function CurrencyPills({ value, onChange }: { value: Currency; onChange: (c: Cur
         return (
           <Pressable
             key={c}
-            onPress={() => onChange(c)}
+            onPress={() => {
+              if (c !== value) haptics.select();
+              onChange(c);
+            }}
             accessibilityRole="radio"
             accessibilityState={{ checked: selected }}
             // The amount field's height (the design's input height, inside this border),

@@ -6,6 +6,7 @@ import Animated, { FadeInLeft, FadeInRight, ReduceMotion } from 'react-native-re
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button, LoadingRing, Screen, StatusSheet, Text, Toast } from '@shared/components';
+import { haptics } from '@shared/feedback/haptics';
 import { useTheme } from '@shared/hooks/useTheme';
 import { SCREEN_GUTTER } from '@shared/theme';
 
@@ -98,6 +99,7 @@ export function CreatePostScreen({
       leave();
       return;
     }
+    haptics.warning();
     Alert.alert(wizardCopy.leave.title(copy.noun), wizardCopy.leave.message, [
       ...(vm.canSaveDraft
         ? [
@@ -266,6 +268,8 @@ export function CreatePostScreen({
         message={done.message}
         actionLabel={done.action}
         onAction={finish}
+        // Confetti for a new post; not for saving changes to one already live.
+        celebrate={!editing}
       />
       <StatusSheet
         isPresented={failed !== null}

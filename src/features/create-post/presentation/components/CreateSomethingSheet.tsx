@@ -7,6 +7,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
+import { haptics } from '@shared/feedback/haptics';
 import { Illustration, Sheet, Text, type IllustrationName } from '@shared/components';
 import { useTheme } from '@shared/hooks/useTheme';
 
@@ -47,7 +48,10 @@ export function CreateSomethingSheet({ isPresented, onDismiss, onChoose, proOnly
             body={option.body}
             art={KIND_ART[option.kind]}
             pro={proOnly.includes(option.kind)}
-            onPress={() => onChoose(option.kind)}
+            onPress={() => {
+              haptics.select();
+              onChoose(option.kind);
+            }}
           />
         ))}
       </View>
