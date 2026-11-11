@@ -13,7 +13,7 @@ import {
   SkeletonBlock,
   SkeletonPulse,
   VectorIcon,
-  enterRise,
+  useListEntrance,
 } from '@shared/components';
 import { useLiquidGlass } from '@shared/hooks/useLiquidGlass';
 import { useTheme } from '@shared/hooks/useTheme';
@@ -55,6 +55,7 @@ export function NotificationsScreen({ onBack, onOpenPost, onOpenPaywall }: Notif
   const glass = useLiquidGlass();
   const insets = useSafeAreaInsets();
   const vm = useNotifications();
+  const enter = useListEntrance(vm.items.length > 0);
 
   const open = (n: AppNotification) => {
     vm.markRead(n);
@@ -133,7 +134,7 @@ export function NotificationsScreen({ onBack, onOpenPost, onOpenPaywall }: Notif
             <RefreshControl refreshing={vm.refreshing} onRefresh={vm.refresh} tintColor={theme.primary} />
           }
           renderItem={({ item, index }) => (
-            <Animated.View entering={index < 8 ? enterRise(index * 40) : undefined}>
+            <Animated.View entering={enter(index, 8, 40)}>
               <NotificationRow item={item} onPress={() => open(item)} />
             </Animated.View>
           )}

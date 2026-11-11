@@ -58,10 +58,17 @@ export type TravelPaywallScreenProps = {
   city: { name: string; countryCode?: string | null } | null;
   /** The home place's country (`MeDto.homePlace.countryCode`), or null when there is none. */
   homeCountryCode: string | null;
+  /** Why it opened: a teleport (the default), or a Plan, which is a Pro feature. */
+  reason?: 'teleport' | 'plans';
   onClose: () => void;
 };
 
-export function TravelPaywallScreen({ city, homeCountryCode, onClose }: TravelPaywallScreenProps) {
+export function TravelPaywallScreen({
+  city,
+  homeCountryCode,
+  reason = 'teleport',
+  onClose,
+}: TravelPaywallScreenProps) {
   const insets = useSafeAreaInsets();
   const copy = travelPaywallCopy;
   const { subscription, loading } = useSubscription({ fresh: true });
@@ -167,10 +174,10 @@ export function TravelPaywallScreen({ city, homeCountryCode, onClose }: TravelPa
                 style={{ color: palette.white }}
                 accessibilityRole="header"
               >
-                {city ? copy.title(city.name) : copy.anywhere}
+                {reason === 'plans' ? copy.plans.title : city ? copy.title(city.name) : copy.anywhere}
               </Text>
               <Text variant="bodyMd" className="mt-8 text-center" style={{ color: 'rgba(255,255,255,0.88)' }}>
-                {city ? copy.body(city.name) : copy.bodyAnywhere}
+                {reason === 'plans' ? copy.plans.body : city ? copy.body(city.name) : copy.bodyAnywhere}
               </Text>
             </Animated.View>
 

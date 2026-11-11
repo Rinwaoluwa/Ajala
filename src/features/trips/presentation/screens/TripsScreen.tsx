@@ -13,6 +13,7 @@ import {
   Text,
   VectorIcon,
   enterRise,
+  useListEntrance,
 } from '@shared/components';
 import { useTheme } from '@shared/hooks/useTheme';
 import { SCREEN_GUTTER } from '@shared/theme';
@@ -56,10 +57,12 @@ export function TripsScreen({ onOpenTrip, onExplore }: TripsScreenProps) {
   const [tab, setTab] = useState<TripsTab>('upcoming');
   const list = useTripList(tab);
   const bottom = TAB_BAR_CLEARANCE + insets.bottom;
+  // The first cards rise in once per tab, never again as the list re-mounts rows.
+  const enter = useListEntrance(list.items.length > 0);
 
   const renderItem = useCallback(
     ({ item, index }: { item: TripCard; index: number }) => (
-      <Animated.View entering={index < 3 ? enterRise(index * 60) : undefined}>
+      <Animated.View entering={enter(index)}>
         {tab === 'past' ? (
           <PastTripCard trip={item} onOpen={() => onOpenTrip(item.id)} />
         ) : (
@@ -67,7 +70,7 @@ export function TripsScreen({ onOpenTrip, onExplore }: TripsScreenProps) {
         )}
       </Animated.View>
     ),
-    [tab, onOpenTrip],
+    [tab, onOpenTrip, enter],
   );
 
   const passportNote = (

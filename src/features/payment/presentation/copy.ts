@@ -4,6 +4,11 @@ import type { SubscriptionErrorCode } from '../domain/entities/SubscriptionError
 export const travelPaywallCopy = {
   title: (city: string) => `Travel to ${city}`,
   anywhere: 'Travel anywhere',
+  // Not drawn: the paywall opened from a Plan (creating or opening one), a Pro feature (10 Nov).
+  plans: {
+    title: 'Plans are a Pro feature',
+    body: 'Create plans, and see the plans other travellers make, with a Travel subscription.',
+  },
   body: (city: string) =>
     `Explore meetups, events and plans in ${city} before you arrive with a Travel subscription.`,
   bodyAnywhere:
