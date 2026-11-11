@@ -1,5 +1,5 @@
 import { Fragment, type ReactNode } from 'react';
-import { Linking, TouchableOpacity, View } from 'react-native';
+import { TouchableOpacity, View } from 'react-native';
 
 import { openInApp } from '@core/links/openInApp';
 import { Host, NativeIcon, SvgIcon, Text, VectorIcon, icons } from '@shared/components';
@@ -16,7 +16,7 @@ import { InterestPills } from './ProfileHero';
  * Rows sit under hairlines, each with its icon on the left.
  *
  * A row with somewhere to go has a chevron and the whole row answers the tap:
- * a link opens (a website inside Ajala; Instagram and TikTok in their apps),
+ * a link opens in the in-app browser (website, Instagram and TikTok alike),
  * and on your own profile the pill rows open Edit profile. Rows with nothing to
  * show are left out, and so is the card when every row is.
  */
@@ -90,7 +90,7 @@ export function TravelDetails({
   }
 
   const handle = (v: string) => v.replace(/^@/, '');
-  const link = (key: string, label: string, shown: string, url: string, inApp: boolean) =>
+  const link = (key: string, label: string, shown: string, url: string) =>
     rows.push({
       key,
       icon:
@@ -112,8 +112,8 @@ export function TravelDetails({
           </Host>
         </View>
       ),
-      // Instagram and TikTok hand over to their apps; a website stays inside Ajala.
-      onPress: () => void (inApp ? openInApp(url) : Linking.openURL(url).catch(() => undefined)),
+      // Every link, a website or Instagram and TikTok, opens in the in-app browser.
+      onPress: () => void openInApp(url),
       link: true,
       a11y: `${label}: ${shown}. ${copy.openLink(shown)}`,
     });
@@ -125,16 +125,15 @@ export function TravelDetails({
       copy.travelJournal,
       site.replace(/^https?:\/\//, '').replace(/\/$/, ''),
       site.startsWith('http') ? site : `https://${site}`,
-      true,
     );
   }
   if (data.instagram) {
     const h = handle(data.instagram);
-    link('instagram', copy.instagram, `@${h}`, `https://instagram.com/${h}`, false);
+    link('instagram', copy.instagram, `@${h}`, `https://instagram.com/${h}`);
   }
   if (data.tiktok) {
     const h = handle(data.tiktok);
-    link('tiktok', copy.tiktok, `@${h}`, `https://www.tiktok.com/@${h}`, false);
+    link('tiktok', copy.tiktok, `@${h}`, `https://www.tiktok.com/@${h}`);
   }
   if (onSaved) {
     rows.push({
