@@ -22,11 +22,11 @@ import { AuthError } from '../../../domain/entities/AuthError';
  *
  * Without them the button reports "not available" instead of failing in the SDK.
  *
- * FLAGGED: the API wants the nonce written INTO the Google token. This SDK (the
- * free "Original" Google Sign-In) cannot pass one to Google, so the token carries
- * none. If the API enforces that check, Google sign-in is refused until either
- * the backend accepts a nonce-less Google token or the app moves to a module
- * that supports nonces (the paid Universal Sign-In). Only this file changes then.
+ * No nonce: this SDK (the free "Original" Google Sign-In) cannot pass one to
+ * Google, so the token carries none, and the app sends `POST /auth/oauth/google`
+ * without one (11 Nov; the server accepts that). Apple sign-in keeps its nonce.
+ * Moving to a module that supports nonces (the paid Universal Sign-In) would
+ * bring it back: this file and the Google request change then.
  */
 
 const webClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;

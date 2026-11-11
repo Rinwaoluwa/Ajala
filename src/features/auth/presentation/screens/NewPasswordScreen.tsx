@@ -3,7 +3,7 @@ import { ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button, PasswordField, PasswordRules, Screen, StatusSheet, Text } from '@shared/components';
-import { layout } from '@shared/theme';
+import { layout, FORM_FIELD_GAP } from '@shared/theme';
 
 import { AuthIntro } from '../components/AuthIntro';
 import { PasswordResetStepHeader } from '../components/PasswordResetStepHeader';
@@ -66,7 +66,7 @@ export function NewPasswordScreen({ onReset, onRestart }: NewPasswordScreenProps
       >
         <AuthIntro tone="inkOnLight" title={copy.title} body={copy.body} />
 
-        <View style={{ marginTop: SECTION_GAP, gap: layout.input.fieldGap }}>
+        <View style={{ marginTop: SECTION_GAP, gap: FORM_FIELD_GAP }}>
           <PasswordField
             label={copy.password.label}
             placeholder={copy.password.placeholder}

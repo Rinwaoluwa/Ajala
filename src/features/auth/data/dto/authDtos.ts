@@ -75,9 +75,13 @@ export type AppleSignInRequestDto = DeviceFieldsDto & {
   timezone?: string;
 };
 
+/**
+ * No `nonce` (11 Nov): the Google Sign-In SDK in use can't write one into the
+ * token, so a nonce sent here could never match it. The server accepts the
+ * request without one (checked on staging).
+ */
 export type GoogleSignInRequestDto = DeviceFieldsDto & {
   idToken: string;
-  nonce: string;
   termsVersion?: string;
   timezone?: string;
 };

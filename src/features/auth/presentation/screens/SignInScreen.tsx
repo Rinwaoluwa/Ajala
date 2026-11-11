@@ -10,7 +10,7 @@ import {
   TextField,
   TextLink,
 } from '@shared/components';
-import { layout } from '@shared/theme';
+import { layout, FORM_FIELD_GAP } from '@shared/theme';
 
 import type { NextStep } from '../../domain/rules/accountRules';
 import { AuthIntro } from '../components/AuthIntro';
@@ -83,7 +83,7 @@ export function SignInScreen({
       >
         <AuthIntro tone="default" title={copy.title} body={copy.body} />
 
-        <View style={{ marginTop: SECTION_GAP, gap: layout.input.fieldGap }}>
+        <View style={{ marginTop: SECTION_GAP, gap: FORM_FIELD_GAP }}>
           <TextField
             label={fieldCopy.email.label}
             placeholder={fieldCopy.email.placeholder}

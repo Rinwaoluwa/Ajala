@@ -11,7 +11,7 @@ import {
   Text,
   TextField,
 } from '@shared/components';
-import { layout } from '@shared/theme';
+import { layout, FORM_FIELD_GAP } from '@shared/theme';
 
 import { fieldIcons } from '../assets';
 import { AuthIntro } from '../components/AuthIntro';
@@ -63,7 +63,7 @@ export function SignUpDetailsScreen({ onBack, onCodeSent }: SignUpDetailsScreenP
       >
         <AuthIntro title={copy.title} body={copy.body} />
 
-        <View style={{ marginTop: SECTION_GAP, gap: layout.input.fieldGap }}>
+        <View style={{ marginTop: SECTION_GAP, gap: FORM_FIELD_GAP }}>
           <TextField
             label={fieldCopy.email.label}
             placeholder={fieldCopy.email.placeholder}

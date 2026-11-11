@@ -3,6 +3,8 @@ import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { ApiError } from '@core/api/ApiError';
 
 import { authApi } from '../datasources/remote/authApi';
+import { requestGoogleIdToken } from '../datasources/native/googleIdentity';
+import { createNonce } from '../datasources/native/nonce';
 import { createAuthRepository } from '../repositories/AuthRepositoryImpl';
 
 /**
@@ -17,6 +19,7 @@ jest.mock('../datasources/remote/authApi', () => ({
     acceptTerms: jest.fn(),
     resetPassword: jest.fn(),
     verifyResetCode: jest.fn(),
+    signInWithGoogle: jest.fn(),
   },
 }));
 jest.mock('../datasources/native/googleIdentity', () => ({
@@ -32,6 +35,7 @@ const api = authApi as unknown as {
   acceptTerms: jest.Mock<(...args: unknown[]) => Promise<void>>;
   resetPassword: jest.Mock<(...args: unknown[]) => Promise<void>>;
   verifyResetCode: jest.Mock<(...args: unknown[]) => Promise<unknown>>;
+  signInWithGoogle: jest.Mock<(...args: unknown[]) => Promise<unknown>>;
 };
 
 const VERIFIED = {
@@ -170,5 +174,17 @@ describe('terms and reset', () => {
     await expect(createAuthRepository().resetPassword('token', 'Travel2026')).rejects.toMatchObject({
       code: 'expiredCode',
     });
+  });
+});
+
+describe('Google sign-in', () => {
+  it('sends the Google token alone, with no nonce (the SDK cannot put one in the token)', async () => {
+    (requestGoogleIdToken as unknown as jest.Mock<() => Promise<string>>).mockResolvedValue('google-id-token');
+    api.signInWithGoogle.mockResolvedValue(VERIFIED);
+
+    await createAuthRepository().signInWithProvider('google');
+
+    expect(api.signInWithGoogle).toHaveBeenCalledWith({ idToken: 'google-id-token' });
+    expect(createNonce).not.toHaveBeenCalled();
   });
 });

@@ -59,12 +59,11 @@ async function signInWithApple(): Promise<AuthSession> {
 }
 
 async function signInWithGoogle(): Promise<AuthSession> {
-  // FLAGGED (see googleIdentity): this SDK cannot hand the nonce to Google, so
-  // the token carries none and the API is sent one it cannot match.
-  const nonce = await createNonce();
+  // No nonce: this SDK can't hand one to Google, so the token carries none, and
+  // sending one the token can't match only invited a refusal (see googleIdentity).
   const idToken = await requestGoogleIdToken();
   try {
-    return toVerifiedAuthSession(await authApi.signInWithGoogle({ idToken, nonce: nonce.raw }));
+    return toVerifiedAuthSession(await authApi.signInWithGoogle({ idToken }));
   } catch (e) {
     // Let the next attempt show the account picker again, so someone who chose
     // the wrong account is not stuck with it.
