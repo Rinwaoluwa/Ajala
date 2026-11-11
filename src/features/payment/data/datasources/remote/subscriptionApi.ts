@@ -1,6 +1,5 @@
 import type {
   ChallengeDto,
-  CheckoutDto,
   MySubscriptionDto,
   RedirectUrlDto,
   VerifyAppleDto,
@@ -46,13 +45,17 @@ export function createSubscriptionApi(request: SubscriptionRequest) {
     verifyGoogle: (body: VerifyGoogleDto) =>
       request<MySubscriptionDto>({ method: 'POST', path: `${V1}/me/subscription/google`, body }),
 
-    /** Web checkout: open the `url`. 400 bad coupon; 409 already subscribed or coupon used; 503. */
-    checkout: (body: CheckoutDto) =>
-      request<RedirectUrlDto>({ method: 'POST', path: `${V1}/me/subscription/checkout`, body }),
-
-    /** Back from the web checkout. Safe to repeat: offer "Refresh" rather than polling. */
-    confirmCheckout: () =>
-      request<MySubscriptionDto>({ method: 'POST', path: `${V1}/me/subscription/checkout/confirm` }),
+    // Stripe checkout from inside the app: switched off (11 Nov 2026). People pay on the
+    // web instead, in their default browser (`EXPO_PUBLIC_SUBSCRIBE_URL`, the paywall's
+    // Subscribe). Kept here, commented, in case the in-app flow comes back.
+    //
+    // /** Web checkout: open the `url`. 400 bad coupon; 409 already subscribed or coupon used; 503. */
+    // checkout: (body: CheckoutDto) =>
+    //   request<RedirectUrlDto>({ method: 'POST', path: `${V1}/me/subscription/checkout`, body }),
+    //
+    // /** Back from the web checkout. Safe to repeat: offer "Refresh" rather than polling. */
+    // confirmCheckout: () =>
+    //   request<MySubscriptionDto>({ method: 'POST', path: `${V1}/me/subscription/checkout/confirm` }),
   };
 }
 

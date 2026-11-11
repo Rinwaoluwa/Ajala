@@ -13,7 +13,9 @@ import { subscriptionKey, usePaymentUseCases } from '../state/usePaymentUseCases
  * the server would refuse anyway (402).
  *
  * `fresh` asks again whenever the caller mounts (the paywall, which may have
- * opened because a teleport just came back 402).
+ * opened because a teleport just came back 402), and whenever the app comes back
+ * to the front while it is shown: someone who paid in the browser returns to
+ * find Travel on.
  */
 export function useSubscription({ fresh = false }: { fresh?: boolean } = {}) {
   const { loadSubscription } = usePaymentUseCases();
@@ -22,6 +24,7 @@ export function useSubscription({ fresh = false }: { fresh?: boolean } = {}) {
     queryFn: loadSubscription,
     staleTime: 5 * 60_000,
     refetchOnMount: fresh ? 'always' : true,
+    refetchOnWindowFocus: fresh ? 'always' : true,
   });
   const subscription = query.data ?? NOT_SUBSCRIBED;
   return {

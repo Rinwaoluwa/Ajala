@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Pressable, ScrollView, View } from 'react-native';
+import { Linking, Pressable, ScrollView, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -13,6 +13,7 @@ import {
   enterRise,
 } from '@shared/components';
 import { SCREEN_GUTTER, palette } from '@shared/theme';
+import { WEB_SUBSCRIBE_URL } from '@core/config/payments';
 
 import { subscriptionSummary, type SubscriptionSummary } from '../../domain/rules/subscriptionRules';
 import { travelPaywallCopy } from '../copy';
@@ -32,10 +33,11 @@ import { useSubscription } from '../hooks/useSubscription';
  * It reads the subscription afresh on opening (`GET /me/subscription`): it may
  * have opened because a teleport just came back 402.
  *
- *   - Not subscribed: the benefits and Subscribe. This build cannot buy — that
- *     needs the App Store / Play products and a store + attestation library the
- *     app does not have yet (README) — so Subscribe says so in a sheet rather
- *     than pretending to charge. "Maybe later" goes back.
+ *   - Not subscribed: the benefits and Subscribe. People pay on the web:
+ *     Subscribe opens the payment page (`WEB_SUBSCRIBE_URL`) in the phone's
+ *     default browser, outside the app. With no page set for this build, or
+ *     when the browser cannot open it, a sheet says buying isn't available yet.
+ *     Coming back to the app reads the subscription again. "Maybe later" goes back.
  *   - Subscribed: "Travel is on", when it renews or ends, and Manage, which
  *     opens the store's subscription settings or the web billing portal.
  *
@@ -199,7 +201,11 @@ export function TravelPaywallScreen({
                   size="lg"
                   fullWidth
                   loading={loading}
-                  onPress={() => setNotice(true)}
+                  onPress={() =>
+                    WEB_SUBSCRIBE_URL
+                      ? void Linking.openURL(WEB_SUBSCRIBE_URL).catch(() => setNotice(true))
+                      : setNotice(true)
+                  }
                 />
               </View>
               <WhiteLink label={copy.later} onPress={onClose} />
@@ -208,7 +214,7 @@ export function TravelPaywallScreen({
         )}
       </ScrollView>
 
-      {/* TODO(purchase): replace with the store purchase — see the README's "Turning on buying". */}
+      {/* No payment page set for this build (EXPO_PUBLIC_SUBSCRIBE_URL), or it would not open. */}
       <StatusSheet
         isPresented={notice}
         tone="info"

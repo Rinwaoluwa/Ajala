@@ -84,14 +84,10 @@ describe('purchase endpoints (typed for when buying is built)', () => {
     await api.challenge();
     await api.verifyApple({ signedTransaction: 's', challenge: 'c', keyId: 'k', attestation: 'a' });
     await api.verifyGoogle({ purchaseToken: 'p', challenge: 'c', integrityToken: 'i' });
-    await api.checkout({ couponCode: 'X' });
-    await api.confirmCheckout();
     expect(calls.map((c) => `${c.method} ${c.path}`)).toEqual([
       'GET /api/v1/me/subscription/challenge',
       'POST /api/v1/me/subscription/apple',
       'POST /api/v1/me/subscription/google',
-      'POST /api/v1/me/subscription/checkout',
-      'POST /api/v1/me/subscription/checkout/confirm',
     ]);
   });
 });
