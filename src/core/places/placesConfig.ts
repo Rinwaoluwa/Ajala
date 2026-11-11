@@ -1,5 +1,6 @@
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
+import { isDevFlavour } from '../config/flavour';
 
 /**
  * The key and headers for Google's Places API (New).
@@ -26,6 +27,8 @@ const DEFAULT_APP_ID = 'com.ajala.app';
  */
 export const ANDROID_CERT_SHA1 = {
   easUpload: 'F34FCF951A33CA087B2CF8B51A4B5989D1853B87',
+  /** The "Ajala Dev" flavour's own EAS key (com.ajala.app.dev). */
+  devFlavour: '502C12929C75DA4E450760C0BF586D4275ECD811',
   debug: '5E8F16062EA3CD2C4A0D547876BAA6F38CABF625',
 } as const;
 
@@ -70,7 +73,9 @@ export function placesCredentials(): PlacesCredentials | null {
       typeof extra.placesAndroidCert === 'string' ? extra.placesAndroidCert.replace(/:/g, '').trim() : '';
     const cert =
       configured ||
-      (__DEV__ ? ANDROID_CERT_SHA1.debug : ANDROID_CERT_SHA1.easUpload);
+      // In code, not in the app config: a config change alters the runtime fingerprint
+      // and an update could no longer reach the build.
+      (__DEV__ ? ANDROID_CERT_SHA1.debug : isDevFlavour ? ANDROID_CERT_SHA1.devFlavour : ANDROID_CERT_SHA1.easUpload);
     return {
       key,
       headers: {

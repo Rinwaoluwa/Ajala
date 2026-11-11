@@ -5,6 +5,8 @@ import {
   statusCodes,
 } from '@react-native-google-signin/google-signin';
 
+import { flavourGoogleIosClientId } from '@core/config/flavour';
+
 import { AuthError } from '../../../domain/entities/AuthError';
 
 /**
@@ -20,6 +22,9 @@ import { AuthError } from '../../../domain/entities/AuthError';
  *   GOOGLE_IOS_URL_SCHEME              its reversed form, read by app.config.js
  *                                      at build time, not by this file
  *
+ * The "Ajala Dev" app has its own iOS client (its bundle id differs), carried in
+ * its config by app.config.js and read first (src/core/config/flavour.ts).
+ *
  * Without them the button reports "not available" instead of failing in the SDK.
  *
  * No nonce: this SDK (the free "Original" Google Sign-In) cannot pass one to
@@ -30,7 +35,7 @@ import { AuthError } from '../../../domain/entities/AuthError';
  */
 
 const webClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
-const iosClientId = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID;
+const iosClientId = flavourGoogleIosClientId() ?? process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID;
 
 let configured = false;
 
