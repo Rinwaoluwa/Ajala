@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { KeyboardAvoidingView, Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { enableFreeze } from 'react-native-screens';
 
 import { AppLockGate } from '@features/app-lock';
 import { ForceUpdateGate, OtaUpdateGate } from '@features/app-update';
@@ -19,6 +20,12 @@ import { LaunchStateProvider } from '@shared/state/LaunchState';
 import { fontAssets } from '@shared/theme';
 
 import '../global.css';
+
+// Screens out of view (the tabs behind Settings, the stack under a pushed screen) don't
+// re-render until they are shown again. Without it, switching the theme re-rendered every
+// mounted screen in one go (Home's feed, Explore's map and pins, Profile): measured on
+// 11 Nov at 320-470ms of work per switch in development, against 125ms frozen.
+enableFreeze(true);
 
 // Called at module load, before React mounts, so the splash never flashes away early.
 void SplashScreen.preventAutoHideAsync();
