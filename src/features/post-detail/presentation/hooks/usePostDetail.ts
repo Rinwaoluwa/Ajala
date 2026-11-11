@@ -1,6 +1,6 @@
+import { openInApp } from '@core/links/openInApp';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
-import { Linking } from 'react-native';
 
 import type { AttendeesPage, PostDetail, RsvpResult } from '../../domain/entities/PostDetail';
 import { isPostDetailError, type PostDetailErrorCode } from '../../domain/entities/PostDetailError';
@@ -130,13 +130,14 @@ export function usePostDetail(postId: string) {
   /**
    * Joining a post with a link (backend answers, Nov 2026): open the link, count
    * the click for the host, then RSVP as usual. They start together rather than
-   * waiting on each other: the link takes the person out of the app, and the
-   * RSVP should not sit paused until they come back.
+   * waiting on each other: the link opens over the app (the in-app browser),
+   * and the RSVP should not sit paused until it is closed.
    */
   const join = () => {
     const link = seen?.externalUrl;
     if (link) {
-      void Linking.openURL(link).catch(() => undefined);
+      // The in-app browser, so the person stays in Ajala and comes straight back.
+      void openInApp(link);
       void useCases.recordLinkClick(postId);
     }
     rsvp.mutate('join');

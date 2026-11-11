@@ -23,6 +23,7 @@ import {
 } from '@shared/components';
 import { useLiquidGlass } from '@shared/hooks/useLiquidGlass';
 import { useTheme } from '@shared/hooks/useTheme';
+import { useTypeColors } from '@shared/theme/postTypeColors';
 import { palette } from '@shared/theme';
 
 import type { PostType } from '../../domain/entities/PostDetail';
@@ -74,6 +75,7 @@ export function PostHero({
   onPressImage?: (index: number) => void;
 }) {
   const theme = useTheme();
+  const typeColors = useTypeColors();
   const insets = useSafeAreaInsets();
   const { width, height: screen } = useWindowDimensions();
   const [index, setIndex] = useState(0);
@@ -133,13 +135,15 @@ export function PostHero({
       >
         <RoundButton label={postCopy.back} icon={icons.chevronLeft} onPress={onBack} />
         <View style={{ flex: 1 }} />
+        {/* The type's own colour, as its pill on the home feed (`useTypeColors`). */}
         <GlassSurface
-          fallbackColor={theme.selectedFill}
+          fallbackColor={typeColors[type].tag}
+          tint={typeColors[type].tag}
           appearance="light"
           shadow={false}
           style={{ borderRadius: 999, paddingHorizontal: 14, paddingVertical: 6 }}
         >
-          <Text variant="labelSm" style={{ color: palette.teal }}>
+          <Text variant="labelSm" style={{ color: typeColors[type].softLabel }}>
             {TYPE_LABEL[type]}
           </Text>
         </GlassSurface>

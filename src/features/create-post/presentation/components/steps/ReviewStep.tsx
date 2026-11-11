@@ -2,7 +2,7 @@ import { Image } from 'expo-image';
 import { View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
-import { Button, Chip, ChipGroup, SkeletonBlock, SkeletonPulse, Text, TextLink } from '@shared/components';
+import { Button, Chip, ChipGroup, EmojiBadge, SkeletonBlock, SkeletonPulse, Text, TextLink } from '@shared/components';
 import { useTheme } from '@shared/hooks/useTheme';
 
 import { priceOf, startOf, stepIssues, stepOfField, stepsFor } from '../../../domain/rules/postDraftRules';
@@ -202,7 +202,10 @@ function Interests({ vm }: { vm: CreatePostViewModel }) {
               return (
                 <Chip
                   key={interest.id}
-                  label={interest.emoji ? `${interest.emoji} ${interest.name}` : interest.name}
+                  // The emoji in its own badge, not in the label: as text it made Android
+                  // break "⚽ Sports" over two lines.
+                  label={interest.name}
+                  leading={<EmojiBadge emoji={interest.emoji} />}
                   selected={selected}
                   disabled={full && !selected}
                   onPress={() => vm.chooseInterest(interest.id)}

@@ -90,7 +90,7 @@ export function TripsScreen({ onOpenTrip, onExplore }: TripsScreenProps) {
 
   const empty =
     tab === 'upcoming' ? (
-      <EmptyState
+      <EmptyState icon="airplane-outline"
         art={
           <View
             style={{
@@ -115,12 +115,12 @@ export function TripsScreen({ onOpenTrip, onExplore }: TripsScreenProps) {
       />
     ) : tab === 'requests' ? (
       <View style={{ gap: 8 }}>
-        <EmptyState title={tripsCopy.empty.requests.title} body={tripsCopy.empty.requests.body} />
+        <EmptyState icon="hourglass-outline" title={tripsCopy.empty.requests.title} body={tripsCopy.empty.requests.body} />
         <Animated.View entering={enterRise(80)}>{waitingNote}</Animated.View>
       </View>
     ) : (
       <View style={{ gap: 8 }}>
-        <EmptyState title={tripsCopy.empty.past.title} body={tripsCopy.empty.past.body} />
+        <EmptyState icon="map-outline" title={tripsCopy.empty.past.title} body={tripsCopy.empty.past.body} />
         {passportNote}
       </View>
     );

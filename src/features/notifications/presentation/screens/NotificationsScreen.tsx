@@ -147,7 +147,7 @@ export function NotificationsScreen({ onBack, onOpenPost, onOpenPaywall }: Notif
           }
           ListEmptyComponent={
             vm.failed ? (
-              <EmptyState
+              <EmptyState icon="notifications-outline"
                 title={copy.failed}
                 action={{
                   label: copy.retry,

@@ -164,7 +164,7 @@ export function PostDetailScreen({
     return (
       <View className="flex-1 items-center justify-center bg-background px-20">
         {notFound ? (
-          <EmptyState
+          <EmptyState icon="alert-circle-outline"
             title={copy.title}
             body={copy.body}
             action={{ label: copy.action, onPress: onBack, variant: 'primary' }}
