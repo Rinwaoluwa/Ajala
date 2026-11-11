@@ -58,9 +58,14 @@ export type SheetProps = {
   subtitle?: string;
   onDismiss: () => void;
   children: ReactNode;
+  /**
+   * Drawn over everything in the sheet's window, the whole screen, taking no
+   * touches: a celebration that spills past the sheet (`SuccessSheet`'s confetti).
+   */
+  overlay?: ReactNode;
 };
 
-export function Sheet({ isPresented, title, subtitle, onDismiss, children }: SheetProps) {
+export function Sheet({ isPresented, title, subtitle, onDismiss, children, overlay }: SheetProps) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const reduceMotion = useReducedMotion();
@@ -171,6 +176,11 @@ export function Sheet({ isPresented, title, subtitle, onDismiss, children }: She
           {children}
         </ScrollView>
       </Animated.View>
+      {overlay ? (
+        <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+          {overlay}
+        </View>
+      ) : null}
     </Modal>
   );
 }

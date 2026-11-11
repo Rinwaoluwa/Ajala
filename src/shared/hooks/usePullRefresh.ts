@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react';
+import { haptics } from '../feedback/haptics';
 
 /**
  * The spinner of a pull to refresh: on while the refresh the person pulled for
@@ -12,6 +13,8 @@ import { useCallback, useState } from 'react';
 export function usePullRefresh(run: () => Promise<unknown>) {
   const [refreshing, setRefreshing] = useState(false);
   const refresh = useCallback(() => {
+    // A light tap as the pull takes: the refresh has started.
+    haptics.tap();
     setRefreshing(true);
     void run().finally(() => setRefreshing(false));
   }, [run]);

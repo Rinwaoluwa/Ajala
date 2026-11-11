@@ -12,6 +12,7 @@ import { useTheme } from '@shared/hooks/useTheme';
 import { palette } from '@shared/theme';
 
 import { Text } from '../ui/Text';
+import { haptics } from '@shared/feedback/haptics';
 
 /**
  * Two kinds of one-of switch between views of a screen:
@@ -69,7 +70,10 @@ export function UnderlineTabs<T extends string>({
           return (
             <Pressable
               key={o.value}
-              onPress={() => onChange(o.value)}
+              onPress={() => {
+                if (o.value !== value) haptics.select();
+                onChange(o.value);
+              }}
               accessibilityRole="tab"
               accessibilityState={{ selected }}
               style={{ flex: 1, alignItems: 'center', paddingVertical: 12 }}
@@ -147,7 +151,10 @@ export function SegmentedControl<T extends string>({
           return (
             <Pressable
               key={o.value}
-              onPress={() => onChange(o.value)}
+              onPress={() => {
+                if (o.value !== value) haptics.select();
+                onChange(o.value);
+              }}
               accessibilityRole="tab"
               accessibilityState={{ selected }}
               style={{ flex: 1, alignItems: 'center', paddingVertical: 9 }}

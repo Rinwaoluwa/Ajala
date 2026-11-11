@@ -15,6 +15,7 @@ import { SCREEN_GUTTER, palette, textStyles } from '@shared/theme';
 
 import { ScrollRow } from '../layout/ScrollRow';
 import { GlassSurface } from '../surface/GlassSurface';
+import { JellyPress } from '../surface/JellyPress';
 
 /**
  * One-of-several pills in a row that scrolls sideways: the home feed's
@@ -50,6 +51,8 @@ export type PillTabsProps<T extends string> = {
   look?: 'filled' | 'outline';
   /** Side padding of the row; the screen gutter by default. */
   inset?: number;
+  /** A jelly wobble on touch (`JellyPress`), on by default as on every pill in the app. */
+  jelly?: boolean;
 };
 
 export function PillTabs<T extends string>({
@@ -59,6 +62,7 @@ export function PillTabs<T extends string>({
   disabled = false,
   look = 'filled',
   inset = SCREEN_GUTTER,
+  jelly = true,
 }: PillTabsProps<T>) {
   return (
     <ScrollRow inset={inset} accessibilityRole="tablist">
@@ -70,6 +74,7 @@ export function PillTabs<T extends string>({
           disabled={disabled}
           look={look}
           color={o.color}
+          jelly={jelly}
           onPress={() => onChange(o.value)}
         />
       ))}
@@ -83,6 +88,7 @@ function Pill({
   disabled,
   look,
   color,
+  jelly,
   onPress,
 }: {
   label: string;
@@ -90,6 +96,7 @@ function Pill({
   disabled: boolean;
   look: 'filled' | 'outline';
   color?: PillColor;
+  jelly: boolean;
   onPress: () => void;
 }) {
   const theme = useTheme();
@@ -129,8 +136,10 @@ function Pill({
 
   const box = { borderRadius: 999, paddingHorizontal: 18, paddingVertical: 10 } as const;
 
+  // The chosen pill takes no presses, so it doesn't wobble either.
+  const Press = jelly ? JellyPress : Pressable;
   return (
-    <Pressable
+    <Press
       onPress={onPress}
       disabled={disabled || selected}
       accessibilityRole="tab"
@@ -161,7 +170,7 @@ function Pill({
           {text}
         </Animated.View>
       )}
-    </Pressable>
+    </Press>
   );
 }
 

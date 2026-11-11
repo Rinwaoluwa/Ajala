@@ -56,6 +56,7 @@ export { LoadFailedState, type LoadFailedStateProps } from './display/LoadFailed
 export { NoConnectionArt, ServerDownArt } from './display/FailureArt';
 export { GlassSurface, type GlassSurfaceProps } from './surface/GlassSurface';
 export { EdgeFade } from './surface/EdgeFade';
+export { JellyPress, type JellyPressProps } from './surface/JellyPress';
 export { BlurTarget, ProgressiveBlur, progressiveBlurAvailable } from './surface/ProgressiveBlur';
 export { Pager, type PagerProps } from './layout/Pager';
 export { SortableGrid, type SortableGridProps } from './layout/SortableGrid';
@@ -80,6 +81,7 @@ export { LoadingRing, type LoadingRingProps } from './feedback/LoadingRing';
 export { Toast, type ToastProps } from './feedback/Toast';
 export { SkeletonBlock, SkeletonPulse, type SkeletonBlockProps } from './feedback/Skeleton';
 export { Sheet, type SheetProps } from './overlay/Sheet';
+export { SuccessSheet, type SuccessSheetProps } from './overlay/SuccessSheet';
 export { PillTabs, type PillColor, type PillTabsProps, type PillTabOption } from './navigation/PillTabs';
 export { FloatingTabBar, type FloatingTabBarProps, type TabItem } from './navigation/FloatingTabBar';
 export { CelebrationSheet, type CelebrationSheetProps } from './overlay/CelebrationSheet';

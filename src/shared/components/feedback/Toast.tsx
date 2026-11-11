@@ -1,6 +1,8 @@
+import { useEffect } from 'react';
 import { View } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 
+import { haptics } from '@shared/feedback/haptics';
 import { useTheme } from '@shared/hooks/useTheme';
 import { SCREEN_GUTTER } from '@shared/theme';
 
@@ -26,6 +28,10 @@ export type ToastProps = {
 
 export function Toast({ visible, message, bottom = 24 }: ToastProps) {
   const theme = useTheme();
+  // A confirmation, felt as well as seen.
+  useEffect(() => {
+    if (visible) haptics.success();
+  }, [visible]);
   if (!visible) return null;
   return (
     <View

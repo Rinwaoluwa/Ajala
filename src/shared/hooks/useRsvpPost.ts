@@ -10,6 +10,7 @@ import { useApiRequester, type ApiRequester } from '../state/apiRequester';
 import { postRsvps, useRsvpOverride, type RsvpState } from '../state/postRsvps';
 
 import { explorePostKey, postAttendeesKey, postPageKey } from '../state/postQueryKeys';
+import { haptics } from '../feedback/haptics';
 
 /**
  * The quick RSVP on a post card: `POST /posts/{id}/rsvp` to join (the server
@@ -77,6 +78,7 @@ export function rsvpPostMutation(
       postRsvps.set(postId, rollback?.previous);
     },
     onSuccess: (answer, next) => {
+      if (next) haptics.success();
       if (next && answer && answer.state) postRsvps.set(postId, answer.state);
       // Not awaited: the card is settled; whatever else shows this post catches up.
       for (const queryKey of [

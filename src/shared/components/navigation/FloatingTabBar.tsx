@@ -19,6 +19,7 @@ import { GlassSurface } from '../surface/GlassSurface';
 import { SvgIcon } from '../ui/SvgIcon';
 import { VectorIcon, type VectorIconName } from '../ui/VectorIcon';
 import { Text } from '../ui/Text';
+import { haptics } from '@shared/feedback/haptics';
 
 /**
  * The app's tab bar (Figma Home Feed): it floats over the content, split into
@@ -113,7 +114,10 @@ export function FloatingTabBar({
           key={item.key}
           item={item}
           active={item.key === current}
-          onPress={() => onSelect(item.key)}
+          onPress={() => {
+            if (item.key !== current) haptics.select();
+            onSelect(item.key);
+          }}
         />
       ))}
     </GlassSurface>
@@ -162,7 +166,10 @@ export function FloatingTabBar({
           }}
         >
           <Pressable
-            onPress={onCreate}
+            onPress={() => {
+              haptics.impact();
+              onCreate();
+            }}
             onPressIn={() => press.set(withTiming(1, { duration: 90 }))}
             onPressOut={() => press.set(withTiming(0, { duration: 160 }))}
             accessibilityRole="button"

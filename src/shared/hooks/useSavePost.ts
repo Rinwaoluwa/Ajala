@@ -8,6 +8,7 @@ import { useCallback } from 'react';
 
 import { useApiRequester, type ApiRequester } from '../state/apiRequester';
 import { postSaves, useSavedOverride } from '../state/postSaves';
+import { haptics } from '../feedback/haptics';
 
 /**
  * The bookmark on a post: `POST /posts/{id}/save` to save, `DELETE` to unsave
@@ -59,6 +60,7 @@ export function savePostMutation(
         path: `/api/v1/posts/${encodeURIComponent(postId)}/save`,
       }),
     onMutate: (next) => {
+      haptics.select();
       const previous = postSaves.get(postId);
       postSaves.set(postId, next);
       return { previous };

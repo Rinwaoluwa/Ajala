@@ -1,4 +1,5 @@
 import { BottomSheet, Column, Text as ExpoText } from '@expo/ui';
+import { useEffect } from 'react';
 import { useWindowDimensions } from 'react-native';
 
 import { useTheme } from '@shared/hooks/useTheme';
@@ -8,6 +9,7 @@ import { ButtonCore } from '../ui/Button';
 import { icons } from '../ui/icons';
 import { NativeIcon, type NativeIconSource } from '../ui/NativeIcon';
 import { nativeTextScaleCap } from '../ui/nativeTextScale';
+import { haptics } from '@shared/feedback/haptics';
 
 /**
  * A bottom sheet that reports how something went, with one way forward.
@@ -85,6 +87,13 @@ export function StatusSheet({
 }: StatusSheetProps) {
   const theme = useTheme();
   const { width } = useWindowDimensions();
+  // The sheet's news, felt as well as seen: success, a warning, or an error. Info is quiet.
+  useEffect(() => {
+    if (!isPresented) return;
+    if (tone === 'success') haptics.success();
+    else if (tone === 'warning') haptics.warning();
+    else if (tone === 'error') haptics.error();
+  }, [isPresented, tone]);
   const actionWidth = width - SCREEN_GUTTER * 2;
 
   // One lookup rather than a chain of conditionals: adding a tone is one entry.

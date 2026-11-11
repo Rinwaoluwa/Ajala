@@ -11,6 +11,7 @@ import Animated, {
   type SharedValue,
 } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
+import { haptics } from '@shared/feedback/haptics';
 
 /**
  * Items in a grid that can be put in a new order by dragging: a post's photos
@@ -197,6 +198,8 @@ function SortableCell({
     .enabled(!disabled)
     .activateAfterLongPress(HOLD_MS)
     .onStart(() => {
+      // Picked up: a firm bump, as the tile lifts.
+      scheduleOnRN(haptics.impact);
       dragging.set(true);
       startIndex.set(order.value.indexOf(id));
     })

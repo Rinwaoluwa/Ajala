@@ -1,5 +1,5 @@
 import { Children, isValidElement, memo, useEffect, type ReactNode } from 'react';
-import { Pressable, View, useWindowDimensions } from 'react-native';
+import { View, useWindowDimensions } from 'react-native';
 import Animated, {
   Easing,
   interpolateColor,
@@ -14,6 +14,7 @@ import { useTheme } from '@shared/hooks/useTheme';
 import { palette, textStyles } from '@shared/theme';
 
 import { PillRows } from '../layout/PillRows';
+import { JellyPress } from '../surface/JellyPress';
 
 /**
  * A choice in a multi-select list: the pill on the profile-setup screens
@@ -96,7 +97,8 @@ function ChipComponent({
   const inactive = disabled && !selected;
 
   return (
-    <Pressable
+    // A jelly wobble on touch (`JellyPress`), as every pill in the app.
+    <JellyPress
       onPress={onPress}
       disabled={inactive}
       onPressIn={() => pressed.set(withTiming(1, { duration: 90 }))}
@@ -138,7 +140,7 @@ function ChipComponent({
           {label}
         </Animated.Text>
       </Animated.View>
-    </Pressable>
+    </JellyPress>
   );
 }
 
