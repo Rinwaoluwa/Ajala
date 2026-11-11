@@ -22,6 +22,14 @@
       },
       "channel": "preview"
     },
+    "preview-dev": {
+      "extends": "preview",
+      "environment": "preview",
+      "channel": "preview-dev",
+      "env": {
+        "APP_VARIANT": "dev"
+      }
+    },
     "production": {
       "node": "24.13.0",
       "autoIncrement": true,
@@ -33,6 +41,12 @@
       "ios": {
         "companyName": "Ajala",
         "ascAppId": "6830361306"
+      }
+    },
+    "preview-dev": {
+      "ios": {
+        "companyName": "Ajala",
+        "ascAppId": "6833589645"
       }
     }
   }

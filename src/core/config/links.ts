@@ -13,9 +13,12 @@
  * Written out as `process.env.EXPO_PUBLIC_LINKS_HOST` in full: Expo only
  * inlines public variables spelled that way.
  */
+
+import { flavourServers } from './flavour';
 export const DEFAULT_LINKS_HOST = 'go.ajalatrvl.com';
 
-export const LINKS_HOST = process.env.EXPO_PUBLIC_LINKS_HOST?.trim() || DEFAULT_LINKS_HOST;
+export const LINKS_HOST =
+  flavourServers().linksHost || process.env.EXPO_PUBLIC_LINKS_HOST?.trim() || DEFAULT_LINKS_HOST;
 
 export const LINKS_ORIGIN = `https://${LINKS_HOST}`;
 

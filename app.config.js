@@ -104,6 +104,46 @@ module.exports = ({ config }) => {
     plugins: [...(config.plugins ?? []), './plugins/withSwift5ExpoModulesCore'],
   };
 
+  // FLAVOURS — APP_VARIANT=dev makes the "Ajala Dev" app: a preview (release)
+  // build like the normal one, with its own bundle id and package so it installs
+  // beside the normal app on the same phone, its own URL scheme so a link never
+  // opens the wrong one, and the dev servers written into its config
+  // (`extra.servers`, read first by src/core/config/flavour.ts), so it always
+  // talks to dev whichever environment built or updated it. The `preview-dev`
+  // build profile sets it (eas.json); its updates go out on their own channel:
+  //
+  //   APP_VARIANT=dev npx eas-cli update --channel preview-dev --environment preview --message "…"
+  //
+  // Without APP_VARIANT nothing below changes, so the normal app's runtime
+  // fingerprint, and the updates that reach it, stay as they are.
+  const devFlavour = process.env.APP_VARIANT === 'dev';
+  const DEV_SERVERS = {
+    api: 'https://dev-api.ajalatrvl.com',
+    ws: 'https://dev-ws.ajalatrvl.com',
+    linksHost: 'dev-go.ajalatrvl.com',
+  };
+  // Google Sign-In on iOS goes by bundle id, so the dev app has its own iOS
+  // client (same Google Cloud project, same web client): GOOGLE_IOS_CLIENT_ID_DEV
+  // in the EAS preview environment. It becomes the URL scheme below and
+  // `extra.googleIosClientId`, which src/features/auth/.../googleIdentity.ts
+  // reads before EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID.
+  const devGoogleIosClientId = devFlavour ? process.env.GOOGLE_IOS_CLIENT_ID_DEV?.trim() : undefined;
+  if (devFlavour) {
+    next = {
+      ...next,
+      name: 'Ajala Dev',
+      scheme: 'ajala-dev',
+      ios: { ...next.ios, bundleIdentifier: 'com.ajala.app.dev' },
+      android: { ...next.android, package: 'com.ajala.app.dev' },
+      extra: {
+        ...next.extra,
+        appVariant: 'dev',
+        servers: DEV_SERVERS,
+        ...(devGoogleIosClientId ? { googleIosClientId: devGoogleIosClientId } : null),
+      },
+    };
+  }
+
   next = {
     ...next,
     ios: { ...next.ios, usesAppleSignIn: true },
@@ -111,7 +151,9 @@ module.exports = ({ config }) => {
   };
 
   // Share links (see the header). Same default as src/core/config/links.ts.
-  const linksHost = process.env.EXPO_PUBLIC_LINKS_HOST?.trim() || 'go.ajalatrvl.com';
+  const linksHost = devFlavour
+    ? DEV_SERVERS.linksHost
+    : process.env.EXPO_PUBLIC_LINKS_HOST?.trim() || 'go.ajalatrvl.com';
   next = {
     ...next,
     ios: {
@@ -188,7 +230,11 @@ module.exports = ({ config }) => {
     next = { ...next, android: { ...next.android, googleServicesFile } };
   }
 
-  const iosUrlScheme = process.env.GOOGLE_IOS_URL_SCHEME;
+  // The reversed client id: `com.googleusercontent.apps.<prefix>`.
+  const iosUrlScheme = devFlavour
+    ? devGoogleIosClientId &&
+      `com.googleusercontent.apps.${devGoogleIosClientId.replace(/\.apps\.googleusercontent\.com$/, '')}`
+    : process.env.GOOGLE_IOS_URL_SCHEME;
   if (iosUrlScheme) {
     next = {
       ...next,

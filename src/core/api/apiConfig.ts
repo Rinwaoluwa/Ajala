@@ -6,10 +6,13 @@
  * `EXPO_PUBLIC_` is compiled into the bundle and readable by anyone with the app,
  * so a base URL is fine here and a secret never is.
  */
+
+import { flavourServers } from '../config/flavour';
 const DEFAULT_BASE_URL = 'https://staging-api.ajalatrvl.com';
 
 export const apiConfig = {
-  baseUrl: (process.env.EXPO_PUBLIC_API_URL ?? DEFAULT_BASE_URL).replace(/\/+$/, ''),
+  // The dev flavour's own server wins over the compiled-in address (`flavour.ts`).
+  baseUrl: (flavourServers().api ?? process.env.EXPO_PUBLIC_API_URL ?? DEFAULT_BASE_URL).replace(/\/+$/, ''),
   /** Long enough for a cold serverless start, short enough to fail before the user does. */
   timeoutMs: 15000,
   /**

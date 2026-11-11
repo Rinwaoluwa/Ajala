@@ -2,6 +2,7 @@ import { io, type ManagerOptions, type SocketOptions } from 'socket.io-client';
 
 import { apiConfig } from '../apiConfig';
 import { socketOrigin } from './socketUrl';
+import { flavourServers } from '../../config/flavour';
 
 /**
  * The app's one live connection: the socket server's `/chat` namespace
@@ -323,6 +324,6 @@ export function createRealtimeConnection({
  * from the API's host; see `socketOrigin`).
  */
 export const chatSocket = createRealtimeConnection({
-  url: `${socketOrigin(process.env.EXPO_PUBLIC_WS_URL, apiConfig.baseUrl)}/chat`,
+  url: `${socketOrigin(flavourServers().ws ?? process.env.EXPO_PUBLIC_WS_URL, apiConfig.baseUrl)}/chat`,
   enabled: true,
 });
