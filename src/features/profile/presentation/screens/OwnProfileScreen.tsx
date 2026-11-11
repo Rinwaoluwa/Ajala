@@ -1,15 +1,15 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
-import { Host } from '@expo/ui';
-import { Image } from 'expo-image';
-import { Linking, RefreshControl, ScrollView, TouchableOpacity, View } from 'react-native';
+import { RefreshControl, ScrollView, View, useColorScheme } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
+  Host,
   Button,
-  EmptyState,
+  LoadFailedState,
   LoadingRing,
+  Logo,
   NativeIcon,
   Screen,
+  SvgIcon,
   Text,
   UnderlineTabs,
   VectorIcon,
@@ -18,24 +18,26 @@ import {
 import { useTheme } from '@shared/hooks/useTheme';
 import { SCREEN_GUTTER, palette } from '@shared/theme';
 
-import type { MyProfile } from '../../domain/entities/Profile';
 import { LANGUAGES, travelStyleLabel } from '../../domain/rules/profileSetupRules';
 import { AchievementsPreview } from '../components/AchievementsPreview';
+import { FeaturedPhotos } from '../components/FeaturedPhotos';
 import { ActivityCard } from '../components/ActivityCard';
 import { ActivityCardSkeleton } from '../components/ActivityCardSkeleton';
-import { InterestPills, PillSection, ProfileHero } from '../components/ProfileHero';
+import { ProfileHero } from '../components/ProfileHero';
 import { RoundIconButton } from '../components/RoundIconButton';
+import { TravelDetails } from '../components/TravelDetails';
 import { useOwnProfile } from '../hooks/useOwnProfile';
 import type { useMyRsvps } from '../hooks/useMyRsvps';
 import { profileViewCopy } from '../profileViewCopy';
 import { profileLink, shareProfile } from '../shareProfile';
 
 /**
- * The Profile tab (Figma Own Profile, "@mayawanders"): the handle with settings
- * and messages, the hero (photo, counters, name, pronouns, city, tagline, bio,
- * interests), Edit profile and share, "A little more about me" (languages,
- * travel style, favourite places, links), Saved activities, Featured photos,
- * the Achievements preview, and the Going / Requested tabs.
+ * The Profile tab (Figma Own Profile, "Maya Chen"): the Ajala logo with the
+ * bell and settings on glass; the hero (photo, name, @handle, city, Meetups ·
+ * Countries · Streak, interests); Edit profile and share; the bio; "Travel
+ * details" (languages, travel style, favourite places, links, Saved
+ * activities); Featured Photos; then the Achievements preview and the Going /
+ * Requested tabs.
  *
  * From `GET /me` (shared with Edit profile and setup), the attended history and
  * `GET /me/rsvps`. Sections with nothing to show are left out rather than drawn
@@ -43,10 +45,13 @@ import { profileLink, shareProfile } from '../shareProfile';
  */
 
 const TAB_BAR_CLEARANCE = 120;
+const LOGO_WIDTH = 116;
 
 export type OwnProfileScreenProps = {
   onSettings: () => void;
-  onMessages: () => void;
+  onNotifications: () => void;
+  /** Unread notifications; above zero, a dot on the bell. */
+  unreadNotifications?: number;
   onEditProfile: () => void;
   onSaved: () => void;
   onAchievements: () => void;
@@ -55,9 +60,11 @@ export type OwnProfileScreenProps = {
 
 export function OwnProfileScreen(props: OwnProfileScreenProps) {
   const theme = useTheme();
+  const scheme = useColorScheme();
   const insets = useSafeAreaInsets();
   const vm = useOwnProfile();
   const copy = profileViewCopy;
+  const unread = props.unreadNotifications ?? 0;
 
   if (vm.loading) {
     return (
@@ -68,12 +75,16 @@ export function OwnProfileScreen(props: OwnProfileScreenProps) {
       </Screen>
     );
   }
-  if (vm.failed || !vm.profile) {
+  // A failed refresh keeps the cached profile on screen; only a profile that never loaded
+  // (nothing in the cache, not even from the last launch) shows the failure.
+  if (!vm.profile) {
     return (
       <Screen edges={['top']}>
         <View className="flex-1 justify-center">
-          <EmptyState
+          <LoadFailedState
+            kind={vm.networkFailure ? 'network' : 'server'}
             title={copy.failed.title}
+            body={copy.failed.body}
             action={{ label: copy.failed.retry, onPress: vm.retry, variant: 'primary' }}
           />
         </View>
@@ -84,6 +95,7 @@ export function OwnProfileScreen(props: OwnProfileScreenProps) {
   const p = vm.profile;
   const name = [p.firstName, p.lastName].filter(Boolean).join(' ') || (p.handle ?? '');
   const link = profileLink(p.handle, p.id);
+  const links = p.about?.socialLinks;
 
   return (
     <Screen edges={['top']} padded={false}>
@@ -94,66 +106,91 @@ export function OwnProfileScreen(props: OwnProfileScreenProps) {
           gap: 24,
         }}
         refreshControl={
-          <RefreshControl refreshing={vm.refreshing} onRefresh={vm.retry} tintColor={theme.primary} />
+          <RefreshControl refreshing={vm.refreshing} onRefresh={vm.refresh} tintColor={theme.primary} />
         }
       >
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingTop: 8 }}>
-          <Text variant="headingMd" tone="primary" style={{ flex: 1 }} numberOfLines={1}>
-            {p.handle ? `@${p.handle}` : name}
-          </Text>
+          <View style={{ flex: 1, alignItems: 'flex-start' }} accessibilityRole="header" accessibilityLabel="Ajala">
+            <Logo width={LOGO_WIDTH} tone={scheme === 'dark' ? 'inverse' : 'brand'} />
+          </View>
+          <RoundIconButton
+            label={unread > 0 ? copy.unreadNotifications(unread) : copy.notifications}
+            onPress={props.onNotifications}
+          >
+            <View>
+              <VectorIcon name="bell" size={20} color={theme.foreground} />
+              {unread > 0 ? (
+                <View
+                  pointerEvents="none"
+                  style={{
+                    position: 'absolute',
+                    top: -1,
+                    right: -1,
+                    width: 8,
+                    height: 8,
+                    borderRadius: 4,
+                    backgroundColor: palette.coral,
+                  }}
+                />
+              ) : null}
+            </View>
+          </RoundIconButton>
           <RoundIconButton label={copy.settings} onPress={props.onSettings}>
             <Host matchContents pointerEvents="none" ignoreSafeArea="all">
               <NativeIcon source={icons.settings} size={18} color={theme.foreground} />
             </Host>
           </RoundIconButton>
-          <RoundIconButton label={copy.messages} onPress={props.onMessages}>
-            <VectorIcon name="chat" size={20} color={theme.foreground} />
-          </RoundIconButton>
         </View>
 
         <ProfileHero
           name={name}
-          avatarUrl={p.avatarUrl}
+          handle={p.handle}
           pronouns={p.about?.pronouns}
+          avatarUrl={p.avatarUrl}
           city={p.homePlace?.label}
-          tagline={p.about?.tagline}
-          bio={p.about?.bio}
           interests={p.interests}
           counters={vm.derived?.counters ?? null}
         />
 
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
           <View style={{ flex: 1 }}>
-            <Button label={copy.editProfile} size="lg" fullWidth onPress={props.onEditProfile} />
+            <Button
+              label={copy.editProfile}
+              icon={icons.editSquare}
+              size="md"
+              fullWidth
+              onPress={props.onEditProfile}
+            />
           </View>
-          <RoundIconButton label={copy.shareProfile} size={50} onPress={() => shareProfile(name, link)}>
-            <Host matchContents pointerEvents="none" ignoreSafeArea="all">
-              <NativeIcon source={icons.share} size={18} color={theme.foreground} />
-            </Host>
+          <RoundIconButton label={copy.shareProfile} size={44} onPress={() => shareProfile(name, link)}>
+            <SvgIcon name="share" size={18} tint={theme.primary} />
           </RoundIconButton>
         </View>
 
-        <AboutMe profile={p} />
+        {p.about?.bio || p.about?.tagline ? (
+          <View style={{ gap: 4, marginTop: -4 }}>
+            {p.about?.tagline ? <Text variant="bodySm">{p.about.tagline}</Text> : null}
+            {p.about?.bio ? <Text variant="bodySm">{p.about.bio}</Text> : null}
+          </View>
+        ) : null}
 
-        <TouchableOpacity
-          activeOpacity={0.7}
-          onPress={props.onSaved}
-          accessibilityRole="button"
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 8,
-            minHeight: 48,
-            borderRadius: 999,
-            backgroundColor: theme.surfaceMuted,
+        <TravelDetails
+          data={{
+            languages: p.languages.map(
+              (code) => LANGUAGES.find((l) => l.value === code)?.label ?? code.toUpperCase(),
+            ),
+            travelStyles: p.travelStyles.map(travelStyleLabel),
+            // The server's label ("Lisbon, Portugal"), so two cities with one name read apart.
+            places: p.favouriteDestinations.map((c) => c.label),
+            website: links?.website,
+            instagram: links?.instagram,
+            tiktok: links?.tiktok,
           }}
-        >
-          <Ionicons name="bookmark" size={18} color={palette.teal} />
-          <Text variant="labelMd">{copy.savedRow}</Text>
-        </TouchableOpacity>
+          onEdit={props.onEditProfile}
+          onSaved={props.onSaved}
+        />
 
-        <Photos profile={p} />
+        <FeaturedPhotos photos={p.about?.photos ?? []} own name={name} onAdd={props.onEditProfile} />
 
         {vm.derived ? (
           <AchievementsPreview
@@ -168,77 +205,6 @@ export function OwnProfileScreen(props: OwnProfileScreenProps) {
         <MyActivities rsvps={vm.rsvps} onOpenPost={props.onOpenPost} />
       </ScrollView>
     </Screen>
-  );
-}
-
-function AboutMe({ profile }: { profile: MyProfile }) {
-  const copy = profileViewCopy;
-  const languages = profile.languages.map(
-    (code) => LANGUAGES.find((l) => l.value === code)?.label ?? code.toUpperCase(),
-  );
-  const links = profile.about?.socialLinks;
-  const rows: { label: string; value: string; url: string }[] = [];
-  const handle = (v: string) => v.replace(/^@/, '');
-  if (links?.instagram) {
-    rows.push({
-      label: copy.instagram,
-      value: `@${handle(links.instagram)}`,
-      url: `https://instagram.com/${handle(links.instagram)}`,
-    });
-  }
-  if (links?.tiktok) {
-    rows.push({
-      label: copy.tiktok,
-      value: `@${handle(links.tiktok)}`,
-      url: `https://www.tiktok.com/@${handle(links.tiktok)}`,
-    });
-  }
-  if (links?.website) {
-    const site = links.website;
-    rows.push({
-      label: copy.website,
-      value: site.replace(/^https?:\/\//, ''),
-      url: site.startsWith('http') ? site : `https://${site}`,
-    });
-  }
-  const styles = profile.travelStyles.map(travelStyleLabel);
-  // The server's label ("Lisbon, Portugal"), so two cities with one name read apart.
-  const places = profile.favouriteDestinations.map((c) => c.label);
-  if (!languages.length && !rows.length && !styles.length && !places.length) return null;
-
-  return (
-    <View style={{ gap: 10 }}>
-      <Text variant="headingSm" accessibilityRole="header">
-        {copy.aboutMe}
-      </Text>
-      {languages.length ? (
-        <>
-          <Text variant="bodySm" tone="muted">
-            {copy.languages}
-          </Text>
-          <InterestPills labels={languages} />
-        </>
-      ) : null}
-      <PillSection title={copy.travelStyles} labels={styles} />
-      <PillSection title={copy.favouriteDestinations} labels={places} />
-      {rows.length ? (
-        <>
-          <Text variant="bodySm" tone="muted" className="mt-4">
-            {copy.findMe}
-          </Text>
-          {rows.map((r) => (
-            <TouchableOpacity
-              key={r.label}
-              activeOpacity={0.6}
-              onPress={() => void Linking.openURL(r.url).catch(() => undefined)}
-              accessibilityRole="link"
-            >
-              <Text variant="bodySm" tone="primary">{`${r.label}  ·  ${r.value}`}</Text>
-            </TouchableOpacity>
-          ))}
-        </>
-      ) : null}
-    </View>
   );
 }
 
@@ -303,49 +269,6 @@ function MyActivities({
           ) : null}
         </>
       )}
-    </View>
-  );
-}
-
-/** Two large photos, then up to three smaller — flex rows, so they share the width at any size. */
-function Photos({ profile }: { profile: MyProfile }) {
-  const theme = useTheme();
-  const photos = profile.about?.photos ?? [];
-  const copy = profileViewCopy.photos;
-  const rows = [photos.slice(0, 2), photos.slice(2, 5)].filter((r) => r.length);
-  return (
-    <View style={{ gap: 10 }}>
-      <View>
-        <Text variant="headingSm" accessibilityRole="header">
-          {copy.title}
-        </Text>
-        <Text variant="bodySm" tone="muted">
-          {photos.length ? copy.count(photos.length) : copy.empty}
-        </Text>
-      </View>
-      {rows.map((row, r) => (
-        <View key={r} style={{ flexDirection: 'row', gap: 8 }}>
-          {row.map((photo) => (
-            <View
-              key={photo.id}
-              style={{
-                flex: 1,
-                aspectRatio: r === 0 ? 1.15 : 0.95,
-                borderRadius: 14,
-                overflow: 'hidden',
-                backgroundColor: theme.skeleton,
-              }}
-            >
-              <Image
-                source={{ uri: photo.thumbUrl }}
-                style={{ flex: 1 }}
-                contentFit="cover"
-                transition={200}
-              />
-            </View>
-          ))}
-        </View>
-      ))}
     </View>
   );
 }

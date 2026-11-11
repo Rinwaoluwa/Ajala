@@ -14,7 +14,9 @@ export type PublicProfile = {
   /** Their home city. Null also when they hide it (`showCurrentCity` off). */
   homePlace: PlaceRef | null;
   interests: Interest[];
-  about: Pick<ProfileAbout, 'bio' | 'pronouns' | 'tagline' | 'photos' | 'verified'>;
+  about: Pick<ProfileAbout, 'bio' | 'pronouns' | 'tagline' | 'socialLinks' | 'photos' | 'verified'>;
+  /** Language codes ("en"), as they chose them. */
+  languages: string[];
   travelStyles: TravelStyle[];
   /** In their order. */
   favouriteDestinations: PlaceRef[];

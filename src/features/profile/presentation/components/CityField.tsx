@@ -1,8 +1,7 @@
-import { Host } from '@expo/ui';
 import { View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
-import { NativeIcon, NativeSpinner, Text, TextLink, icons } from '@shared/components';
+import { Host, NativeIcon, NativeSpinner, Text, TextLink, icons } from '@shared/components';
 import { useTheme } from '@shared/hooks/useTheme';
 import { layout, palette } from '@shared/theme';
 

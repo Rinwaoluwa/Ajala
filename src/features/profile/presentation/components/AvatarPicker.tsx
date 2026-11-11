@@ -1,8 +1,7 @@
-import { Host } from '@expo/ui';
 import { Image } from 'expo-image';
 import { Pressable, View } from 'react-native';
 
-import { NativeIcon, NativeSpinner, Text, TextLink, icons } from '@shared/components';
+import { Host, NativeIcon, NativeSpinner, Text, TextLink, icons } from '@shared/components';
 import { useTheme } from '@shared/hooks/useTheme';
 import { palette } from '@shared/theme';
 

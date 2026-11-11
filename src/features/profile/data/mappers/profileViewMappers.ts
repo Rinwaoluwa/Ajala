@@ -15,11 +15,17 @@ export function toPublicProfile(dto: PublicProfileDto): PublicProfile {
       bio: dto.bio ?? null,
       pronouns: typeof dto.extras?.pronouns === 'string' ? dto.extras.pronouns : null,
       tagline: typeof dto.extras?.tagline === 'string' ? dto.extras.tagline : null,
+      socialLinks: {
+        instagram: dto.extras?.socialLinks?.instagram ?? null,
+        tiktok: dto.extras?.socialLinks?.tiktok ?? null,
+        website: dto.extras?.socialLinks?.website ?? null,
+      },
       photos: [...(dto.photos ?? [])]
         .sort((a, b) => a.position - b.position)
         .map((p) => ({ id: p.id, url: p.url, thumbUrl: p.thumbUrl })),
       verified: dto.verified ?? false,
     },
+    languages: Array.isArray(dto.extras?.languages) ? [...dto.extras.languages] : [],
     travelStyles: toTravelStyles(dto.extras),
     favouriteDestinations: toPlaceRefs(dto.favouriteDestinations),
     openToMeetToday: dto.openToMeetToday ?? false,

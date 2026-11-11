@@ -8,6 +8,7 @@ import {
   badgeProgress,
   cityStamps,
   profileCounters,
+  streakDays,
   topBadges,
 } from '../rules/achievementRules';
 
@@ -108,5 +109,30 @@ describe('stamps and counters', () => {
     const attended = [act({ locality: null }), act({ locality: accra })];
     expect(cityStamps(attended).map((s) => s.city)).toEqual(['Accra']);
     expect(profileCounters(attended)).toEqual({ events: 2, countries: 1 });
+  });
+});
+
+describe('streakDays', () => {
+  const now = new Date('2026-11-11T12:00:00Z');
+  const at = (iso: string) => act({ startAt: iso });
+
+  it('is zero with nothing attended, or nothing in the last week', () => {
+    expect(streakDays([], now)).toBe(0);
+    expect(streakDays([at('2026-11-01T12:00:00Z')], now)).toBe(0);
+  });
+
+  it('runs back through meetups no more than a week apart', () => {
+    const attended = [
+      at('2026-11-09T12:00:00Z'),
+      at('2026-11-03T12:00:00Z'),
+      at('2026-10-27T12:00:00Z'),
+      // Eleven days before the next: the streak starts after it.
+      at('2026-10-16T12:00:00Z'),
+    ];
+    expect(streakDays(attended, now)).toBe(15);
+  });
+
+  it('counts a meetup today as one day, and ignores drafts and future posts', () => {
+    expect(streakDays([at('2026-11-11T09:00:00Z'), act({ startAt: null }), at('2026-11-20T09:00:00Z')], now)).toBe(1);
   });
 });

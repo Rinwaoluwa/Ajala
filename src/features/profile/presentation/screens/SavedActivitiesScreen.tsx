@@ -1,5 +1,5 @@
 import { FlatList, RefreshControl, View } from 'react-native';
-import Animated, { FadeOut, LinearTransition } from 'react-native-reanimated';
+import Animated, { FadeOut } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
@@ -9,7 +9,7 @@ import {
   PillTabs,
   PostCard,
   Screen,
-  enterRise,
+  useListEntrance,
 } from '@shared/components';
 import { useTheme } from '@shared/hooks/useTheme';
 import { SCREEN_GUTTER } from '@shared/theme';
@@ -49,6 +49,7 @@ export function SavedActivitiesScreen({
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const vm = useSavedActivities();
+  const enter = useListEntrance(vm.items.length > 0);
   const copy = profileViewCopy.saved;
 
   const empty = vm.loading ? (
@@ -93,9 +94,8 @@ export function SavedActivitiesScreen({
         onEndReachedThreshold={0.5}
         renderItem={({ item, index }) => (
           <Animated.View
-            entering={index < 3 ? enterRise(index * 60) : undefined}
+            entering={enter(index)}
             exiting={FadeOut.duration(180)}
-            layout={LinearTransition.duration(220)}
           >
             <PostCard post={item} onPress={() => onOpenPost(item.id)} />
           </Animated.View>

@@ -1,13 +1,14 @@
-import { Host } from '@expo/ui';
 import { useEffect, useState } from 'react';
 import { Alert, FlatList, View, useWindowDimensions } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
+  Host,
   BackButton,
   Button,
   EmptyState,
+  LoadFailedState,
   LoadingRing,
   NativeIcon,
   NoteCard,
@@ -15,31 +16,31 @@ import {
   Text,
   UnderlineTabs,
   icons,
+  useListEntrance,
 } from '@shared/components';
 import { useTheme } from '@shared/hooks/useTheme';
 import { SCREEN_GUTTER } from '@shared/theme';
 
 import { isProfileError } from '../../domain/entities/ProfileError';
-import type { BadgeProgress } from '../../domain/rules/achievementRules';
-import { travelStyleLabel } from '../../domain/rules/profileSetupRules';
+import { LANGUAGES, travelStyleLabel } from '../../domain/rules/profileSetupRules';
 import type { PersonActivityTab } from '../../domain/usecases/ProfileViewUseCases';
-import { AchievementsPreview } from '../components/AchievementsPreview';
 import { ActivityCard, type ActivityStatus } from '../components/ActivityCard';
-import { BadgeSheet } from '../components/BadgeSheet';
-import { PillSection, ProfileHero } from '../components/ProfileHero';
+import { FeaturedPhotos } from '../components/FeaturedPhotos';
+import { ProfileHero } from '../components/ProfileHero';
 import { ProfileOptionsSheet } from '../components/ProfileOptionsSheet';
 import { ReportProfileDialog } from '../components/ReportProfileDialog';
 import { RoundIconButton } from '../components/RoundIconButton';
+import { TravelDetails } from '../components/TravelDetails';
 import { profileErrorMessages } from '../copy';
 import { usePerson } from '../hooks/usePerson';
 import { profileViewCopy } from '../profileViewCopy';
 import { copyProfileLink, profileLink, shareProfile } from '../shareProfile';
 
 /**
- * Another traveller's profile (Figma Other User, "@liamexplores"): back and
- * the handle, ⋯ for Profile options; the hero (with "Open to meet today" when
- * they said so), their travel style and favourite places, Message, their
- * achievements, a safety note, and "Public activities" — Hosting / Attending,
+ * Another traveller's profile (Figma Other User, "@JamesAllen44"): back and
+ * the handle, ⋯ for Profile options; the hero (with "Open to meet" when they
+ * said so), their bio, "Travel details", Message and Achievements side by side,
+ * Featured Photos, a safety note, and "Public activities" — Hosting / Attending,
  * plus Upcoming when they share their plans (`GET /users/:id/plans`) — that
  * loads more as it scrolls.
  *
@@ -68,7 +69,8 @@ export type PublicProfileScreenProps = {
   onBack: () => void;
   onOpenPost: (postId: string) => void;
   onMessage: () => void;
-  onExplore: () => void;
+  /** Their badges and stamps (the Achievements screen for this person), with their first name. */
+  onAchievements: (firstName: string) => void;
 };
 
 export function PublicProfileScreen({
@@ -76,16 +78,16 @@ export function PublicProfileScreen({
   onBack,
   onOpenPost,
   onMessage,
-  onExplore,
+  onAchievements,
 }: PublicProfileScreenProps) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const vm = usePerson(userId);
+  const enterActivity = useListEntrance(vm.items.length > 0);
   const copy = profileViewCopy;
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
-  const [badge, setBadge] = useState<BadgeProgress | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
@@ -141,15 +143,20 @@ export function PublicProfileScreen({
       <Screen edges={['top']} padded={false}>
         {header('')}
         <View className="flex-1 justify-center px-20">
-          <EmptyState
-            title={notFound ? copy.unavailable.title : copy.failed.title}
-            body={notFound ? copy.unavailable.body : vm.error ? profileErrorMessages[vm.error] : undefined}
-            action={
-              notFound
-                ? { label: copy.unavailable.back, onPress: onBack, variant: 'primary' }
-                : { label: copy.failed.retry, onPress: vm.retry, variant: 'primary' }
-            }
-          />
+          {notFound ? (
+            <EmptyState
+              title={copy.unavailable.title}
+              body={copy.unavailable.body}
+              action={{ label: copy.unavailable.back, onPress: onBack, variant: 'primary' }}
+            />
+          ) : (
+            <LoadFailedState
+              kind={vm.error === 'network' ? 'network' : 'server'}
+              title={copy.failed.title}
+              body={vm.error ? profileErrorMessages[vm.error] : copy.failed.body}
+              action={{ label: copy.failed.retry, onPress: vm.retry, variant: 'primary' }}
+            />
+          )}
         </View>
       </Screen>
     );
@@ -178,24 +185,20 @@ export function PublicProfileScreen({
     <View style={{ gap: 24, paddingBottom: 16 }}>
       <ProfileHero
         name={person.displayName}
-        avatarUrl={person.avatarUrl}
+        handle={person.handle}
         pronouns={person.about.pronouns}
+        avatarUrl={person.avatarUrl}
         city={person.homePlace?.label}
         openToMeetToday={person.openToMeetToday && !person.blockedByMe}
-        tagline={person.about.tagline}
-        bio={person.about.bio}
         interests={person.interests}
         counters={vm.derived?.counters ?? null}
       />
-      {person.blockedByMe ? null : (
-        <>
-          <PillSection title={copy.travelStyles} labels={person.travelStyles.map(travelStyleLabel)} />
-          <PillSection
-            title={copy.favouriteDestinations}
-            labels={person.favouriteDestinations.map((c) => c.label)}
-          />
-        </>
-      )}
+      {person.about.tagline || person.about.bio ? (
+        <View style={{ gap: 4, marginTop: -4 }}>
+          {person.about.tagline ? <Text variant="bodySm">{person.about.tagline}</Text> : null}
+          {person.about.bio ? <Text variant="bodySm">{person.about.bio}</Text> : null}
+        </View>
+      ) : null}
       {person.blockedByMe ? (
         <View style={{ gap: 12 }}>
           <NoteCard title={copy.block.blocked(first)} body={copy.options.unblockBody} />
@@ -208,15 +211,33 @@ export function PublicProfileScreen({
         </View>
       ) : (
         <>
-          <Button label={copy.message} size="lg" fullWidth onPress={onMessage} />
-          {vm.derived ? (
-            <AchievementsPreview
-              preview={vm.derived.preview}
-              earned={vm.derived.earned}
-              inProgress={vm.derived.inProgress}
-              onOpenBadge={(id) => setBadge(vm.derived?.preview.find((p) => p.badge.id === id) ?? null)}
-            />
-          ) : null}
+          <TravelDetails
+            data={{
+              languages: person.languages.map(
+                (code) => LANGUAGES.find((l) => l.value === code)?.label ?? code.toUpperCase(),
+              ),
+              travelStyles: person.travelStyles.map(travelStyleLabel),
+              places: person.favouriteDestinations.map((c) => c.label),
+              website: person.about.socialLinks.website,
+              instagram: person.about.socialLinks.instagram,
+              tiktok: person.about.socialLinks.tiktok,
+            }}
+          />
+          <View style={{ flexDirection: 'row', gap: 12 }}>
+            <View style={{ flex: 1 }}>
+              <Button label={copy.message} size="md" fullWidth onPress={onMessage} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Button
+                label={copy.achievementsButton}
+                size="md"
+                fullWidth
+                tint={{ fill: theme.surfaceMuted, label: theme.chipForeground }}
+                onPress={() => onAchievements(first)}
+              />
+            </View>
+          </View>
+          <FeaturedPhotos photos={person.about.photos ?? []} own={false} name={person.displayName} />
           <NoteCard title={copy.safety.title} body={copy.safety.body} />
           <View style={{ gap: 4 }}>
             <Text variant="headingSm" accessibilityRole="header">
@@ -254,8 +275,8 @@ export function PublicProfileScreen({
         }}
         onEndReached={vm.loadMore}
         onEndReachedThreshold={0.5}
-        renderItem={({ item }) => (
-          <Animated.View entering={FadeIn.duration(220)}>
+        renderItem={({ item, index }) => (
+          <Animated.View entering={enterActivity(index, 3, 40)}>
             <ActivityCard activity={item} status={TAB_STATUS[vm.tab]} onPress={() => onOpenPost(item.id)} />
           </Animated.View>
         )}
@@ -349,14 +370,6 @@ export function PublicProfileScreen({
             () => undefined,
           )
         }
-      />
-      <BadgeSheet
-        progress={badge}
-        onDismiss={() => setBadge(null)}
-        onExplore={() => {
-          setBadge(null);
-          onExplore();
-        }}
       />
     </Screen>
   );

@@ -1,7 +1,6 @@
-import { Host } from '@expo/ui';
 import { TouchableOpacity, View } from 'react-native';
 
-import { NativeIcon, Sheet, Text, icons, type NativeIconSource } from '@shared/components';
+import { Host, NativeIcon, Sheet, Text, icons, type NativeIconSource } from '@shared/components';
 import { useTheme } from '@shared/hooks/useTheme';
 
 import { profileViewCopy } from '../profileViewCopy';
@@ -64,7 +63,7 @@ function Option({
   destructive?: boolean;
 }) {
   const theme = useTheme();
-  const tint = destructive ? theme.danger : theme.foreground;
+  const tint = destructive ? theme.destructiveAction : theme.foreground;
   return (
     <TouchableOpacity
       activeOpacity={0.6}

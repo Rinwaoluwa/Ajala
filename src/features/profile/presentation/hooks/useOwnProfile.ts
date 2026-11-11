@@ -1,9 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 
 import { sharedQueryKeys } from '@core/api/queryClient/queryClient';
+import { usePullRefresh } from '@shared/hooks/usePullRefresh';
 
-import { badgeProgress, profileCounters, topBadges } from '../../domain/rules/achievementRules';
+import { isProfileError } from '../../domain/entities/ProfileError';
+import { badgeProgress, profileCounters, streakDays, topBadges } from '../../domain/rules/achievementRules';
 import { profileKeys } from '../state/profileQueries';
 import { useProfileViewUseCases } from '../state/useProfileViewUseCases';
 import { useMyRsvps } from './useMyRsvps';
@@ -25,23 +27,32 @@ export function useOwnProfile() {
     if (!history.data) return null;
     const progress = badgeProgress(history.data);
     return {
-      counters: profileCounters(history.data),
+      counters: { ...profileCounters(history.data), streak: streakDays(history.data) },
       preview: topBadges(progress),
       earned: progress.filter((p) => p.earned).length,
       inProgress: progress.filter((p) => !p.earned && p.done > 0).length,
     };
   }, [history.data]);
 
+  const { refetch: refetchMe } = me;
+  const { refetch: refetchHistory } = history;
+  const { refetch: refetchRsvps } = rsvps;
+  const reload = useCallback(
+    () => Promise.all([refetchMe(), refetchHistory(), refetchRsvps()]),
+    [refetchMe, refetchHistory, refetchRsvps],
+  );
+  const pull = usePullRefresh(reload);
+
   return {
     profile: me.data ?? null,
     loading: me.isPending,
     failed: me.isError,
-    retry: () => {
-      void me.refetch();
-      void history.refetch();
-      void rsvps.refetch();
-    },
-    refreshing: me.isRefetching || history.isRefetching,
+    /** The read never got an answer (offline), as opposed to the server refusing. */
+    networkFailure: isProfileError(me.error) && me.error.code === 'network',
+    retry: () => void reload(),
+    /** A pull to refresh; background refreshes stay out of sight. */
+    refreshing: pull.refreshing,
+    refresh: pull.refresh,
     derived,
     rsvps,
   };

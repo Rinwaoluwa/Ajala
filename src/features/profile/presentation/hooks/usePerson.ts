@@ -1,9 +1,10 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { BLOCKED_KEY, POST_LIST_PREFIXES } from '@shared/state/postQueryKeys';
 import { useMemo, useState } from 'react';
 
 import { isProfileError, type ProfileErrorCode } from '../../domain/entities/ProfileError';
 import type { PersonReportReason } from '../../domain/entities/PublicProfile';
-import { badgeProgress, profileCounters, topBadges } from '../../domain/rules/achievementRules';
+import { badgeProgress, profileCounters, streakDays, topBadges } from '../../domain/rules/achievementRules';
 import type { PersonActivityTab } from '../../domain/usecases/ProfileViewUseCases';
 import { profileKeys } from '../state/profileQueries';
 import { useProfileViewUseCases } from '../state/useProfileViewUseCases';
@@ -47,8 +48,8 @@ export function usePerson(userId: string) {
 
   const afterBlockChange = () => {
     void queryClient.invalidateQueries({ queryKey: profileKeys.person(userId) });
-    for (const prefix of [['feed'], ['explore'], ['settings', 'blocks']]) {
-      void queryClient.invalidateQueries({ queryKey: prefix });
+    for (const prefix of [...POST_LIST_PREFIXES, BLOCKED_KEY]) {
+      void queryClient.invalidateQueries({ queryKey: [...prefix] });
     }
   };
   const block = useMutation({ mutationFn: () => useCases.blockPerson(userId), onSuccess: afterBlockChange });
@@ -65,7 +66,7 @@ export function usePerson(userId: string) {
     if (!history.data) return null;
     const progress = badgeProgress(history.data);
     return {
-      counters: profileCounters(history.data),
+      counters: { ...profileCounters(history.data), streak: streakDays(history.data) },
       preview: topBadges(progress),
       earned: progress.filter((p) => p.earned).length,
       inProgress: progress.filter((p) => !p.earned && p.done > 0).length,

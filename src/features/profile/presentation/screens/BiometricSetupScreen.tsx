@@ -1,4 +1,3 @@
-import { Host } from '@expo/ui';
 import { Image } from 'expo-image';
 import { useState } from 'react';
 import { ScrollView, View, useColorScheme } from 'react-native';
@@ -7,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { biometricCopy, useAppLockSetup, useBiometricAvailability } from '@features/app-lock';
 import {
+  Host,
   Button,
   NativeIcon,
   Screen,

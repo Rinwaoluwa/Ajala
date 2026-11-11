@@ -45,11 +45,21 @@ const FILTERS: { value: BadgeCategory | 'all'; label: string }[] = [
   { value: 'plans', label: profileViewCopy.badges.filters.plans },
 ];
 
-export function AchievementsScreen({ onBack, onExplore }: { onBack: () => void; onExplore: () => void }) {
+export function AchievementsScreen({
+  onBack,
+  onExplore,
+  person,
+}: {
+  onBack: () => void;
+  onExplore: () => void;
+  /** Another traveller's achievements (from their profile); yours when left out. */
+  person?: { id: string; firstName: string };
+}) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const { width, fontScale } = useWindowDimensions();
-  const vm = useAchievements();
+  const vm = useAchievements(person?.id);
+  const theirs = person ? profileViewCopy.theirAchievements(person.firstName) : null;
   const [view, setView] = useState<View_>('badges');
   const [open, setOpen] = useState<BadgeProgress | null>(null);
   const copy = profileViewCopy.badges;
@@ -60,7 +70,7 @@ export function AchievementsScreen({ onBack, onExplore }: { onBack: () => void; 
   return (
     <Screen edges={['top']} padded={false}>
       <View className="px-20 pt-8" style={{ gap: 16 }}>
-        <CenteredHeader title={copy.title} onBack={onBack} />
+        <CenteredHeader title={theirs?.title ?? copy.title} onBack={onBack} />
         <SegmentedControl
           options={[
             { value: 'badges', label: copy.tabBadges },
@@ -129,7 +139,10 @@ export function AchievementsScreen({ onBack, onExplore }: { onBack: () => void; 
             <View style={{ paddingHorizontal: SCREEN_GUTTER, paddingTop: 16, gap: 12 }}>
               {vm.earned === 0 && vm.inProgress === 0 ? (
                 <View style={{ paddingBottom: 8 }}>
-                  <EmptyState title={copy.emptyTitle} body={copy.emptyBody} />
+                  <EmptyState
+                    title={theirs?.emptyBadgesTitle ?? copy.emptyTitle}
+                    body={theirs?.emptyBadgesBody ?? copy.emptyBody}
+                  />
                 </View>
               ) : null}
               {rows.map((row, r) => (
@@ -151,12 +164,12 @@ export function AchievementsScreen({ onBack, onExplore }: { onBack: () => void; 
         <Animated.View key="stamps" entering={FadeIn.duration(200)} style={{ flex: 1 }}>
           <ScrollView contentContainerStyle={{ padding: SCREEN_GUTTER, paddingBottom: insets.bottom + 32 }}>
             {vm.stamps.length ? (
-              <StampsView stamps={vm.stamps} />
+              <StampsView stamps={vm.stamps} owner={person?.firstName} />
             ) : (
               <EmptyState
                 title={profileViewCopy.stamps.emptyTitle}
-                body={profileViewCopy.stamps.emptyBody}
-                action={{ label: copy.exploreMore, onPress: onExplore }}
+                body={theirs?.emptyStampsBody ?? profileViewCopy.stamps.emptyBody}
+                action={theirs ? undefined : { label: copy.exploreMore, onPress: onExplore }}
               />
             )}
           </ScrollView>

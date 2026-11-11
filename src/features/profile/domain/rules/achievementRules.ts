@@ -230,3 +230,28 @@ export function profileCounters(attended: readonly ProfileActivity[]) {
     countries: new Set(placed(attended).map(countryKey)).size,
   };
 }
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+/** The longest gap between two meetups that still keeps a streak going. */
+export const STREAK_GAP_DAYS = 7;
+
+/**
+ * The profile header's Streak, in days: how long the person has kept meeting
+ * people at least once a week, up to now. Worked out from the attended posts —
+ * there is no streak in the API (API map §12). Zero when the last one was more
+ * than a week ago; a single meetup this week counts its own day.
+ */
+export function streakDays(attended: readonly ProfileActivity[], now: Date = new Date()): number {
+  const today = now.getTime();
+  const times = attended
+    .map((a) => (a.startAt ? Date.parse(a.startAt) : NaN))
+    .filter((t) => Number.isFinite(t) && t <= today)
+    .sort((a, b) => b - a);
+  if (!times.length || today - times[0] > STREAK_GAP_DAYS * DAY_MS) return 0;
+  let earliest = times[0];
+  for (const t of times.slice(1)) {
+    if (earliest - t > STREAK_GAP_DAYS * DAY_MS) break;
+    earliest = t;
+  }
+  return Math.max(1, Math.ceil((today - earliest) / DAY_MS));
+}

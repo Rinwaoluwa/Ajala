@@ -2,6 +2,7 @@ import { useInfiniteQuery } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 
 import type { PostCardModel } from '@shared/components';
+import { usePullRefresh } from '@shared/hooks/usePullRefresh';
 
 import type { ProfileActivity, SavedFilter } from '../../domain/entities/PublicProfile';
 import { profileKeys } from '../state/profileQueries';
@@ -29,6 +30,8 @@ export function useSavedActivities() {
 
   const items = useMemo(() => list.data?.pages.flatMap((p) => p.items.map(toPostCard)) ?? [], [list.data]);
 
+  const pull = usePullRefresh(list.refetch);
+
   return {
     filter,
     setFilter,
@@ -37,8 +40,9 @@ export function useSavedActivities() {
     // A failed refresh over a list already shown keeps the list; only a first load fails the screen.
     failed: list.isError && !list.data,
     retry: () => void list.refetch(),
-    refreshing: list.isRefetching && !list.isFetchingNextPage,
-    refresh: () => void list.refetch(),
+    // A pull to refresh only: a bookmark changed elsewhere refreshes the list out of sight.
+    refreshing: pull.refreshing,
+    refresh: pull.refresh,
     loadingMore: list.isFetchingNextPage,
     loadMore: () => {
       if (list.hasNextPage && !list.isFetchingNextPage) void list.fetchNextPage();

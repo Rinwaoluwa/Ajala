@@ -21,7 +21,7 @@ import { Meter } from './Meter';
  * chosen one, its city card (Events attended, Experiences, Visited), "Events
  * attended" with a thumbnail each, and the city's milestone ("Lagos progress").
  */
-export function StampsView({ stamps }: { stamps: CityStamp[] }) {
+export function StampsView({ stamps, owner }: { stamps: CityStamp[]; /** Someone else's first name. */ owner?: string }) {
   const theme = useTheme();
   const { width } = useWindowDimensions();
   const [index, setIndex] = useState(0);
@@ -72,7 +72,7 @@ export function StampsView({ stamps }: { stamps: CityStamp[] }) {
         <View style={{ alignItems: 'center' }}>
           <Text variant="headingMd">{[stamp.city, stamp.country].filter(Boolean).join(', ')}</Text>
           <Text variant="bodySm" tone="muted">
-            {copy.journey(stamp.city)}
+            {owner ? copy.theirJourney(owner, stamp.city) : copy.journey(stamp.city)}
           </Text>
         </View>
         <View style={{ flexDirection: roomy ? 'column' : 'row', gap: 8 }}>

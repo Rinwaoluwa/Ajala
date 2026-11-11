@@ -11,13 +11,17 @@ import { profileKeys } from '../state/profileQueries';
 import { useProfileViewUseCases } from '../state/useProfileViewUseCases';
 
 /**
- * View model for Achievements: the signed-in person's attended history (the
- * same query the Profile tab reads, so it is usually cached), turned into
- * badges and city stamps on the phone (`achievementRules`).
+ * View model for Achievements: an attended history (the same query the
+ * profile page read, so it is usually cached), turned into badges and city
+ * stamps on the phone (`achievementRules`). Yours, or with `userId`, another
+ * traveller's.
  */
-export function useAchievements() {
+export function useAchievements(userId?: string) {
   const useCases = useProfileViewUseCases();
-  const history = useQuery({ queryKey: profileKeys.myHistory, queryFn: () => useCases.loadMyHistory() });
+  const history = useQuery({
+    queryKey: userId ? profileKeys.personHistory(userId) : profileKeys.myHistory,
+    queryFn: () => (userId ? useCases.loadPersonHistory(userId) : useCases.loadMyHistory()),
+  });
   const [filter, setFilter] = useState<BadgeCategory | 'all'>('all');
 
   const progress = useMemo(() => (history.data ? badgeProgress(history.data) : []), [history.data]);

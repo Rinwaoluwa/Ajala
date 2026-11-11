@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Pressable, View } from 'react-native';
-import Animated, { FadeIn, FadeOut, LinearTransition } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 
 import {
   Button,
@@ -135,7 +135,7 @@ export function DestinationsScreen({ onBack, onContinue }: { onBack: () => void;
             {`${chosen.length}/${MAX_DESTINATIONS}`}
           </Text>
         </View>
-        <Animated.View layout={LinearTransition.duration(200)}>
+        <Animated.View>
           {chosen.length ? (
             <ChipGroup>
               {chosen.map((city) => (
@@ -156,7 +156,7 @@ export function DestinationsScreen({ onBack, onContinue }: { onBack: () => void;
         </Animated.View>
 
         {quickSearches.length ? (
-          <Animated.View layout={LinearTransition.duration(200)} style={{ marginTop: 20 }}>
+          <Animated.View style={{ marginTop: 20 }}>
             <Text variant="labelSm" tone="muted" className="mb-8">
               {copy.tryASearch}
             </Text>

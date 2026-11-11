@@ -5,7 +5,25 @@ import type { PersonReportReason } from '../domain/entities/PublicProfile';
 
 /** The profile pages' words (Figma Profile, Other User, Saved activities, Achievements). */
 export const profileViewCopy = {
-  counters: { events: 'Events', countries: 'Countries' },
+  counters: {
+    events: 'Meetups',
+    countries: 'Countries',
+    streak: 'Streak',
+    streakValue: (days: number) => `${days}d`,
+    streakSpoken: (days: number) => `${days}-day streak`,
+  },
+  notifications: 'Notifications',
+  unreadNotifications: (n: number) => `Notifications, ${n} unread`,
+  achievementsButton: 'Achievements',
+  theirAchievements: (name: string) => ({
+    title: `${name}’s achievements`,
+    emptyBadgesTitle: 'No badges yet',
+    emptyBadgesBody: `${name} hasn’t earned a badge yet. Badges unlock as they join meetups, events and plans.`,
+    emptyStampsBody: `Every city ${name} joins an activity in adds a stamp to their passport.`,
+  }),
+  travelDetails: 'Travel details',
+  travelJournal: 'Travel journal',
+  openLink: (where: string) => `Opens ${where}`,
   settings: 'Settings',
   messages: 'Messages',
   message: 'Message',
@@ -22,7 +40,7 @@ export const profileViewCopy = {
   // Not drawn on the profile pages: the setup steps' answers, shown back as pills.
   travelStyles: 'Travel style',
   favouriteDestinations: 'Favourite places',
-  openToMeet: 'Open to meet today',
+  openToMeet: 'Open to meet',
   myActivities: {
     title: 'Your activities',
     going: 'Going',
@@ -34,9 +52,12 @@ export const profileViewCopy = {
     more: 'Show more',
   },
   photos: {
-    title: 'Featured photos',
-    count: (n: number) => `${n} of 6 · A few favourite moments`,
-    empty: 'No photos yet. Add some in Edit profile.',
+    title: 'Featured Photos',
+    count: (n: number) => `${n} ${n === 1 ? 'photo' : 'photos'}`,
+    seeAll: (n: number) => `See all ${n} photos`,
+    empty: 'No photos yet. Add up to 6 travellers see here.',
+    add: 'Add photos',
+    open: (name: string, n: number, of: number) => `${name}, photo ${n} of ${of}. Opens it full screen`,
   },
   achievements: {
     title: 'Achievements',
@@ -112,7 +133,11 @@ export const profileViewCopy = {
     body: 'The account may have been removed, or the person isn’t sharing it with you.',
     back: 'Go back',
   },
-  failed: { title: 'Profile didn’t load', retry: 'Try again' },
+  failed: {
+    title: 'Profile didn’t load',
+    body: 'Check your connection and try again.',
+    retry: 'Try again',
+  },
   saved: {
     title: 'Saved activities',
     emptyTitle: 'Nothing saved yet',
@@ -152,6 +177,7 @@ export const profileViewCopy = {
   },
   stamps: {
     journey: (city: string) => `Your ${city} journey`,
+    theirJourney: (name: string, city: string) => `${name}’s ${city} journey`,
     eventsAttended: 'Events attended',
     experiences: 'Experiences',
     visited: 'Visited',
