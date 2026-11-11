@@ -10,6 +10,7 @@ import { SettingsFrame } from '../components/SettingsFrame';
 import { settingsCopy, settingsErrors } from '../copy';
 import { useSignOutEverywhere } from '../hooks/useAccountFlows';
 import { useSessions } from '../hooks/useSettingsData';
+import { haptics } from '@shared/feedback/haptics';
 
 /**
  * Sign-in activity (`GET /me/sessions`): this device first, marked, then every
@@ -30,17 +31,21 @@ export function SessionsScreen({ onBack }: { onBack: () => void }) {
   const sessions = useSessions();
   const everywhere = useSignOutEverywhere();
 
-  const confirm = (id: string) =>
+  const confirm = (id: string) => {
+    haptics.warning();
     Alert.alert(copy.signOutTitle, copy.signOutBody, [
       { text: settingsCopy.hub.cancel, style: 'cancel' },
       { text: copy.signOut, style: 'destructive', onPress: () => sessions.end(id) },
     ]);
+  };
 
-  const confirmEverywhere = () =>
+  const confirmEverywhere = () => {
+    haptics.warning();
     Alert.alert(copy.signOutAllTitle, copy.signOutAllConfirm, [
       { text: settingsCopy.hub.cancel, style: 'cancel' },
       { text: copy.signOutAll, style: 'destructive', onPress: everywhere.submit },
     ]);
+  };
 
   return (
     <SettingsFrame title={copy.title} onBack={onBack}>

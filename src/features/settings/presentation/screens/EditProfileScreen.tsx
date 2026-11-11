@@ -13,7 +13,7 @@ import {
   SkeletonBlock,
   SkeletonPulse,
   SortableGrid,
-  StatusSheet,
+  SuccessSheet,
   Text,
   TextArea,
   TextField,
@@ -21,6 +21,7 @@ import {
   icons,
 } from '@shared/components';
 import { useTheme } from '@shared/hooks/useTheme';
+import { palette } from '@shared/theme';
 
 import type { Account, AccountPlace, ProfilePhoto } from '../../domain/entities/Settings';
 import {
@@ -41,6 +42,7 @@ import { SettingsFrame } from '../components/SettingsFrame';
 import { settingsCopy, settingsErrors } from '../copy';
 import { useEditProfile, type EditProfileViewModel } from '../hooks/useEditProfile';
 import { useAccount } from '../hooks/useSettingsData';
+import { haptics } from '@shared/feedback/haptics';
 
 /**
  * Edit profile (Figma, light and dark): the photo card ("Change photo", saved at
@@ -88,6 +90,7 @@ function EditProfileForm({ account, onBack }: { account: Account; onBack: () => 
 
   const leave = () => {
     if (!vm.dirty || vm.saved) return onBack();
+    haptics.warning();
     Alert.alert(copy.discardTitle, undefined, [
       { text: copy.keepEditing, style: 'cancel' },
       { text: copy.discard, style: 'destructive', onPress: onBack },
@@ -166,14 +169,19 @@ function EditProfileForm({ account, onBack }: { account: Account; onBack: () => 
           {settingsErrors[vm.saveError]}
         </Text>
       ) : null}
-      <StatusSheet
+      {/* Saved: celebrated with confetti (`SuccessSheet`). */}
+      <SuccessSheet
         isPresented={vm.saved}
-        tone="success"
+        art={
+          <Host matchContents pointerEvents="none" ignoreSafeArea="all">
+            <NativeIcon source={icons.checkCircle} size={28} color={palette.success} />
+          </Host>
+        }
         title={copy.saved}
         message={copy.savedBody}
         actionLabel={settingsCopy.ok}
         onAction={onBack}
-        onDismiss={onBack}
+        celebrate
       />
     </SettingsFrame>
   );
@@ -236,11 +244,13 @@ function UsernameField({ vm }: { vm: EditProfileViewModel }) {
 function GallerySection({ vm }: { vm: EditProfileViewModel }) {
   const theme = useTheme();
   const copy = settingsCopy.edit;
-  const confirmRemove = (photo: ProfilePhoto) =>
+  const confirmRemove = (photo: ProfilePhoto) => {
+    haptics.warning();
     Alert.alert(copy.removePhotoTitle, copy.removePhotoBody, [
       { text: copy.keepPhoto, style: 'cancel' },
       { text: copy.removePhotoConfirm, style: 'destructive', onPress: () => vm.removePhoto(photo) },
     ]);
+  };
   const tile = {
     flex: 1,
     borderRadius: 14,
@@ -502,18 +512,20 @@ function CityPicker({ vm }: { vm: EditProfileViewModel }) {
           paddingVertical: 10,
         }}
       >
+        {/* The box is pale in both schemes (chipFill), so its text stays ink, as in setup's
+            CityField: the scheme's own text colour is light on dark and vanished here. */}
         <Host matchContents pointerEvents="none" ignoreSafeArea="all">
-          <NativeIcon source={icons.location} size={16} color={theme.muted} />
+          <NativeIcon source={icons.location} size={16} color={palette.inkSecondary} />
         </Host>
-        <Text variant="bodySm" tone={vm.city ? undefined : 'muted'} style={{ flex: 1 }}>
+        <Text variant="bodySm" style={{ flex: 1, color: vm.city ? palette.ink : palette.inkSecondary }}>
           {vm.city?.label ?? (vm.cityDetecting ? copy.cityDetecting : copy.cityUnknown)}
         </Text>
         {vm.cityDetecting ? (
           <Host matchContents>
-            <NativeSpinner size={14} color={theme.muted} />
+            <NativeSpinner size={14} color={palette.inkSecondary} />
           </Host>
         ) : vm.cityDetected ? (
-          <Text variant="bodyXs" tone="muted">
+          <Text variant="bodyXs" style={{ color: palette.inkSecondary }}>
             {copy.cityAutoDetected}
           </Text>
         ) : null}

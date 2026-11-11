@@ -9,6 +9,7 @@ import { ConfirmItsYouDialog } from '../components/ConfirmItsYouDialog';
 import { SettingsFrame } from '../components/SettingsFrame';
 import { settingsCopy, settingsErrors } from '../copy';
 import { useDeleteAccount } from '../hooks/useAccountFlows';
+import { haptics } from '@shared/feedback/haptics';
 
 /**
  * Delete account (`DELETE /me`): what happens (14 days' grace, every device
@@ -24,6 +25,7 @@ export function DeleteAccountScreen({ onBack }: { onBack: () => void }) {
   const change = useCallback((t: string) => setReason(t), []);
 
   const confirm = () =>
+    haptics.warning();
     Alert.alert(copy.confirmTitle, copy.confirmBody, [
       { text: settingsCopy.hub.cancel, style: 'cancel' },
       { text: copy.confirm, style: 'destructive', onPress: () => flow.submit(reason) },

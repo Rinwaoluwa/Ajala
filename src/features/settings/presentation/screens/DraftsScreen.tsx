@@ -12,6 +12,7 @@ import { LoadFailed } from '../components/LoadFailed';
 import { SettingsFrame } from '../components/SettingsFrame';
 import { settingsCopy, settingsErrors } from '../copy';
 import { useDrafts } from '../hooks/useSettingsData';
+import { haptics } from '@shared/feedback/haptics';
 
 /**
  * Drafts (Figma Settings / Drafts, light and dark): "Saved drafts", pills to show
@@ -39,7 +40,8 @@ export function DraftsScreen({
   const [filter, setFilter] = useState<DraftFilter>('all');
   const shown = drafts.drafts ? filterDrafts(drafts.drafts, filter) : null;
 
-  const confirmDelete = (draft: Draft) =>
+  const confirmDelete = (draft: Draft) => {
+    haptics.warning();
     Alert.alert(copy.deleteTitle, copy.deleteBody, [
       { text: settingsCopy.hub.cancel, style: 'cancel' },
       {
@@ -51,6 +53,7 @@ export function DraftsScreen({
           }),
       },
     ]);
+  };
 
   return (
     <SettingsFrame title={copy.title} onBack={onBack}>

@@ -1,5 +1,6 @@
 import { View } from 'react-native';
 
+import { haptics } from '@shared/feedback/haptics';
 import { ListGroup, ListRow, Text } from '@shared/components';
 import { setAppearance, useAppearancePreference, type AppearancePreference } from '@shared/state/appearance';
 
@@ -34,7 +35,10 @@ export function AppearanceScreen({ onBack }: { onBack: () => void }) {
               title={copy[option]}
               subtitle={copy[`${option}Body` as const]}
               checked={current === option}
-              onPress={() => setAppearance(option)}
+              onPress={() => {
+                if (option !== current) haptics.select();
+                setAppearance(option);
+              }}
             />
           ))}
         </ListGroup>

@@ -11,6 +11,7 @@ import { SettingsFrame } from '../components/SettingsFrame';
 import { settingsCopy } from '../copy';
 import { useAccount, useDrafts, useSupportLinks } from '../hooks/useSettingsData';
 import type { SettingsDestination } from '../navigation/routes';
+import { haptics } from '@shared/feedback/haptics';
 
 /**
  * Settings (Figma Settings, light and dark): who is signed in, then ACCOUNT,
@@ -32,6 +33,7 @@ export function SettingsScreen({ onBack, onNavigate, onOpenProfile }: SettingsSc
   const signOut = useSignOut();
 
   const logOut = () =>
+    haptics.warning();
     Alert.alert(copy.logOutConfirm, copy.logOutBody, [
       { text: copy.cancel, style: 'cancel' },
       { text: copy.logOut, style: 'destructive', onPress: () => void signOut() },

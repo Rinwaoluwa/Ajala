@@ -13,6 +13,7 @@ import { settingsCopy, settingsErrors } from '../copy';
 import { useUnlinkIdentity } from '../hooks/useAccountFlows';
 import { useAccount } from '../hooks/useSettingsData';
 import type { SettingsDestination } from '../navigation/routes';
+import { haptics } from '@shared/feedback/haptics';
 
 /**
  * Connected accounts: the ways this account signs in (`identities` on `GET /me`).
@@ -41,11 +42,13 @@ export function ConnectedAccountsScreen({
     apple: copy.apple,
   };
 
-  const confirm = (provider: LinkedProvider) =>
+  const confirm = (provider: LinkedProvider) => {
+    haptics.warning();
     Alert.alert(copy.unlinkTitle(names[provider]), copy.unlinkBody(names[provider]), [
       { text: settingsCopy.hub.cancel, style: 'cancel' },
       { text: copy.unlink, style: 'destructive', onPress: () => flow.unlink(provider) },
     ]);
+  };
 
   return (
     <SettingsFrame title={copy.title} onBack={onBack}>
