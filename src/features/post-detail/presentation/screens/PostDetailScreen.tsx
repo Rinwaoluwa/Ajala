@@ -1,14 +1,5 @@
 import { useState } from 'react';
-import {
-  Alert,
-  KeyboardAvoidingView,
-  Linking,
-  Platform,
-  useWindowDimensions,
-  Share,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { Alert, Linking, Platform, useWindowDimensions, Share, TouchableOpacity, View } from 'react-native';
 import Animated, {
   FadeIn,
   interpolate,
@@ -23,7 +14,10 @@ import {
   Avatar,
   Button,
   EmptyState,
+  KeyboardStickyBar,
+  LoadFailedState,
   NoteCard,
+  PhotoViewer,
   StatusSheet,
   SvgIcon,
   Tag,
@@ -43,7 +37,7 @@ import { postCopy, postErrorMessages } from '../copy';
 import { formatPrice, formatRecurrence, formatWhen } from '../format';
 import { locationLines, mapsUrl } from '../location';
 import { usePostDetail } from '../hooks/usePostDetail';
-import { CommentBar, CommentsSection } from '../components/Comments';
+import { COMMENT_BAR_PAD, CommentBar, CommentsSection } from '../components/Comments';
 import { useComments } from '../hooks/useComments';
 import { InfoRow, StatTile } from '../components/InfoRow';
 import { ClosedNote, JoinBar } from '../components/JoinBar';
@@ -64,7 +58,11 @@ import { WhoIsGoing } from '../components/WhoIsGoing';
  * States: a skeleton while it loads; "This post isn't available" for a 404 (a
  * draft, removed, or the host blocked the viewer); a retry when the network
  * failed. Pulling down past the top stretches the photo (no gap above it); the
- * post is fetched again each time the page opens.
+ * post is fetched again each time the page opens. A tap on a photo opens it
+ * full screen, where it can be zoomed (`PhotoViewer`).
+ *
+ * The comment bar rides the keyboard by itself (`KeyboardStickyBar`), so the
+ * page never resizes or shifts when the field is tapped.
  *
  * Motion: the body rises in once loaded (`enterRise`); the button's label
  * cross-fades as the state changes; people rows rise in, staggered.
@@ -84,6 +82,16 @@ export type PostDetailScreenProps = {
    * /conversations { postId }` finds it). Shown to the host and the people going.
    */
   onOpenGroupChat?: (postId: string) => void;
+  /** The host's "Edit post": the create wizard over this post (the route opens it). */
+  onEditPost?: (post: { id: string; type: PostType }) => void;
+  /**
+   * Whether this person may see Plans (Travel Pro). Without it, someone else's
+   * Plan shows its photo and title and an offer to unlock, unless they are
+   * already going. True when left out.
+   */
+  canSeePlans?: boolean;
+  /** "Unlock with Travel" on a locked Plan: the paywall. */
+  onUnlockPlans?: () => void;
   /**
    * The tapped card's photo, title and type. With it the page opens on its real
    * header (the photo is already in the image cache) rather than a blank or a
@@ -98,6 +106,9 @@ export function PostDetailScreen({
   onOpenProfile,
   onMessageHost,
   onOpenGroupChat,
+  onEditPost,
+  canSeePlans = true,
+  onUnlockPlans,
   preview = null,
 }: PostDetailScreenProps) {
   const theme = useTheme();
@@ -117,6 +128,8 @@ export function PostDetailScreen({
   // The shared save: optimistic, and the same on every card showing this post.
   const save = useSavePost(postId, vm.post?.saved ?? false);
   const [reporting, setReporting] = useState<string | null>(null);
+  // Which photo is open full screen; null while none is.
+  const [viewing, setViewing] = useState<number | null>(null);
 
   if (vm.loading) {
     return (
@@ -149,16 +162,41 @@ export function PostDetailScreen({
     const copy = notFound ? postCopy.notFound : postCopy.failed;
     return (
       <View className="flex-1 items-center justify-center bg-background px-20">
-        <EmptyState
-          title={copy.title}
-          body={copy.body}
-          action={{ label: copy.action, onPress: notFound ? onBack : vm.retry, variant: 'primary' }}
-        />
+        {notFound ? (
+          <EmptyState
+            title={copy.title}
+            body={copy.body}
+            action={{ label: copy.action, onPress: onBack, variant: 'primary' }}
+          />
+        ) : (
+          <LoadFailedState
+            kind={vm.error === 'network' ? 'network' : 'server'}
+            title={copy.title}
+            body={copy.body}
+            action={{ label: copy.action, onPress: vm.retry, variant: 'primary' }}
+          />
+        )}
       </View>
     );
   }
 
   const post = vm.post;
+  // A Plan is Pro-only to see; the host, and anyone already going, always see theirs.
+  if (post.type === 'plan' && !canSeePlans && !post.isHost && post.rsvpState !== 'going') {
+    const p = postCopy.proPlan;
+    return (
+      <View style={{ flex: 1, backgroundColor: theme.background }}>
+        <PostHero images={post.images.slice(0, 1)} title={post.title} type={post.type} onBack={onBack} menu={null} />
+        <View style={{ paddingHorizontal: 20, paddingTop: 20, gap: 16 }}>
+          <Text variant="headingLg" accessibilityRole="header">
+            {post.title}
+          </Text>
+          <NoteCard title={p.title} body={p.body} />
+          {onUnlockPlans ? <Button label={p.unlock} size="lg" fullWidth onPress={onUnlockPlans} /> : null}
+        </View>
+      </View>
+    );
+  }
   const action = vm.action ?? 'none';
   const when = formatWhen(post.startAt, post.endAt);
   const where = locationLines(post);
@@ -214,6 +252,7 @@ export function PostDetailScreen({
 
   const menu = menuActions(post, {
     onReport: () => setReporting(post.id),
+    onEdit: onEditPost ? () => onEditPost({ id: post.id, type: post.type }) : null,
     onCancel: () => confirmCancel(),
     onDelete: () => confirmDelete(),
   });
@@ -254,17 +293,16 @@ export function PostDetailScreen({
   };
 
   return (
-    // The comment bar is under the scroll view, so the screen itself makes room for the keyboard.
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: theme.background }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
+    <View style={{ flex: 1, backgroundColor: theme.background }}>
       <Animated.ScrollView
         onScroll={onScroll}
         scrollEventThrottle={16}
         contentContainerStyle={{ paddingBottom: 32 }}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="interactive"
+        // iOS: the end of the page can still be reached while the keyboard is up; the page
+        // itself is not resized, so nothing on it moves when the comment field is tapped.
+        automaticallyAdjustKeyboardInsets
       >
         <PostHero
           images={post.images}
@@ -275,6 +313,7 @@ export function PostDetailScreen({
           save={canSave ? { saved: save.saved, onToggle: save.toggle } : null}
           scrollY={scrollY}
           firstPlaceholder={preview?.imageUrl}
+          onPressImage={setViewing}
         />
 
         {/* After a preview the title is already there: the rest fades in under it, nothing moves. */}
@@ -445,15 +484,24 @@ export function PostDetailScreen({
         ]}
       />
 
-      <CommentBar
-        viewer={vm.viewer}
-        replyTo={talk.replyTo}
-        onCancelReply={talk.cancelReply}
-        onSend={talk.submit}
-        sending={talk.sending}
-        closed={talk.closed}
-      />
+      <KeyboardStickyBar gap={COMMENT_BAR_PAD}>
+        <CommentBar
+          viewer={vm.viewer}
+          replyTo={talk.replyTo}
+          onCancelReply={talk.cancelReply}
+          onSend={talk.submit}
+          sending={talk.sending}
+          closed={talk.closed}
+        />
+      </KeyboardStickyBar>
 
+      <PhotoViewer
+        images={post.images}
+        initialIndex={viewing ?? 0}
+        isPresented={viewing !== null}
+        onDismiss={() => setViewing(null)}
+        label={post.title}
+      />
       <ReportPostFlow postId={reporting} onClose={() => setReporting(null)} />
       <ReportCommentDialog
         isPresented={talk.reporting !== null}
@@ -471,7 +519,7 @@ export function PostDetailScreen({
         onAction={talk.dismissReportSent}
         onDismiss={talk.dismissReportSent}
       />
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 
@@ -479,16 +527,20 @@ function showError(e: unknown) {
   Alert.alert(postErrorMessages[isPostDetailError(e) ? e.code : 'unknown']);
 }
 
-/** The ⋯ menu: the host may cancel (a live post) or delete; anyone else may report. */
+/** The ⋯ menu: the host may edit or cancel (a live post) or delete; anyone else may report. */
 function menuActions(
   post: PostDetail,
-  handlers: { onReport: () => void; onCancel: () => void; onDelete: () => void },
+  handlers: { onReport: () => void; onEdit: (() => void) | null; onCancel: () => void; onDelete: () => void },
 ): MenuAction[] {
   const h = postCopy.host;
   if (!post.isHost) {
     return [{ label: postCopy.report, systemImage: 'flag', destructive: true, onPress: handlers.onReport }];
   }
+  const { onEdit } = handlers;
   return [
+    ...(post.status === 'published' && onEdit
+      ? [{ label: h.edit, systemImage: 'pencil', onPress: onEdit }]
+      : []),
     ...(post.status === 'published'
       ? [{ label: h.cancel, systemImage: 'xmark.circle', destructive: true, onPress: handlers.onCancel }]
       : []),

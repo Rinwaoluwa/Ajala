@@ -1,11 +1,11 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Host } from '@expo/ui';
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
-import { TouchableOpacity, View } from 'react-native';
+import { Platform, TouchableOpacity, View } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
+  Host,
   Avatar,
   EmptyState,
   MenuButton,
@@ -303,6 +303,9 @@ function CommentRow({
 
 const NOTICE_MS = 3500;
 
+/** The comment bar's padding above and below its field. */
+export const COMMENT_BAR_PAD = 16;
+
 /**
  * The bar at the foot: your photo, "Add a comment…", send. Replying shows
  * "Replying to <name>" above it with a way out. A refusal (too long, offline)
@@ -363,8 +366,12 @@ export function CommentBar({
         borderTopColor: theme.border,
         backgroundColor: theme.background,
         paddingHorizontal: 20,
-        paddingTop: 12,
-        paddingBottom: keyboardShown ? 12 : Math.max(insets.bottom, 12),
+        // The same 16pt above the field as below it: below, that is the home indicator's
+        // room while the keyboard is down, and 16pt above the keyboard while it is up
+        // (iOS: `KeyboardStickyBar gap`; Android: the app shrinks above the keyboard).
+        paddingTop: COMMENT_BAR_PAD,
+        paddingBottom:
+          Platform.OS === 'android' && keyboardShown ? COMMENT_BAR_PAD : Math.max(insets.bottom, COMMENT_BAR_PAD),
         gap: 8,
       }}
     >

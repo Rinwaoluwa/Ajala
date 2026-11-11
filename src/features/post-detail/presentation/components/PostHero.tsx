@@ -1,5 +1,4 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Host } from '@expo/ui';
 import { useEffect, useState, type ReactNode } from 'react';
 import { TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import Animated, {
@@ -12,6 +11,7 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
+  Host,
   GlassSurface,
   ImageCarousel,
   MenuButton,
@@ -52,6 +52,7 @@ export function PostHero({
   save = null,
   scrollY,
   firstPlaceholder,
+  onPressImage,
 }: {
   images: string[];
   title: string;
@@ -69,6 +70,8 @@ export function PostHero({
   scrollY?: SharedValue<number>;
   /** The tapped card's copy of the first photo, shown under it until it loads. */
   firstPlaceholder?: string | null;
+  /** A tap on a photo: the page opens it full screen. */
+  onPressImage?: (index: number) => void;
 }) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
@@ -100,6 +103,7 @@ export function PostHero({
             onIndexChange={setIndex}
             height={height}
             progress={progress}
+            onPressImage={onPressImage}
           />
         ) : null}
       </Animated.View>

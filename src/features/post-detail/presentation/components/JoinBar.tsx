@@ -1,8 +1,8 @@
-import { Host } from '@expo/ui';
 import { TouchableOpacity, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
 import {
+  Host,
   Button,
   MenuButton,
   NativeIcon,

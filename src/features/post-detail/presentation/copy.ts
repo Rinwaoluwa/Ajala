@@ -127,7 +127,14 @@ export const postCopy = {
     cancelReply: 'Cancel',
     sending: 'Sending…',
   },
+  // Not drawn: a Plan opened without Travel Pro (Plans are a Pro feature, 10 Nov).
+  proPlan: {
+    title: 'Plans are a Pro feature',
+    body: 'See the full plan, its stops and who is going, and join it, with a Travel subscription.',
+    unlock: 'Unlock with Travel',
+  },
   host: {
+    edit: 'Edit post',
     cancel: 'Cancel this post',
     cancelTitle: 'Cancel this post?',
     cancelBody: 'Everyone going or waiting gets a notification. This can’t be undone.',

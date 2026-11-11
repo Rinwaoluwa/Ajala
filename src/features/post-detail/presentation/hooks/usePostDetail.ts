@@ -38,16 +38,19 @@ export function usePostDetail(postId: string) {
   const viewerId = viewer.data?.id ?? null;
   const seen = useMemo(() => (post.data ? asSeenBy(post.data, viewerId) : null), [post.data, viewerId]);
 
+  // Who is going is for the host and the people going (403 otherwise), so only they ask;
+  // everyone else sees the count from the post itself.
+  const isHost = seen?.isHost ?? false;
+  const canSeePeople = isHost || post.data?.rsvpState === 'going';
   const going = useInfiniteQuery({
     queryKey: postDetailKeys.attendees(postId, 'going'),
     queryFn: ({ pageParam }) => useCases.getAttendees(postId, 'going', pageParam),
     initialPageParam: null as string | null,
     getNextPageParam: (last: AttendeesPage) => last.nextCursor,
-    enabled: post.isSuccess,
+    enabled: post.isSuccess && canSeePeople,
   });
 
   // Requests are the host's only (403 otherwise), so only the host asks.
-  const isHost = seen?.isHost ?? false;
   const requested = useInfiniteQuery({
     queryKey: postDetailKeys.attendees(postId, 'requested'),
     queryFn: ({ pageParam }) => useCases.getAttendees(postId, 'requested', pageParam),
@@ -151,7 +154,7 @@ export function usePostDetail(postId: string) {
     viewer: viewer.data ?? null,
 
     people,
-    peopleLoading: going.isPending && post.isSuccess,
+    peopleLoading: going.isPending && going.fetchStatus !== 'idle',
     peopleError: codeOf(going.error),
     retryPeople: () => void going.refetch(),
     hasMorePeople: going.hasNextPage,

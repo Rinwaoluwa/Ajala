@@ -1,3 +1,5 @@
+import { POST_LIST_PREFIXES } from '@shared/state/postQueryKeys';
+
 import type { AttendeeState } from '../../domain/entities/PostDetail';
 
 /** The post page's TanStack Query keys, under `postDetail` so they never meet another feature's. */
@@ -12,4 +14,4 @@ export const postDetailKeys = {
 };
 
 /** Lists a post shows up in; refreshed when it is cancelled or deleted. Owned by other features. */
-export const LISTS_SHOWING_POSTS = [['feed'], ['explore'], ['trips']] as const;
+export const LISTS_SHOWING_POSTS = POST_LIST_PREFIXES;
