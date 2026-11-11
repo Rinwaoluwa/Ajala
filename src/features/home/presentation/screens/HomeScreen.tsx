@@ -24,6 +24,7 @@ import {
   Text,
   useListEntrance,
 } from '@shared/components';
+import { haptics } from '@shared/feedback/haptics';
 import { useTheme } from '@shared/hooks/useTheme';
 import { SCREEN_GUTTER } from '@shared/theme';
 
@@ -249,7 +250,10 @@ export function HomeScreen({
         scrollEnabled={!feed.loading}
         refreshControl={
           showPosts ? (
-            <RefreshControl refreshing={feed.refreshing} onRefresh={feed.refresh} tintColor={theme.primary} />
+            <RefreshControl refreshing={feed.refreshing} onRefresh={() => {
+              haptics.tap();
+              feed.refresh();
+            }} tintColor={theme.primary} />
           ) : undefined
         }
         ListFooterComponent={

@@ -1,7 +1,7 @@
 import { Pressable, View, useColorScheme } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
-import { Host, GlassSurface, NativeIcon, SkeletonBlock, Text, VectorIcon, icons } from '@shared/components';
+import { Host, GlassSurface, JellyPress, NativeIcon, SkeletonBlock, Text, VectorIcon, icons } from '@shared/components';
 import { useFontScale } from '@shared/hooks/useFontScale';
 import { useTheme } from '@shared/hooks/useTheme';
 import { palette } from '@shared/theme';
@@ -157,34 +157,30 @@ export function FeedHeader({
             ['chat', homeCopy.messages, unreadChatsCount, onMessages],
           ] as const
         ).map(([icon, name, count, onPress]) => (
-          <Pressable
+          // A jelly wobble on touch, on both platforms (`JellyPress`).
+          <JellyPress
             key={icon}
             onPress={onPress}
             accessibilityRole="button"
             accessibilityLabel={count > 0 ? `${name}, ${count} unread` : name}
           >
-            {({ pressed }) => (
-              <>
-                <GlassSurface
-                  fallbackColor={shown ? theme.iconButtonFill : theme.skeletonSurface}
-                  interactive
-                  shadow={false}
-                  onPlainPage
-                  style={{
-                    width: BUTTON,
-                    height: BUTTON,
-                    borderRadius: BUTTON / 2,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    opacity: pressed ? 0.6 : 1,
-                  }}
-                >
-                  <VectorIcon name={icon} size={22} color={iconTint} />
-                </GlassSurface>
-                {count > 0 ? <UnreadBadge count={count} /> : null}
-              </>
-            )}
-          </Pressable>
+            <GlassSurface
+              fallbackColor={shown ? theme.iconButtonFill : theme.skeletonSurface}
+              interactive
+              shadow={false}
+              onPlainPage
+              style={{
+                width: BUTTON,
+                height: BUTTON,
+                borderRadius: BUTTON / 2,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <VectorIcon name={icon} size={22} color={iconTint} />
+            </GlassSurface>
+            {count > 0 ? <UnreadBadge count={count} /> : null}
+          </JellyPress>
         ))}
       </View>
     </View>
