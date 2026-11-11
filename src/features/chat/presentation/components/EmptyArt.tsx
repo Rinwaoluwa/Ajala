@@ -1,5 +1,4 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { View } from 'react-native';
 
 import { useTheme } from '@shared/hooks/useTheme';
 
@@ -10,18 +9,6 @@ import { useTheme } from '@shared/hooks/useTheme';
  */
 export function EmptyArt({ name }: { name: React.ComponentProps<typeof Ionicons>['name'] }) {
   const theme = useTheme();
-  return (
-    <View
-      style={{
-        width: 104,
-        height: 104,
-        borderRadius: 52,
-        backgroundColor: theme.selectedFill,
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-    >
-      <Ionicons name={name} size={44} color={theme.selectedForeground} />
-    </View>
-  );
+  // A plain, large icon in the brand colour, as every empty state draws it (`EmptyState`'s icon).
+  return <Ionicons name={name} size={56} color={theme.primary} />;
 }

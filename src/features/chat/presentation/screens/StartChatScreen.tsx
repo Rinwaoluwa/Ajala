@@ -55,7 +55,7 @@ export function StartChatScreen({ userId, postId, onBack, onStarted }: StartChat
           </Animated.View>
         ) : vm.error && problem ? (
           <Animated.View entering={FadeIn.duration(200)} style={{ gap: 12 }}>
-            <EmptyState title={problem.title} body={problem.body} />
+            <EmptyState icon="alert-circle-outline" title={problem.title} body={problem.body} />
             <View style={{ gap: 12 }}>
               {RETRYABLE.has(vm.error) ? (
                 <Button label={chatCopy.retry} size="lg" fullWidth onPress={vm.retry} />

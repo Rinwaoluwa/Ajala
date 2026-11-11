@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Pressable, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 
-import { Text, enterRise } from '@shared/components';
+import { PhotoViewer, Text, enterRise } from '@shared/components';
 import { useTheme } from '@shared/hooks/useTheme';
 import { palette } from '@shared/theme';
 
@@ -87,7 +87,7 @@ export function MessageBubble({
         }}
       >
         {images.length > 0 && !message.removed ? (
-          <PhotoGrid images={images} placeholder={theme.skeletonSurface} />
+          <PhotoGrid images={images} placeholder={theme.skeletonSurface} onLongPress={onReport} />
         ) : null}
         {text ? (
           <View
@@ -120,7 +120,8 @@ export function MessageBubble({
           {chatCopy.thread.postUnavailable}
         </Text>
       ) : null}
-      <Text variant="bodyXs" tone="muted" importantForAccessibility="no">
+      {/* "10:30 · Sent" on one line: Android wrapped it under short bubbles. */}
+      <Text variant="bodyXs" tone="muted" numberOfLines={1} importantForAccessibility="no">
         {meta}
       </Text>
     </Animated.View>
@@ -146,8 +147,22 @@ const PHOTO_GAP = 4;
  * aspect ratio came out zero wide inside the bubble, leaving a blank gap where
  * the photos should be.
  */
-function PhotoGrid({ images, placeholder }: { images: ChatMessage['images']; placeholder: string }) {
+/**
+ * A message's photos: one wide, or two to a row. Tapping one opens it full
+ * screen (`PhotoViewer`): swipe between them, pinch to zoom, double-tap, drag.
+ * A long press still reports the message, as it does on the bubble.
+ */
+function PhotoGrid({
+  images,
+  placeholder,
+  onLongPress,
+}: {
+  images: ChatMessage['images'];
+  placeholder: string;
+  onLongPress?: () => void;
+}) {
   const [width, setWidth] = useState(0);
+  const [open, setOpen] = useState<number | null>(null);
   const half = (width - PHOTO_GAP) / 2;
 
   return (
@@ -161,17 +176,29 @@ function PhotoGrid({ images, placeholder }: { images: ChatMessage['images']; pla
             const w = alone ? width : half;
             const h = images.length === 1 ? (width * 3) / 4 : w;
             return (
-              <Image
+              <Pressable
                 key={`${image.thumbUrl}-${i}`}
-                source={{ uri: image.thumbUrl }}
-                cachePolicy="memory"
-                contentFit="cover"
+                onPress={() => setOpen(i)}
+                onLongPress={onLongPress}
+                accessibilityRole="imagebutton"
                 accessibilityLabel={chatCopy.thread.photo(i + 1, images.length)}
-                style={{ width: w, height: h, borderRadius: 16, backgroundColor: placeholder }}
-              />
+              >
+                <Image
+                  source={{ uri: image.thumbUrl }}
+                  cachePolicy="memory"
+                  contentFit="cover"
+                  style={{ width: w, height: h, borderRadius: 16, backgroundColor: placeholder }}
+                />
+              </Pressable>
             );
           })
         : null}
+      <PhotoViewer
+        images={images.map((image) => image.url || image.thumbUrl)}
+        initialIndex={open ?? 0}
+        isPresented={open !== null}
+        onDismiss={() => setOpen(null)}
+      />
     </View>
   );
 }

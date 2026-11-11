@@ -180,7 +180,7 @@ export function ChatScreen({ threadId, onBack, onOpenPost, onOpenProfile }: Chat
             entering={FadeIn.duration(200)}
             style={{ flex: 1, justifyContent: 'center', paddingHorizontal: SCREEN_GUTTER, paddingTop: chrome }}
           >
-            <EmptyState
+            <EmptyState icon="chatbubbles-outline"
               title={vm.gone ? chatCopy.gone.title : chatCopy.thread.loadFailed}
               body={vm.gone || !vm.error ? undefined : chatErrorMessages[vm.error]}
             />
@@ -224,7 +224,7 @@ export function ChatScreen({ threadId, onBack, onOpenPost, onOpenProfile }: Chat
               }
               ListEmptyComponent={
                 <View style={{ flex: 1, justifyContent: 'center' }}>
-                  <EmptyState title={chatCopy.thread.empty.title} body={chatCopy.thread.empty.body} />
+                  <EmptyState icon="chatbubbles-outline" title={chatCopy.thread.empty.title} body={chatCopy.thread.empty.body} />
                 </View>
               }
             />

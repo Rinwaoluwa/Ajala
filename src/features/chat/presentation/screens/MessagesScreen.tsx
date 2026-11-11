@@ -59,7 +59,7 @@ export function MessagesScreen({ onBack, onOpenThread, onExplore }: MessagesScre
     if (vm.loading) return <ThreadsSkeleton />;
     if (vm.error) {
       return (
-        <EmptyState
+        <EmptyState icon="cloud-offline-outline"
           title={chatErrorMessages[vm.error]}
           action={{ label: chatCopy.retry, onPress: vm.retry, variant: 'primary' }}
         />
