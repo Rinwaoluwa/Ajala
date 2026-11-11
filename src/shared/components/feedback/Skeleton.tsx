@@ -54,7 +54,7 @@ export function SkeletonPulse({ children, label = 'Loading' }: { children: React
 
 export type SkeletonBlockProps = {
   width?: DimensionValue;
-  height: number;
+  height: DimensionValue;
   radius?: number;
   /** `surface`: the paler card body colour, for a block inside a card. */
   tone?: 'block' | 'surface';

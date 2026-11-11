@@ -149,6 +149,22 @@ export const icons = {
     symbol: 'gearshape',
     android: require('@expo/material-symbols/settings.xml') as number,
   },
+  editSquare: {
+    symbol: 'square.and.pencil',
+    android: require('@expo/material-symbols/edit_square.xml') as number,
+  },
+  book: {
+    symbol: 'book',
+    android: require('@expo/material-symbols/menu_book.xml') as number,
+  },
+  externalLink: {
+    symbol: 'arrow.up.right.square',
+    android: require('@expo/material-symbols/open_in_new.xml') as number,
+  },
+  photos: {
+    symbol: 'photo.on.rectangle',
+    android: require('@expo/material-symbols/photo_library.xml') as number,
+  },
   edit: {
     symbol: 'pencil',
     android: require('@expo/material-symbols/edit.xml') as number,

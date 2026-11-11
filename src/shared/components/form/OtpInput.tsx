@@ -1,4 +1,4 @@
-import { Host, TextInput, useNativeState, type ObservableState, type TextInputRef } from '@expo/ui';
+import { TextInput, useNativeState, type ObservableState, type TextInputRef } from '@expo/ui';
 import { useImperativeHandle, useRef, useState, type Ref } from 'react';
 import { StyleSheet, View } from 'react-native';
 
@@ -6,6 +6,7 @@ import { useTheme } from '@shared/hooks/useTheme';
 import { layout } from '@shared/theme';
 
 import { Text } from '../ui/Text';
+import { Host } from '../ui/Host';
 
 /**
  * A one-time-code entry: a row of boxes, one digit each.

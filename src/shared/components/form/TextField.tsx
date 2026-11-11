@@ -1,4 +1,4 @@
-import { Host, TextInput, type TextInputRef } from '@expo/ui';
+import { TextInput, type TextInputRef } from '@expo/ui';
 import { memo, useCallback, useEffect, useRef, useState, type ComponentProps, type ReactNode } from 'react';
 import { Platform, Pressable } from 'react-native';
 import Animated, {
@@ -17,6 +17,7 @@ import { layout, textStyles } from '@shared/theme';
 import { nativeTextScaleCap } from '../ui/nativeTextScale';
 import { Text } from '../ui/Text';
 import { FieldFrame, fieldLineHeight } from './FieldFrame';
+import { Host } from '../ui/Host';
 
 /**
  * A labelled single-line text field. The input is Expo UI's `TextInput` — a real

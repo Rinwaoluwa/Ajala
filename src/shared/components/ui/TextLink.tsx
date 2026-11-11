@@ -1,10 +1,11 @@
-import { Button as ExpoButton, Host, Text as ExpoText } from '@expo/ui';
+import { Button as ExpoButton, Text as ExpoText } from '@expo/ui';
 
 import { useTheme } from '@shared/hooks/useTheme';
 import { textStyles } from '@shared/theme';
 
 import { NATIVE_BUTTON_INSET } from './nativeButtonInset';
 import { nativeTextScaleCap } from './nativeTextScale';
+import { Host } from '../ui/Host';
 
 /**
  * A short tappable phrase, such as "SIGN IN" at the end of "Already have an

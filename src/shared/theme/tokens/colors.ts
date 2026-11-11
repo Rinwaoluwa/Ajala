@@ -40,6 +40,13 @@ export const palette = {
   coralLight: c.dark.accent.value,
   errorLight: c.dark.error.value,
   successLight: c.dark.success.value,
+
+  /**
+   * The red of destructive actions (Log out, Delete account) in the Settings
+   * design, read off the frame on 10 Nov 2026; the same in both schemes. Not in
+   * the token contract yet — add it there once design confirms the hex.
+   */
+  destructiveAction: '#F8546F',
 } as const;
 
 export type PaletteColor = keyof typeof palette;

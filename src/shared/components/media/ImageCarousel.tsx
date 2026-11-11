@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import { useCallback } from 'react';
-import { type ImageSourcePropType, type ViewProps } from 'react-native';
+import { Pressable, type ImageSourcePropType, type ViewProps } from 'react-native';
 import type { SharedValue } from 'react-native-reanimated';
 
 import { Pager } from '../layout/Pager';
@@ -47,6 +47,8 @@ export type ImageCarouselProps = Omit<ViewProps, 'children'> & {
    * frame-for-frame instead of catching up after the swipe settles.
    */
   progress?: SharedValue<number>;
+  /** A tap on a photo (the post page opens it full screen). Without it, photos are not buttons. */
+  onPressImage?: (index: number) => void;
   className?: string;
 };
 
@@ -55,10 +57,11 @@ const FADE_MS = 220;
 
 const keyOf = (image: CarouselImage) => image.key;
 
-export function ImageCarousel({ images, ...props }: ImageCarouselProps) {
+export function ImageCarousel({ images, onPressImage, ...props }: ImageCarouselProps) {
   const renderPage = useCallback(
-    (item: CarouselImage) =>
-      item.source ? (
+    (item: CarouselImage, index: number) => {
+      if (!item.source) return <></>;
+      const image = (
         <Image
           source={item.source}
           placeholder={
@@ -76,12 +79,24 @@ export function ImageCarousel({ images, ...props }: ImageCarouselProps) {
           cachePolicy="memory-disk"
           transition={FADE_MS}
           accessibilityLabel={item.accessibilityLabel}
-          accessible={Boolean(item.accessibilityLabel)}
+          accessible={Boolean(item.accessibilityLabel) && !onPressImage}
         />
-      ) : (
-        <></>
-      ),
-    [],
+      );
+      if (!onPressImage) return image;
+      // A tap opens the photo; a drag still pages, since the pager takes the move.
+      return (
+        <Pressable
+          onPress={() => onPressImage(index)}
+          accessibilityRole="imagebutton"
+          accessibilityLabel={item.accessibilityLabel}
+          accessibilityHint="Opens the photo full screen"
+          style={{ width: '100%', height: '100%' }}
+        >
+          {image}
+        </Pressable>
+      );
+    },
+    [onPressImage],
   );
 
   return <Pager pages={images} keyOf={keyOf} renderPage={renderPage} {...props} />;

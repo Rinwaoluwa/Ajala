@@ -1,4 +1,4 @@
-import { Host, TextInput, type TextInputRef } from '@expo/ui';
+import { TextInput, type TextInputRef } from '@expo/ui';
 import { memo, useRef, useState } from 'react';
 
 import { useFontScale } from '@shared/hooks/useFontScale';
@@ -8,6 +8,7 @@ import { textStyles } from '@shared/theme';
 import { multilineFieldBox } from '../ui/nativeFieldBox';
 import { nativeTextScaleCap } from '../ui/nativeTextScale';
 import { FIELD_LINE_HEIGHT, FieldFrame } from './FieldFrame';
+import { Host } from '../ui/Host';
 
 /**
  * A labelled text box of several lines: a post's description ("Describe the

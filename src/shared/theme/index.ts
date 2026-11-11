@@ -64,7 +64,14 @@ export type SemanticColors = {
   accentForeground: string;
 
   success: string;
+  /** Validation and error text: the brand error red, which holds contrast on both schemes. */
   destructive: string;
+  /**
+   * A destructive action the person can take — Log out, Delete account, Block
+   * user, Remove — as the Settings design draws them: one coral red in both
+   * schemes. Not for validation text, which is `destructive`.
+   */
+  destructiveAction: string;
 
   /**
    * Fill and label of a filled primary button. Brand teal with white in BOTH
@@ -120,6 +127,12 @@ export type SemanticColors = {
   selectedForeground: string;
   /** A Marigold-tinted chip: the post-type tag on a card, the picker's back button. */
   accentSoft: string;
+  /**
+   * A pale mint panel (the profile's "Travel details" card) and the pills on it
+   * and on the profile (interests, languages).
+   */
+  panel: string;
+  panelPill: string;
 };
 
 const light: SemanticColors = {
@@ -138,6 +151,7 @@ const light: SemanticColors = {
 
   success: palette.success,
   destructive: palette.error,
+  destructiveAction: palette.destructiveAction,
 
   primaryFill: palette.teal,
   primaryFillForeground: palette.white,
@@ -161,6 +175,8 @@ const light: SemanticColors = {
   selectedFill: '#E6FAF7',
   selectedForeground: palette.teal,
   accentSoft: '#FBE7B8',
+  panel: '#F2F9F7',
+  panelPill: '#E6F1EF',
 };
 
 const dark: SemanticColors = {
@@ -182,6 +198,7 @@ const dark: SemanticColors = {
 
   success: palette.successLight,
   destructive: palette.errorLight,
+  destructiveAction: palette.destructiveAction,
 
   primaryFill: palette.teal,
   primaryFillForeground: palette.white,
@@ -210,6 +227,8 @@ const dark: SemanticColors = {
   selectedFill: '#E6FAF7',
   selectedForeground: palette.teal,
   accentSoft: '#FBE7B8',
+  panel: palette.deep,
+  panelPill: '#183D3A',
 };
 
 export const themes: Record<ColorScheme, SemanticColors> = { light, dark };

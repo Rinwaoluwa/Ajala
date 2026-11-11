@@ -32,7 +32,14 @@ import { GlassSurface } from '../surface/GlassSurface';
  * row scrolls sideways only once it no longer fits (`ScrollRow`).
  */
 
-export type PillTabOption<T extends string> = { value: T; label: string };
+/**
+ * A pill's own colours, for rows where each choice is told apart by colour (the
+ * home feed's post types): `fill` and `label` when chosen, `soft` and
+ * `softLabel` otherwise.
+ */
+export type PillColor = { fill: string; label: string; soft: string; softLabel: string };
+
+export type PillTabOption<T extends string> = { value: T; label: string; color?: PillColor };
 
 export type PillTabsProps<T extends string> = {
   options: readonly PillTabOption<T>[];
@@ -62,6 +69,7 @@ export function PillTabs<T extends string>({
           selected={o.value === value}
           disabled={disabled}
           look={look}
+          color={o.color}
           onPress={() => onChange(o.value)}
         />
       ))}
@@ -74,12 +82,14 @@ function Pill({
   selected,
   disabled,
   look,
+  color,
   onPress,
 }: {
   label: string;
   selected: boolean;
   disabled: boolean;
   look: 'filled' | 'outline';
+  color?: PillColor;
   onPress: () => void;
 }) {
   const theme = useTheme();
@@ -90,13 +100,15 @@ function Pill({
     on.set(withTiming(selected ? 1 : 0, { duration: 180, easing: Easing.out(Easing.quad) }));
   }, [selected, on]);
 
-  const rest = look === 'outline' ? theme.card : theme.pillFill;
-  const restLabel = glass ? theme.foreground : theme.pillForeground;
+  const rest = color?.soft ?? (look === 'outline' ? theme.card : theme.pillFill);
+  const restLabel = color?.softLabel ?? (glass ? theme.foreground : theme.pillForeground);
+  const chosen = color?.fill ?? theme.primaryFill;
+  const chosenLabel = color?.label ?? palette.white;
   const pillStyle = useAnimatedStyle(() => ({
-    backgroundColor: interpolateColor(on.value, [0, 1], [rest, theme.primaryFill]),
+    backgroundColor: interpolateColor(on.value, [0, 1], [rest, chosen]),
   }));
   const labelStyle = useAnimatedStyle(() => ({
-    color: interpolateColor(on.value, [0, 1], [restLabel, palette.white]),
+    color: interpolateColor(on.value, [0, 1], [restLabel, chosenLabel]),
   }));
 
   const text = (
@@ -128,7 +140,7 @@ function Pill({
       {glass ? (
         <GlassSurface
           fallbackColor={rest}
-          tint={selected ? theme.primaryFill : null}
+          tint={selected ? chosen : (color?.soft ?? null)}
           interactive={false}
           shadow={false}
           onPlainPage

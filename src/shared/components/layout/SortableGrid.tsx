@@ -28,7 +28,9 @@ import { scheduleOnRN } from 'react-native-worklets';
  * photos), or, without it, the tallest cell as measured — so rows grow with the
  * text-size setting.
  *
- * `footer` is one more cell after the items that never moves ("Add photo").
+ * `footer` is one more cell after the items that never moves ("Add photo"), or
+ * several (photos still uploading, then "Add photo"). `disabled` holds every
+ * cell in place — while the list is being changed some other way.
  *
  * Motion: the held cell lifts to 104% and follows the finger; the others slide
  * 200ms ease-out to their new places, and the released cell glides into its
@@ -48,7 +50,9 @@ export type SortableGridProps<T> = {
   gap: number;
   /** Cell height for a given cell width; measured from the cells when left out. */
   cellHeight?: (cellWidth: number) => number;
-  footer?: ReactNode;
+  footer?: ReactNode | readonly ReactNode[];
+  /** No dragging (and no move actions) while true. */
+  disabled?: boolean;
   /** What a cell is, for "Move photo 2 earlier". */
   itemLabel?: (index: number) => string;
 };
@@ -64,8 +68,10 @@ export function SortableGrid<T>({
   gap,
   cellHeight,
   footer,
+  disabled = false,
   itemLabel = (i) => `Item ${i + 1}`,
 }: SortableGridProps<T>) {
+  const fixed = (Array.isArray(footer) ? footer : [footer]).filter((f) => f != null && f !== false);
   const [width, setWidth] = useState(0);
   const [measured, setMeasured] = useState(0);
   const keys = items.map(keyOf);
@@ -80,7 +86,7 @@ export function SortableGrid<T>({
   const cellWidth = width > 0 ? (width - gap * (columns - 1)) / columns : 0;
   const rowHeight = cellHeight ? cellHeight(cellWidth) : measured;
   const geometry: Geometry = { cellWidth, cellHeight: rowHeight, columns, gap };
-  const count = items.length + (footer ? 1 : 0);
+  const count = items.length + fixed.length;
   const rows = Math.ceil(count / columns);
   const height = rows > 0 && rowHeight > 0 ? rows * rowHeight + (rows - 1) * gap : 0;
 
@@ -105,6 +111,7 @@ export function SortableGrid<T>({
                 fixedHeight={!!cellHeight}
                 onCellHeight={onCellHeight}
                 onMove={onMove}
+                disabled={disabled}
                 label={itemLabel(index)}
               >
                 {renderItem(item, index)}
@@ -112,18 +119,21 @@ export function SortableGrid<T>({
             );
           })
         : null}
-      {width > 0 && footer ? (
-        <View
-          style={{
-            position: 'absolute',
-            width: cellWidth,
-            height: rowHeight || undefined,
-            ...offsetFor(items.length, geometry),
-          }}
-        >
-          {footer}
-        </View>
-      ) : null}
+      {width > 0
+        ? fixed.map((cell, i) => (
+            <View
+              key={`fixed-${i}`}
+              style={{
+                position: 'absolute',
+                width: cellWidth,
+                height: rowHeight || undefined,
+                ...offsetFor(items.length + i, geometry),
+              }}
+            >
+              {cell}
+            </View>
+          ))
+        : null}
     </View>
   );
 }
@@ -144,6 +154,7 @@ function SortableCell({
   fixedHeight,
   onCellHeight,
   onMove,
+  disabled,
   label,
   children,
 }: {
@@ -155,6 +166,7 @@ function SortableCell({
   fixedHeight: boolean;
   onCellHeight: (h: number) => void;
   onMove: (from: number, to: number) => void;
+  disabled: boolean;
   label: string;
   children: ReactNode;
 }) {
@@ -182,6 +194,7 @@ function SortableCell({
   );
 
   const pan = Gesture.Pan()
+    .enabled(!disabled)
     .activateAfterLongPress(HOLD_MS)
     .onStart(() => {
       dragging.set(true);
@@ -229,7 +242,7 @@ function SortableCell({
     <GestureDetector gesture={pan}>
       <Animated.View
         onLayout={fixedHeight ? undefined : (e) => onCellHeight(e.nativeEvent.layout.height)}
-        accessibilityActions={[
+        accessibilityActions={disabled ? [] : [
           ...(index > 0 ? [{ name: 'moveEarlier', label: `Move ${label.toLowerCase()} earlier` }] : []),
           ...(index < count - 1 ? [{ name: 'moveLater', label: `Move ${label.toLowerCase()} later` }] : []),
         ]}

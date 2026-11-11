@@ -1,7 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
 import { memo, useEffect } from 'react';
-import { Pressable, View } from 'react-native';
+import { Alert, Pressable, TouchableOpacity, View } from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -11,10 +11,13 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
+import { useLiquidGlass } from '@shared/hooks/useLiquidGlass';
 import { useMeasuredWidth } from '@shared/hooks/useMeasuredWidth';
+import { useRsvpPost } from '@shared/hooks/useRsvpPost';
 import { useSavePost } from '@shared/hooks/useSavePost';
 import { useTheme } from '@shared/hooks/useTheme';
 import { palette } from '@shared/theme';
+import type { RsvpState } from '@shared/state/postRsvps';
 
 import { GlassSurface } from '../surface/GlassSurface';
 import { SvgIcon } from '../ui/SvgIcon';
@@ -35,7 +38,7 @@ export type PostCardModel = {
   /** ISO date-time; null only on a draft. */
   startAt: string | null;
   placeName: string | null;
-  host: { name: string; avatarUrl: string | null };
+  host: { id?: string; name: string; avatarUrl: string | null };
   /** Null without the phone's location. */
   distanceKm: number | null;
   /**
@@ -43,6 +46,14 @@ export type PostCardModel = {
    * while every feature maps it; missing reads as not saved.
    */
   saved?: boolean;
+  /** A line about the post, under the title, when the server sends one. */
+  description?: string | null;
+  /** Where the person stands on it; with it, the card offers the quick RSVP. */
+  rsvpState?: RsvpState;
+  /** The person's own post: no RSVP (the server refuses one from the host). */
+  mine?: boolean;
+  /** A private post asks the host first: the quick RSVP says "Requested". */
+  visibility?: 'open' | 'private';
 };
 
 const TYPE_LABEL: Record<PostCardModel['type'], string> = {
@@ -52,17 +63,32 @@ const TYPE_LABEL: Record<PostCardModel['type'], string> = {
   group: 'Group',
 };
 
+const cardCopy = {
+  viewDetails: 'View details',
+  rsvp: 'RSVP',
+  going: 'Going',
+  requested: 'Requested',
+  waitlisted: 'On the waitlist',
+  leaveTitle: 'Leave this one?',
+  leaveBody: 'You can RSVP again later if there is still room.',
+  stay: 'Stay',
+  leave: 'Leave',
+  openHost: (name: string) => `Open ${name}’s profile`,
+} as const;
+
 /**
  * A post on the feed (Figma Home Feed card): the cover photo full-bleed with a
- * dark fade at the foot; the type tag and a save (bookmark) button at the top; at the foot the
- * host, the distance, the title (Plus Jakarta 24, white), the date and time, and
- * the place.
+ * dark fade at the foot; the type tag and, at the top-right, a save (bookmark)
+ * button with the quick RSVP under it; at the foot the host, the distance, the
+ * title (Plus Jakarta 24, white), a line about it, the date and time, the
+ * place, and a "View details →" pill.
  *
- * Not on the card: the design's description line. Feed cards carry no
- * description (`PostCardDto`); it belongs to the post page. Flagged.
+ * The host's photo and name open their profile (`onOpenHost`). "View details"
+ * opens the post the plain way (`onViewDetails`, else `onPress`), so it works
+ * inside a link that owns the card's own press.
  *
  * Liquid Glass where the phone has it (`GlassSurface`): the distance pill and
- * the save button sit on the photo as light glass with no fill of their own.
+ * the round buttons sit on the photo as light glass with no fill of their own.
  * Elsewhere they are the design's solid white. The type tag stays solid
  * Marigold in both, as designed.
  *
@@ -71,42 +97,65 @@ const TYPE_LABEL: Record<PostCardModel['type'], string> = {
  * `bookmark`, cross-faded) and pops, and goes back if the server refuses;
  * "Saved activities" lists what was kept.
  *
- * Square, at the content width. Motion: a press dips the card to 98%; the photo
- * fades in over 250ms as it loads; the bookmark pops to 120% and settles.
+ * The RSVP joins the post at once (`useRsvpPost`: `POST /posts/{id}/rsvp`),
+ * after `onBeforeRsvp` has had its say (Home shows "Before you RSVP" the first
+ * time). Joined, the mark is a filled tick and says Going, Requested or On the
+ * waitlist; tapping it again asks before leaving. Posts the host declined the
+ * person from, or removed them from, offer no RSVP.
+ *
+ * Square at least, at the content width. Motion: a press dips the card to 98%;
+ * the photo fades in over 250ms as it loads; a tapped mark pops to 120% and settles.
  */
 
 const RADIUS = 24;
+const BUTTON = 48;
 
-function PostCardComponent({ post, onPress }: { post: PostCardModel; onPress: () => void }) {
+export type PostCardProps = {
+  post: PostCardModel;
+  onPress: () => void;
+  /** "View details"; `onPress` when left out. */
+  onViewDetails?: () => void;
+  /** The host's photo or name was tapped. Without it, they are not buttons. */
+  onOpenHost?: (hostId: string) => void;
+  /**
+   * Asked before the first quick RSVP; resolve true to go ahead. Without it the
+   * RSVP goes straight through.
+   */
+  onBeforeRsvp?: () => Promise<boolean>;
+};
+
+/**
+ * Glass over a photo takes on the photo: over a dark one it turned dark, and
+ * the ink and teal marks on it stopped reading. A white tint keeps every glass
+ * pill and button on the card pale, as the solid fallback is.
+ */
+const PALE_GLASS = 'rgba(255,255,255,0.72)';
+
+function PostCardComponent({ post, onPress, onViewDetails, onOpenHost, onBeforeRsvp }: PostCardProps) {
   const theme = useTheme();
+  const glass = useLiquidGlass();
+  const paleTint = glass ? PALE_GLASS : null;
   const reduceMotion = useReducedMotion();
   const { saved, toggle } = useSavePost(post.id, post.saved);
+  const rsvp = useRsvpPost(post.id, post.rsvpState ?? 'none');
   const press = useSharedValue(0);
-  const pop = useSharedValue(1);
-  const on = useSharedValue(saved ? 1 : 0);
-
-  useEffect(() => {
-    on.set(withTiming(saved ? 1 : 0, { duration: 160, easing: Easing.out(Easing.quad) }));
-  }, [saved, on]);
 
   const cardStyle = useAnimatedStyle(() => ({
     transform: reduceMotion ? [] : [{ scale: 1 - 0.02 * press.value }],
   }));
-  const popStyle = useAnimatedStyle(() => ({ transform: [{ scale: pop.value }] }));
-  // Only the icons fade — never the glass under them.
-  const outlineStyle = useAnimatedStyle(() => ({ opacity: 1 - on.value }));
-  const filledStyle = useAnimatedStyle(() => ({ opacity: on.value }));
 
-  const toggleSave = () => {
-    toggle();
-    if (!reduceMotion) {
-      pop.set(
-        withSequence(
-          withTiming(1.2, { duration: 110, easing: Easing.out(Easing.quad) }),
-          withTiming(1, { duration: 160, easing: Easing.inOut(Easing.quad) }),
-        ),
-      );
+  const quickRsvp = () => {
+    if (rsvp.pending) return;
+    if (rsvp.joined) {
+      Alert.alert(cardCopy.leaveTitle, cardCopy.leaveBody, [
+        { text: cardCopy.stay, style: 'cancel' },
+        { text: cardCopy.leave, style: 'destructive', onPress: rsvp.leave },
+      ]);
+      return;
     }
+    const go = () => rsvp.join();
+    if (onBeforeRsvp) void onBeforeRsvp().then((ok) => ok && go());
+    else go();
   };
 
   // Square at least: the top row and the foot sit in normal flow at either end, so at a
@@ -116,6 +165,15 @@ function PostCardComponent({ post, onPress }: { post: PostCardModel; onPress: ()
   const distance = formatDistance(post.distanceKm);
   const date = post.startAt ? formatCardDate(post.startAt) : null;
   const time = post.startAt ? formatCardTime(post.startAt) : null;
+  const offersRsvp = post.rsvpState !== undefined && !rsvp.closed && !post.mine;
+  const rsvpLabel = !rsvp.joined
+    ? cardCopy.rsvp
+    : rsvp.state === 'requested'
+      ? cardCopy.requested
+      : rsvp.state === 'waitlisted'
+        ? cardCopy.waitlisted
+        : cardCopy.going;
+  const hostTap = onOpenHost && post.host.id ? () => onOpenHost(post.host.id!) : undefined;
 
   return (
     <Animated.View style={cardStyle}>
@@ -171,41 +229,39 @@ function PostCardComponent({ post, onPress }: { post: PostCardModel; onPress: ()
                 {TYPE_LABEL[post.type]}
               </Text>
             </View>
-            <Pressable
-              onPress={toggleSave}
-              hitSlop={6}
-              accessibilityRole="button"
-              accessibilityLabel={saved ? 'Saved' : 'Save'}
-              accessibilityState={{ selected: saved }}
-            >
-              <Animated.View style={popStyle}>
-                <GlassSurface
-                  fallbackColor={palette.white}
-                  appearance="light"
-                  interactive
-                  shadow={false}
-                  style={{
-                    width: 48,
-                    height: 48,
-                    borderRadius: 24,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  {/* Outline and filled cross-fade, so the mark keeps its shape and only fills. */}
-                  <Animated.View style={[{ position: 'absolute' }, outlineStyle]}>
-                    <Ionicons name="bookmark-outline" size={24} color={palette.teal} />
-                  </Animated.View>
-                  <Animated.View style={filledStyle}>
-                    <Ionicons name="bookmark" size={24} color={palette.teal} />
-                  </Animated.View>
-                </GlassSurface>
-              </Animated.View>
-            </Pressable>
+            <View style={{ gap: 10, alignItems: 'center' }}>
+              <MarkButton
+                on={saved}
+                onPress={toggle}
+                outline="bookmark-outline"
+                filled="bookmark"
+                label={saved ? 'Saved' : 'Save'}
+              />
+              {offersRsvp ? (
+                <MarkButton
+                  on={rsvp.joined}
+                  onPress={quickRsvp}
+                  outline="person-add-outline"
+                  filled="checkmark-circle"
+                  label={rsvpLabel}
+                  busy={rsvp.pending}
+                />
+              ) : null}
+            </View>
           </View>
 
           <View style={{ paddingHorizontal: 16, paddingBottom: 16, gap: 6 }}>
-            <View className="flex-row items-center" style={{ gap: 8 }}>
+            {/* Plain styles here and on "View details": a style function on a Pressable is
+                dropped by the class-name interop, which left the rows stretched full width. */}
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={hostTap}
+              disabled={!hostTap}
+              hitSlop={6}
+              accessibilityRole={hostTap ? 'button' : undefined}
+              accessibilityLabel={hostTap ? cardCopy.openHost(post.host.name) : undefined}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'flex-start' }}
+            >
               {post.host.avatarUrl ? (
                 <Image
                   source={{ uri: post.host.avatarUrl }}
@@ -223,6 +279,7 @@ function PostCardComponent({ post, onPress }: { post: PostCardModel; onPress: ()
                 <GlassSurface
                   fallbackColor={palette.white}
                   appearance="light"
+                  tint={paleTint}
                   shadow={false}
                   style={{ borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 }}
                 >
@@ -231,7 +288,7 @@ function PostCardComponent({ post, onPress }: { post: PostCardModel; onPress: ()
                   </Text>
                 </GlassSurface>
               ) : null}
-            </View>
+            </TouchableOpacity>
             <Text variant="headingLg" numberOfLines={2} style={{ color: palette.white }}>
               {post.title}
             </Text>
@@ -242,10 +299,124 @@ function PostCardComponent({ post, onPress }: { post: PostCardModel; onPress: ()
               </View>
             ) : null}
             {post.placeName ? <Meta icon="pin" text={post.placeName} /> : null}
+            {post.description ? (
+              <Text variant="bodySm" numberOfLines={2} style={{ color: 'rgba(255,255,255,0.85)' }}>
+                {post.description}
+              </Text>
+            ) : null}
+            <TouchableOpacity
+              activeOpacity={0.75}
+              onPress={onViewDetails ?? onPress}
+              accessibilityRole="button"
+              accessibilityLabel={cardCopy.viewDetails}
+              style={{ alignSelf: 'flex-start', marginTop: 6 }}
+            >
+              <GlassSurface
+                fallbackColor={palette.white}
+                appearance="light"
+                tint={paleTint}
+                interactive
+                shadow={false}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 8,
+                  borderRadius: 999,
+                  paddingHorizontal: 18,
+                  minHeight: 40,
+                }}
+              >
+                <Text variant="labelMd" style={{ color: palette.teal }}>
+                  {cardCopy.viewDetails}
+                </Text>
+                <Ionicons name="arrow-forward" size={16} color={palette.teal} />
+              </GlassSurface>
+            </TouchableOpacity>
           </View>
         </View>
       </Pressable>
     </Animated.View>
+  );
+}
+
+/**
+ * A round glass button whose mark fills: outline and filled versions
+ * cross-fade in 160ms, so the mark keeps its shape and only fills, and a tap
+ * pops it to 120% and back. The glass under it never moves.
+ */
+function MarkButton({
+  on,
+  onPress,
+  outline,
+  filled,
+  label,
+  busy = false,
+}: {
+  on: boolean;
+  onPress: () => void;
+  outline: keyof typeof Ionicons.glyphMap;
+  filled: keyof typeof Ionicons.glyphMap;
+  label: string;
+  busy?: boolean;
+}) {
+  const reduceMotion = useReducedMotion();
+  const glass = useLiquidGlass();
+  const fill = useSharedValue(on ? 1 : 0);
+  const pop = useSharedValue(1);
+
+  useEffect(() => {
+    fill.set(withTiming(on ? 1 : 0, { duration: 160, easing: Easing.out(Easing.quad) }));
+  }, [on, fill]);
+
+  const popStyle = useAnimatedStyle(() => ({ transform: [{ scale: pop.value }] }));
+  const outlineStyle = useAnimatedStyle(() => ({ opacity: 1 - fill.value }));
+  const filledStyle = useAnimatedStyle(() => ({ opacity: fill.value }));
+
+  const tap = () => {
+    onPress();
+    if (!reduceMotion) {
+      pop.set(
+        withSequence(
+          withTiming(1.2, { duration: 110, easing: Easing.out(Easing.quad) }),
+          withTiming(1, { duration: 160, easing: Easing.inOut(Easing.quad) }),
+        ),
+      );
+    }
+  };
+
+  return (
+    <Pressable
+      onPress={tap}
+      hitSlop={6}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ selected: on, busy }}
+    >
+      <Animated.View style={popStyle}>
+        <GlassSurface
+          fallbackColor={palette.white}
+          appearance="light"
+          tint={glass ? PALE_GLASS : null}
+          interactive
+          shadow={false}
+          style={{
+            width: BUTTON,
+            height: BUTTON,
+            borderRadius: BUTTON / 2,
+            alignItems: 'center',
+            justifyContent: 'center',
+            opacity: busy ? 0.7 : 1,
+          }}
+        >
+          <Animated.View style={[{ position: 'absolute' }, outlineStyle]}>
+            <Ionicons name={outline} size={24} color={palette.teal} />
+          </Animated.View>
+          <Animated.View style={filledStyle}>
+            <Ionicons name={filled} size={24} color={palette.teal} />
+          </Animated.View>
+        </GlassSurface>
+      </Animated.View>
+    </Pressable>
   );
 }
 

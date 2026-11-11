@@ -1,4 +1,3 @@
-import { Host } from '@expo/ui';
 import { Toggle as SwiftToggle } from '@expo/ui/swift-ui';
 import {
   accessibilityLabel as a11yLabel,
@@ -10,6 +9,7 @@ import {
 import { useTheme } from '@shared/hooks/useTheme';
 
 import type { ToggleProps } from './Toggle';
+import { Host } from '../ui/Host';
 
 /**
  * iOS: SwiftUI's `Toggle` as a switch, its label hidden (the row draws the

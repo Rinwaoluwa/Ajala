@@ -17,6 +17,7 @@ export {
 } from './ui/Button';
 export { TextLink, type TextLinkProps, type TextLinkTone, type TextLinkEmphasis } from './ui/TextLink';
 export { NativeIcon, type NativeIconProps, type NativeIconSource } from './ui/NativeIcon';
+export { Host } from './ui/Host';
 export { icons } from './ui/icons';
 export { NativeSpinner, type NativeSpinnerProps } from './ui/NativeSpinner';
 export { SvgIcon, type SvgIconName, type SvgIconProps } from './ui/SvgIcon';
@@ -48,6 +49,11 @@ export { ImageCarousel, type ImageCarouselProps, type CarouselImage } from './me
 export { RoundFlag } from './media/RoundFlag';
 export { PaginationDots, type PaginationDotsProps } from './ui/PaginationDots';
 export { Screen, type ScreenProps, type ScreenEdge } from './layout/Screen';
+export { KeyboardStickyBar } from './layout/KeyboardStickyBar';
+export { PhotoViewer, type PhotoViewerProps } from './media/PhotoViewer';
+export { PillRows, type PillRowsProps } from './layout/PillRows';
+export { LoadFailedState, type LoadFailedStateProps } from './display/LoadFailedState';
+export { NoConnectionArt, ServerDownArt } from './display/FailureArt';
 export { GlassSurface, type GlassSurfaceProps } from './surface/GlassSurface';
 export { Pager, type PagerProps } from './layout/Pager';
 export { SortableGrid, type SortableGridProps } from './layout/SortableGrid';
@@ -67,11 +73,12 @@ export { StepProgress, type StepProgressProps, type StepProgressTone } from './f
 
 // Reanimated
 export { ProgressReveal, type ProgressRevealProps } from './motion/ProgressReveal';
-export { enterRise, ENTER_MS } from './motion/enter';
+export { enterRise, useListEntrance, ENTER_MS } from './motion/enter';
 export { LoadingRing, type LoadingRingProps } from './feedback/LoadingRing';
+export { Toast, type ToastProps } from './feedback/Toast';
 export { SkeletonBlock, SkeletonPulse, type SkeletonBlockProps } from './feedback/Skeleton';
 export { Sheet, type SheetProps } from './overlay/Sheet';
-export { PillTabs, type PillTabsProps, type PillTabOption } from './navigation/PillTabs';
+export { PillTabs, type PillColor, type PillTabsProps, type PillTabOption } from './navigation/PillTabs';
 export { FloatingTabBar, type FloatingTabBarProps, type TabItem } from './navigation/FloatingTabBar';
 export { CelebrationSheet, type CelebrationSheetProps } from './overlay/CelebrationSheet';
 export { Logo, logoHeight, type LogoProps, type LogoTone } from './brand/Logo';

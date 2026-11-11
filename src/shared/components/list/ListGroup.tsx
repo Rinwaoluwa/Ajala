@@ -1,4 +1,3 @@
-import { Host } from '@expo/ui';
 import { Children, Fragment, isValidElement, type ReactNode } from 'react';
 import { TouchableOpacity, View } from 'react-native';
 
@@ -8,6 +7,7 @@ import { Toggle } from '../form/Toggle';
 import { NativeIcon } from '../ui/NativeIcon';
 import { Text } from '../ui/Text';
 import { icons } from '../ui/icons';
+import { Host } from '../ui/Host';
 
 /**
  * Settings-style lists (Figma Settings, Privacy & safety, Notifications,
@@ -92,7 +92,7 @@ export function ListRow({
       }}
     >
       <View style={{ flex: 1, gap: 2 }}>
-        <Text variant="bodyMd" tone={destructive ? 'destructive' : 'default'}>
+        <Text variant="bodyMd" style={destructive ? { color: theme.destructiveAction } : undefined}>
           {title}
         </Text>
         {subtitle ? (

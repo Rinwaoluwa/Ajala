@@ -1,10 +1,10 @@
-import { Host } from '@expo/ui';
 import { Button, Menu, Rectangle } from '@expo/ui/swift-ui';
 import { contentShape, foregroundStyle, frame, shapes } from '@expo/ui/swift-ui/modifiers';
 import { StyleSheet, View } from 'react-native';
 import type { ComponentProps } from 'react';
 
 import type { MenuButtonProps } from './MenuButton.types';
+import { Host } from '../ui/Host';
 
 export type { MenuAction, MenuButtonProps } from './MenuButton.types';
 

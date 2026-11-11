@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { Button as ExpoButton, Host, Row, Spacer, Text as ExpoText } from '@expo/ui';
+import { Button as ExpoButton, Row, Spacer, Text as ExpoText } from '@expo/ui';
 import { View } from 'react-native';
 
 import { useFontScale } from '@shared/hooks/useFontScale';
@@ -13,6 +13,7 @@ import { NativeIcon, type NativeIconSource } from '../ui/NativeIcon';
 import { NATIVE_BUTTON_INSET } from '../ui/nativeButtonInset';
 import { nativeTextScaleCap } from '../ui/nativeTextScale';
 import { FIELD_LINE_HEIGHT, FieldFrame, fieldLineHeight } from './FieldFrame';
+import { Host } from '../ui/Host';
 
 /**
  * A field that is picked rather than typed, such as a date of birth.

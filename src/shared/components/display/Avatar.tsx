@@ -1,6 +1,8 @@
 import { Image } from 'expo-image';
 import { View } from 'react-native';
 
+import { useTheme } from '@shared/hooks/useTheme';
+
 import { Text } from '../ui/Text';
 
 /**
@@ -9,6 +11,8 @@ import { Text } from '../ui/Text';
  * name, so one person always gets the same colour.
  *
  * `ring` draws the white edge avatars have where they overlap (`AvatarStack`).
+ * `outline` draws a thin grey edge, as Instagram frames a profile photo, so a
+ * pale photo still reads as a circle on the page (the profile's own photo).
  */
 
 const TINTS = ['#FDE2E4', '#E3F4F1', '#FBE7B8', '#E8E6FB', '#DCEBFA'] as const;
@@ -19,9 +23,14 @@ export type AvatarProps = {
   uri?: string | null;
   size?: number;
   ring?: boolean;
+  outline?: boolean;
 };
 
-export function Avatar({ name, uri, size = 40, ring = false }: AvatarProps) {
+export function Avatar({ name, uri, size = 40, ring = false, outline = false }: AvatarProps) {
+  const theme = useTheme();
+  const edge = ring ? 2 : outline ? 1 : 0;
+  // Inside the edge, so the photo never paints over it.
+  const inner = size - edge * 2;
   const index = [...name].reduce((sum, c) => sum + c.charCodeAt(0), 0) % TINTS.length;
   return (
     <View
@@ -35,12 +44,17 @@ export function Avatar({ name, uri, size = 40, ring = false }: AvatarProps) {
         backgroundColor: TINTS[index],
         alignItems: 'center',
         justifyContent: 'center',
-        borderWidth: ring ? 2 : 0,
-        borderColor: '#FFFFFF',
+        borderWidth: edge,
+        borderColor: ring ? '#FFFFFF' : theme.border,
       }}
     >
       {uri ? (
-        <Image source={{ uri }} style={{ width: size, height: size }} contentFit="cover" transition={200} />
+        <Image
+          source={{ uri }}
+          style={{ width: inner, height: inner, borderRadius: inner / 2 }}
+          contentFit="cover"
+          transition={200}
+        />
       ) : (
         <Text
           variant="labelMd"

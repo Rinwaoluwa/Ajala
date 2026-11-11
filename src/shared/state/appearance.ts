@@ -25,13 +25,19 @@ const KEY = 'ajala.appearance.v1';
 let preference: AppearancePreference = 'system';
 const listeners = new Set<() => void>();
 
+/**
+ * One change, not two. NativeWind's `colorScheme.set` already calls
+ * `Appearance.setColorScheme` itself; calling it again here fired a second
+ * appearance change, so every screen re-rendered twice in a row and the switch
+ * looked laggy and jagged. `Appearance` is set by hand only when NativeWind
+ * refused (dark mode not class-based).
+ */
 function apply(next: AppearancePreference) {
   try {
     colorScheme.set(next);
   } catch {
-    // NativeWind refuses when dark mode is not class-based; Appearance still applies.
+    Appearance.setColorScheme(next === 'system' ? 'unspecified' : next);
   }
-  Appearance.setColorScheme(next === 'system' ? 'unspecified' : next);
 }
 
 /** Reads the saved choice and applies it. Safe to call more than once. */
@@ -49,9 +55,12 @@ export async function restoreAppearance(): Promise<void> {
 }
 
 export function setAppearance(next: AppearancePreference): void {
+  if (next === preference) return;
   preference = next;
-  apply(next);
   listeners.forEach((l) => l());
+  // The tick on the chosen row draws first; the app-wide repaint follows a frame later,
+  // so the tap answers at once instead of waiting on every screen's re-render.
+  requestAnimationFrame(() => apply(next));
   void AsyncStorage.setItem(KEY, next).catch(() => undefined);
 }
 

@@ -1,4 +1,4 @@
-import { memo, useEffect, type ReactNode } from 'react';
+import { Children, isValidElement, memo, useEffect, type ReactNode } from 'react';
 import { Pressable, View, useWindowDimensions } from 'react-native';
 import Animated, {
   Easing,
@@ -12,6 +12,8 @@ import Animated, {
 import { MAX_TEXT_SCALE } from '@shared/hooks/useFontScale';
 import { useTheme } from '@shared/hooks/useTheme';
 import { palette, textStyles } from '@shared/theme';
+
+import { PillRows } from '../layout/PillRows';
 
 /**
  * A choice in a multi-select list: the pill on the profile-setup screens
@@ -148,9 +150,16 @@ export type ChipGroupProps = {
   /** Space between chips in a row, and between rows. */
   gap?: number;
   rowGap?: number;
+  /** Rows used once the chips no longer fit on one line (`PillRows`). */
+  maxRows?: number;
 };
 
-/** Chips in rows that wrap, as the setup screens lay them out. */
-export function ChipGroup({ children, gap = 6, rowGap = 8 }: ChipGroupProps) {
-  return <View style={{ flexDirection: 'row', flexWrap: 'wrap', columnGap: gap, rowGap }}>{children}</View>;
+/**
+ * Chips on one line while they fit; otherwise in three rows that scroll
+ * sideways together (`PillRows`), so a long list (36 travel styles, every
+ * language) never takes over the page.
+ */
+export function ChipGroup({ children, gap = 6, rowGap = 8, maxRows = 3 }: ChipGroupProps) {
+  const pills = Children.toArray(children).filter(isValidElement);
+  return <PillRows pills={pills} maxRows={maxRows} gap={gap} rowGap={rowGap} />;
 }

@@ -1,4 +1,3 @@
-import { Host } from '@expo/ui';
 import { TouchableOpacity } from 'react-native';
 
 import { useTheme } from '@shared/hooks/useTheme';
@@ -6,6 +5,7 @@ import { useTheme } from '@shared/hooks/useTheme';
 import { GlassSurface } from '../surface/GlassSurface';
 import { NativeIcon } from '../ui/NativeIcon';
 import { icons } from '../ui/icons';
+import { Host } from '../ui/Host';
 
 /**
  * The back button's solid look: the design's mint circle with a teal chevron.

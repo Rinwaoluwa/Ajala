@@ -20,6 +20,16 @@ const svg = {
   proCoin: require('../../../../assets/icons/pro-badge.svg') as number,
   check: require('../../../../assets/icons/badge-2.svg') as number,
   travelBadge: require('../../../../assets/icons/travel-badge.svg') as number,
+  // The profile's (supplied 10 Nov 2026): one colour each, drawn in `tint`.
+  users: require('../../../../assets/icons/users.svg') as number,
+  streak: require('../../../../assets/icons/streak.svg') as number,
+  // A one-colour globe (supplied 11 Nov 2026); `earth` is the full-colour one and turns into a blob when tinted.
+  countries: require('../../../../assets/icons/countries.svg') as number,
+  /** A photo in a circle: the Featured Photos heading. */
+  photos: require('../../../../assets/icons/image.svg') as number,
+  share: require('../../../../assets/icons/share.svg') as number,
+  flag: require('../../../../assets/icons/flag.svg') as number,
+  send: require('../../../../assets/icons/send.svg') as number,
 };
 
 export type SvgIconName = keyof typeof svg;

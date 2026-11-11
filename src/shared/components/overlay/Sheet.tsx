@@ -1,4 +1,3 @@
-import { Host } from '@expo/ui';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   Modal,
@@ -25,6 +24,7 @@ import { SCREEN_GUTTER } from '@shared/theme';
 import { NativeIcon } from '../ui/NativeIcon';
 import { Text } from '../ui/Text';
 import { icons } from '../ui/icons';
+import { Host } from '../ui/Host';
 
 /**
  * A bottom sheet with a title and a close button (Figma "Create something"):
@@ -49,7 +49,8 @@ const FALL_MS = 200;
 
 export type SheetProps = {
   isPresented: boolean;
-  title: string;
+  /** Left out, the sheet has only its drag handle: the content carries its own heading. */
+  title?: string;
   /**
    * A line under the title. It sits above the scroll area rather than in it: pulled
    * up into the scroll area with a negative margin, Android clipped its top.
@@ -129,36 +130,38 @@ export function Sheet({ isPresented, title, subtitle, onDismiss, children }: She
         <View
           style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: theme.track }}
         />
-        <View className="mt-16 flex-row items-center justify-between" style={{ gap: 12 }}>
-          <Text variant="headingMd" accessibilityRole="header" style={{ flexShrink: 1 }}>
-            {title}
-          </Text>
-          <Pressable
-            onPress={onDismiss}
-            hitSlop={8}
-            accessibilityRole="button"
-            accessibilityLabel="Close"
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: 18,
-              backgroundColor: theme.surfaceMuted,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Host matchContents pointerEvents="none" ignoreSafeArea="all">
-              <NativeIcon source={icons.close} size={12} color={theme.foreground} />
-            </Host>
-          </Pressable>
-        </View>
+        {title ? (
+          <View className="mt-16 flex-row items-center justify-between" style={{ gap: 12 }}>
+            <Text variant="headingMd" accessibilityRole="header" style={{ flexShrink: 1 }}>
+              {title}
+            </Text>
+            <Pressable
+              onPress={onDismiss}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Close"
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 18,
+                backgroundColor: theme.surfaceMuted,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Host matchContents pointerEvents="none" ignoreSafeArea="all">
+                <NativeIcon source={icons.close} size={12} color={theme.foreground} />
+              </Host>
+            </Pressable>
+          </View>
+        ) : null}
         {subtitle ? (
           <Text variant="bodySm" tone="muted" style={{ marginTop: 8 }}>
             {subtitle}
           </Text>
         ) : null}
         <ScrollView
-          style={{ marginTop: subtitle ? 20 : 16, flexShrink: 1 }}
+          style={{ marginTop: subtitle ? 20 : title ? 16 : 20, flexShrink: 1 }}
           scrollEnabled={contentOverflows}
           showsVerticalScrollIndicator={contentOverflows}
           keyboardShouldPersistTaps="handled"

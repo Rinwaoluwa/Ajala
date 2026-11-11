@@ -1,4 +1,4 @@
-import { Button as ExpoButton, Host, Row, Text as ExpoText } from '@expo/ui';
+import { Button as ExpoButton, Row, Text as ExpoText } from '@expo/ui';
 import { useCallback, useState } from 'react';
 import { Platform, View, type LayoutChangeEvent } from 'react-native';
 
@@ -14,6 +14,7 @@ import { NativeSpinner } from './NativeSpinner';
 import { NATIVE_BUTTON_INSET, NATIVE_BUTTON_INSET_VERTICAL } from './nativeButtonInset';
 import { nativeLineBox } from './nativeLineBox';
 import { nativeTextScaleCap } from './nativeTextScale';
+import { Host } from '../ui/Host';
 
 /**
  * Button — a real SwiftUI / Jetpack Compose button, styled to the design.
@@ -273,8 +274,23 @@ export type ButtonProps = SharedButtonProps & {
   tint?: ButtonCoreProps['tint'];
 };
 
+/**
+ * A width the button is sure to reach: the label at a narrow average glyph
+ * (0.5 em, under the real ~0.55) plus its padding. A hug-width Host is laid
+ * out at zero width until SwiftUI reports its size a frame later, so a row
+ * holding one ("Hosted by … · Message") reflowed as the button appeared — the
+ * button seemed to move by itself. Holding this much room from the first frame
+ * leaves only a few points to grow, and never more than the real width.
+ */
+function reservedWidth(label: string, variant: ButtonVariant | undefined, fontScale: number) {
+  if (variant === 'ghost') return 0;
+  const glyph = textStyles.labelSm.fontSize * 0.5 * fontScale;
+  return Math.round(label.length * glyph + layout.button.paddingX * 2);
+}
+
 export function Button({ fullWidth = false, size = 'md', ...props }: ButtonProps) {
   const [measuredWidth, setMeasuredWidth] = useState(0);
+  const fontScale = useFontScale();
   const height = HEIGHT[size];
 
   const handleLayout = useCallback((e: LayoutChangeEvent) => {
@@ -289,6 +305,7 @@ export function Button({ fullWidth = false, size = 'md', ...props }: ButtonProps
       onLayout={fullWidth ? handleLayout : undefined}
       style={{
         minHeight: height,
+        minWidth: fullWidth ? undefined : reservedWidth(props.label, props.variant, fontScale),
         alignSelf: fullWidth ? 'stretch' : 'flex-start',
         // A ghost button's label sits on the content edge; on Android the native
         // button pads it inward, so the button reaches out by the same amount.

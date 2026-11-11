@@ -1,5 +1,4 @@
 import { memo } from 'react';
-import { Host } from '@expo/ui';
 import { View } from 'react-native';
 
 import { useTheme } from '@shared/hooks/useTheme';
@@ -8,6 +7,7 @@ import { layout } from '@shared/theme';
 import { icons } from '../ui/icons';
 import { NativeIcon } from '../ui/NativeIcon';
 import { Text } from '../ui/Text';
+import { Host } from '../ui/Host';
 
 /**
  * A live checklist of password requirements under a password field.

@@ -1,4 +1,3 @@
-import { Host } from '@expo/ui';
 import { memo, useEffect } from 'react';
 import { Pressable, View } from 'react-native';
 import Animated, {
@@ -14,6 +13,7 @@ import { useTheme } from '@shared/hooks/useTheme';
 import { NativeIcon } from '../ui/NativeIcon';
 import { Text } from '../ui/Text';
 import { icons } from '../ui/icons';
+import { Host } from '../ui/Host';
 
 /**
  * A ticked-or-not line in a list of reasons ("Report activity"): a 20pt rounded

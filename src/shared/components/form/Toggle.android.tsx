@@ -1,4 +1,3 @@
-import { Host } from '@expo/ui';
 import { Switch } from '@expo/ui/jetpack-compose';
 import { semantics, testID as testIDModifier } from '@expo/ui/jetpack-compose/modifiers';
 
@@ -6,6 +5,7 @@ import { useTheme } from '@shared/hooks/useTheme';
 import { palette } from '@shared/theme';
 
 import type { ToggleProps } from './Toggle';
+import { Host } from '../ui/Host';
 
 /**
  * Android: Compose's Material 3 `Switch`, coloured as the design draws it — a

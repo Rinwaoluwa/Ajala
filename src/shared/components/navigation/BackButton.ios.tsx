@@ -1,4 +1,3 @@
-import { Host } from '@expo/ui';
 import { Button, Image } from '@expo/ui/swift-ui';
 import {
   accessibilityLabel,
@@ -13,6 +12,7 @@ import { useLiquidGlass } from '@shared/hooks/useLiquidGlass';
 import { useTheme } from '@shared/hooks/useTheme';
 
 import { SolidBackButton, BACK_BUTTON_SIZE, type BackButtonProps } from './SolidBackButton';
+import { Host } from '../ui/Host';
 
 export { BACK_BUTTON_SIZE, type BackButtonProps } from './SolidBackButton';
 

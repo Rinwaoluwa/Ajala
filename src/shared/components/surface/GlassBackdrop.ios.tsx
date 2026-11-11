@@ -1,9 +1,9 @@
-import { Host } from '@expo/ui';
 import { Rectangle } from '@expo/ui/swift-ui';
 import { clipShape, foregroundStyle, frame, glassEffect } from '@expo/ui/swift-ui/modifiers';
 import { StyleSheet, View } from 'react-native';
 
 import type { GlassBackdropProps } from './GlassBackdrop';
+import { Host } from '../ui/Host';
 
 /**
  * iOS: the glass as a SwiftUI shape with `.glassEffect`, filling the surface

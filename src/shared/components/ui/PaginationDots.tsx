@@ -28,8 +28,12 @@ import { cn } from '@shared/utils/cn';
 const DOT_SIZE = 8;
 const ACTIVE_WIDTH = 24;
 
-/** Inactive dot colour when the dots sit on photography rather than app surface. */
-const ON_MEDIA_INACTIVE = '#FFFFFF';
+/**
+ * Over a photo the dots are white: the active one solid, the rest half
+ * transparent (the post page design). A photograph is the same in both themes.
+ */
+const ON_MEDIA_INACTIVE = 'rgba(255,255,255,0.55)';
+const ON_MEDIA_ACTIVE = '#FFFFFF';
 
 export type PaginationDotsProps = {
   count: number;
@@ -84,12 +88,12 @@ export function PaginationDots({
   // Dots over media do NOT follow the colour scheme. A photograph is the same
   // photograph in both themes, so resolving `onSurface` through the theme made the
   // inactive dots #17231F in dark mode — near-black pips on a dark photo, invisible.
-  // They stay white; the active dot is marigold, which holds on both.
+  // They stay white, the active one solid and the rest translucent.
   //
   // On the app's own surfaces the onboarding designs use the same pale grey in
-  // both schemes (`indicatorInactive`).
+  // both schemes (`indicatorInactive`) with a marigold active dot.
   const inactiveColor = onSurface ? ON_MEDIA_INACTIVE : theme.indicatorInactive;
-  const activeColor = theme.accent;
+  const activeColor = onSurface ? ON_MEDIA_ACTIVE : theme.accent;
 
   return (
     <View
