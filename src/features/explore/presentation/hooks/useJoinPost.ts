@@ -6,6 +6,7 @@ import { isExploreError, type ExploreErrorCode } from '../../domain/entities/Exp
 import { optimisticJoin } from '../../domain/rules/exploreRules';
 import { exploreKeys } from '../state/exploreQueries';
 import { useExploreUseCases } from '../state/useExploreUseCases';
+import { haptics } from '@shared/feedback/haptics';
 
 /**
  * Joining from the mini card (spec §2.13).
@@ -40,6 +41,7 @@ export function useJoinPost() {
       return { previous };
     },
     onSuccess: (result, post) => {
+      haptics.success();
       queryClient.setQueryData<PostPreview>(exploreKeys.post(post.id), (current) =>
         current
           ? {

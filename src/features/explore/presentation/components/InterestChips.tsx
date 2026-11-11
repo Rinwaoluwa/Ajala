@@ -1,5 +1,4 @@
 import { useEffect } from 'react';
-import { Pressable } from 'react-native';
 import Animated, {
   Easing,
   interpolateColor,
@@ -8,7 +7,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-import { GlassSurface, ScrollRow } from '@shared/components';
+import { GlassSurface, JellyPress, ScrollRow } from '@shared/components';
 import { MAX_TEXT_SCALE } from '@shared/hooks/useFontScale';
 import { useLiquidGlass } from '@shared/hooks/useLiquidGlass';
 import { useTheme } from '@shared/hooks/useTheme';
@@ -91,7 +90,8 @@ function InterestChip({ label, selected, onPress }: { label: string; selected: b
   );
 
   return (
-    <Pressable
+    // A jelly wobble on touch (`JellyPress`), as the home feed's pills.
+    <JellyPress
       onPress={onPress}
       accessibilityRole="radio"
       accessibilityState={{ checked: selected }}
@@ -118,7 +118,7 @@ function InterestChip({ label, selected, onPress }: { label: string; selected: b
           {content}
         </Animated.View>
       )}
-    </Pressable>
+    </JellyPress>
   );
 }
 

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Pressable, View } from 'react-native';
 
+import { haptics } from '@shared/feedback/haptics';
 import { Button, Sheet, Text, TextField } from '@shared/components';
 import { useTheme } from '@shared/hooks/useTheme';
 
@@ -142,7 +143,10 @@ function Options<T extends string>({
         return (
           <Pressable
             key={o.value}
-            onPress={() => onChange(o.value)}
+            onPress={() => {
+              if (o.value !== value) haptics.select();
+              onChange(o.value);
+            }}
             accessibilityRole="radio"
             accessibilityState={{ selected }}
             accessibilityLabel={o.label}

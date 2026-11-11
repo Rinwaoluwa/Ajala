@@ -13,6 +13,7 @@ import {
   type MapKind,
   type MapRegion,
 } from '@core/maps';
+import { haptics } from '@shared/feedback/haptics';
 import { Host, GlassSurface, LoadingRing, NativeIcon, StatusSheet, Text, icons } from '@shared/components';
 import { useLiquidGlass } from '@shared/hooks/useLiquidGlass';
 import { useTheme } from '@shared/hooks/useTheme';
@@ -160,6 +161,8 @@ export function ExploreScreen({ onOpenPost, onTeleport, onOpenPerson }: ExploreS
   }, [followKey]);
 
   const select = (id: string | null) => {
+    // A tick as a pin is picked (not when the card is closed).
+    if (id !== null && id !== selectedId) haptics.select();
     joining.reset();
     setSelectedId(id);
   };
