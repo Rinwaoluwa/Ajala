@@ -1,5 +1,6 @@
 import { router } from 'expo-router';
 
+import { useUnreadNotificationsCount } from '@features/notifications';
 import { OwnProfileScreen, profileRoutes } from '@features/profile';
 import { settingsRoutes } from '@features/settings';
 
@@ -8,10 +9,12 @@ import { settingsRoutes } from '@features/settings';
  * feature's routes; signing out is in Settings.
  */
 export default function ProfileRoute() {
+  const unreadNotifications = useUnreadNotificationsCount();
   return (
     <OwnProfileScreen
       onSettings={() => router.push(settingsRoutes.hub)}
-      onMessages={() => router.push('/(app)/messages')}
+      onNotifications={() => router.push('/(app)/notifications')}
+      unreadNotifications={unreadNotifications}
       onEditProfile={() => router.push(settingsRoutes.editProfile)}
       onSaved={() => router.push(profileRoutes.saved)}
       onAchievements={() => router.push(profileRoutes.achievements)}

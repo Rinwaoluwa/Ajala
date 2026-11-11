@@ -1,6 +1,8 @@
 import { router, useLocalSearchParams } from 'expo-router';
 
 import { chatRoutes } from '@features/chat';
+import { createPostRoutes } from '@features/create-post';
+import { paymentRoutes, useSubscription } from '@features/payment';
 import { PostDetailScreen, type PostPreview } from '@features/post-detail';
 import { profileRoutes } from '@features/profile';
 
@@ -25,6 +27,8 @@ export default function PostRoute() {
     type?: string;
   }>();
   const kind = TYPES.find((t) => t === type);
+  // Plans are a Pro feature; while the subscription is still loading, nothing is locked.
+  const { isPro, loading } = useSubscription();
   const preview: PostPreview | null = title && kind ? { title, imageUrl: image || null, type: kind } : null;
 
   return (
@@ -35,6 +39,12 @@ export default function PostRoute() {
       onOpenProfile={(userId) => router.push({ pathname: profileRoutes.user, params: { id: userId } })}
       onMessageHost={(userId) => router.push({ pathname: chatRoutes.start, params: { userId } })}
       onOpenGroupChat={(postId) => router.push({ pathname: chatRoutes.start, params: { postId } })}
+      canSeePlans={isPro || loading}
+      onUnlockPlans={() => router.push({ pathname: paymentRoutes.travelPaywall, params: { reason: 'plans' } })}
+      // The host's "Edit post": the create wizard, filled in from this post, saving changes.
+      onEditPost={(post) =>
+        router.push({ pathname: createPostRoutes.wizard, params: { type: post.type, editId: post.id } })
+      }
     />
   );
 }

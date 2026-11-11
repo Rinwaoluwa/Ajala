@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 
 import { ExploreScreen, exploreRoutes } from '@features/explore';
 import { homeRoutes } from '@features/home';
+import { profileRoutes } from '@features/profile';
 
 /**
  * The Explore tab: the map of activities around the person (API map §7).
@@ -13,6 +14,7 @@ export default function ExploreRoute() {
     <ExploreScreen
       onOpenPost={(id) => router.push({ pathname: exploreRoutes.post, params: { id } })}
       onTeleport={() => router.push(homeRoutes.travel)}
+      onOpenPerson={(id) => router.push({ pathname: profileRoutes.user, params: { id } })}
     />
   );
 }

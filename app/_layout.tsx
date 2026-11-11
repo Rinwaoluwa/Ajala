@@ -1,4 +1,4 @@
-import { QueryClientProvider } from '@tanstack/react-query';
+import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { useFonts } from 'expo-font';
 import { SplashScreen, Stack, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -11,6 +11,7 @@ import { AppLockGate } from '@features/app-lock';
 import { ForceUpdateGate, OtaUpdateGate } from '@features/app-update';
 import { AuthProvider } from '@features/auth';
 import { LaunchOverlay } from '@bootstrap/splash/LaunchOverlay';
+import { queryPersistOptions } from '@core/api/queryClient/persist';
 import { queryClient } from '@core/api/queryClient/queryClient';
 import { useStackScreenOptions } from '@shared/hooks/useStackScreenOptions';
 import { restoreAppearance } from '@shared/state/appearance';
@@ -57,8 +58,9 @@ export default function RootLayout() {
         behavior="padding"
         enabled={Platform.OS === 'android'}
       >
-      {/* The API cache, under everything that reads the API. */}
-      <QueryClientProvider client={queryClient}>
+      {/* The API cache, under everything that reads the API, restored from the last launch
+          (`persist.ts`) so screens draw what they showed last time while they refresh. */}
+      <PersistQueryClientProvider client={queryClient} persistOptions={queryPersistOptions}>
       {/* The session is app-wide state: the signed-in area guards on it and the
           entry route decides where to send people by it. */}
       <AuthProvider>
@@ -89,7 +91,7 @@ export default function RootLayout() {
       )}
       </LaunchStateProvider>
       </AuthProvider>
-      </QueryClientProvider>
+      </PersistQueryClientProvider>
       </KeyboardAvoidingView>
     </SafeAreaProvider>
     </GestureHandlerRootView>

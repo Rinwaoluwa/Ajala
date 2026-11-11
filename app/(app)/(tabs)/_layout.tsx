@@ -1,8 +1,12 @@
 import { Tabs, router } from 'expo-router';
 import { useState } from 'react';
 
-import { CreateSomethingSheet, createPostRoutes } from '@features/create-post';
+import { CreateSomethingSheet, createPostRoutes, type PostKind } from '@features/create-post';
+import { paymentRoutes, useSubscription } from '@features/payment';
 import { FloatingTabBar, type TabItem } from '@shared/components';
+
+/** Kinds only Travel Pro may create (product, 10 Nov): the sheet tags them, and the rest get the paywall. */
+const PRO_ONLY: readonly PostKind[] = ['plan'];
 
 /**
  * The signed-in app's tabs: Home, Explore, Trips and Profile in the floating
@@ -20,6 +24,7 @@ const RIGHT: [TabItem, TabItem] = [
 
 export default function TabsLayout() {
   const [creating, setCreating] = useState(false);
+  const { isPro } = useSubscription();
 
   return (
     <>
@@ -48,8 +53,13 @@ export default function TabsLayout() {
       <CreateSomethingSheet
         isPresented={creating}
         onDismiss={() => setCreating(false)}
+        proOnly={isPro ? [] : PRO_ONLY}
         onChoose={(type) => {
           setCreating(false);
+          if (!isPro && PRO_ONLY.includes(type)) {
+            router.push({ pathname: paymentRoutes.travelPaywall, params: { reason: 'plans' } });
+            return;
+          }
           router.push({ pathname: createPostRoutes.wizard, params: { type } });
         }}
       />
