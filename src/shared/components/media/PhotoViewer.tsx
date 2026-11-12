@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import { useCallback, useState } from 'react';
-import { Modal, StatusBar, TouchableOpacity, View, useWindowDimensions } from 'react-native';
+import { Modal, StatusBar, StyleSheet, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   runOnJS,
@@ -38,6 +38,10 @@ export type PhotoViewerProps = {
   /** Said for each photo: "Sunset hike, photo 2 of 4". */
   label?: string;
 };
+
+/** The viewer's controls sit on a dark disc or pill with a faint light rim, readable over any photo. */
+const CONTROL_FILL = 'rgba(0,0,0,0.55)';
+const CONTROL_RIM = 'rgba(255,255,255,0.35)';
 
 export function PhotoViewer({ images, initialIndex, isPresented, onDismiss, label }: PhotoViewerProps) {
   return (
@@ -100,7 +104,11 @@ function Viewer({ images, initialIndex, onDismiss, label }: Omit<PhotoViewerProp
           width: 40,
           height: 40,
           borderRadius: 20,
-          backgroundColor: 'rgba(255,255,255,0.25)',
+          // A dark disc with a faint light rim: the white × reads on a white photo (where a
+          // pale disc vanished) and on a black one (where the rim still shows its edge).
+          backgroundColor: CONTROL_FILL,
+          borderWidth: StyleSheet.hairlineWidth,
+          borderColor: CONTROL_RIM,
           alignItems: 'center',
           justifyContent: 'center',
         }}
@@ -119,10 +127,24 @@ function Viewer({ images, initialIndex, onDismiss, label }: Omit<PhotoViewerProp
             gap: 10,
           }}
         >
-          <PaginationDots count={images.length} progress={progress} activeIndex={index} onSurface />
-          <Text variant="bodyXs" style={{ color: 'rgba(255,255,255,0.8)' }}>
-            {`${index + 1} of ${images.length}`}
-          </Text>
+          {/* On the same dark pill as the ×, so the dots and the count read on a white photo too. */}
+          <View
+            style={{
+              alignItems: 'center',
+              gap: 8,
+              paddingHorizontal: 12,
+              paddingVertical: 8,
+              borderRadius: 999,
+              backgroundColor: CONTROL_FILL,
+              borderWidth: StyleSheet.hairlineWidth,
+              borderColor: CONTROL_RIM,
+            }}
+          >
+            <PaginationDots count={images.length} progress={progress} activeIndex={index} onSurface />
+            <Text variant="bodyXs" style={{ color: '#FFFFFF' }}>
+              {`${index + 1} of ${images.length}`}
+            </Text>
+          </View>
         </View>
       ) : null}
     </View>
