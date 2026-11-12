@@ -38,6 +38,12 @@ export const NO_FILTERS: MapFilters = { date: 'any', price: 'any', maxPrice: nul
 /** The currency "Maximum price" is in, as the design labels it. */
 export const FILTER_CURRENCY = 'NGN';
 
+/**
+ * The one-tap maximums the Filters sheet offers, in whole naira. Anything else
+ * is typed under Custom; the presets are there so most people never need the keyboard.
+ */
+export const MAX_PRICE_PRESETS = [5_000, 10_000, 25_000, 50_000] as const;
+
 /** Whether any filter narrows the map (the filter button shows it). */
 export const filtersActive = (f: MapFilters) => f.date !== 'any' || f.price !== 'any' || f.maxPrice !== null;
 

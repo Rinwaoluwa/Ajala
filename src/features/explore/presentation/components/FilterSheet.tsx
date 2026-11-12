@@ -1,12 +1,11 @@
 import { useState } from 'react';
-import { Pressable, View } from 'react-native';
+import { View } from 'react-native';
 
-import { haptics } from '@shared/feedback/haptics';
-import { Button, Sheet, Text, TextField } from '@shared/components';
-import { useTheme } from '@shared/hooks/useTheme';
+import { Button, PillTabs, Sheet, Text, TextField } from '@shared/components';
 
 import {
   FILTER_CURRENCY,
+  MAX_PRICE_PRESETS,
   NO_FILTERS,
   readMaxPrice,
   type DateFilter,
@@ -22,6 +21,12 @@ import { exploreCopy } from '../copy';
  * The choices are a draft until Apply: closing the sheet keeps the map as it
  * was. Reset puts the draft back to no filters. The maximum is hidden with Free,
  * where it means nothing.
+ *
+ * The maximum is chosen, not typed (product, 12 Nov: the number pad covered the
+ * field and had no way to close). One tap picks No limit or a common amount
+ * (`MAX_PRICE_PRESETS`); Custom opens the field, focused. The sheet then rises
+ * with the keyboard, so the field and Apply stay above it, and a tap anywhere
+ * outside the field puts the number pad away.
  *
  * `GET /map/pins` takes neither filter, so the map applies them on the phone
  * (`useMapPins`).
@@ -52,9 +57,27 @@ function FilterForm({ value, onApply }: { value: MapFilters; onApply: (filters: 
   // Remounting the uncontrolled field is how Reset empties it.
   const [maxKey, setMaxKey] = useState(0);
 
+  // Typing a maximum of their own: opened by Custom, or a maximum that is not a preset.
+  const [custom, setCustom] = useState(
+    value.maxPrice !== null && !(MAX_PRICE_PRESETS as readonly number[]).includes(value.maxPrice),
+  );
+  const maxChoice: MaxChoice = custom ? 'custom' : draft.maxPrice === null ? 'none' : `${draft.maxPrice}`;
+
   const reset = () => {
     setDraft(NO_FILTERS);
+    setCustom(false);
     setMaxKey((k) => k + 1);
+  };
+
+  const chooseMax = (choice: MaxChoice) => {
+    if (choice === 'custom') {
+      setCustom(true);
+      setDraft((d) => ({ ...d, maxPrice: null }));
+      setMaxKey((k) => k + 1);
+      return;
+    }
+    setCustom(false);
+    setDraft((d) => ({ ...d, maxPrice: choice === 'none' ? null : Number(choice) }));
   };
 
   return (
@@ -82,17 +105,33 @@ function FilterForm({ value, onApply }: { value: MapFilters; onApply: (filters: 
           onChange={(price) => setDraft((d) => ({ ...d, price }))}
         />
         {draft.price !== 'free' ? (
-          <View style={{ marginTop: 16 }}>
-            <TextField
-              key={maxKey}
-              label={copy.maxPrice(FILTER_CURRENCY)}
-              placeholder={copy.noLimit}
-              defaultValue={draft.maxPrice !== null ? String(draft.maxPrice) : ''}
-              keyboardType="number-pad"
-              returnKeyType="done"
-              maxLength={9}
-              onChangeText={(text) => setDraft((d) => ({ ...d, maxPrice: readMaxPrice(text) }))}
+          <View style={{ marginTop: 16, gap: 12 }}>
+            <Text variant="labelMd">{copy.maxPrice(FILTER_CURRENCY)}</Text>
+            <Options<MaxChoice>
+              options={[
+                { value: 'none', label: copy.noLimit },
+                ...MAX_PRICE_PRESETS.map((n) => ({ value: `${n}` as MaxChoice, label: naira(n) })),
+                { value: 'custom', label: copy.custom },
+              ]}
+              value={maxChoice}
+              onChange={chooseMax}
             />
+            {custom ? (
+              <TextField
+                key={maxKey}
+                label={copy.maxPrice(FILTER_CURRENCY)}
+                labelHidden
+                placeholder={copy.customPlaceholder}
+                defaultValue={draft.maxPrice !== null ? String(draft.maxPrice) : ''}
+                keyboardType="number-pad"
+                returnKeyType="done"
+                maxLength={9}
+                prefix="₦ "
+                autoFocus={maxKey > 0}
+                clearable
+                onChangeText={(text) => setDraft((d) => ({ ...d, maxPrice: readMaxPrice(text) }))}
+              />
+            ) : null}
           </View>
         ) : null}
       </Section>
@@ -114,6 +153,12 @@ function FilterForm({ value, onApply }: { value: MapFilters; onApply: (filters: 
   );
 }
 
+/** The maximum price choice: none, a preset (its amount as text), or typed. */
+type MaxChoice = 'none' | 'custom' | `${number}`;
+
+/** "₦25,000". */
+const naira = (n: number) => `₦${String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
+
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <View style={{ gap: 12 }}>
@@ -125,7 +170,15 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-/** Three equal options in a row; the chosen one filled. They wrap under each other at large text sizes. */
+/**
+ * A one-of choice as the app's own pills (`PillTabs`, as on the home feed and
+ * Messages): the chosen one teal, Liquid Glass where the phone has it, every
+ * pill in view (wrapping), each as wide as its label.
+ *
+ * Touch: the jelly wobble and the one light tap of haptics every pill in the
+ * app has (`JellyPress`). That tap is the haptic: Apple's guidance is a single
+ * light, consistent tap for choosing among options, so none is added on top.
+ */
 function Options<T extends string>({
   options,
   value,
@@ -135,45 +188,5 @@ function Options<T extends string>({
   value: T;
   onChange: (value: T) => void;
 }) {
-  const theme = useTheme();
-  return (
-    <View accessibilityRole="radiogroup" style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-      {options.map((o) => {
-        const selected = o.value === value;
-        return (
-          <Pressable
-            key={o.value}
-            onPress={() => {
-              if (o.value !== value) haptics.select();
-              onChange(o.value);
-            }}
-            accessibilityRole="radio"
-            accessibilityState={{ selected }}
-            accessibilityLabel={o.label}
-            style={({ pressed }) => ({
-              flexGrow: 1,
-              flexBasis: 0,
-              minWidth: 96,
-              minHeight: 48,
-              borderRadius: 14,
-              paddingHorizontal: 12,
-              paddingVertical: 10,
-              alignItems: 'center',
-              justifyContent: 'center',
-              backgroundColor: selected ? theme.primaryFill : theme.surfaceMuted,
-              opacity: pressed ? 0.8 : 1,
-            })}
-          >
-            <Text
-              variant="bodyMd"
-              numberOfLines={2}
-              style={{ textAlign: 'center', color: selected ? theme.primaryFillForeground : theme.muted }}
-            >
-              {o.label}
-            </Text>
-          </Pressable>
-        );
-      })}
-    </View>
-  );
+  return <PillTabs options={options} value={value} onChange={onChange} wrap role="radio" />;
 }

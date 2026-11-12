@@ -48,6 +48,9 @@ export const exploreCopy = {
     paid: 'Paid',
     maxPrice: (currency: string) => `Maximum price (${currency})`,
     noLimit: 'No limit',
+    // Not drawn: one-tap maximums, so most people never need the keyboard; Custom types one.
+    custom: 'Custom',
+    customPlaceholder: 'Enter a maximum',
     reset: 'Reset',
     apply: 'Apply filters',
   },

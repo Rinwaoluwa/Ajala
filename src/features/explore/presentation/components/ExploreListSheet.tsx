@@ -137,6 +137,7 @@ function ListBody({
           autoCorrect={false}
           returnKeyType="search"
           helper={tooShort ? copy.searchTooShort : null}
+          clearable
           leading={<NativeIcon source={icons.search} size={16} color={theme.muted} />}
           trailing={draft ? <NativeIcon source={icons.close} size={12} color={theme.muted} /> : undefined}
           trailingAction={draft ? { onPress: clear, accessibilityLabel: copy.clearSearch } : undefined}
@@ -477,6 +478,7 @@ function AllInterestsSheet({
           onChangeText={setQuery}
           autoCorrect={false}
           returnKeyType="search"
+          clearable
           leading={<NativeIcon source={icons.search} size={16} color={theme.muted} />}
         />
         {matching.length ? (

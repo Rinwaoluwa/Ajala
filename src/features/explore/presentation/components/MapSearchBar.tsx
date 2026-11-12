@@ -92,6 +92,7 @@ export function MapSearchBar({
               const first = search.places[0];
               if (first) void choose(first);
             }}
+            clearable
             leading={<NativeIcon source={icons.search} size={16} color={theme.muted} />}
             trailing={search.searching || search.locating ? <NativeSpinner size={14} color={theme.muted} /> : undefined}
           />
