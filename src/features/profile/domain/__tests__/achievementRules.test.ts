@@ -34,6 +34,7 @@ const act = (over: Partial<ProfileActivity> = {}): ProfileActivity => ({
   host: { id: 'h', name: 'Host', avatarUrl: null },
   distanceKm: null,
   saved: false,
+  lockReason: null,
   ...over,
 });
 

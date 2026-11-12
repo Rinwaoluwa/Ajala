@@ -1,3 +1,5 @@
+import { getClientLocationHeader } from '../location/deviceLocation';
+
 import { API_ERROR_CODES, ApiError, type ApiErrorCode, type ApiFieldError } from './ApiError';
 import { apiConfig } from './apiConfig';
 
@@ -10,7 +12,8 @@ import { apiConfig } from './apiConfig';
  *   - attach a bearer token when the caller supplies one,
  *   - give up after `timeoutMs` rather than hanging on a dead network,
  *   - turn every failure into an `ApiError` carrying the API's own `code`,
- *   - retry a GET that failed for a reason worth retrying (see `GET_RETRY_DELAYS_MS`).
+ *   - retry a GET that failed for a reason worth retrying (see `GET_RETRY_DELAYS_MS`),
+ *   - send where the phone is (`X-Client-Location`) on every signed-in call (below).
  *
  * It holds no session state. Who is signed in, and refreshing that, belongs to
  * the auth feature; wiring it in here would make every other feature depend on
@@ -99,7 +102,23 @@ const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve,
 const isStaleConnection = (e: unknown) =>
   e instanceof ApiError && e.code === 'NETWORK' && e.details?.staleConnection === true;
 
-export async function apiRequest<T>(request: ApiRequest): Promise<T> {
+/**
+ * Where the phone is, on every signed-in call that does not set it itself
+ * (MOB-077). A free member may only open posts near them, and the server
+ * checks it on every call that touches a post: opening, joining, comments,
+ * saving, reports, the posts on a profile, Saved, and posts tagged in a chat.
+ * Sent everywhere rather than call by call, so a call added later cannot miss
+ * it. Without permission or a fix nothing is sent, and the server answers
+ * `NO_LOCATION` where it needs one.
+ */
+async function withClientLocation(request: ApiRequest): Promise<ApiRequest> {
+  if (!request.accessToken || request.headers?.['X-Client-Location']) return request;
+  const location = await getClientLocationHeader();
+  return location ? { ...request, headers: { ...location, ...request.headers } } : request;
+}
+
+export async function apiRequest<T>(input: ApiRequest): Promise<T> {
+  const request = await withClientLocation(input);
   const retries = request.method === 'GET' && request.retry !== false ? GET_RETRY_DELAYS_MS : [];
   let staleRetried = false;
   for (let attempt = 0; ; attempt += 1) {

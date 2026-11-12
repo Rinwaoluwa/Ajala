@@ -133,6 +133,19 @@ export const postCopy = {
     body: 'See the full plan, its stops and who is going, and join it, with a Travel subscription.',
     unlock: 'Unlock with Travel',
   },
+  // Not drawn: a post outside the reader's area, without Pro (MOB-077).
+  farPost: {
+    title: 'This is outside your area',
+    body: 'Free members see posts near them. Go Pro to see posts anywhere, and join them.',
+    unlock: 'Go Pro',
+  },
+  // Not drawn: a free member opens a post with location off (400 NO_LOCATION).
+  noLocation: {
+    title: 'Turn on location',
+    body: 'Ajala shows you posts near where you are, so it needs your location to open this one.',
+    action: 'Turn on location',
+    settings: 'Open Settings',
+  },
   host: {
     edit: 'Edit post',
     cancel: 'Cancel this post',
@@ -191,6 +204,8 @@ export const postErrorMessages: Record<PostDetailErrorCode, string> = {
   hasAttendees: 'People have joined, so it can’t be deleted. Cancel it instead.',
   // Also joining your own post (409): the page then re-reads it and shows "Manage post".
   notAllowed: 'You can’t do that on this post.',
+  proRequired: 'This is outside your area. Go Pro to see posts anywhere.',
+  noLocation: 'Turn on location to open this post.',
   rateLimited: 'Too many tries. Wait a moment and try again.',
   network: 'You seem to be offline. Check your connection and try again.',
   sessionExpired: 'Your session ended. Sign in again to continue.',

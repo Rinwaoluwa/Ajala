@@ -18,6 +18,13 @@ export type PostDetailErrorCode =
   | 'alreadyReported'
   /** 403 `REPORTING_PAUSED`: a moderator paused this person's reporting. */
   | 'reportingPaused'
+  /**
+   * 402 `PAYMENT_REQUIRED`: a Plan, or a post outside the reader's area, and
+   * they have no Pro (MOB-077). The paywall, never an error screen.
+   */
+  | 'proRequired'
+  /** 400 `NO_LOCATION`: a free member with location off. Ask to turn it on. */
+  | 'noLocation'
   | 'rateLimited'
   | 'network'
   | 'sessionExpired'

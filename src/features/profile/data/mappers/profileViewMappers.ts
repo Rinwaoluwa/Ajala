@@ -57,6 +57,8 @@ export function toActivity(dto: ActivityCardDto): ProfileActivity {
     },
     distanceKm: dto.distanceKm ?? null,
     saved: dto.saved ?? false,
+    // `locked` with no reason predates MOB-077, when only Plans locked.
+    lockReason: dto.locked ? (dto.lockReason === 'distance' ? 'distance' : 'plan') : null,
   };
 }
 

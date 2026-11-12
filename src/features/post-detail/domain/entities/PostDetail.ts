@@ -21,6 +21,9 @@ export type PostInterest = { id: string; name: string; emoji: string | null };
 
 export type PostHost = { id: string; name: string; avatarUrl: string | null; verified: boolean };
 
+/** Why a post is locked to its reader (MOB-077). */
+export type LockReason = 'plan' | 'distance';
+
 export type PostDetail = {
   id: string;
   type: PostType;
@@ -57,6 +60,12 @@ export type PostDetail = {
    */
   externalUrl: string | null;
   rsvpState: RsvpState;
+  /**
+   * Why the reader may not open it (MOB-077): `plan`, a Plan without Pro;
+   * `distance`, outside their area without Pro. Null when it is open to them.
+   * A locked post carries only its title, first photo, city and host.
+   */
+  lockReason: LockReason | null;
   visibility: 'open' | 'private';
   waitlistEnabled: boolean;
   /** 1 is next. */

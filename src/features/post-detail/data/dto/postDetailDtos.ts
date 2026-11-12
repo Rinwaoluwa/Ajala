@@ -65,6 +65,9 @@ export interface PostDetailDto {
   externalUrl: string | null;
   goingCount: number;
   rsvpState: RsvpStateDto;
+  /** True when the reader may not open it; `lockReason` says why (MOB-077). */
+  locked?: boolean | null;
+  lockReason?: 'plan' | 'distance' | null;
   visibility: 'open' | 'private';
   waitlistEnabled: boolean | null;
   waitlistPosition: number | null;

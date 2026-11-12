@@ -62,5 +62,6 @@ function toPostCard(a: ProfileActivity): PostCardModel {
     host: { name: a.host.name, avatarUrl: a.host.avatarUrl },
     distanceKm: a.distanceKm,
     saved: a.saved,
+    lockReason: a.lockReason,
   };
 }

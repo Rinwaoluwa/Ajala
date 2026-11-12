@@ -68,7 +68,8 @@ const TAB_STATUS: Record<PersonActivityTab, ActivityStatus> = {
 export type PublicProfileScreenProps = {
   userId: string;
   onBack: () => void;
-  onOpenPost: (postId: string) => void;
+  /** A locked post (MOB-077) comes with its reason: the paywall, not the post. */
+  onOpenPost: (postId: string, lockReason?: 'plan' | 'distance' | null) => void;
   onMessage: () => void;
   /** Their badges and stamps (the Achievements screen for this person), with their first name. */
   onAchievements: (firstName: string) => void;
@@ -282,7 +283,7 @@ export function PublicProfileScreen({
         onEndReachedThreshold={0.5}
         renderItem={({ item, index }) => (
           <Animated.View entering={enterActivity(index, 3, 40)}>
-            <ActivityCard activity={item} status={TAB_STATUS[vm.tab]} onPress={() => onOpenPost(item.id)} />
+            <ActivityCard activity={item} status={TAB_STATUS[vm.tab]} onPress={() => onOpenPost(item.id, item.lockReason)} />
           </Animated.View>
         )}
         ListEmptyComponent={

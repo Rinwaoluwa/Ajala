@@ -43,7 +43,8 @@ export function SavedActivitiesScreen({
   onExplore,
 }: {
   onBack: () => void;
-  onOpenPost: (postId: string) => void;
+  /** A locked post (MOB-077) comes with its reason: the paywall, not the post. */
+  onOpenPost: (postId: string, lockReason?: 'plan' | 'distance' | null) => void;
   onExplore: () => void;
 }) {
   const theme = useTheme();
@@ -97,7 +98,7 @@ export function SavedActivitiesScreen({
             entering={enter(index)}
             exiting={FadeOut.duration(180)}
           >
-            <PostCard post={item} onPress={() => onOpenPost(item.id)} />
+            <PostCard post={item} onPress={() => onOpenPost(item.id, item.lockReason)} />
           </Animated.View>
         )}
         ListEmptyComponent={empty}

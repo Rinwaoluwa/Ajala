@@ -8,6 +8,6 @@ export {
   TravelPaywallScreen,
   type TravelPaywallScreenProps,
 } from './presentation/screens/TravelPaywallScreen';
-export { paymentRoutes } from './presentation/navigation/routes';
+export { lockedPostPaywall, paymentRoutes } from './presentation/navigation/routes';
 export { useSubscription } from './presentation/hooks/useSubscription';
 export type { Subscription, SubscriptionTier } from './domain/entities/Subscription';

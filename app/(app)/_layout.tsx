@@ -77,7 +77,8 @@ export default function AppLayout() {
           <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
           {/* Choosing a city slides up over everything and closes back down, like a compose screen. */}
           <Stack.Screen name="travel" options={{ presentation: 'fullScreenModal' }} />
-          <Stack.Screen name="travel-paywall" options={{ presentation: 'pageSheet', animation: 'fade' }} />
+          {/* The paywall comes up the same way as Travel (product, 12 Nov): up over everything, back down. */}
+          <Stack.Screen name="travel-paywall" options={{ presentation: 'fullScreenModal' }} />
         </Stack>
       </LocationGate>
     </ApiRequesterProvider>

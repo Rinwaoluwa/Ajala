@@ -1,6 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 
 import { chatRoutes } from '@features/chat';
+import { lockedPostPaywall } from '@features/payment';
 import { PublicProfileScreen, profileRoutes } from '@features/profile';
 
 /**
@@ -14,7 +15,12 @@ export default function UserRoute() {
     <PublicProfileScreen
       userId={id}
       onBack={() => router.back()}
-      onOpenPost={(postId) => router.push({ pathname: '/(app)/post/[id]', params: { id: postId } })}
+      // A locked card (MOB-077) goes straight to the paywall, without asking for the post.
+      onOpenPost={(postId, lockReason) =>
+        lockReason
+          ? router.push(lockedPostPaywall(lockReason))
+          : router.push({ pathname: '/(app)/post/[id]', params: { id: postId } })
+      }
       onMessage={() => router.push({ pathname: chatRoutes.start, params: { userId: id } })}
       onAchievements={(name) =>
         router.push({ pathname: profileRoutes.achievements, params: { userId: id, name } })

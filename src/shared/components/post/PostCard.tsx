@@ -55,6 +55,12 @@ export type PostCardModel = {
   mine?: boolean;
   /** A private post asks the host first: the quick RSVP says "Requested". */
   visibility?: 'open' | 'private';
+  /**
+   * Locked to this reader (MOB-077): a Plan, or a post outside their area,
+   * without Pro. The photo blurs, the quick RSVP goes, and the pill says why;
+   * the caller opens the paywall rather than the post.
+   */
+  lockReason?: 'plan' | 'distance' | null;
 };
 
 const TYPE_LABEL: Record<PostCardModel['type'], string> = {
@@ -75,6 +81,8 @@ const cardCopy = {
   stay: 'Stay',
   leave: 'Leave',
   openHost: (name: string) => `Open ${name}’s profile`,
+  locked: { plan: 'Plans are a Pro feature', distance: 'Outside your area' },
+  goPro: 'Go Pro to open',
 } as const;
 
 /**
@@ -167,7 +175,8 @@ function PostCardComponent({ post, onPress, onViewDetails, onOpenHost, onBeforeR
   const distance = formatDistance(post.distanceKm);
   const date = post.startAt ? formatCardDate(post.startAt) : null;
   const time = post.startAt ? formatCardTime(post.startAt) : null;
-  const offersRsvp = post.rsvpState !== undefined && !rsvp.closed && !post.mine;
+  const locked = post.lockReason ?? null;
+  const offersRsvp = post.rsvpState !== undefined && !rsvp.closed && !post.mine && !locked;
   const rsvpLabel = !rsvp.joined
     ? cardCopy.rsvp
     : rsvp.state === 'requested'
@@ -205,6 +214,8 @@ function PostCardComponent({ post, onPress, onViewDetails, onOpenHost, onBeforeR
               contentFit="cover"
               transition={250}
               recyclingKey={post.id}
+              // A locked post shows its photo only as a hint (MOB-077).
+              blurRadius={locked ? 24 : undefined}
             />
           ) : null}
           {/* The dark fade the white text sits on. */}
@@ -233,13 +244,16 @@ function PostCardComponent({ post, onPress, onViewDetails, onOpenHost, onBeforeR
               </Text>
             </View>
             <View style={{ gap: 10, alignItems: 'center' }}>
-              <MarkButton
-                on={saved}
-                onPress={toggle}
-                outline="bookmark-outline"
-                filled="bookmark"
-                label={saved ? 'Saved' : 'Save'}
-              />
+              {/* A locked post can be unsaved but not saved (the server answers 402). */}
+              {!locked || saved ? (
+                <MarkButton
+                  on={saved}
+                  onPress={toggle}
+                  outline="bookmark-outline"
+                  filled="bookmark"
+                  label={saved ? 'Saved' : 'Save'}
+                />
+              ) : null}
               {offersRsvp ? (
                 <MarkButton
                   on={rsvp.joined}
@@ -302,6 +316,14 @@ function PostCardComponent({ post, onPress, onViewDetails, onOpenHost, onBeforeR
               </View>
             ) : null}
             {post.placeName ? <Meta icon="pin" text={post.placeName} /> : null}
+            {locked ? (
+              <View className="flex-row items-center" style={{ gap: 6 }}>
+                <Ionicons name="lock-closed" size={14} color="rgba(255,255,255,0.85)" />
+                <Text variant="bodySm" style={{ color: 'rgba(255,255,255,0.85)', flexShrink: 1 }}>
+                  {cardCopy.locked[locked]}
+                </Text>
+              </View>
+            ) : null}
             {post.description ? (
               <Text variant="bodySm" numberOfLines={2} style={{ color: 'rgba(255,255,255,0.85)' }}>
                 {post.description}
@@ -311,7 +333,7 @@ function PostCardComponent({ post, onPress, onViewDetails, onOpenHost, onBeforeR
               activeOpacity={0.75}
               onPress={onViewDetails ?? onPress}
               accessibilityRole="button"
-              accessibilityLabel={cardCopy.viewDetails}
+              accessibilityLabel={locked ? cardCopy.goPro : cardCopy.viewDetails}
               style={{ alignSelf: 'flex-start', marginTop: 6 }}
             >
               <GlassSurface
@@ -330,9 +352,9 @@ function PostCardComponent({ post, onPress, onViewDetails, onOpenHost, onBeforeR
                 }}
               >
                 <Text variant="labelMd" style={{ color: palette.teal }}>
-                  {cardCopy.viewDetails}
+                  {locked ? cardCopy.goPro : cardCopy.viewDetails}
                 </Text>
-                <Ionicons name="arrow-forward" size={16} color={palette.teal} />
+                <Ionicons name={locked ? 'lock-closed' : 'arrow-forward'} size={16} color={palette.teal} />
               </GlassSurface>
             </TouchableOpacity>
           </View>

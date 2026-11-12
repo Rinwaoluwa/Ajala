@@ -19,6 +19,7 @@ const activity = (id: string): ProfileActivity => ({
   host: { id: 'h', name: 'Host', avatarUrl: null },
   distanceKm: null,
   saved: false,
+  lockReason: null,
 });
 
 /** Answers `/me/rsvps` from `pages[state][cursor ?? 'first']`, and records what was asked. */

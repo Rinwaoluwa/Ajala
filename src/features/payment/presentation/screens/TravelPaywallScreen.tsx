@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Linking, Pressable, ScrollView, View } from 'react-native';
+import { Pressable, ScrollView, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 
 import {
   Button,
@@ -14,6 +15,7 @@ import {
 } from '@shared/components';
 import { SCREEN_GUTTER, palette } from '@shared/theme';
 import { WEB_SUBSCRIBE_URL } from '@core/config/payments';
+import { openInApp } from '@core/links/openInApp';
 
 import { subscriptionSummary, type SubscriptionSummary } from '../../domain/rules/subscriptionRules';
 import { travelPaywallCopy } from '../copy';
@@ -34,9 +36,9 @@ import { useSubscription } from '../hooks/useSubscription';
  * have opened because a teleport just came back 402.
  *
  *   - Not subscribed: the benefits and Subscribe. People pay on the web:
- *     Subscribe opens the payment page (`WEB_SUBSCRIBE_URL`) in the phone's
- *     default browser, outside the app. With no page set for this build, or
- *     when the browser cannot open it, a sheet says buying isn't available yet.
+ *     Subscribe opens the payment page (`WEB_SUBSCRIBE_URL`) in the in-app
+ *     browser, over the paywall. With no page set for this build, a sheet says
+ *     buying isn't available yet.
  *     Coming back to the app reads the subscription again. "Maybe later" goes back.
  *   - Subscribed: "Travel is on", when it renews or ends, and Manage, which
  *     opens the store's subscription settings or the web billing portal.
@@ -60,10 +62,15 @@ export type TravelPaywallScreenProps = {
   city: { name: string; countryCode?: string | null } | null;
   /** The home place's country (`MeDto.homePlace.countryCode`), or null when there is none. */
   homeCountryCode: string | null;
-  /** Why it opened: a teleport (the default), or a Plan, which is a Pro feature. */
-  reason?: 'teleport' | 'plans';
+  /**
+   * Why it opened: a teleport (the default), a Plan (a Pro feature), or a post
+   * outside the reader's area (`distance`, MOB-077).
+   */
+  reason?: PaywallReason;
   onClose: () => void;
 };
+
+export type PaywallReason = 'teleport' | 'plans' | 'distance';
 
 export function TravelPaywallScreen({
   city,
@@ -85,6 +92,8 @@ export function TravelPaywallScreen({
         experimental_backgroundImage: 'linear-gradient(180deg, #5E7E93 0%, #2C4048 45%, #0F1A1A 100%)',
       }}
     >
+      {/* Full screen on the dark gradient: the clock and battery in white, in either theme. */}
+      <StatusBar style="light" />
       <SwirlPattern color={palette.white} opacity={0.06} />
       <ScrollView
         contentContainerStyle={{
@@ -176,10 +185,10 @@ export function TravelPaywallScreen({
                 style={{ color: palette.white }}
                 accessibilityRole="header"
               >
-                {reason === 'plans' ? copy.plans.title : city ? copy.title(city.name) : copy.anywhere}
+                {reason === 'plans' ? copy.plans.title : reason === 'distance' ? copy.distance.title : city ? copy.title(city.name) : copy.anywhere}
               </Text>
               <Text variant="bodyMd" className="mt-8 text-center" style={{ color: 'rgba(255,255,255,0.88)' }}>
-                {reason === 'plans' ? copy.plans.body : city ? copy.body(city.name) : copy.bodyAnywhere}
+                {reason === 'plans' ? copy.plans.body : reason === 'distance' ? copy.distance.body : city ? copy.body(city.name) : copy.bodyAnywhere}
               </Text>
             </Animated.View>
 
@@ -202,9 +211,8 @@ export function TravelPaywallScreen({
                   fullWidth
                   loading={loading}
                   onPress={() =>
-                    WEB_SUBSCRIBE_URL
-                      ? void Linking.openURL(WEB_SUBSCRIBE_URL).catch(() => setNotice(true))
-                      : setNotice(true)
+                    // The payment page opens in the in-app browser, over the paywall.
+                    WEB_SUBSCRIBE_URL ? void openInApp(WEB_SUBSCRIBE_URL) : setNotice(true)
                   }
                 />
               </View>

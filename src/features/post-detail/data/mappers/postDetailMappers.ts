@@ -52,6 +52,8 @@ export function toPostDetail(dto: PostDetailDto): PostDetail {
     price: dto.type !== 'plan' && dto.price ? toPrice(dto.price) : null,
     externalUrl: dto.externalUrl ?? null,
     rsvpState: dto.rsvpState ?? 'none',
+    // `locked` with no reason predates MOB-077, when only Plans locked.
+    lockReason: dto.locked ? (dto.lockReason === 'distance' ? 'distance' : 'plan') : null,
     visibility: dto.visibility === 'private' ? 'private' : 'open',
     waitlistEnabled: dto.waitlistEnabled ?? false,
     waitlistPosition: dto.waitlistPosition ?? null,
@@ -161,6 +163,10 @@ export function toPostDetailError(e: unknown): PostDetailError {
     POST_STARTED: 'postStarted',
     POST_CANCELLED: 'postCancelled',
     POST_HAS_ATTENDEES: 'hasAttendees',
+    // 402: a Plan, or a post outside the reader's area, without Pro (MOB-077): the paywall.
+    PAYMENT_REQUIRED: 'proRequired',
+    // 400: a free member opening a post with location off. Never the paywall.
+    NO_LOCATION: 'noLocation',
     // Joining your own post, a declined person asking again, or a host-only list.
     CONFLICT: 'notAllowed',
     FORBIDDEN: 'notAllowed',

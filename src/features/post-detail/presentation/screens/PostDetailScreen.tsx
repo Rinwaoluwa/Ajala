@@ -9,6 +9,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { openAppSettings, requestLocationPermission } from '@core/location/deviceLocation';
 import { ReportPostFlow } from '@features/explore';
 import {
   Avatar,
@@ -91,8 +92,11 @@ export type PostDetailScreenProps = {
    * already going. True when left out.
    */
   canSeePlans?: boolean;
-  /** "Unlock with Travel" on a locked Plan: the paywall. */
-  onUnlockPlans?: () => void;
+  /**
+   * The paywall, from a locked post's button: `plans` for a Plan, `distance`
+   * for a post outside the reader's area (MOB-077).
+   */
+  onUnlock?: (reason: 'plans' | 'distance') => void;
   /**
    * The tapped card's photo, title and type. With it the page opens on its real
    * header (the photo is already in the image cache) rather than a blank or a
@@ -109,7 +113,7 @@ export function PostDetailScreen({
   onOpenGroupChat,
   onEditPost,
   canSeePlans = true,
-  onUnlockPlans,
+  onUnlock,
   preview = null,
 }: PostDetailScreenProps) {
   const theme = useTheme();
@@ -158,6 +162,25 @@ export function PostDetailScreen({
     );
   }
 
+  // 402: outside the reader's area (or a Plan) without Pro. What the card brought, and the paywall.
+  if (!vm.post && vm.error === 'proRequired') {
+    return (
+      <LockedPost
+        title={preview?.title ?? null}
+        imageUrl={preview?.imageUrl ?? null}
+        type={preview?.type ?? null}
+        reason={preview?.type === 'plan' ? 'plans' : 'distance'}
+        onBack={onBack}
+        onUnlock={onUnlock}
+      />
+    );
+  }
+
+  // 400 NO_LOCATION: a free member with location off. Ask for it, then try again.
+  if (!vm.post && vm.error === 'noLocation') {
+    return <NeedsLocation onBack={onBack} onRetry={vm.retry} />;
+  }
+
   if (!vm.post) {
     const notFound = vm.error === 'notFound';
     const copy = notFound ? postCopy.notFound : postCopy.failed;
@@ -182,20 +205,19 @@ export function PostDetailScreen({
   }
 
   const post = vm.post;
-  // A Plan is Pro-only to see; the host, and anyone already going, always see theirs.
-  if (post.type === 'plan' && !canSeePlans && !post.isHost && post.rsvpState !== 'going') {
-    const p = postCopy.proPlan;
+  // The server's lock (MOB-077: a Plan, or outside the reader's area, without Pro). And a Plan
+  // is Pro-only to see here too; the host, and anyone already going, always see theirs.
+  const planLocked = post.type === 'plan' && !canSeePlans && !post.isHost && post.rsvpState !== 'going';
+  if (post.lockReason || planLocked) {
     return (
-      <View style={{ flex: 1, backgroundColor: theme.background }}>
-        <PostHero images={post.images.slice(0, 1)} title={post.title} type={post.type} onBack={onBack} menu={null} />
-        <View style={{ paddingHorizontal: 20, paddingTop: 20, gap: 16 }}>
-          <Text variant="headingLg" accessibilityRole="header">
-            {post.title}
-          </Text>
-          <NoteCard title={p.title} body={p.body} />
-          {onUnlockPlans ? <Button label={p.unlock} size="lg" fullWidth onPress={onUnlockPlans} /> : null}
-        </View>
-      </View>
+      <LockedPost
+        title={post.title}
+        imageUrl={post.images[0] ?? null}
+        type={post.type}
+        reason={post.lockReason === 'distance' ? 'distance' : 'plans'}
+        onBack={onBack}
+        onUnlock={onUnlock}
+      />
     );
   }
   const action = vm.action ?? 'none';
@@ -552,4 +574,92 @@ function menuActions(
       : []),
     { label: h.delete, systemImage: 'trash', destructive: true, onPress: handlers.onDelete },
   ];
+}
+
+/**
+ * A post the reader may not open without Pro: a Plan, or one outside their
+ * area (MOB-077). Its photo and title, why, and the paywall. Opened from a
+ * deep link with nothing to show, it says why alone.
+ */
+function LockedPost({
+  title,
+  imageUrl,
+  type,
+  reason,
+  onBack,
+  onUnlock,
+}: {
+  title: string | null;
+  imageUrl: string | null;
+  type: PostType | null;
+  reason: 'plans' | 'distance';
+  onBack: () => void;
+  onUnlock?: (reason: 'plans' | 'distance') => void;
+}) {
+  const theme = useTheme();
+  const insets = useSafeAreaInsets();
+  const p = reason === 'plans' ? postCopy.proPlan : postCopy.farPost;
+  const unlock = onUnlock ? <Button label={p.unlock} size="lg" fullWidth onPress={() => onUnlock(reason)} /> : null;
+  if (!title || !type) {
+    return (
+      <View
+        className="flex-1 items-center justify-center bg-background px-20"
+        style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}
+      >
+        <EmptyState
+          icon="lock-closed-outline"
+          title={p.title}
+          body={p.body}
+          action={onUnlock ? { label: p.unlock, onPress: () => onUnlock(reason), variant: 'primary' } : undefined}
+        />
+        <View style={{ marginTop: 12 }}>
+          <Button label={postCopy.notFound.action} variant="ghost" onPress={onBack} />
+        </View>
+      </View>
+    );
+  }
+  return (
+    <View style={{ flex: 1, backgroundColor: theme.background }}>
+      <PostHero images={imageUrl ? [imageUrl] : []} title={title} type={type} onBack={onBack} menu={null} />
+      <View style={{ paddingHorizontal: 20, paddingTop: 20, gap: 16 }}>
+        <Text variant="headingLg" accessibilityRole="header">
+          {title}
+        </Text>
+        <NoteCard title={p.title} body={p.body} />
+        {unlock}
+      </View>
+    </View>
+  );
+}
+
+/**
+ * 400 `NO_LOCATION`: a free member opening a post with location off. Not the
+ * paywall: turning location on is all it takes. Asks where the system still
+ * can, sends them to Settings where it cannot, and tries again once it is on.
+ */
+function NeedsLocation({ onBack, onRetry }: { onBack: () => void; onRetry: () => void }) {
+  const copy = postCopy.noLocation;
+  const [blocked, setBlocked] = useState(false);
+  const turnOn = async () => {
+    if (blocked) {
+      openAppSettings();
+      return;
+    }
+    const permission = await requestLocationPermission();
+    if (permission === 'granted') onRetry();
+    else if (permission === 'blocked') setBlocked(true);
+  };
+  return (
+    <View className="flex-1 items-center justify-center bg-background px-20">
+      <EmptyState
+        icon="location-outline"
+        title={copy.title}
+        body={copy.body}
+        action={{ label: blocked ? copy.settings : copy.action, onPress: () => void turnOn(), variant: 'primary' }}
+      />
+      <View style={{ marginTop: 12 }}>
+        <Button label={postCopy.notFound.action} variant="ghost" onPress={onBack} />
+      </View>
+    </View>
+  );
 }

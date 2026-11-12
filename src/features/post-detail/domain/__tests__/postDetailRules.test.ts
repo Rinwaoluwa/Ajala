@@ -35,6 +35,7 @@ const post = (over: Partial<PostDetail> = {}): PostDetail => ({
   price: null,
   externalUrl: null,
   rsvpState: 'none',
+  lockReason: null,
   visibility: 'open',
   waitlistEnabled: false,
   waitlistPosition: null,

@@ -1,3 +1,4 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
 import { TouchableOpacity, View } from 'react-native';
 
@@ -40,6 +41,8 @@ export function ActivityCard({
   const day = formatDay(activity.startAt);
   const time = formatTime(activity.startAt);
   const tag = STATUS_TAG[status];
+  // Locked to this reader (MOB-077): a hint of the photo, why, and the paywall on tap.
+  const locked = activity.lockReason;
   return (
     <TouchableOpacity
       activeOpacity={0.85}
@@ -63,6 +66,7 @@ export function ActivityCard({
             style={{ flex: 1 }}
             contentFit="cover"
             transition={200}
+            blurRadius={locked ? 24 : undefined}
           />
         ) : null}
       </View>
@@ -99,11 +103,20 @@ export function ActivityCard({
           }}
         >
           {/* Grows to push the link right; at large text the link wraps under it instead of clipping. */}
-          <Text variant="bodySm" style={{ flexGrow: 1 }}>
-            {copy.joining(activity.goingCount)}
-          </Text>
+          {locked ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexGrow: 1, flexShrink: 1 }}>
+              <Ionicons name="lock-closed" size={14} color={theme.muted} />
+              <Text variant="bodySm" tone="muted" style={{ flexShrink: 1 }}>
+                {copy.locked[locked]}
+              </Text>
+            </View>
+          ) : (
+            <Text variant="bodySm" style={{ flexGrow: 1 }}>
+              {copy.joining(activity.goingCount)}
+            </Text>
+          )}
           <Text variant="labelSm" tone="primary">
-            {`${copy.view[activity.type]} ›`}
+            {locked ? `${copy.goPro} ›` : `${copy.view[activity.type]} ›`}
           </Text>
         </View>
       </View>

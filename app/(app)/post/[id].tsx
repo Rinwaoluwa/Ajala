@@ -40,7 +40,8 @@ export default function PostRoute() {
       onMessageHost={(userId) => router.push({ pathname: chatRoutes.start, params: { userId } })}
       onOpenGroupChat={(postId) => router.push({ pathname: chatRoutes.start, params: { postId } })}
       canSeePlans={isPro || loading}
-      onUnlockPlans={() => router.push({ pathname: paymentRoutes.travelPaywall, params: { reason: 'plans' } })}
+      // A locked post (a Plan, or one outside their area): the paywall, saying which.
+      onUnlock={(reason) => router.push({ pathname: paymentRoutes.travelPaywall, params: { reason } })}
       // The host's "Edit post": the create wizard, filled in from this post, saving changes.
       onEditPost={(post) =>
         router.push({ pathname: createPostRoutes.wizard, params: { type: post.type, editId: post.id } })

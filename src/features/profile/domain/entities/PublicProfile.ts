@@ -57,7 +57,15 @@ export type ProfileActivity = {
   distanceKm: number | null;
   /** Whether the signed-in person saved it (the bookmark). */
   saved: boolean;
+  /**
+   * Why the reader may not open it (MOB-077): a Plan, or outside their area,
+   * without Pro. Null when open. A locked card opens the paywall, not the post.
+   */
+  lockReason: ActivityLock | null;
 };
+
+/** Why a post is locked to its reader (MOB-077). */
+export type ActivityLock = 'plan' | 'distance';
 
 /**
  * Where a post is, as a card says it: `localityLabel` ("Lagos, Nigeria") and

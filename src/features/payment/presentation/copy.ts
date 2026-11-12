@@ -5,6 +5,11 @@ export const travelPaywallCopy = {
   title: (city: string) => `Travel to ${city}`,
   anywhere: 'Travel anywhere',
   // Not drawn: the paywall opened from a Plan (creating or opening one), a Pro feature (10 Nov).
+  // Not drawn: opened from a post outside the reader's area (MOB-077).
+  distance: {
+    title: 'See posts anywhere',
+    body: 'Free members see posts near them. Open and join posts in any city with a Travel subscription.',
+  },
   plans: {
     title: 'Plans are a Pro feature',
     body: 'Create plans, and see the plans other travellers make, with a Travel subscription.',

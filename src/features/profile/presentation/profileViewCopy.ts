@@ -84,6 +84,9 @@ export const profileViewCopy = {
     failed: 'These activities didn’t load.',
     retry: 'Try again',
     joining: (n: number) => `${n} joining`,
+    // A post locked to the reader (MOB-077); the card opens the paywall.
+    locked: { plan: 'Plans are a Pro feature', distance: 'Outside your area' },
+    goPro: 'Go Pro to open',
     view: { meetup: 'View meetup', event: 'View event', plan: 'View plan', group: 'View group' },
   },
   types: { meetup: 'Meetup', event: 'Event', plan: 'Plan', group: 'Group' },

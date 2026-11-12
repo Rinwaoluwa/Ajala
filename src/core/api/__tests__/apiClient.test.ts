@@ -1,7 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
 
+import { getClientLocationHeader } from '../../location/deviceLocation';
 import { ApiError } from '../ApiError';
 import { apiRequest } from '../apiClient';
+
+// Where the phone is: stubbed, so each test says whether there is a fix.
+jest.mock('../../location/deviceLocation', () => ({
+  getClientLocationHeader: jest.fn(async () => null),
+}));
+const locationHeader = getClientLocationHeader as jest.MockedFunction<typeof getClientLocationHeader>;
 
 /**
  * The one HTTP entry point, against a stubbed `fetch`: the error envelope
@@ -65,6 +72,29 @@ describe('apiRequest', () => {
 
     const [, init] = fetchMock.mock.calls[0]!;
     expect(init?.headers).toMatchObject({ Accept: 'application/json', 'X-Client-Location': '6.453,3.396' });
+  });
+
+  it('sends where the phone is on every signed-in call (MOB-077)', async () => {
+    locationHeader.mockResolvedValueOnce({ 'X-Client-Location': '51.507,-0.128' });
+    fetchMock.mockResolvedValue(json(200, {}));
+    await apiRequest({ method: 'POST', path: '/posts/p1/save', accessToken: 'tok' });
+
+    const [, init] = fetchMock.mock.calls[0]!;
+    expect(init?.headers).toMatchObject({ 'X-Client-Location': '51.507,-0.128', Authorization: 'Bearer tok' });
+  });
+
+  it('keeps a location the caller set, and sends none signed out or without a fix', async () => {
+    locationHeader.mockResolvedValue({ 'X-Client-Location': '51.507,-0.128' });
+    fetchMock.mockResolvedValue(json(200, {}));
+    await apiRequest({ method: 'GET', path: '/feed', accessToken: 'tok', headers: { 'X-Client-Location': '6.453,3.396' } });
+    await apiRequest({ method: 'POST', path: '/auth/login', body: {} });
+    locationHeader.mockResolvedValue(null);
+    await apiRequest({ method: 'GET', path: '/me/saved', accessToken: 'tok' });
+
+    const headers = fetchMock.mock.calls.map(([, init]) => (init?.headers ?? {}) as Record<string, string>);
+    expect(headers[0]['X-Client-Location']).toBe('6.453,3.396');
+    expect(headers[1]['X-Client-Location']).toBeUndefined();
+    expect(headers[2]['X-Client-Location']).toBeUndefined();
   });
 
   it('resolves a 204 without a body', async () => {

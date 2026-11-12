@@ -62,6 +62,13 @@ export interface ActivityCardDto {
   host: HostCardDto;
   interests: InterestDto[] | null;
   distanceKm: number | null;
+  /**
+   * True when the reader may not open it; `lockReason` says why (MOB-077). A
+   * locked card keeps its title, first photo, city, date and host; the place,
+   * distance, interests and count are cleared.
+   */
+  locked?: boolean | null;
+  lockReason?: 'plan' | 'distance' | null;
 }
 
 /** `HostedPostsPageDto`, and the pages of `/me/saved`, `/me/rsvps`, `/me/attended`. */
