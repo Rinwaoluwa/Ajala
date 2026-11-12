@@ -211,6 +211,7 @@ export function TravelScreen({ current, teleported, onBack, onPaywall }: TravelS
           filled
           autoCorrect={false}
           returnKeyType="search"
+          clearable
           leading={<NativeIcon source={icons.search} size={16} color={palette.inkSecondary} />}
           trailing={
             searching && !results && !search.failed ? (

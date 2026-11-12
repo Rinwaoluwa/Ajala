@@ -19,6 +19,7 @@ import { restoreAppearance } from '@shared/state/appearance';
 import { LaunchStateProvider } from '@shared/state/LaunchState';
 import { ThemeCrossfade } from '@shared/components';
 import { fontAssets } from '@shared/theme';
+import { searchFocus } from '@shared/components/form/searchFocus';
 
 import '../global.css';
 
@@ -55,7 +56,8 @@ export default function RootLayout() {
 
   return (
     // Gestures (dragging a photo into a new place) need a root to attach to.
-    <GestureHandlerRootView style={{ flex: 1 }}>
+    // Every touch reaches here last: one that began outside a focused search field blurs it.
+    <GestureHandlerRootView style={{ flex: 1 }} onTouchStart={searchFocus.rootTouch}>
     <SafeAreaProvider>
       {/* Android draws the app edge to edge, so the keyboard no longer shrinks the
           window and covered every text box near the bottom (comments, chats, the

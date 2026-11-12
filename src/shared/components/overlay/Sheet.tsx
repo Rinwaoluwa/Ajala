@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
+  Keyboard,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -42,6 +44,12 @@ import { Host } from '../ui/Host';
  * It never grows past the top safe area: at a large text size, content taller
  * than the room left scrolls inside the sheet (and only then), so the handle,
  * the title and the × stay on screen.
+ *
+ * The keyboard: on iOS the sheet rises with it, in the keyboard's own time, so
+ * a field in it and the buttons under that field stay above the keys; if that
+ * leaves too little room, the content scrolls to its end, where a sheet's field
+ * and its Apply usually are. Android resizes a modal's window for the keyboard
+ * itself, which lifts the sheet the same way.
  */
 
 const RISE_MS = 300;
@@ -82,6 +90,31 @@ export function Sheet({ isPresented, title, subtitle, onDismiss, children, overl
     setContentOverflows(viewport > 0 && content > viewport + 1);
   };
   const shown = useSharedValue(0);
+  // How far the keyboard pushes the sheet up (iOS), less the home-indicator room it covers.
+  const lift = useSharedValue(0);
+  const [keyboardRoom, setKeyboardRoom] = useState(0);
+  const scroll = useRef<ScrollView>(null);
+
+  useEffect(() => {
+    if (!mounted || Platform.OS !== 'ios') return;
+    const move = (to: number, duration: number) => {
+      setKeyboardRoom(to);
+      lift.value = withTiming(to, { duration: duration || 250, easing: Easing.out(Easing.cubic) });
+    };
+    const show = Keyboard.addListener('keyboardWillShow', (e) =>
+      move(Math.max(0, e.endCoordinates.height - insets.bottom), e.duration),
+    );
+    const hide = Keyboard.addListener('keyboardWillHide', (e) => move(0, e.duration));
+    // Too little room above the keys: the end of the content, where the field and its button are.
+    const didShow = Keyboard.addListener('keyboardDidShow', () => {
+      if (sizes.current.content > sizes.current.viewport + 1) scroll.current?.scrollToEnd({ animated: true });
+    });
+    return () => {
+      show.remove();
+      hide.remove();
+      didShow.remove();
+    };
+  }, [mounted, insets.bottom, lift]);
 
   if (isPresented && !mounted) setMounted(true);
 
@@ -101,7 +134,7 @@ export function Sheet({ isPresented, title, subtitle, onDismiss, children, overl
   const scrimStyle = useAnimatedStyle(() => ({ opacity: shown.value }));
   const sheetStyle = useAnimatedStyle(() => ({
     opacity: reduceMotion ? shown.value : 1,
-    transform: [{ translateY: reduceMotion ? 0 : (1 - shown.value) * height }],
+    transform: [{ translateY: (reduceMotion ? 0 : (1 - shown.value) * height) - lift.value }],
   }));
 
   if (!mounted) return null;
@@ -120,7 +153,7 @@ export function Sheet({ isPresented, title, subtitle, onDismiss, children, overl
             left: 0,
             right: 0,
             bottom: 0,
-            maxHeight: window.height - insets.top - 12,
+            maxHeight: window.height - insets.top - 12 - keyboardRoom,
             opacity: height === 0 ? 0 : 1,
             backgroundColor: theme.surface,
             borderTopLeftRadius: 28,
@@ -166,6 +199,7 @@ export function Sheet({ isPresented, title, subtitle, onDismiss, children, overl
           </Text>
         ) : null}
         <ScrollView
+          ref={scroll}
           style={{ marginTop: subtitle ? 20 : title ? 16 : 20, flexShrink: 1 }}
           scrollEnabled={contentOverflows}
           showsVerticalScrollIndicator={contentOverflows}

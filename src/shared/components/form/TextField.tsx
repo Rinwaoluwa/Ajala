@@ -14,9 +14,12 @@ import { useFontScale } from '@shared/hooks/useFontScale';
 import { useTheme } from '@shared/hooks/useTheme';
 import { layout, textStyles } from '@shared/theme';
 
+import { icons } from '../ui/icons';
+import { NativeIcon } from '../ui/NativeIcon';
 import { nativeTextScaleCap } from '../ui/nativeTextScale';
 import { Text } from '../ui/Text';
 import { FieldFrame, fieldLineHeight } from './FieldFrame';
+import { searchFocus } from './searchFocus';
 import { Host } from '../ui/Host';
 
 /**
@@ -65,6 +68,18 @@ export type TextFieldProps = {
   bare?: boolean;
   /** Not drawn — a search box whose placeholder names it, which the native field reads out. */
   labelHidden?: boolean;
+  /**
+   * An × at the right end while there is text, which empties the field in one
+   * tap (and reports `''` through `onChangeText`). For search fields. Not drawn
+   * when the field has its own `trailing`.
+   */
+  clearable?: boolean;
+  /**
+   * A touch anywhere outside the focused field puts the keyboard away
+   * (`searchFocus`). On by default for a `clearable` (search) field; also for
+   * a field whose keyboard has no return key, like the number pad.
+   */
+  dismissOnOutsideTap?: boolean;
   autoFocus?: boolean;
   maxLength?: number;
   testID?: string;
@@ -98,6 +113,8 @@ function TextFieldComponent({
   filled = false,
   bare = false,
   labelHidden = false,
+  clearable = false,
+  dismissOnOutsideTap = clearable,
   autoFocus,
   maxLength,
   testID,
@@ -113,7 +130,39 @@ function TextFieldComponent({
     submitRef.current = onSubmitEditing;
   }, [onSubmitEditing]);
   const handleSubmit = useCallback(() => submitRef.current?.(), []);
+  // The native field's own autoFocus is missed when it appears inside something already
+  // on screen (a sheet's Custom amount): focus it once it has mounted, too.
+  useEffect(() => {
+    if (!autoFocus) return;
+    const frame = requestAnimationFrame(() => inputRef.current?.focus());
+    return () => cancelAnimationFrame(frame);
+    // Mount only: autoFocus is about the field's first appearance.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [focused, setFocused] = useState(false);
+  // Whether there is text to clear. Only followed for a clearable field, and it only
+  // re-renders when it flips, not on every keystroke.
+  const [hasText, setHasText] = useState(Boolean(defaultValue));
+  const changeRef = useRef(onChangeText);
+  useEffect(() => {
+    changeRef.current = onChangeText;
+  }, [onChangeText]);
+  const handleChange = useCallback(
+    (text: string) => {
+      if (clearable) setHasText(text.length > 0);
+      changeRef.current?.(text);
+    },
+    [clearable],
+  );
+  const showClear = clearable && hasText && trailing == null;
+  // A focused search field blurs when a touch starts anywhere else (`searchFocus`).
+  const [self] = useState(() => ({ blur: () => inputRef.current?.blur() }));
+  useEffect(() => () => searchFocus.blurred(self), [self]);
+  const clear = useCallback(() => {
+    inputRef.current?.clear();
+    setHasText(false);
+    changeRef.current?.('');
+  }, []);
   // The native text follows the text-size setting; its line has to grow with it.
   const lineHeight = fieldLineHeight(useFontScale());
   const textColor = filled && !bare ? theme.chipForeground : theme.foreground;
@@ -124,11 +173,12 @@ function TextFieldComponent({
       focused={focused}
       error={error}
       helper={helper}
-      hasTrailing={trailing != null}
+      hasTrailing={trailing != null || showClear}
       filled={filled}
       bare={bare}
       labelHidden={labelHidden}
       onPressBox={() => inputRef.current?.focus()}
+      onTouchStart={dismissOnOutsideTap ? searchFocus.markFieldTouch : undefined}
       testID={testID}
     >
       {leading != null ? (
@@ -150,11 +200,15 @@ function TextFieldComponent({
         <TextInput
           ref={inputRef}
           defaultValue={defaultValue}
-          onChangeText={onChangeText}
+          onChangeText={handleChange}
           onSubmitEditing={handleSubmit}
-          onFocus={() => setFocused(true)}
+          onFocus={() => {
+            setFocused(true);
+            if (dismissOnOutsideTap) searchFocus.focus(self);
+          }}
           onBlur={() => {
             setFocused(false);
+            searchFocus.blurred(self);
             onBlur?.();
           }}
           placeholder={placeholder}
@@ -178,7 +232,11 @@ function TextFieldComponent({
           testID={testID ? `${testID}-input` : undefined}
         />
       </Host>
-      {trailing != null && trailingAction ? (
+      {showClear ? (
+        <TrailingButton action={{ onPress: clear, accessibilityLabel: CLEAR_LABEL, testID: testID ? `${testID}-clear` : undefined }}>
+          <NativeIcon source={icons.close} size={14} color={theme.muted} />
+        </TrailingButton>
+      ) : trailing != null && trailingAction ? (
         <TrailingButton action={trailingAction}>{trailing}</TrailingButton>
       ) : trailing != null ? (
         // A status glyph (the handle's check, a spinner); it takes no touches.
@@ -189,6 +247,8 @@ function TextFieldComponent({
     </FieldFrame>
   );
 }
+
+const CLEAR_LABEL = 'Clear';
 
 /** The box the design gives a trailing glyph; the field's height is set around it. */
 const TRAILING_GLYPH_BOX = 20;

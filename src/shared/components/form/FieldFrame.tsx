@@ -62,6 +62,8 @@ export type FieldFrameProps = {
   /** Leaves the label out (the search fields, which their placeholder names). */
   labelHidden?: boolean;
   onPressBox?: () => void;
+  /** Every touch that starts in the field (see `searchFocus`). */
+  onTouchStart?: () => void;
   children: ReactNode;
   testID?: string;
 };
@@ -78,6 +80,7 @@ export function FieldFrame({
   bare = false,
   labelHidden = false,
   onPressBox,
+  onTouchStart,
   children,
   testID,
 }: FieldFrameProps) {
@@ -93,7 +96,7 @@ export function FieldFrame({
         : theme.controlBorder;
 
   return (
-    <View testID={testID}>
+    <View testID={testID} onTouchStart={onTouchStart}>
       {labelHidden ? null : (
         <Text variant="labelXs" tone="muted">
           {label}

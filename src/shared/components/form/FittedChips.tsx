@@ -77,6 +77,7 @@ export function FittedChips<T>({
           autoCorrect={false}
           autoCapitalize="none"
           returnKeyType="search"
+          clearable
           leading={<NativeIcon source={icons.search} size={16} color={theme.muted} />}
         />
       ) : null}

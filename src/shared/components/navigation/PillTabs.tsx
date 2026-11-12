@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Pressable } from 'react-native';
+import { Pressable, View } from 'react-native';
 import Animated, {
   Easing,
   interpolateColor,
@@ -53,6 +53,14 @@ export type PillTabsProps<T extends string> = {
   inset?: number;
   /** A jelly wobble on touch (`JellyPress`), on by default as on every pill in the app. */
   jelly?: boolean;
+  /**
+   * Every pill in view, wrapping onto more lines, instead of one row that
+   * scrolls sideways: for a sheet's choices (Explore's filters), where a pill
+   * hidden off the edge would not be found.
+   */
+  wrap?: boolean;
+  /** `radio` for a form's one-of choice; `tab` (default) for a row that switches what is shown. */
+  role?: 'tab' | 'radio';
 };
 
 export function PillTabs<T extends string>({
@@ -63,21 +71,35 @@ export function PillTabs<T extends string>({
   look = 'filled',
   inset = SCREEN_GUTTER,
   jelly = true,
+  wrap = false,
+  role = 'tab',
 }: PillTabsProps<T>) {
+  const pills = options.map((o) => (
+    <Pill
+      key={o.value}
+      label={o.label}
+      selected={o.value === value}
+      disabled={disabled}
+      look={look}
+      color={o.color}
+      jelly={jelly}
+      role={role}
+      onPress={() => onChange(o.value)}
+    />
+  ));
+  if (wrap) {
+    return (
+      <View
+        accessibilityRole={role === 'radio' ? 'radiogroup' : 'tablist'}
+        style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}
+      >
+        {pills}
+      </View>
+    );
+  }
   return (
     <ScrollRow inset={inset} accessibilityRole="tablist">
-      {options.map((o) => (
-        <Pill
-          key={o.value}
-          label={o.label}
-          selected={o.value === value}
-          disabled={disabled}
-          look={look}
-          color={o.color}
-          jelly={jelly}
-          onPress={() => onChange(o.value)}
-        />
-      ))}
+      {pills}
     </ScrollRow>
   );
 }
@@ -89,6 +111,7 @@ function Pill({
   look,
   color,
   jelly,
+  role,
   onPress,
 }: {
   label: string;
@@ -97,6 +120,7 @@ function Pill({
   look: 'filled' | 'outline';
   color?: PillColor;
   jelly: boolean;
+  role: 'tab' | 'radio';
   onPress: () => void;
 }) {
   const theme = useTheme();
@@ -142,9 +166,9 @@ function Pill({
     <Press
       onPress={onPress}
       disabled={disabled || selected}
-      accessibilityRole="tab"
+      accessibilityRole={role}
       accessibilityLabel={label}
-      accessibilityState={{ selected, disabled }}
+      accessibilityState={role === 'radio' ? { checked: selected, disabled } : { selected, disabled }}
     >
       {glass ? (
         <GlassSurface
