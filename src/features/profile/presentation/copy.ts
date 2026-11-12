@@ -47,6 +47,7 @@ export const setupCopy = {
       label: 'Date of birth',
       placeholder: 'DD/MM/YYYY',
       sheetTitle: 'Date of birth',
+      underAge: 'You must be 18 or older to join Ajala.',
     },
   },
 

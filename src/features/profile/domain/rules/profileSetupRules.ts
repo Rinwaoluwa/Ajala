@@ -1,3 +1,5 @@
+import { isOldEnough } from '@shared/utils/age';
+
 import type { Gender, MyProfile, TravelStyle } from '../entities/Profile';
 
 /**
@@ -182,12 +184,15 @@ export type BasicsDraft = {
   dateOfBirth: string | null;
 };
 
-/** Gender is in the draft but never required (see `GENDERS`). */
-export function canContinueBasics(draft: BasicsDraft, missing: MissingBasics): boolean {
+/**
+ * Gender is in the draft but never required (see `GENDERS`). A date of birth
+ * asked for here must be 18 or more years ago (`@shared/utils/age`).
+ */
+export function canContinueBasics(draft: BasicsDraft, missing: MissingBasics, today: Date = new Date()): boolean {
   return (
     draft.homePlaceId !== null &&
     draft.languages.length > 0 &&
     (!missing.name || isFullNameValid(draft.fullName)) &&
-    (!missing.dateOfBirth || draft.dateOfBirth !== null)
+    (!missing.dateOfBirth || (draft.dateOfBirth !== null && isOldEnough(draft.dateOfBirth, today)))
   );
 }

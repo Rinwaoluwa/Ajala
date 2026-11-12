@@ -81,6 +81,7 @@ export function ProfileBasicsScreen({ onContinue }: ProfileBasicsScreenProps) {
               value={vm.draft.dateOfBirth ? formatDate(vm.draft.dateOfBirth) : null}
               icon={icons.calendar}
               onPress={vm.datePicker.open}
+              error={vm.dateOfBirthError}
               testID="setup-dob-field"
             />
           </View>

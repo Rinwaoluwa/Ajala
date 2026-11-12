@@ -195,6 +195,9 @@ export const signUpFieldErrorMessages: Record<string, string> = {
 };
 
 /** Field limits from the API (spec §4), said the way a person would fix them. */
+/** Under 18 on the day they sign up (`@shared/utils/age`). */
+export const underAgeMessage = 'You must be 18 or older to join Ajala.';
+
 export const fieldLimitMessages = {
   nameTooLong: `Keep your first name and your last name to ${fieldLimits.nameMax} characters each.`,
   passwordTooLong: `Use ${PASSWORD_MAX_LENGTH} characters or fewer.`,

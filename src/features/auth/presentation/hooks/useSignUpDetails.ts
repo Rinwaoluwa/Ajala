@@ -1,5 +1,7 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 
+import { isOldEnough } from '@shared/utils/age';
+
 import { isAuthError } from '../../domain/entities/AuthError';
 import {
   PASSWORD_RULE_IDS,
@@ -17,6 +19,7 @@ import {
   passwordRuleLabels,
   rateLimitedMessage,
   signUpFieldErrorMessages,
+  underAgeMessage,
 } from '../copy';
 import { sortFieldErrors } from '../formErrors';
 import { useSignUpFlow } from '../state/SignUpFlowContext';
@@ -213,7 +216,10 @@ export function useSignUpDetails({ onCodeSent }: UseSignUpDetailsOptions) {
       dateOfBirth: {
         value: dateOfBirth ? formatDateOfBirth(dateOfBirth) : null,
         onPress: openPicker,
-        error: serverFieldErrors.dateOfBirth ?? null,
+        // Ajala is 18 and over: the date is refused here, before anything is sent.
+        error:
+          serverFieldErrors.dateOfBirth ??
+          (dateOfBirth && !isOldEnough(dateOfBirth, today) ? underAgeMessage : null),
       },
     }),
     [
@@ -224,6 +230,7 @@ export function useSignUpDetails({ onCodeSent }: UseSignUpDetailsOptions) {
       blurName,
       openPicker,
       dateOfBirth,
+      today,
       serverFieldErrors,
       emailFormatError,
       nameFormatError,

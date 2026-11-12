@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActionSheetIOS, Alert, AppState, Platform } from 'react-native';
 
 import { openAppSettings } from '@core/location/deviceLocation';
+import { isOldEnough } from '@shared/utils/age';
 
 import type { Gender } from '../../domain/entities/Profile';
 import {
@@ -76,6 +77,12 @@ export function useProfileBasics() {
   const chooseGender = useCallback((gender: Gender) => update({ gender }), [update]);
   const changeName = useCallback((fullName: string) => update({ fullName }), [update]);
   const blurName = useCallback(() => setNameTouched(true), []);
+
+  // Ajala is 18 and over: a date of birth that says otherwise is refused here.
+  const dateOfBirthError =
+    missing.dateOfBirth && draft.dateOfBirth && !isOldEnough(draft.dateOfBirth, new Date())
+      ? setupCopy.basics.dateOfBirth.underAge
+      : null;
 
   const nameError =
     missing.name && nameTouched && draft.fullName.trim() !== '' && !isFullNameValid(draft.fullName)
@@ -153,6 +160,7 @@ export function useProfileBasics() {
     cityDetection,
     fixCity,
     nameError,
+    dateOfBirthError,
     canContinue,
     toggleLanguage,
     chooseGender,

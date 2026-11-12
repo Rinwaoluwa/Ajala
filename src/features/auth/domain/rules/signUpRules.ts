@@ -9,6 +9,8 @@
  * directly.
  */
 
+import { isOldEnough } from '@shared/utils/age';
+
 import type { SignUpDetails } from '../entities/SignUpDetails';
 import { isEmailValid, isPasswordValid } from './credentialRules';
 import { fieldLimits } from './fieldLimits';
@@ -78,6 +80,7 @@ export function canSubmitSignUp(details: SignUpDetails, today: Date): boolean {
     isEmailValid(details.email) &&
     isFullNameValid(details.fullName) &&
     isDateOfBirthValid(details.dateOfBirth, today) &&
+    isOldEnough(details.dateOfBirth, today) &&
     isPasswordValid(details.password)
   );
 }
