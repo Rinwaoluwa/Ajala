@@ -1,5 +1,15 @@
+import { useEffect, useRef, useState } from 'react';
 import { Pressable, View, useColorScheme } from 'react-native';
-import Animated, { FadeIn } from 'react-native-reanimated';
+import Animated, {
+  Easing,
+  FadeIn,
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withSequence,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
 
 import { Host, GlassSurface, JellyPress, NativeIcon, SkeletonBlock, Text, VectorIcon, icons } from '@shared/components';
 import { useFontScale } from '@shared/hooks/useFontScale';
@@ -55,26 +65,72 @@ export type FeedHeaderProps = {
  * The size follows the text size (to the label's 1.2× cap), so the number never
  * outgrows it, and a single digit gets no side padding, which had stretched the
  * circle into an oval. No outline ring: on the glass it read as a cut edge.
+ *
+ * Motion (product, 12 Nov; Material 3 badges, Apple's HIG and NN/g on motion:
+ * animate the change, briefly, never on a loop):
+ *   - something unread arrives: the badge pops in, from small past full size
+ *     and back (a spring), as it fades in;
+ *   - the count goes up: one quick bump, so a new message is noticed;
+ *   - all read: it shrinks a little and fades out, keeping its last number
+ *     until it is gone.
+ * Nothing pulses or repeats. No haptic: a message arriving is not something the
+ * person did. With Reduce Motion the badge only fades.
  */
+const POP_SPRING = { damping: 9, stiffness: 260, mass: 0.6 } as const;
+const SETTLE_SPRING = { damping: 10, stiffness: 300, mass: 0.5 } as const;
+
 function UnreadBadge({ count }: { count: number }) {
   const scale = Math.min(useFontScale(), 1.2);
-  const label = count > 99 ? '99+' : String(count);
+  const reduceMotion = useReducedMotion();
+  // The number shown: the last one above zero, so the badge keeps it while it fades away.
+  const [shownCount, setShownCount] = useState(count);
+  if (count > 0 && count !== shownCount) setShownCount(count);
+  const grow = useSharedValue(count > 0 ? 1 : 0);
+  const fade = useSharedValue(count > 0 ? 1 : 0);
+  const before = useRef(count);
+
+  useEffect(() => {
+    const was = before.current;
+    before.current = count;
+    if (count > 0 && was <= 0) {
+      // Arrived: pop in.
+      fade.set(withTiming(1, { duration: 140 }));
+      grow.set(reduceMotion ? 1 : withSequence(withTiming(0.3, { duration: 0 }), withSpring(1, POP_SPRING)));
+    } else if (count <= 0 && was > 0) {
+      // All read: shrink a little and fade out.
+      fade.set(withTiming(0, { duration: 180 }));
+      if (!reduceMotion) grow.set(withTiming(0.5, { duration: 180, easing: Easing.in(Easing.quad) }));
+    } else if (count > was && !reduceMotion) {
+      // One more: a single bump.
+      grow.set(withSequence(withTiming(1.25, { duration: 110, easing: Easing.out(Easing.quad) }), withSpring(1, SETTLE_SPRING)));
+    }
+  }, [count, reduceMotion, grow, fade]);
+
+  const motion = useAnimatedStyle(() => ({ opacity: fade.value, transform: [{ scale: grow.value }] }));
+
+  if (shownCount <= 0) return null;
+  const label = shownCount > 99 ? '99+' : String(shownCount);
   const size = Math.round(18 * scale);
   return (
-    <View
+    <Animated.View
       pointerEvents="none"
-      style={{
-        position: 'absolute',
-        top: -3,
-        right: -3,
-        height: size,
-        minWidth: size,
-        paddingHorizontal: label.length > 1 ? Math.round(5 * scale) : 0,
-        borderRadius: size / 2,
-        backgroundColor: palette.coral,
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
+      importantForAccessibility="no-hide-descendants"
+      accessibilityElementsHidden
+      style={[
+        {
+          position: 'absolute',
+          top: -3,
+          right: -3,
+          height: size,
+          minWidth: size,
+          paddingHorizontal: label.length > 1 ? Math.round(5 * scale) : 0,
+          borderRadius: size / 2,
+          backgroundColor: palette.coral,
+          alignItems: 'center',
+          justifyContent: 'center',
+        },
+        motion,
+      ]}
     >
       <Text
         variant="labelXs"
@@ -83,7 +139,7 @@ function UnreadBadge({ count }: { count: number }) {
       >
         {label}
       </Text>
-    </View>
+    </Animated.View>
   );
 }
 
@@ -181,7 +237,8 @@ export function FeedHeader({
             >
               <VectorIcon name={icon} size={22} color={iconTint} />
             </GlassSurface>
-            {count > 0 ? <UnreadBadge count={count} /> : null}
+            {/* Always there: it animates itself in and out (`UnreadBadge`). */}
+            <UnreadBadge count={count} />
           </JellyPress>
         ))}
       </View>
