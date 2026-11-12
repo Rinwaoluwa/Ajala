@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Alert, Linking, Platform, useWindowDimensions, Share, TouchableOpacity, View } from 'react-native';
+import { Alert, Linking, Platform, useWindowDimensions, TouchableOpacity, View } from 'react-native';
 import Animated, {
   FadeIn,
   interpolate,
@@ -48,6 +48,7 @@ import { PostSkeleton } from '../components/PostSkeleton';
 import { ReportCommentDialog } from '../components/ReportCommentDialog';
 import { WhoIsGoing } from '../components/WhoIsGoing';
 import { haptics } from '@shared/feedback/haptics';
+import { shareLink } from '@shared/utils/shareLink';
 
 /**
  * The post page (Figma post detail, API map §6): the photos (with the bookmark),
@@ -268,10 +269,8 @@ export function PostDetailScreen({
     ]);
   };
 
-  const share = () => {
-    const link = postLink(post.id);
-    void Share.share({ message: postCopy.shareMessage(post.title, link), url: link }).catch(() => undefined);
-  };
+  // The link once, however it is shared (`shareLink`): it used to go in the text and as the url.
+  const share = () => shareLink(postCopy.shareMessage(post.title), postLink(post.id));
 
   const openMaps = () => void Linking.openURL(mapsUrl(post, Platform.OS)).catch(() => undefined);
 

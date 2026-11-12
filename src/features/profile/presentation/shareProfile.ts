@@ -1,7 +1,7 @@
-import { Share } from 'react-native';
 
 import { PROFILE_LINK_BASE } from './profileViewCopy';
 import { haptics } from '@shared/feedback/haptics';
+import { shareLink } from '@shared/utils/shareLink';
 
 /**
  * The link that opens a profile in the app. Always the user id, never the
@@ -12,8 +12,9 @@ import { haptics } from '@shared/feedback/haptics';
 export const profileLink = (_handle: string | null, id: string) =>
   `${PROFILE_LINK_BASE}${encodeURIComponent(id)}`;
 
+/** The link once, however it is shared (`shareLink`): it used to go in the text and as the url. */
 export function shareProfile(name: string, link: string) {
-  void Share.share({ message: `${name} on Ajala: ${link}`, url: link }).catch(() => undefined);
+  shareLink(`${name} on Ajala`, link);
 }
 
 /**

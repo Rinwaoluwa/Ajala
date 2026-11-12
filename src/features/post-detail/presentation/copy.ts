@@ -42,7 +42,8 @@ export const postCopy = {
   spotsLeft: (left: number, of: number) => `${left} of ${of} spots left`,
   noLimit: 'No limit',
   share: 'Share',
-  shareMessage: (title: string, link: string) => `${title} on Ajala\n${link}`,
+  // The words that go with a shared link; `shareLink` adds the link itself, once.
+  shareMessage: (title: string) => `${title} on Ajala`,
   button: {
     join: (type: PostType) => `Join ${NOUN[type]}`,
     request: 'Request to join',
