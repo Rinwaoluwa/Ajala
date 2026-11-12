@@ -1,5 +1,5 @@
 import { getClientLocationHeader } from '@core/location/deviceLocation';
-import { endPlacesSession, placeDetails, searchCities } from '@core/places';
+import { cityAt, endPlacesSession, placeDetails, searchCities } from '@core/places';
 
 import type { FeedRepository } from '../../domain/repositories/FeedRepository';
 import { createFeedApi, type FeedRequest } from '../datasources/remote/feedApi';
@@ -47,6 +47,7 @@ export function createFeedRepository(request: FeedRequest): FeedRepository {
     },
     searchCities: (query, signal) =>
       guard(async () => (await searchCities(query, null, signal)).map(toTravelCity)),
+    cityNameAt: (lat, lng) => guard(async () => (await cityAt(lat, lng))?.name ?? null),
     placeName: (placeId, signal) => guard(async () => (await placeDetails(placeId, signal)).name),
     endCitySearch: () => endPlacesSession(),
     teleport: (placeId) => guard(() => api.teleport({ placeId }), 'teleport'),

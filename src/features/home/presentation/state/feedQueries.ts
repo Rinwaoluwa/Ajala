@@ -13,6 +13,8 @@ export const feedKeys = {
   cities: (query: string) => ['home', 'cities', query] as const,
   /** A place's name by id, for a teleport `GET /me` knows only by id. Names don't change. */
   placeName: (placeId: string) => ['home', 'placeName', placeId] as const,
+  /** The city at a point, rounded to about a kilometre so a small move asks nothing new. */
+  cityAt: (lat: number, lng: number) => ['home', 'cityAt', lat.toFixed(2), lng.toFixed(2)] as const,
   /**
    * Travel's view of `GET /me` (the teleport and the home place). Home's own key
    * and shape: the shared `['me']` cache holds the profile feature's shape.

@@ -22,6 +22,9 @@ export const makeSearchCities =
   };
 
 /** The name of a teleport known only by its place id (`MeDto.teleport`). */
+/** The city at the feed's point, for the header. */
+export const makeCityNameAt = (repo: FeedRepository) => (lat: number, lng: number) => repo.cityNameAt(lat, lng);
+
 export const makePlaceName = (repo: FeedRepository) => (placeId: string, signal?: AbortSignal) =>
   repo.placeName(placeId, signal);
 

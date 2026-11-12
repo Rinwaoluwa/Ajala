@@ -14,6 +14,12 @@ export interface FeedRepository {
    * API has none). `signal` cancels a search that typing has overtaken.
    */
   searchCities(query: string, signal?: AbortSignal): Promise<TravelCity[]>;
+  /**
+   * The city at a point ("London"), for the header over the phone's own
+   * location: the feed names only the state or region ("England"). Null when no
+   * city is found there.
+   */
+  cityNameAt(lat: number, lng: number): Promise<string | null>;
   /** A place's name, for a teleport `GET /me` knows only by id. */
   placeName(placeId: string, signal?: AbortSignal): Promise<string>;
   /** Ends the place search's billing session when Travel closes without a lookup. */

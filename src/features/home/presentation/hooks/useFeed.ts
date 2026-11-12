@@ -1,5 +1,5 @@
 import { useInfiniteQuery, useQueryClient, type InfiniteData } from '@tanstack/react-query';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import type { FeedFilter, FeedPage } from '../../domain/entities/Feed';
 import { isFeedError, type FeedErrorCode } from '../../domain/entities/FeedError';
@@ -7,7 +7,7 @@ import { shortPlaceName } from '../../domain/rules/travelRules';
 import { feedKeys } from '../state/feedQueries';
 import { travelMemory } from '../state/travelMemory';
 import { useHomeUseCases } from '../state/useHomeUseCases';
-import { usePlaceName } from './usePlaceName';
+import { useCityNameAt, usePlaceName } from './usePlaceName';
 import { useTravelState } from './useTravelState';
 
 /**
@@ -15,8 +15,10 @@ import { useTravelState } from './useTravelState';
  *
  * - `teleported`: a Travel teleport is in force; `label` is its full name
  *   ("Accra, Ghana") for "Teleported to …", `name` the short one ("Accra").
- * - otherwise the phone's own location: `name` is the region the server
- *   named ("Lagos"), or null when it could not say (the header says "Near you").
+ * - otherwise the phone's own location: `name` is its city ("London", looked
+ *   up from the feed's point), the region the server named ("England") until
+ *   then or when no city is found, or null when neither is known (the header
+ *   says "Near you").
  */
 export type FeedPlace = { name: string | null; label: string | null; teleported: boolean };
 
@@ -56,8 +58,6 @@ export function useFeed() {
     queryKey: feedKeys.feed(filter),
     queryFn: async ({ pageParam }) => {
       const page = await loadFeed(filter, pageParam);
-      // The phone's own region names "Where you are" in Travel while teleported later.
-      if (page.originSource === 'device') travelMemory.setHere(page.origin.region);
       return page;
     },
     initialPageParam: null as string | null,
@@ -92,10 +92,19 @@ export function useFeed() {
   const needsName = teleportId !== null && !(first?.originSource === 'teleport' && first.origin.label);
   const teleportName = usePlaceName(needsName ? teleportId : null);
 
+  // The phone's own location: its city ("London"), not the region the feed names ("England").
+  const devicePoint = first?.originSource === 'device' ? first.origin : null;
+  const city = useCityNameAt(devicePoint ? { lat: devicePoint.lat, lng: devicePoint.lng } : null);
+  // Names "Where you are" in Travel while teleported later: the city, or the region until it is known.
+  const here = city ?? devicePoint?.region ?? null;
+  useEffect(() => {
+    travelMemory.setHere(here);
+  }, [here]);
+
   const place: FeedPlace | null = first
     ? first.originSource === 'teleport'
       ? named(first.origin.label ?? teleportName)
-      : { name: first.origin.region, label: null, teleported: false }
+      : { name: city ?? first.origin.region, label: null, teleported: false }
     : teleportName
       ? named(teleportName)
       : null;
