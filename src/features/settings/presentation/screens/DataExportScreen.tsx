@@ -1,6 +1,7 @@
-import { Linking, View } from 'react-native';
+import { View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
+import { openInApp } from '@core/links/openInApp';
 import { Button, NoteCard, SkeletonBlock, SkeletonPulse, Tag, Text, type TagTone } from '@shared/components';
 import { useTheme } from '@shared/hooks/useTheme';
 
@@ -140,7 +141,7 @@ function ExportCard({ latest }: { latest: DataExport }) {
           <Button
             label={copy.download}
             size="sm"
-            onPress={() => void Linking.openURL(latest.downloadUrl ?? '').catch(() => undefined)}
+            onPress={() => void openInApp(latest.downloadUrl ?? '')}
           />
         </View>
       ) : null}

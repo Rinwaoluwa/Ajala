@@ -1,5 +1,6 @@
 import { useMutation } from '@tanstack/react-query';
 import { Linking } from 'react-native';
+import { openInApp } from '@core/links/openInApp';
 
 import type { Subscription } from '../../domain/entities/Subscription';
 import { isSubscriptionError, type SubscriptionErrorCode } from '../../domain/entities/SubscriptionError';
@@ -26,6 +27,12 @@ export function useManageSubscription(subscription: Subscription) {
     mutationFn: async () => {
       if (!action) return;
       const url = action.kind === 'openUrl' ? action.url : await webPortalUrl();
+      // The App Store's or Play's own subscription settings open in that app; the web portal
+      // (a card bought on the web) opens in the in-app browser, so the person stays in Ajala.
+      if (action.kind === 'webPortal') {
+        await openInApp(url);
+        return;
+      }
       try {
         await Linking.openURL(url);
       } catch {
