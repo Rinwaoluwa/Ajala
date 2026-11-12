@@ -36,6 +36,11 @@ export interface ProfileRepository {
    * search cannot be reached; a cancelled `signal` rejects with its own abort.
    */
   searchCities(query: string, signal?: AbortSignal): Promise<CitySuggestion[]>;
+  /**
+   * Countries, regions and cities matching what was typed, for favourite
+   * destinations ("Qatar", "Bali"). Rejects as `searchCities` does.
+   */
+  searchDestinations(query: string, signal?: AbortSignal): Promise<CitySuggestion[]>;
   /** A city search closed without looking a place up: start a fresh billing session next time. */
   endCitySearch(): void;
   listInterests(): Promise<Interest[]>;

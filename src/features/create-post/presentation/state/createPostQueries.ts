@@ -4,8 +4,8 @@ import { POST_LIST_PREFIXES } from '@shared/state/postQueryKeys';
 export const createPostKeys = {
   interests: ['createPost', 'interests'] as const,
   /** One place search: what is looked for, the words, and the area it leans towards. */
-  places: (kind: 'cities' | 'places', query: string, near: string) =>
-    ['createPost', 'places', kind, query, near] as const,
+  places: (kind: 'cities' | 'places', query: string, near: string, ownAreaOnly = false) =>
+    ['createPost', 'places', kind, query, near, ownAreaOnly ? 'ownArea' : 'anywhere'] as const,
   /** A picked place's details; a place id's answer doesn't change while the wizard is open. */
   place: (placeId: string) => ['createPost', 'place', placeId] as const,
   /** A saved draft being carried on with; read once, never cached past the wizard. */

@@ -40,6 +40,8 @@ export interface SettingsRepository {
    * has no city search). Rejects with `placesUnavailable` when Google cannot be reached.
    */
   searchCities(query: string, signal?: AbortSignal): Promise<CitySuggestion[]>;
+  /** Countries, regions and cities, for favourite destinations ("Qatar", "Bali"). Rejects as `searchCities`. */
+  searchDestinations(query: string, signal?: AbortSignal): Promise<CitySuggestion[]>;
   /** A city search closed without looking a place up: the next one starts a new billing session. */
   endCitySearch(): void;
   /**

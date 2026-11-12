@@ -7,6 +7,7 @@ import { isCreatePostError } from '../../domain/entities/CreatePostError';
 import type { Coordinates, DraftPlace, PlaceOption, PlaceSearchKind } from '../../domain/entities/PostDraft';
 import { PLACE_QUERY_MIN } from '../../domain/usecases/CreatePostUseCases';
 import { createPostKeys } from '../state/createPostQueries';
+import { useOwnAreaOnly } from '../state/ownArea';
 import { useCreatePostUseCases } from '../state/useCreatePostUseCases';
 
 /** About a kilometre: close enough that moving the bias point that little isn't a new search. */
@@ -16,6 +17,8 @@ const nearKey = (near: Coordinates | null) => (near ? `${near.lat.toFixed(2)},${
  * A place picker's search (Google, through `@core/places`): cities for a Plan's
  * or Group's destination, any place for a meeting point.
  *
+ * - A free member sees only places around the phone (`OwnAreaOnlyContext`,
+ *   MOB-077); the server refuses their posts anywhere else.
  * - Searched once the person pauses typing (300ms), from two letters; each
  *   search is a cached query, so going back over the same letters answers at
  *   once. A search overtaken by the next keystroke is cancelled (TanStack hands
@@ -28,6 +31,8 @@ const nearKey = (near: Coordinates | null) => (near ? `${near.lat.toFixed(2)},${
  */
 export function usePlaceSearch(kind: PlaceSearchKind, near: Coordinates | null = null) {
   const { searchPlaces, placeDetails, endPlaceSearch } = useCreatePostUseCases();
+  // A free member: only places around the phone, as the server allows them to post nowhere else.
+  const ownAreaOnly = useOwnAreaOnly();
   const queryClient = useQueryClient();
   const [query, setQuery] = useState('');
   const settled = useDebouncedValue(query.trim(), 300);
@@ -35,8 +40,8 @@ export function usePlaceSearch(kind: PlaceSearchKind, near: Coordinates | null =
   const enabled = settled.length >= PLACE_QUERY_MIN && query.trim().length >= PLACE_QUERY_MIN;
 
   const results = useQuery({
-    queryKey: createPostKeys.places(kind, settled.toLowerCase(), nearKey(near)),
-    queryFn: ({ signal }) => searchPlaces(kind, settled, near, signal),
+    queryKey: createPostKeys.places(kind, settled.toLowerCase(), nearKey(near), ownAreaOnly),
+    queryFn: ({ signal }) => searchPlaces(kind, settled, near, signal, ownAreaOnly),
     enabled,
     staleTime: 10 * 60_000,
     // Search being down is not fixed by asking again straight away.

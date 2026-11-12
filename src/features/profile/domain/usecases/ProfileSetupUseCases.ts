@@ -129,6 +129,16 @@ export const makeSearchCities =
     return q.length < 2 ? [] : (await repo.searchCities(q, signal)).slice(0, limit);
   };
 
+/** Favourite destinations: countries and regions too ("Qatar", "Bali"). Same rules as `makeSearchCities`. */
+export const makeSearchDestinations =
+  (repo: ProfileRepository) =>
+  async (query: string, { limit = 10, signal }: { limit?: number; signal?: AbortSignal } = {}): Promise<
+    CitySuggestion[]
+  > => {
+    const q = query.trim();
+    return q.length < 2 ? [] : (await repo.searchDestinations(q, signal)).slice(0, limit);
+  };
+
 export const makeEndCitySearch = (repo: ProfileRepository) => () => repo.endCitySearch();
 
 export const makeListInterests = (repo: ProfileRepository) => () => repo.listInterests();

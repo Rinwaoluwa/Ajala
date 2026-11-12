@@ -4,7 +4,7 @@ import {
   getLocationPermission,
   requestLocationPermission,
 } from '@core/location/deviceLocation';
-import { cityAt, endPlacesSession, searchCities } from '@core/places';
+import { cityAt, endPlacesSession, searchCities, searchDestinations } from '@core/places';
 
 import type { SettingsRepository } from '../../domain/repositories/SettingsRepository';
 import { cleanLinks, editsExtras, mergeExtras } from '../../domain/rules/settingsRules';
@@ -77,6 +77,15 @@ export function createSettingsRepository(request: SettingsRequest): SettingsRepo
     searchCities: async (q, signal) => {
       try {
         return (await searchCities(q, null, signal)).map(toCitySuggestion);
+      } catch (e) {
+        // A cancelled search (the person typed on) is not a failure; hand the abort back as it was.
+        if (signal?.aborted) throw e;
+        throw toSettingsError(e);
+      }
+    },
+    searchDestinations: async (q, signal) => {
+      try {
+        return (await searchDestinations(q, signal)).map(toCitySuggestion);
       } catch (e) {
         // A cancelled search (the person typed on) is not a failure; hand the abort back as it was.
         if (signal?.aborted) throw e;

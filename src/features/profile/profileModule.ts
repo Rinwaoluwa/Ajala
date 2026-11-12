@@ -13,6 +13,7 @@ import {
   makeRemoveAvatar,
   makeSaveSetup,
   makeSearchCities,
+  makeSearchDestinations,
   makeUploadAvatar,
 } from './domain/usecases/ProfileSetupUseCases';
 import {
@@ -43,6 +44,7 @@ export function createProfileUseCases(request: ProfileRequest) {
     removeAvatar: makeRemoveAvatar(repo),
     detectHomeCity: makeDetectHomeCity(repo),
     searchCities: makeSearchCities(repo),
+    searchDestinations: makeSearchDestinations(repo),
     listInterests: makeListInterests(repo),
     endCitySearch: makeEndCitySearch(repo),
   };

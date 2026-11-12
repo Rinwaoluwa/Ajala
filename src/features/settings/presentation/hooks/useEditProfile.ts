@@ -377,8 +377,9 @@ function useCitySearchField() {
   const q = query.trim();
   const settled = useDebouncedValue(q, 300);
   const result = useQuery({
-    queryKey: settingsKeys.cities(settled.toLowerCase()),
-    queryFn: ({ signal }) => useCases.searchCities(settled, signal),
+    // Favourite destinations: countries and regions too ("Qatar", "Bali"), not only cities.
+    queryKey: settingsKeys.destinations(settled.toLowerCase()),
+    queryFn: ({ signal }) => useCases.searchDestinations(settled, signal),
     enabled: settled.length >= 2,
     staleTime: 10 * 60_000,
     retry: false,

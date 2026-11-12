@@ -1,4 +1,6 @@
+import { getCurrentCoordinates } from '@core/location/deviceLocation';
 import {
+  OWN_AREA_RADIUS_M,
   endPlacesSession,
   isPlacesError,
   placeDetails,
@@ -22,9 +24,13 @@ const asCreatePostError = (e: unknown): unknown =>
   isPlacesError(e) ? new CreatePostError('placesUnavailable', { message: e.message }) : e;
 
 export const googlePlaceFinder: PlaceFinder = {
-  async search(kind, text, near, signal) {
+  async search(kind, text, near, signal, ownAreaOnly = false) {
     try {
-      const found = await (kind === 'cities' ? searchCities : searchPlaces)(text, near, signal);
+      // A free member's own area: places around the phone only. Without a fix the search is
+      // left open, and the server says so on publish (400 NO_LOCATION).
+      const here = ownAreaOnly ? await getCurrentCoordinates() : null;
+      const within = here ? { center: here, radiusM: OWN_AREA_RADIUS_M } : null;
+      const found = await (kind === 'cities' ? searchCities : searchPlaces)(text, near, signal, within);
       return found.map((s) => ({ placeId: s.placeId, name: s.primaryText, detail: s.secondaryText }));
     } catch (e) {
       throw asCreatePostError(e);

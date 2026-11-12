@@ -433,6 +433,8 @@ export const createPostErrors: Record<CreatePostErrorCode, string> = {
   placeNotFound: 'We couldn’t find that place. Pick one from the list, or add the area or city, like “Lekki, Lagos”.',
   placesUnavailable: 'Place search isn’t available right now.',
   busy: 'We’re a little busy. Try again in a moment.',
+  outsideArea: 'This place is outside your area. Free members post near where they are; go Pro to post anywhere.',
+  noLocation: 'Turn on location to post. Ajala checks your post is near where you are.',
   rateLimited: 'Too many tries. Wait a moment and try again.',
   network: 'You seem to be offline. Check your connection and try again.',
   sessionExpired: 'Your session ended. Sign in again to continue.',

@@ -113,13 +113,10 @@ export function PlaceField(props: PlaceFieldProps) {
         error={error}
         helper={helper}
         testID={testID}
-        trailing={
-          search.loading || search.picking ? (
-            <NativeSpinner size={14} color={theme.muted} />
-          ) : (
-            <NativeIcon source={icons.search} size={16} color={theme.muted} />
-          )
-        }
+        leading={<NativeIcon source={icons.search} size={16} color={theme.muted} />}
+        // The spinner while searching; otherwise the × that empties the field.
+        clearable
+        trailing={search.loading || search.picking ? <NativeSpinner size={14} color={theme.muted} /> : undefined}
       />
       {search.tooShort && !(search.failed && props.kind === 'cities') ? null : (
         <Suggestions

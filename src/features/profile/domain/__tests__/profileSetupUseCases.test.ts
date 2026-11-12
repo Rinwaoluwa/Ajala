@@ -35,6 +35,9 @@ function fakeRepo() {
     uploadAvatar: async () => 'https://cdn/a.jpg',
     removeAvatar: async () => undefined,
     detectHomeCity: async () => ({ kind: 'notFound' }),
+    searchDestinations: async (query) => [
+      { placeId: 'ChIJ-qatar', name: query, label: query, countryCode: 'QA', detail: '' },
+    ],
     searchCities: async (query) => {
       searches.push(query);
       return Array.from({ length: 8 }, (_, i) => ({

@@ -97,9 +97,10 @@ export const makeSearchPlaces =
     query: string,
     near: Coordinates | null = null,
     signal?: AbortSignal,
+    ownAreaOnly = false,
   ): Promise<PlaceOption[]> => {
     const q = query.trim();
-    return q.length < PLACE_QUERY_MIN ? [] : finder.search(kind, q, near, signal);
+    return q.length < PLACE_QUERY_MIN ? [] : finder.search(kind, q, near, signal, ownAreaOnly);
   };
 
 /** A picked suggestion, with the address and coordinates the screen shows. */

@@ -37,12 +37,16 @@ export interface PostRepository {
  * rejects with the caller's own abort error.
  */
 export interface PlaceFinder {
-  /** Suggestions for what was typed; `near` ranks places around it first. */
+  /**
+   * Suggestions for what was typed; `near` ranks places around it first.
+   * `ownAreaOnly`: only places around the phone (a free member, MOB-077).
+   */
   search(
     kind: PlaceSearchKind,
     text: string,
     near: Coordinates | null,
     signal?: AbortSignal,
+    ownAreaOnly?: boolean,
   ): Promise<PlaceOption[]>;
   /** A picked suggestion's name, address and coordinates. Ends the billing session. */
   details(placeId: string, signal?: AbortSignal): Promise<DraftPlace>;

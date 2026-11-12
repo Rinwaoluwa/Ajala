@@ -44,7 +44,8 @@ import { useProfileSetup } from '../state/ProfileSetupContext';
 export function DestinationsScreen({ onBack, onContinue }: { onBack: () => void; onContinue: () => void }) {
   const theme = useTheme();
   const { draft, update } = useProfileSetup();
-  const search = useCitySearch(5);
+  // Countries and regions too: people love Qatar and Bali, not only their cities.
+  const search = useCitySearch(5, 'destinations');
   // The field keeps its own text: a new key empties it after a pick, or fills it with a quick search.
   const [field, setField] = useState({ key: 0, text: '' });
   const copy = setupCopy.destinations;
@@ -84,6 +85,7 @@ export function DestinationsScreen({ onBack, onContinue }: { onBack: () => void;
           filled
           autoCorrect={false}
           returnKeyType="search"
+          clearable
           leading={<NativeIcon source={icons.search} size={16} color={palette.inkSecondary} />}
           trailing={search.searching ? <NativeSpinner size={14} color={palette.inkSecondary} /> : undefined}
           onChangeText={search.setQuery}

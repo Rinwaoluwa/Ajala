@@ -155,6 +155,49 @@ describe('googleAutocomplete', () => {
     });
   });
 
+  it('asks for countries and regions for a destination, and drops postcodes', async () => {
+    fetchMock.mockResolvedValue(
+      json(200, {
+        suggestions: [
+          { placePrediction: { placeId: 'ChIJ-qatar', types: ['country'], structuredFormat: { mainText: { text: 'Qatar' } } } },
+          {
+            placePrediction: {
+              placeId: 'ChIJ-bali',
+              types: ['administrative_area_level_1'],
+              structuredFormat: { mainText: { text: 'Bali' }, secondaryText: { text: 'Indonesia' } },
+            },
+          },
+          { placePrediction: { placeId: 'ChIJ-zip', types: ['postal_code'], structuredFormat: { mainText: { text: 'QA1' } } } },
+        ],
+      }),
+    );
+    const result = await googleAutocomplete({ text: 'Qa', citiesOnly: false, regions: true, sessionToken: null });
+    expect(result).toEqual([
+      { placeId: 'ChIJ-qatar', primaryText: 'Qatar', secondaryText: '' },
+      { placeId: 'ChIJ-bali', primaryText: 'Bali', secondaryText: 'Indonesia' },
+    ]);
+    expect(JSON.parse(String(fetchMock.mock.calls[0]![1]?.body))).toEqual({
+      input: 'Qa',
+      includedPrimaryTypes: ['(regions)'],
+    });
+  });
+
+  it('keeps results inside a circle when asked, instead of only ranking them', async () => {
+    fetchMock.mockResolvedValue(json(200, {}));
+    await googleAutocomplete({
+      text: 'Pub',
+      citiesOnly: false,
+      near: { lat: 1, lng: 1 },
+      within: { center: { lat: 51.5, lng: -0.1 }, radiusM: 80_000 },
+      sessionToken: null,
+    });
+    expect(JSON.parse(String(fetchMock.mock.calls[0]![1]?.body))).toEqual({
+      input: 'Pub',
+      // Google takes 50 km at most.
+      locationRestriction: { circle: { center: { latitude: 51.5, longitude: -0.1 }, radius: 50000 } },
+    });
+  });
+
   it('says denied when Google refuses the key', async () => {
     fetchMock.mockResolvedValue(json(403, { error: { code: 403, status: 'PERMISSION_DENIED' } }));
     const e = await caught(googleAutocomplete({ text: 'Lag', citiesOnly: true, sessionToken: null }));

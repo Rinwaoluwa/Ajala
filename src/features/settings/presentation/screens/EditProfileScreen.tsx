@@ -743,13 +743,10 @@ function FavouritesSection({ vm }: { vm: EditProfileViewModel }) {
             placeholder={copy.destinationPlaceholder}
             onChangeText={vm.setDestQuery}
             autoCorrect={false}
-            trailing={
-              vm.destSearching ? (
-                <NativeSpinner size={14} color={theme.muted} />
-              ) : (
-                <NativeIcon source={icons.search} size={16} color={theme.muted} />
-              )
-            }
+            leading={<NativeIcon source={icons.search} size={16} color={theme.muted} />}
+            // The spinner while searching; otherwise the × that empties the field.
+            clearable
+            trailing={vm.destSearching ? <NativeSpinner size={14} color={theme.muted} /> : undefined}
           />
           <SearchNote failure={vm.destFailure} noMatches={vm.destNoMatches} />
           {vm.destResults.length > 0 ? (

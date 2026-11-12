@@ -11,7 +11,8 @@ import type { MyRsvpTab, SavedFilter } from '../../domain/entities/PublicProfile
 export const profileKeys = {
   detectedCity: ['profile', 'detectedCity'] as const,
   /** Google city search (`@core/places`), per lower-cased query. */
-  citySearch: (query: string) => ['profile', 'citySearch', query] as const,
+  citySearch: (query: string, kind: 'cities' | 'destinations' = 'cities') =>
+    ['profile', 'citySearch', kind, query] as const,
   interests: ['profile', 'interests'] as const,
   handle: (handle: string) => ['profile', 'handle', handle] as const,
   /** The signed-in person's whole attended history (achievements, counters). */

@@ -25,7 +25,8 @@ import { useProfileSetup } from '../state/ProfileSetupContext';
  */
 const DEBOUNCE_MS = 300;
 
-export function useCitySearch(limit = 10) {
+/** `destinations`: countries and regions too, for favourite destinations ("Qatar", "Bali"). */
+export function useCitySearch(limit = 10, kind: 'cities' | 'destinations' = 'cities') {
   const { useCases } = useProfileSetup();
   const [query, setQuery] = useState('');
   const q = query.trim();
@@ -33,8 +34,11 @@ export function useCitySearch(limit = 10) {
   const tooShort = q.length < 2;
 
   const result = useQuery({
-    queryKey: profileKeys.citySearch(settled.toLowerCase()),
-    queryFn: ({ signal }) => useCases.searchCities(settled, { signal }),
+    queryKey: profileKeys.citySearch(settled.toLowerCase(), kind),
+    queryFn: ({ signal }) =>
+      kind === 'destinations'
+        ? useCases.searchDestinations(settled, { signal })
+        : useCases.searchCities(settled, { signal }),
     enabled: settled.length >= 2,
     staleTime: 5 * 60_000,
     retry: false,

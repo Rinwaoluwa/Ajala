@@ -123,6 +123,9 @@ export function toCreatePostError(e: unknown, creatingDraft = false): CreatePost
     UNSUPPORTED_MEDIA_TYPE: 'imageNotSupported',
     FORBIDDEN: 'suspended',
     RATE_LIMITED: 'rateLimited',
+    // A free member may post only in their own area (MOB-077), which the server reads from the phone.
+    PAYMENT_REQUIRED: 'outsideArea',
+    NO_LOCATION: 'noLocation',
     // Uploads busy, or the server's map lookup is down: worth another go shortly.
     SERVICE_UNAVAILABLE: 'busy',
     NETWORK: 'network',

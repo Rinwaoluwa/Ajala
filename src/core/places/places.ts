@@ -57,6 +57,7 @@ export async function searchCities(
   text: string,
   near?: LatLng | null,
   signal?: AbortSignal,
+  within?: { center: LatLng; radiusM: number } | null,
 ): Promise<PlaceSuggestion[]> {
   const query = text.trim();
   if (!query) return [];
@@ -64,19 +65,47 @@ export async function searchCities(
     text: query,
     citiesOnly: true,
     near,
+    within,
     sessionToken: sessionToken(),
     signal,
   });
 }
 
 /**
+ * Countries, regions and cities matching what was typed, for favourite
+ * destinations: someone loves Qatar or Bali, not only Doha or Denpasar. The
+ * API stores any Google place id there. Blank text answers [].
+ */
+export async function searchDestinations(text: string, signal?: AbortSignal): Promise<PlaceSuggestion[]> {
+  const query = text.trim();
+  if (!query) return [];
+  return googleAutocomplete({
+    text: query,
+    citiesOnly: false,
+    regions: true,
+    sessionToken: sessionToken(),
+    signal,
+  });
+}
+
+/**
+ * A free member's own area, for what they post (MOB-077): the server refuses a
+ * post outside it ("Posting outside your area needs a subscription"), so their
+ * search only offers places within this distance of the phone. 50 km is the
+ * most Google takes, and about a city.
+ */
+export const OWN_AREA_RADIUS_M = 50_000;
+
+/**
  * Any place matching what was typed (venues, neighbourhoods, cities), for a
- * post's place. `near` ranks places around that point first.
+ * post's place. `near` ranks places around that point first; `within` offers
+ * only places inside the circle (a free member's own area).
  */
 export async function searchPlaces(
   text: string,
   near?: LatLng | null,
   signal?: AbortSignal,
+  within?: { center: LatLng; radiusM: number } | null,
 ): Promise<PlaceSuggestion[]> {
   const query = text.trim();
   if (!query) return [];
@@ -84,6 +113,7 @@ export async function searchPlaces(
     text: query,
     citiesOnly: false,
     near,
+    within,
     sessionToken: sessionToken(),
     signal,
   });

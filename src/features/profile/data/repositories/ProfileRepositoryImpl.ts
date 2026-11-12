@@ -3,7 +3,7 @@ import {
   getLocationPermission,
   requestLocationPermission,
 } from '@core/location/deviceLocation';
-import { cityAt, endPlacesSession, searchCities } from '@core/places';
+import { cityAt, endPlacesSession, searchCities, searchDestinations } from '@core/places';
 
 import type { CityDetection, MyProfile, ProfileUpdate } from '../../domain/entities/Profile';
 import type { ProfileRepository } from '../../domain/repositories/ProfileRepository';
@@ -136,6 +136,15 @@ export function createProfileRepository(request: ProfileRequest): ProfileReposit
         return (await searchCities(query, null, signal)).map(toCitySuggestion);
       } catch (e) {
         // A cancelled search (the person typed on) is not a failure; hand the abort back as it was.
+        if (signal?.aborted) throw e;
+        throw toProfileError(e);
+      }
+    },
+
+    async searchDestinations(query, signal) {
+      try {
+        return (await searchDestinations(query, signal)).map(toCitySuggestion);
+      } catch (e) {
         if (signal?.aborted) throw e;
         throw toProfileError(e);
       }

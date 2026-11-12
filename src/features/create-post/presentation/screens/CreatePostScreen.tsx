@@ -21,6 +21,7 @@ import { ParticipantsStep } from '../components/steps/ParticipantsStep';
 import { PriceStep } from '../components/steps/PriceStep';
 import { ReviewStep } from '../components/steps/ReviewStep';
 import { ScheduleStep } from '../components/steps/ScheduleStep';
+import { OwnAreaOnlyContext } from '../state/ownArea';
 
 /**
  * The create wizard (Figma New meetup / event / plan / group activity, light
@@ -51,6 +52,11 @@ export type CreatePostScreenProps = {
   onClose: () => void;
   /** Published, or (editing) the changes saved: the post's page follows. */
   onPublished: (postId: string) => void;
+  /**
+   * A free member (MOB-077): the place pickers offer only places around the
+   * phone, the only places the server lets them post. False for Pro.
+   */
+  ownAreaOnly?: boolean;
 };
 
 export function CreatePostScreen({
@@ -59,6 +65,7 @@ export function CreatePostScreen({
   editId = null,
   onClose,
   onPublished,
+  ownAreaOnly = false,
 }: CreatePostScreenProps) {
   const editing = editId !== null;
   const vm = useCreatePost(kind, editId ?? draftId, editing ? 'edit' : 'create');
@@ -177,110 +184,112 @@ export function CreatePostScreen({
   }
 
   return (
-    <Screen edges={['top']} padded={false}>
-      <WizardHeader
-        title={header.title}
-        subtitle={header.subtitle}
-        step={vm.stepIndex}
-        stepCount={vm.stepCount}
-        onBack={() => (vm.stepIndex > 0 ? vm.back() : onClose())}
-        onSaveDraft={saveDraft}
-        canSaveDraft={vm.canSaveDraft}
-        saving={vm.savingDraft}
-        justSaved={justSaved}
-        showSaveDraft={!editing}
-      />
+    <OwnAreaOnlyContext.Provider value={ownAreaOnly}>
+      <Screen edges={['top']} padded={false}>
+        <WizardHeader
+          title={header.title}
+          subtitle={header.subtitle}
+          step={vm.stepIndex}
+          stepCount={vm.stepCount}
+          onBack={() => (vm.stepIndex > 0 ? vm.back() : onClose())}
+          onSaveDraft={saveDraft}
+          canSaveDraft={vm.canSaveDraft}
+          saving={vm.savingDraft}
+          justSaved={justSaved}
+          showSaveDraft={!editing}
+        />
 
-      <ScrollView
-        // Android draws scrolled content past the edges unless told to clip, over the header above.
-        style={{ flex: 1, overflow: 'hidden' }}
-        ref={scroll}
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="interactive"
-        automaticallyAdjustKeyboardInsets
-        contentContainerStyle={{
-          paddingHorizontal: SCREEN_GUTTER,
-          paddingTop: 24,
-          paddingBottom: vm.step === 'review' ? Math.max(insets.bottom, 16) + 24 : 32,
-        }}
-      >
-        <Animated.View key={vm.step} entering={entering}>
-          {vm.step === 'basics' ? <BasicsStep vm={vm} /> : null}
-          {vm.step === 'schedule' ? <ScheduleStep vm={vm} /> : null}
-          {vm.step === 'participants' ? <ParticipantsStep vm={vm} /> : null}
-          {vm.step === 'price' ? <PriceStep vm={vm} /> : null}
-          {vm.step === 'review' ? <ReviewStep vm={vm} /> : null}
-        </Animated.View>
-      </ScrollView>
-
-      {vm.step === 'review' ? null : (
-        <View
-          style={{
-            borderTopWidth: 1,
-            borderTopColor: theme.border,
+        <ScrollView
+          // Android draws scrolled content past the edges unless told to clip, over the header above.
+          style={{ flex: 1, overflow: 'hidden' }}
+          ref={scroll}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
+          automaticallyAdjustKeyboardInsets
+          contentContainerStyle={{
             paddingHorizontal: SCREEN_GUTTER,
-            paddingTop: 16,
-            paddingBottom: Math.max(insets.bottom, 16),
-            backgroundColor: theme.background,
+            paddingTop: 24,
+            paddingBottom: vm.step === 'review' ? Math.max(insets.bottom, 16) + 24 : 32,
           }}
         >
-          {/* Skip and Next sit side by side, and stack when large text leaves no room. */}
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
-            {/* No Skip when editing a live post: its price is fixed, and Skip would clear the link. */}
-            {vm.step === 'price' && !editing ? (
+          <Animated.View key={vm.step} entering={entering}>
+            {vm.step === 'basics' ? <BasicsStep vm={vm} /> : null}
+            {vm.step === 'schedule' ? <ScheduleStep vm={vm} /> : null}
+            {vm.step === 'participants' ? <ParticipantsStep vm={vm} /> : null}
+            {vm.step === 'price' ? <PriceStep vm={vm} /> : null}
+            {vm.step === 'review' ? <ReviewStep vm={vm} /> : null}
+          </Animated.View>
+        </ScrollView>
+
+        {vm.step === 'review' ? null : (
+          <View
+            style={{
+              borderTopWidth: 1,
+              borderTopColor: theme.border,
+              paddingHorizontal: SCREEN_GUTTER,
+              paddingTop: 16,
+              paddingBottom: Math.max(insets.bottom, 16),
+              backgroundColor: theme.background,
+            }}
+          >
+            {/* Skip and Next sit side by side, and stack when large text leaves no room. */}
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
+              {/* No Skip when editing a live post: its price is fixed, and Skip would clear the link. */}
+              {vm.step === 'price' && !editing ? (
+                <View style={{ flexGrow: 1, flexBasis: 140 }}>
+                  <Button
+                    label={wizardCopy.skipPrice}
+                    variant="secondary"
+                    size="lg"
+                    fullWidth
+                    onPress={vm.skipPrice}
+                    testID="create-skip-price"
+                  />
+                </View>
+              ) : null}
               <View style={{ flexGrow: 1, flexBasis: 140 }}>
                 <Button
-                  label={wizardCopy.skipPrice}
-                  variant="secondary"
+                  label={vm.locating ? wizardCopy.findingPlace : wizardCopy.next}
                   size="lg"
                   fullWidth
-                  onPress={vm.skipPrice}
-                  testID="create-skip-price"
+                  onPress={() => void vm.next()}
+                  disabled={!vm.canContinue && !vm.locating}
+                  loading={vm.locating}
+                  testID="create-next"
                 />
               </View>
-            ) : null}
-            <View style={{ flexGrow: 1, flexBasis: 140 }}>
-              <Button
-                label={vm.locating ? wizardCopy.findingPlace : wizardCopy.next}
-                size="lg"
-                fullWidth
-                onPress={() => void vm.next()}
-                disabled={!vm.canContinue && !vm.locating}
-                loading={vm.locating}
-                testID="create-next"
-              />
             </View>
           </View>
-        </View>
-      )}
+        )}
 
-      {/* Above the footer's buttons, so it never covers Next. */}
-      <Toast
-        visible={justSaved}
-        message={wizardCopy.draftSaved}
-        bottom={(vm.step === 'review' ? 0 : 80) + Math.max(insets.bottom, 16) + 8}
-      />
+        {/* Above the footer's buttons, so it never covers Next. */}
+        <Toast
+          visible={justSaved}
+          message={wizardCopy.draftSaved}
+          bottom={(vm.step === 'review' ? 0 : 80) + Math.max(insets.bottom, 16) + 8}
+        />
 
-      <PublishedSheet
-        isPresented={vm.outcome.kind === 'published'}
-        kind={kind}
-        title={done.title}
-        message={done.message}
-        actionLabel={done.action}
-        onAction={finish}
-        // Confetti for a new post; not for saving changes to one already live.
-        celebrate={!editing}
-      />
-      <StatusSheet
-        isPresented={failed !== null}
-        tone="error"
-        title={wizardCopy.publishFailed.title}
-        message={failureMessage(failed, copy.noun, editing)}
-        actionLabel={wizardCopy.publishFailed.action}
-        onAction={vm.publish}
-        onDismiss={vm.clearOutcome}
-      />
-    </Screen>
+        <PublishedSheet
+          isPresented={vm.outcome.kind === 'published'}
+          kind={kind}
+          title={done.title}
+          message={done.message}
+          actionLabel={done.action}
+          onAction={finish}
+          // Confetti for a new post; not for saving changes to one already live.
+          celebrate={!editing}
+        />
+        <StatusSheet
+          isPresented={failed !== null}
+          tone="error"
+          title={wizardCopy.publishFailed.title}
+          message={failureMessage(failed, copy.noun, editing)}
+          actionLabel={wizardCopy.publishFailed.action}
+          onAction={vm.publish}
+          onDismiss={vm.clearOutcome}
+        />
+      </Screen>
+    </OwnAreaOnlyContext.Provider>
   );
 }
 

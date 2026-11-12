@@ -22,6 +22,9 @@ const TIMEOUT_MS = 8000;
  */
 const BIAS_RADIUS_M = 50_000;
 
+/** The largest circle Google takes for a bias or a restriction. */
+const MAX_CIRCLE_M = 50_000;
+
 /** Only the fields we read: Google bills Place Details by the fields asked for. */
 const DETAILS_FIELD_MASK = 'id,displayName,formattedAddress,location';
 
@@ -29,6 +32,7 @@ type AutocompleteResponse = {
   suggestions?: {
     placePrediction?: {
       placeId?: string;
+      types?: string[];
       text?: { text?: string };
       structuredFormat?: {
         mainText?: { text?: string };
@@ -122,7 +126,19 @@ export type AutocompleteInput = {
   text: string;
   /** Cities only: Google's "(cities)" type collection. */
   citiesOnly: boolean;
+  /**
+   * Countries, regions and cities: Google's "(regions)" collection, less
+   * postcodes. For a favourite destination ("Qatar", "Bali"), which "(cities)"
+   * leaves out. Wins over `citiesOnly`.
+   */
+  regions?: boolean;
+  /** Ranks places around this point first; never hides a far one. */
   near?: LatLng | null;
+  /**
+   * Only places inside this circle (up to 50 km, Google's limit), e.g. a free
+   * member's own area when they post. Wins over `near`.
+   */
+  within?: { center: LatLng; radiusM: number } | null;
   /** Ties the keystrokes and the pick into one billed session; null for a one-off lookup. */
   sessionToken: string | null;
   signal?: AbortSignal;
@@ -131,8 +147,21 @@ export type AutocompleteInput = {
 export async function googleAutocomplete(input: AutocompleteInput): Promise<PlaceSuggestion[]> {
   const body = {
     input: input.text,
-    ...(input.citiesOnly ? { includedPrimaryTypes: ['(cities)'] } : null),
-    ...(input.near
+    ...(input.regions
+      ? { includedPrimaryTypes: ['(regions)'] }
+      : input.citiesOnly
+        ? { includedPrimaryTypes: ['(cities)'] }
+        : null),
+    ...(input.within
+      ? {
+          locationRestriction: {
+            circle: {
+              center: { latitude: input.within.center.lat, longitude: input.within.center.lng },
+              radius: Math.min(input.within.radiusM, MAX_CIRCLE_M),
+            },
+          },
+        }
+      : input.near
       ? {
           locationBias: {
             circle: {
@@ -152,6 +181,8 @@ export async function googleAutocomplete(input: AutocompleteInput): Promise<Plac
   // Query predictions ("pizza near…") have no place id and can't be picked, so they are left out.
   return (answer.suggestions ?? []).flatMap(({ placePrediction: p }) => {
     if (!p?.placeId) return [];
+    // "(regions)" includes postcodes, which are no one's destination.
+    if (input.regions && p.types?.includes('postal_code')) return [];
     const primary = p.structuredFormat?.mainText?.text ?? p.text?.text ?? '';
     return [
       {

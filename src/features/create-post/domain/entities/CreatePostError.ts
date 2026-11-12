@@ -28,6 +28,10 @@ export type CreatePostErrorCode =
    * map lookup for the place is down (spec §2.12). Trying again shortly helps.
    */
   | 'busy'
+  /** 402: a free member posting outside their own area (MOB-077). */
+  | 'outsideArea'
+  /** 400 NO_LOCATION: posting needs the phone's location, and it is off. */
+  | 'noLocation'
   | 'rateLimited'
   | 'network'
   | 'sessionExpired'
