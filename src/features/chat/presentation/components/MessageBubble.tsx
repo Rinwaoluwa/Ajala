@@ -3,11 +3,12 @@ import { useState } from 'react';
 import { Pressable, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 
+import { splitLinks } from '@core/config/links';
 import { PhotoViewer, Text, enterRise } from '@shared/components';
 import { useTheme } from '@shared/hooks/useTheme';
 import { palette } from '@shared/theme';
 
-import type { ChatMessage } from '../../domain/entities/Chat';
+import type { ChatMessage, ChatPostLock } from '../../domain/entities/Chat';
 import { chatCopy } from '../copy';
 import { messageTime } from '../format';
 import { PostContextCard } from './PostContextCard';
@@ -35,12 +36,19 @@ export function MessageBubble({
   showSender,
   status,
   onOpenPost,
+  onOpenLink,
   onReport,
 }: {
   message: ChatMessage;
   showSender: boolean;
   status: 'sent' | 'read';
-  onOpenPost: (postId: string) => void;
+  /** A locked post (MOB-077) comes with its reason: the paywall, not the post. */
+  onOpenPost: (postId: string, lockReason?: ChatPostLock | null) => void;
+  /**
+   * A link in the message was tapped. `route` is set for an Ajala post or
+   * profile link, which opens in the app; anything else opens in the browser.
+   */
+  onOpenLink?: (link: { url: string; route: string | null }) => void;
   onReport?: () => void;
 }) {
   const theme = useTheme();
@@ -106,14 +114,31 @@ export function MessageBubble({
                 !message.removed ? { color: mine ? palette.white : theme.foreground } : null,
               ]}
             >
-              {text}
+              {message.removed || !onOpenLink
+                ? text
+                : // Links show as links: an Ajala post or profile opens in the app.
+                  splitLinks(text).map((part, i) =>
+                    part.link ? (
+                      <Text
+                        key={i}
+                        variant="bodyMd"
+                        onPress={() => onOpenLink(part.link!)}
+                        accessibilityRole="link"
+                        style={{ color: mine ? palette.white : theme.primary, textDecorationLine: 'underline' }}
+                      >
+                        {part.text}
+                      </Text>
+                    ) : (
+                      part.text
+                    ),
+                  )}
             </Text>
           </View>
         ) : null}
       </Pressable>
       {message.removed ? null : message.taggedPost ? (
         <View style={{ maxWidth: '78%' }}>
-          <PostContextCard post={message.taggedPost} onPress={() => onOpenPost(message.taggedPost?.id ?? '')} />
+          <PostContextCard post={message.taggedPost} onPress={() => onOpenPost(message.taggedPost?.id ?? '', message.taggedPost?.lockReason)} />
         </View>
       ) : message.taggedPostUnavailable ? (
         <Text variant="bodySm" tone="muted" style={{ maxWidth: '78%', fontStyle: 'italic' }}>

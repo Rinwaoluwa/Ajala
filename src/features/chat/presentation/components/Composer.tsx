@@ -1,10 +1,11 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Platform, ScrollView, TouchableOpacity, View } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { splitLinks } from '@core/config/links';
 import { haptics } from '@shared/feedback/haptics';
 import { SvgIcon, Text, TextField } from '@shared/components';
 import { useKeyboardShown } from '@shared/hooks/useKeyboardShown';
@@ -34,6 +35,7 @@ export function Composer({
   onTyping,
   onPickPhotos,
   sending,
+  onOpenLink,
 }: {
   /** Resolves with null when sent, or why it was not. */
   onSend: (text: string, images: LocalImage[]) => Promise<ChatErrorCode | null>;
@@ -41,6 +43,8 @@ export function Composer({
   /** Resolves with the photos picked, given how many are already attached. */
   onPickPhotos: (attached: number) => Promise<LocalImage[]>;
   sending: boolean;
+  /** An Ajala post or profile link in what is being written: open it in the app. */
+  onOpenLink?: (link: { url: string; route: string }) => void;
 }) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
@@ -65,6 +69,11 @@ export function Composer({
   }, [notice]);
 
   const ready = text.trim().length > 0 || images.length > 0;
+  // The first Ajala post or profile link in what is being written, offered to open in the app.
+  const ajalaLink = useMemo(() => {
+    const found = splitLinks(text).find((part) => part.link?.route);
+    return found?.link?.route ? { url: found.link.url, route: found.link.route } : null;
+  }, [text]);
 
   const send = useCallback(() => {
     if (!ready || sending) return;
@@ -104,6 +113,36 @@ export function Composer({
           <Text variant="bodyXs" tone="muted" accessibilityLiveRegion="polite">
             {notice}
           </Text>
+        </Animated.View>
+      ) : null}
+      {ajalaLink && onOpenLink ? (
+        <Animated.View entering={FadeIn.duration(180)} exiting={FadeOut.duration(150)}>
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => onOpenLink(ajalaLink)}
+            accessibilityRole="link"
+            accessibilityLabel={`${chatCopy.thread.openLink} ${
+              ajalaLink.route.startsWith('/post/') ? chatCopy.thread.linkFound.post : chatCopy.thread.linkFound.user
+            }`}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 8,
+              alignSelf: 'flex-start',
+              paddingHorizontal: 12,
+              paddingVertical: 8,
+              borderRadius: 999,
+              backgroundColor: theme.skeletonSurface,
+            }}
+          >
+            <Ionicons name="link" size={16} color={theme.primary} />
+            <Text variant="labelSm">
+              {ajalaLink.route.startsWith('/post/') ? chatCopy.thread.linkFound.post : chatCopy.thread.linkFound.user}
+            </Text>
+            <Text variant="labelSm" tone="primary">
+              {`${chatCopy.thread.openLink} ›`}
+            </Text>
+          </TouchableOpacity>
         </Animated.View>
       ) : null}
       {images.length > 0 ? (

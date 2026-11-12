@@ -72,7 +72,17 @@ export type ChatThreadDetail = ChatThread & {
 export type ChatImage = { thumbUrl: string; url: string };
 
 /** A post a message points at (and the activity card at the top of a chat). */
-export type ChatPost = { id: string; title: string; startAt: string | null; placeName: string | null };
+/** Why a post is locked to its reader (MOB-077): a Plan, or outside their area, without Pro. */
+export type ChatPostLock = 'plan' | 'distance';
+
+export type ChatPost = {
+  id: string;
+  title: string;
+  startAt: string | null;
+  placeName: string | null;
+  /** Null when the reader may open it. A locked card opens the paywall, not the post. */
+  lockReason: ChatPostLock | null;
+};
 
 export type ChatMessage = {
   /** The server's 64-bit id as a string, or the `clientMsgId` while it is on its way. */

@@ -18,7 +18,7 @@ import {
 import { useTheme } from '@shared/hooks/useTheme';
 import { SCREEN_GUTTER } from '@shared/theme';
 
-import type { ChatMessage } from '../../domain/entities/Chat';
+import type { ChatMessage, ChatPostLock } from '../../domain/entities/Chat';
 import type { ChatErrorCode } from '../../domain/entities/ChatError';
 import type { ConversationItem } from '../../domain/rules/chatRules';
 import { ChatHeader } from '../components/ChatHeader';
@@ -52,15 +52,21 @@ import { useSafetyBanner } from '../hooks/useSafetyBanner';
 export type ChatScreenProps = {
   threadId: string;
   onBack: () => void;
-  onOpenPost: (postId: string) => void;
+  /** A locked post (MOB-077) comes with its reason: the paywall, not the post. */
+  onOpenPost: (postId: string, lockReason?: ChatPostLock | null) => void;
   /** The other person's profile, from the header of a direct chat. */
   onOpenProfile?: (userId: string) => void;
+  /**
+   * A link in a message, or an Ajala link in the composer. `route` is the app
+   * route for an Ajala post or profile; null for anything else (the browser).
+   */
+  onOpenLink?: (link: { url: string; route: string | null }) => void;
 };
 
 /** How close to the bottom still counts as "at the newest message". */
 const NEAR_BOTTOM = 80;
 
-export function ChatScreen({ threadId, onBack, onOpenPost, onOpenProfile }: ChatScreenProps) {
+export function ChatScreen({ threadId, onBack, onOpenPost, onOpenProfile, onOpenLink }: ChatScreenProps) {
   const theme = useTheme();
   const vm = useConversation(threadId);
   const banner = useSafetyBanner();
@@ -116,7 +122,7 @@ export function ChatScreen({ threadId, onBack, onOpenPost, onOpenProfile }: Chat
           );
         case 'post':
           return vm.post ? (
-            <PostContextCard post={vm.post} onPress={() => onOpenPost(vm.post?.id ?? '')} />
+            <PostContextCard post={vm.post} onPress={() => onOpenPost(vm.post?.id ?? '', vm.post?.lockReason)} />
           ) : null;
         case 'message': {
           const m = item.message;
@@ -127,6 +133,7 @@ export function ChatScreen({ threadId, onBack, onOpenPost, onOpenProfile }: Chat
               showSender={item.showSender}
               status={vm.statusOf(m)}
               onOpenPost={onOpenPost}
+              onOpenLink={onOpenLink}
               onReport={
                 reportable
                   ? () => {
@@ -140,7 +147,7 @@ export function ChatScreen({ threadId, onBack, onOpenPost, onOpenProfile }: Chat
         }
       }
     },
-    [vm, onOpenPost],
+    [vm, onOpenPost, onOpenLink],
   );
 
   // The gone sheet's button and its swipe-away can both fire as it closes: leave once.
@@ -286,6 +293,7 @@ export function ChatScreen({ threadId, onBack, onOpenPost, onOpenProfile }: Chat
               >
                 <Composer
                   onSend={vm.submit}
+                  onOpenLink={onOpenLink}
                   onTyping={vm.onTyping}
                   onPickPhotos={vm.pickPhotos}
                   sending={vm.sending}

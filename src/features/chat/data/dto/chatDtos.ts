@@ -82,6 +82,9 @@ export interface ChatPostCardDto {
   title: string;
   startAt: string | null;
   placeName: string | null;
+  /** True when the reader may not open it; `lockReason` says why (MOB-077). */
+  locked?: boolean | null;
+  lockReason?: 'plan' | 'distance' | null;
 }
 
 export interface MessageDto {

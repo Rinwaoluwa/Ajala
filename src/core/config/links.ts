@@ -53,3 +53,57 @@ export function appPathForLink(url: string, linksHost: string = LINKS_HOST): str
   const [, kind, id] = match;
   return `/${kind === 'posts' ? 'post' : 'user'}/${id}`;
 }
+
+/**
+ * Every host an Ajala share link may come from: production, staging and dev,
+ * and this build's own. Someone on one build can be sent a link made on another,
+ * and it is still a post or a profile in the app.
+ */
+const AJALA_LINK_HOSTS = ['go.ajalatrvl.com', 'staging-go.ajalatrvl.com', 'dev-go.ajalatrvl.com'];
+
+/**
+ * The app route an Ajala link opens (`/post/{id}` or `/user/{id}`), or null
+ * when it is not one. Takes `https://go.ajalatrvl.com/posts/{id}` (any of the
+ * three hosts, `http` or none), and the app's own schemes (`ajala://`,
+ * `ajala-dev://`). Used to open a link written in a chat inside the app.
+ */
+export function ajalaLinkRoute(link: string): string | null {
+  const url = link.trim();
+  const app = /^ajala(?:-dev)?:\/\//i.test(url) ? appPathForLink(url.replace(/^ajala-dev:/i, 'ajala:')) : null;
+  if (app) return app.startsWith('/post/') || app.startsWith('/user/') ? app : null;
+
+  const web = /^(?:https?:\/\/)?([^/?#\s]+)(\/[^\s]*)?$/i.exec(url);
+  if (!web) return null;
+  const host = web[1].toLowerCase();
+  if (host !== LINKS_HOST.toLowerCase() && !AJALA_LINK_HOSTS.includes(host)) return null;
+  const route = appPathForLink(web[2] ?? '/');
+  return route.startsWith('/post/') || route.startsWith('/user/') ? route : null;
+}
+
+/** A run of a message: plain words, or a link with where it goes. */
+export type TextPart = { text: string; link?: { url: string; route: string | null } };
+
+/**
+ * Splits text into plain runs and links, for a message to show its links as
+ * links. A link is an `http(s)://` address, an app link (`ajala://…`), or a
+ * bare Ajala share link (`go.ajalatrvl.com/posts/…`). Trailing punctuation
+ * ("…/posts/abc." at the end of a sentence) stays outside the link. `route`
+ * is set for an Ajala post or profile, which opens in the app.
+ */
+export function splitLinks(text: string): TextPart[] {
+  const pattern =
+    /\b(?:https?:\/\/[^\s<>"]+|ajala(?:-dev)?:\/\/[^\s<>"]+|(?:(?:staging-|dev-)?go\.ajalatrvl\.com)\/[^\s<>"]+)/gi;
+  const parts: TextPart[] = [];
+  let last = 0;
+  for (const match of text.matchAll(pattern)) {
+    const start = match.index ?? 0;
+    const raw = match[0];
+    const url = raw.replace(/[.,!?;:)\]}'"]+$/, '');
+    if (start > last) parts.push({ text: text.slice(last, start) });
+    const href = /^[a-z][a-z0-9+.-]*:\/\//i.test(url) ? url : `https://${url}`;
+    parts.push({ text: url, link: { url: href, route: ajalaLinkRoute(url) } });
+    last = start + url.length;
+  }
+  if (last < text.length) parts.push({ text: text.slice(last) });
+  return parts;
+}

@@ -37,6 +37,8 @@ export const toPost = (dto: ChatPostCardDto): ChatPost => ({
   title: dto.title,
   startAt: dto.startAt ?? null,
   placeName: dto.placeName ?? null,
+  // `locked` with no reason predates MOB-077, when only Plans locked.
+  lockReason: dto.locked ? (dto.lockReason === 'distance' ? 'distance' : 'plan') : null,
 });
 
 // Ids are copied as they come, always as strings: a 64-bit message id read as a
@@ -161,6 +163,9 @@ const COMMON: Partial<Record<ApiErrorCode, ChatErrorCode>> = {
   CHAT_START_LIMIT: 'startLimit',
   GROUP_CHAT_FULL: 'groupChatFull',
   REPORTING_PAUSED: 'reportingPaused',
+  // Sending: tagging a post you may not open (MOB-077). 402 without Pro; 400 with location off.
+  PAYMENT_REQUIRED: 'proRequired',
+  NO_LOCATION: 'noLocation',
   NETWORK: 'network',
   TIMEOUT: 'network',
   UNAUTHORIZED: 'sessionExpired',

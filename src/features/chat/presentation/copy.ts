@@ -75,6 +75,11 @@ export const chatCopy = {
     openPost: (title: string) => `Open ${title}`,
     removed: 'This message was removed',
     postUnavailable: 'This activity is no longer available',
+    // A tagged post the reader may not open (MOB-077); the card opens the paywall.
+    // The composer saw an Ajala link in what is being written; tapping opens it in the app.
+    linkFound: { post: 'Ajala post', user: 'Ajala profile' },
+    openLink: 'Open',
+    lockedPost: { distance: 'Outside your area · Go Pro to open', plan: 'Plans are a Pro feature' },
     photo: (n: number, of: number) => `Photo ${n} of ${of}`,
     attach: 'Add photos',
     removePhoto: (n: number) => `Remove photo ${n}`,
@@ -144,6 +149,8 @@ export const chatErrorMessages: Record<ChatErrorCode, string> = {
   unsupportedImage: 'Use a JPEG, PNG or WebP photo.',
   reportingPaused: 'Reporting is paused on your account; you can still block.',
   alreadyReported: 'You’ve already reported this message.',
+  proRequired: 'That post is outside your area. Go Pro to share posts from anywhere.',
+  noLocation: 'Turn on location to share a post.',
   rateLimited: 'You’re going a little fast. Wait a moment and try again.',
   network: 'You seem to be offline. Check your connection and try again.',
   sessionExpired: 'Your session ended. Sign in again to continue.',

@@ -110,6 +110,7 @@ export function MessagesScreen({ onBack, onOpenThread, onExplore }: MessagesScre
           autoCorrect={false}
           returnKeyType="search"
           maxLength={SEARCH_MAX}
+          clearable
           leading={<NativeIcon source={icons.search} size={16} color={theme.muted} />}
         />
       </View>

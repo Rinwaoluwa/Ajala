@@ -32,6 +32,10 @@ export type ChatErrorCode =
   | 'reportingPaused'
   /** Reporting: already reported. */
   | 'alreadyReported'
+  /** Sending: the tagged post is outside your area (or a Plan) and you have no Pro (402). */
+  | 'proRequired'
+  /** Sending a tagged post with location off (400 `NO_LOCATION`). */
+  | 'noLocation'
   | 'rateLimited'
   | 'network'
   | 'sessionExpired'

@@ -1,4 +1,5 @@
-import { TouchableOpacity } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { TouchableOpacity, View } from 'react-native';
 
 import { Text } from '@shared/components';
 import { palette } from '@shared/theme';
@@ -31,7 +32,15 @@ export function PostContextCard({
       <Text variant="headingSm" style={{ color: palette.ink }}>
         {post.title}
       </Text>
-      {meta ? (
+      {post.lockReason ? (
+        // Locked (MOB-077): what it is, and that it opens the paywall rather than the post.
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <Ionicons name="lock-closed" size={14} color={palette.inkSecondary} />
+          <Text variant="bodySm" style={{ color: palette.inkSecondary, flexShrink: 1 }}>
+            {chatCopy.thread.lockedPost[post.lockReason]}
+          </Text>
+        </View>
+      ) : meta ? (
         <Text variant="bodySm" style={{ color: palette.inkSecondary }}>
           {meta}
         </Text>

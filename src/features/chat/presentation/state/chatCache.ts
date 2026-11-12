@@ -90,6 +90,11 @@ export function applyChatEvent(queryClient: QueryClient, event: ChatEvent, myId:
   switch (event.type) {
     case 'message': {
       putMessage(queryClient, event.message, myId ?? myIdIn(queryClient, event.message.conversationId));
+      // The socket does not know where your phone is, so a tagged post arrives locked even when
+      // it is near you (MOB-077). The thread over HTTP, with the location, says whether it is.
+      if (event.message.taggedPost?.lockReason) {
+        void queryClient.invalidateQueries({ queryKey: chatKeys.messages(event.message.conversationId) });
+      }
       // The list's order, last line and unread counts all move, and so may the
       // badge; only what is on screen refetches.
       void queryClient.invalidateQueries({ queryKey: chatKeys.threadLists });
