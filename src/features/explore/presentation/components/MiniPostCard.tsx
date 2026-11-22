@@ -142,7 +142,10 @@ function Loaded({
 
   return (
     <View style={{ flexDirection: 'row' }}>
-      <View style={{ width: IMAGE_WIDTH, backgroundColor: theme.skeleton }}>
+      {/* No photo (they are optional): the type's own colour, not a grey that reads as loading. */}
+      <View
+        style={{ width: IMAGE_WIDTH, backgroundColor: post.imageUrl ? theme.skeleton : typeColors[post.type].cover }}
+      >
         {post.imageUrl ? (
           <Image
             source={{ uri: post.imageUrl }}

@@ -4,6 +4,7 @@ import { TouchableOpacity, View, useColorScheme } from 'react-native';
 
 import { Tag, Text, type TagTone } from '@shared/components';
 import { useTheme } from '@shared/hooks/useTheme';
+import { useTypeColors } from '@shared/theme/postTypeColors';
 
 import type { TripCard } from '../../domain/entities/Trip';
 import { tripsCopy } from '../copy';
@@ -32,6 +33,7 @@ function statusTag(trip: TripCard): { label: string; tone: TagTone } {
 
 function UpcomingTripCardComponent({ trip, onOpen }: { trip: TripCard; onOpen: () => void }) {
   const theme = useTheme();
+  const typeColors = useTypeColors();
   const dark = useColorScheme() === 'dark';
   const dates = tripDates(trip.startAt, trip.endAt);
   const time = tripTime(trip.startAt);
@@ -67,7 +69,8 @@ function UpcomingTripCardComponent({ trip, onOpen }: { trip: TripCard; onOpen: (
         overflow: 'hidden',
       }}
     >
-      <View style={{ aspectRatio: 2, backgroundColor: theme.skeleton }}>
+      {/* No photo (they are optional): the type's own colour, not a grey that reads as loading. */}
+      <View style={{ aspectRatio: 2, backgroundColor: trip.imageUrl ? theme.skeleton : typeColors[trip.type].cover }}>
         {trip.imageUrl ? (
           <Image source={{ uri: trip.imageUrl }} style={{ flex: 1 }} contentFit="cover" transition={250} />
         ) : null}

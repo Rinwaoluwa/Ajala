@@ -4,6 +4,7 @@ import { TouchableOpacity, View } from 'react-native';
 
 import { Tag, Text, type TagTone } from '@shared/components';
 import { useTheme } from '@shared/hooks/useTheme';
+import { useTypeColors } from '@shared/theme/postTypeColors';
 
 import type { ProfileActivity } from '../../domain/entities/PublicProfile';
 import { formatDay, formatTime } from '../profileFormat';
@@ -37,6 +38,7 @@ export function ActivityCard({
   onPress: () => void;
 }) {
   const theme = useTheme();
+  const typeColors = useTypeColors();
   const copy = profileViewCopy.activities;
   const day = formatDay(activity.startAt);
   const time = formatTime(activity.startAt);
@@ -59,7 +61,13 @@ export function ActivityCard({
         overflow: 'hidden',
       }}
     >
-      <View style={{ aspectRatio: 16 / 7, backgroundColor: theme.skeleton }}>
+      {/* No photo (they are optional): the type's own colour, not a grey that reads as loading. */}
+      <View
+        style={{
+          aspectRatio: 16 / 7,
+          backgroundColor: activity.imageUrl ? theme.skeleton : typeColors[activity.type].cover,
+        }}
+      >
         {activity.imageUrl ? (
           <Image
             source={{ uri: activity.imageUrl }}

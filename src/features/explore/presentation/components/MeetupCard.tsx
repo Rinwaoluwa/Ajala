@@ -11,6 +11,7 @@ import Animated, {
 import { Text, formatDistance } from '@shared/components';
 import { useFontScale } from '@shared/hooks/useFontScale';
 import { useTheme } from '@shared/hooks/useTheme';
+import { useTypeColors } from '@shared/theme/postTypeColors';
 
 import type { ListedPost } from '../../domain/entities/Explore';
 import { exploreCopy, typeLabels } from '../copy';
@@ -38,6 +39,7 @@ function MeetupCardComponent({
   fill?: boolean;
 }) {
   const theme = useTheme();
+  const typeColors = useTypeColors();
   const reduceMotion = useReducedMotion();
   const fixedWidth = Math.round(BASE_WIDTH * Math.min(useFontScale(), 1.5));
   const pressed = useSharedValue(0);
@@ -71,7 +73,10 @@ function MeetupCardComponent({
           style,
         ]}
       >
-        <View style={{ height: 112, backgroundColor: theme.skeleton }}>
+        {/* No photo (they are optional): the type's own colour, not a grey that reads as loading. */}
+        <View
+          style={{ height: 112, backgroundColor: meetup.imageUrl ? theme.skeleton : typeColors[meetup.type].cover }}
+        >
           {meetup.imageUrl ? (
             <Image
               source={{ uri: meetup.imageUrl }}
