@@ -23,6 +23,14 @@ export const postPageKey = (postId: string) => ['postDetail', 'post', postId] as
 /** A post's attendee lists, every state (post-detail's `postDetailKeys.attendeesOf`). */
 export const postAttendeesKey = (postId: string) => ['postDetail', 'attendees', postId] as const;
 
+/**
+ * How many comments a post has, for a feed post's comment button. Home reads it
+ * from the comments endpoint (cards carry no count yet), and the post page
+ * writes its own total here, so the number on the feed follows a comment added
+ * or deleted without asking again.
+ */
+export const postCommentCountKey = (postId: string) => ['post', 'commentCount', postId] as const;
+
 /** Explore's mini card for a post. */
 export const explorePostKey = (postId: string) => ['explore', 'post', postId] as const;
 

@@ -22,6 +22,7 @@ import {
   type MenuAction,
 } from '@shared/components';
 import { useLiquidGlass } from '@shared/hooks/useLiquidGlass';
+import { usePressOnce } from '@shared/hooks/usePressOnce';
 import { useTheme } from '@shared/hooks/useTheme';
 import { useTypeColors } from '@shared/theme/postTypeColors';
 import { palette } from '@shared/theme';
@@ -40,6 +41,9 @@ import { TYPE_LABEL, postCopy } from '../copy';
  *
  * The photo band is a share of the width (about 4:7), capped so the title and
  * the button still show on a short screen.
+ *
+ * A post with no photos (they are optional) has no band at all: the same row of
+ * buttons sits at the top of the page, on the page's own background.
  */
 
 const BUTTON = 40;
@@ -80,7 +84,12 @@ export function PostHero({
   const { width, height: screen } = useWindowDimensions();
   const [index, setIndex] = useState(0);
   const progress = useSharedValue(0);
-  const height = Math.min(Math.round(width * 0.62), Math.round(screen * 0.42)) + insets.top;
+  // A post with no photos (they are optional) has no photo band: only the row of buttons,
+  // on the page itself.
+  const plain = images.length === 0;
+  const height = plain
+    ? insets.top + 8 + BUTTON + 4
+    : Math.min(Math.round(width * 0.62), Math.round(screen * 0.42)) + insets.top;
   // Scaled about its centre: half the pull moves it up, the growth covers the rest,
   // so its top stays at the screen's top and its bottom where it was.
   const stretch = useAnimatedStyle(() => {
@@ -93,7 +102,7 @@ export function PostHero({
 
   return (
     <View style={{ height }}>
-      <Animated.View style={[{ height, backgroundColor: theme.skeleton }, stretch]}>
+      <Animated.View style={[{ height, backgroundColor: plain ? theme.background : theme.skeleton }, stretch]}>
         {images.length ? (
           <ImageCarousel
             images={images.map((uri, i) => ({
@@ -133,7 +142,7 @@ export function PostHero({
           pinned,
         ]}
       >
-        <RoundButton label={postCopy.back} icon={icons.chevronLeft} onPress={onBack} />
+        <RoundButton label={postCopy.back} icon={icons.chevronLeft} onPress={onBack} plain={plain} />
         <View style={{ flex: 1 }} />
         {/* The type's own colour, as its pill on the home feed (`useTypeColors`). */}
         <GlassSurface
@@ -147,10 +156,10 @@ export function PostHero({
             {TYPE_LABEL[type]}
           </Text>
         </GlassSurface>
-        {save ? <SaveButton saved={save.saved} onToggle={save.onToggle} /> : null}
+        {save ? <SaveButton saved={save.saved} onToggle={save.onToggle} plain={plain} /> : null}
         {menu?.length ? (
           <MenuButton actions={menu} accessibilityLabel={postCopy.more} cancelLabel={postCopy.close}>
-            <RoundFace icon={icons.more} />
+            <RoundFace icon={icons.more} plain={plain} />
           </MenuButton>
         ) : null}
       </Animated.View>
@@ -162,20 +171,24 @@ function RoundButton({
   label,
   icon,
   onPress,
+  plain,
 }: {
   label: string;
   icon: (typeof icons)[keyof typeof icons];
   onPress: () => void;
+  plain: boolean;
 }) {
+  // Once per tap: a double tap on Back went back two screens.
+  const pressOnce = usePressOnce(onPress);
   return (
     <TouchableOpacity
       activeOpacity={0.7}
-      onPress={onPress}
+      onPress={pressOnce}
       hitSlop={8}
       accessibilityRole="button"
       accessibilityLabel={label}
     >
-      <RoundFace icon={icon} />
+      <RoundFace icon={icon} plain={plain} />
     </TouchableOpacity>
   );
 }
@@ -184,7 +197,7 @@ function RoundButton({
  * The bookmark (Ionicons, as on every post card). Outline and filled cross-fade
  * in 160ms, so the mark keeps its shape and only fills; the glass never moves.
  */
-function SaveButton({ saved, onToggle }: { saved: boolean; onToggle: () => void }) {
+function SaveButton({ saved, onToggle, plain }: { saved: boolean; onToggle: () => void; plain: boolean }) {
   const on = useSharedValue(saved ? 1 : 0);
   useEffect(() => {
     on.set(withTiming(saved ? 1 : 0, { duration: 160, easing: Easing.out(Easing.quad) }));
@@ -200,7 +213,7 @@ function SaveButton({ saved, onToggle }: { saved: boolean; onToggle: () => void 
       accessibilityLabel={saved ? postCopy.saved : postCopy.save}
       accessibilityState={{ selected: saved }}
     >
-      <RoundFace>
+      <RoundFace plain={plain}>
         <Animated.View style={[{ position: 'absolute' }, outline]}>
           <Ionicons name="bookmark-outline" size={18} color={palette.teal} />
         </Animated.View>
@@ -212,22 +225,29 @@ function SaveButton({ saved, onToggle }: { saved: boolean; onToggle: () => void 
   );
 }
 
-/** The round glass face of the hero's buttons: a native glyph, or what is passed in. */
+/**
+ * The round glass face of the hero's buttons: a native glyph, or what is passed in.
+ * `plain`: the post has no photo, so the button sits on the page itself and is drawn as the
+ * app's other buttons on a plain page are (the header's bell and chat).
+ */
 function RoundFace({
   icon,
   children,
+  plain = false,
 }: {
   icon?: (typeof icons)[keyof typeof icons];
   children?: ReactNode;
+  plain?: boolean;
 }) {
   const theme = useTheme();
   const glass = useLiquidGlass();
   return (
     <GlassSurface
       fallbackColor={theme.selectedFill}
-      appearance="light"
+      appearance={plain ? 'auto' : 'light'}
       // Glass darkens over a dark part of the photo; a white tint keeps it pale, so the teal mark reads.
-      tint={glass ? 'rgba(255,255,255,0.6)' : null}
+      tint={glass && !plain ? 'rgba(255,255,255,0.6)' : null}
+      onPlainPage={plain}
       interactive
       shadow={false}
       style={{

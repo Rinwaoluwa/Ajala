@@ -10,6 +10,11 @@ export interface FeedRepository {
    */
   getPostDescription(postId: string): Promise<string | null>;
   /**
+   * How many comments a post has, for its comment button: feed cards don't carry
+   * the count yet (backend request B11). Null when it could not be read; never rejects.
+   */
+  getPostCommentCount(postId: string): Promise<number | null>;
+  /**
    * Cities matching what was typed, from the place search on the phone (the
    * API has none). `signal` cancels a search that typing has overtaken.
    */

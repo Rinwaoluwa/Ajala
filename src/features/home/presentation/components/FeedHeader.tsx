@@ -166,7 +166,7 @@ export function FeedHeader({
       ? place.label
         ? homeCopy.teleportedTo(place.label)
         : homeCopy.teleported
-      : homeCopy.deviceSubtitle
+      : homeCopy.deviceSubtitle(place.name)
     : homeCopy.locationOff;
 
   return (

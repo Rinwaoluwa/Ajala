@@ -15,6 +15,9 @@ export function toPostCard(dto: PostCardDto): PostCard {
     type: dto.type,
     title: dto.title,
     imageUrl: image?.cardUrl ?? null,
+    images: (dto.images ?? [])
+      .filter((i) => i?.cardUrl)
+      .map((i) => ({ card: i.cardUrl, full: i.fullUrl || i.cardUrl })),
     startAt: dto.startAt ?? null,
     endAt: dto.endAt ?? null,
     recurrence: dto.recurrence?.frequency ?? null,

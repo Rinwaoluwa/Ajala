@@ -29,12 +29,20 @@ export type PostPrice = { amount: number; currency: string };
 export type RsvpState = 'none' | 'requested' | 'going' | 'waitlisted' | 'declined' | 'removed';
 export type Recurrence = 'weekly' | 'biweekly' | 'monthly';
 
+/** One of a post's photos, at the two sizes the feed uses. */
+export type PostPhoto = { card: string; full: string };
+
 export type PostCard = {
   id: string;
   type: PostType;
   title: string;
   /** The 800px card image, or null when the post has none. */
   imageUrl: string | null;
+  /**
+   * Every photo, in the host's order: `card` (800px) for the feed's strip,
+   * `full` for the viewer. Empty when the post has none.
+   */
+  images: PostPhoto[];
   /** ISO date-time; null only on a draft. */
   startAt: string | null;
   /** ISO date-time, or null when the host gave no end. */

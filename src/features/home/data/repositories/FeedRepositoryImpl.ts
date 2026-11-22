@@ -45,6 +45,15 @@ export function createFeedRepository(request: FeedRequest): FeedRepository {
         return null;
       }
     },
+    getPostCommentCount: async (postId) => {
+      try {
+        const total = (await api.getPostCommentCount(postId)).total;
+        return typeof total === 'number' && total >= 0 ? total : null;
+      } catch {
+        // A post without its count is still a post.
+        return null;
+      }
+    },
     searchCities: (query, signal) =>
       guard(async () => (await searchCities(query, null, signal)).map(toTravelCity)),
     cityNameAt: (lat, lng) => guard(async () => (await cityAt(lat, lng))?.name ?? null),

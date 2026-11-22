@@ -48,6 +48,17 @@ export function createFeedApi(request: FeedRequest) {
     getPostDescription: (postId: string) =>
       request<{ description?: string | null }>({ method: 'GET', path: `${V1}/posts/${encodeURIComponent(postId)}` }),
 
+    /**
+     * A post's comments, read only for `total`: `PostCardDto` has no comment
+     * count yet (backend request B11), so a card asks for one comment and reads
+     * how many there are.
+     */
+    getPostCommentCount: (postId: string) =>
+      request<{ total?: number | null }>({
+        method: 'GET',
+        path: `${V1}/posts/${encodeURIComponent(postId)}/comments?limit=1`,
+      }),
+
     /** 204; 400 unknown place or not a city, 402 PAYMENT_REQUIRED without Travel, 503 map vendor down. */
     teleport: (body: TeleportDto) => request<void>({ method: 'POST', path: `${V1}/me/teleport`, body }),
 

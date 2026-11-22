@@ -5,7 +5,9 @@ import {
   type InfiniteData,
   type QueryClient,
 } from '@tanstack/react-query';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+
+import { postCommentCountKey } from '@shared/state/postQueryKeys';
 
 import type { CommentsPage, PostComment, ReportReason, Viewer } from '../../domain/entities/PostDetail';
 import { isPostDetailError, type PostDetailErrorCode } from '../../domain/entities/PostDetailError';
@@ -150,6 +152,12 @@ export function useComments(postId: string, viewer: Viewer | null, postClosed: b
 
   const comments = useMemo(() => (list.data?.pages ?? []).flatMap((p) => p.items), [list.data]);
   const total = list.data?.pages[0]?.total ?? 0;
+  // The feed's comment button shows this number too (`postCommentCountKey`): kept in step here,
+  // so a comment added or deleted on this page shows on the feed without another request.
+  const loaded = list.data !== undefined;
+  useEffect(() => {
+    if (loaded) queryClient.setQueryData(postCommentCountKey(postId), total);
+  }, [loaded, total, postId, queryClient]);
 
   /** Resolves with null once the comment is sent (the field can clear), or why it was not. */
   const submit = useCallback(

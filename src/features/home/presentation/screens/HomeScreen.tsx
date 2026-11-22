@@ -1,55 +1,72 @@
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactElement, type ReactNode } from 'react';
 import {
-  memo,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type ComponentProps,
-  type ReactElement,
-  type ReactNode,
-} from 'react';
-import { FlatList, RefreshControl, View } from 'react-native';
-import Animated, { FadeIn } from 'react-native-reanimated';
+  FlatList,
+  RefreshControl,
+  View,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+} from 'react-native';
+import Animated, { FadeIn, useReducedMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { RsvpNoticeDialog, useRsvpNotice } from '@features/explore';
+import { LINKS_ORIGIN } from '@core/config/links';
+import { ReportPostFlow, RsvpNoticeDialog, useRsvpNotice } from '@features/explore';
 import { useSubscription } from '@features/payment';
 import {
   Button,
   EmptyState,
   LoadFailedState,
   LoadingRing,
-  PostCard as PostCardView,
+  PhotoViewer,
   Screen,
   Text,
+  Toast,
   useListEntrance,
+  tabBarMinimize,
+  tabBarTop,
+  useMinimizeTabBarOnScroll,
+  useOnSignal,
+  type MediaFrame,
 } from '@shared/components';
 import { haptics } from '@shared/feedback/haptics';
+import { usePressOnce } from '@shared/hooks/usePressOnce';
+import { setCurrencyCountry } from '@shared/state/preferredCurrency';
 import { useTheme } from '@shared/hooks/useTheme';
-import { SCREEN_GUTTER } from '@shared/theme';
+import { shareLink } from '@shared/utils/shareLink';
 
 import type { PostCard } from '../../domain/entities/Feed';
 import { FEED_FILTERS } from '../../domain/rules/feedRules';
 import { FeedHeader } from '../components/FeedHeader';
+import { FeedPost, HiddenPostRow } from '../components/FeedPost';
 import { FeedSkeleton } from '../components/FeedSkeleton';
 import { FilterPills } from '../components/FilterPills';
 // The level card is switched off until the backend has levels (see below).
 // import { LevelCard } from '../components/LevelCard';
 import { homeCopy } from '../copy';
+import { useCardCommentCount } from '../hooks/useCardCommentCount';
 import { useCardDescription } from '../hooks/useCardDescription';
 import { useFeed } from '../hooks/useFeed';
+import { useHiddenPosts } from '../hooks/useHiddenPosts';
+import { useLikedPosts } from '../hooks/useLikedPosts';
 import { useLocationPrompt } from '../hooks/useLocationPrompt';
 import { useTravelState } from '../hooks/useTravelState';
 import { travelMemory } from '../state/travelMemory';
 
 /**
- * The home feed (Figma "Home Feed", its skeleton, light and dark): the place
- * header, the level card, the post-type pills over a hairline, then the cards.
+ * The home feed (Home design, 22 Nov; light and dark): the place header, the
+ * post-type pills over a hairline, then the posts, edge to edge with a hairline
+ * between them (`FeedPost`: the host, their words, the photos, the Join banner
+ * and the actions).
  *
- * Until the first page lands the whole screen is the skeleton frame. The cards
+ * Until the first page lands the whole screen is the skeleton frame. The posts
  * enter in a short stagger (the first three; later pages simply appear). Pull to
  * refresh asks again from the top; nearing the end loads the next page.
+ *
+ * A post's photo opens full screen from where it sits (one `PhotoViewer` for
+ * the whole feed). Its ⋮ menu hides it (remembered on this phone, with Undo in
+ * its place until the feed next loads), copies its link, or reports it. Its
+ * heart is remembered on this phone too (the API has no likes yet), and its
+ * comment button opens the post at its comments.
  *
  * The level card scrolls away with the cards; the pills and their hairline stay
  * pinned under the place header once it has gone (a sticky row in the list), so
@@ -60,14 +77,22 @@ import { travelMemory } from '../state/travelMemory';
  * not an error: the list asks to turn location on, or to choose a place
  * (Travel). There is no home-city fallback any more.
  *
- * The list leaves room at its foot for the floating tab bar.
+ * The list leaves room at its foot for the floating tab bar, and tells it how
+ * the feed is scrolling: down the page the bar shrinks to its round button, back
+ * up it returns (`useMinimizeTabBarOnScroll`).
  *
- * Each card's quick RSVP goes through "Before you RSVP" the first time on this
+ * Each post's Join goes through "Before you RSVP" the first time on this
  * phone (the explore feature's notice, shared here); after that it joins at once.
  */
 
-/** Clear of the floating tab bar and its overhanging "+". */
-const TAB_BAR_CLEARANCE = 120;
+/**
+ * Between the last post and the tab bar's top edge: the feed ends just above the bar,
+ * not a blank band above it (the "+" floats over the last post's corner, as it does
+ * over every other post).
+ */
+const END_GAP = 6;
+/** "Link copied" sits this far above the bar, clear of it. */
+const TOAST_LIFT = 48;
 
 export type HomeScreenProps = {
   /**
@@ -77,6 +102,8 @@ export type HomeScreenProps = {
    */
   onChooseCity: (here: { label: string | null; teleported: boolean }) => void;
   onOpenPost: (post: PostCard) => void;
+  /** A post's comment button: the post, opened at its comments. Without it, the post simply opens. */
+  onOpenComments?: (post: PostCard) => void;
   /** The host's photo or name on a card opens their profile. */
   onOpenHost?: (hostId: string) => void;
   onNotifications: () => void;
@@ -92,10 +119,18 @@ export type HomeScreenProps = {
    * given, the link does the opening and `onOpenPost` is not called.
    */
   linkCard?: (post: PostCard, card: ReactElement) => ReactNode;
+  /**
+   * Changes when the Home tab is tapped while Home is in front: the feed goes
+   * back to its top, the latest post. Already there, it asks for newer posts.
+   */
+  toTopSignal?: number;
 };
 
-/** The list's rows: the pinned pills, then the posts. */
-type Row = { kind: 'pills' } | { kind: 'post'; post: PostCard };
+/** The list's rows: the pinned pills, then the posts (one just hidden keeps its place as an Undo line). */
+type Row = { kind: 'pills' } | { kind: 'post'; post: PostCard } | { kind: 'hidden'; post: PostCard };
+
+/** How long "Link copied" stays up. */
+const TOAST_MS = 2000;
 const PILLS_ROW: Row = { kind: 'pills' };
 /**
  * The pills row to pin. FlatList counts its header as child 0 only when there
@@ -110,6 +145,7 @@ const STICKY_WITHOUT_HEADER = [0];
 export function HomeScreen({
   onChooseCity,
   onOpenPost,
+  onOpenComments,
   onOpenHost,
   onNotifications,
   unreadCount,
@@ -117,6 +153,7 @@ export function HomeScreen({
   unreadChatsCount,
   onViewLevel,
   linkCard,
+  toTopSignal,
 }: HomeScreenProps) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
@@ -125,10 +162,42 @@ export function HomeScreen({
   const viewerId = useTravelState()?.viewerId ?? null;
   const location = useLocationPrompt(feed.retry);
   const { isPro } = useSubscription();
+  // The country of the posts in front of them stands in for where they are while the phone's
+  // own position is unknown (location off): it decides the currency the app works in.
+  const feedCountry = feed.items[0]?.countryCode ?? null;
+  useEffect(() => setCurrencyCountry(feedCountry, 'feed'), [feedCountry]);
   // Home stays mounted across the tabs; it unmounts when the person signs out,
   // and then the next account must not inherit this one's region or recent cities.
   useEffect(() => () => travelMemory.reset(), []);
-  const bottom = TAB_BAR_CLEARANCE + insets.bottom;
+  const barTop = tabBarTop(insets.bottom);
+  const bottom = barTop + END_GAP;
+  // Scrolling down the feed shrinks the tab bar out of the way; back up brings it back.
+  const minimizeOnScroll = useMinimizeTabBarOnScroll();
+  const reduceMotion = useReducedMotion();
+  const list = useRef<FlatList<Row>>(null);
+  // How far down the feed is, for the tab's second tap: top, or already there.
+  const scrolledTo = useRef(0);
+  const { onScroll: reportScroll, scrollEventThrottle } = minimizeOnScroll;
+  const onScroll = useCallback(
+    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+      scrolledTo.current = e.nativeEvent.contentOffset.y;
+      reportScroll(e);
+    },
+    [reportScroll],
+  );
+  // The Home tab tapped while on Home: to the top of the feed, where the latest post is. Already
+  // at the top, it asks for anything newer (as pulling down does).
+  useOnSignal(toTopSignal, () => {
+    tabBarMinimize.set(false);
+    if (scrolledTo.current > 4) {
+      list.current?.scrollToOffset({ offset: 0, animated: !reduceMotion });
+      return;
+    }
+    if (!feed.loading && !feed.refreshing) {
+      haptics.tap();
+      feed.refresh();
+    }
+  });
   // The level card is switched off (product, 10 Nov): its numbers were a placeholder and the
   // backend has no levels yet. Put the block below back when the endpoint lands.
   // const [levelClosed, setLevelClosed] = useState(false);
@@ -160,24 +229,89 @@ export function HomeScreen({
     noticeAnswer.current = null;
   };
 
+  // "Hide post", remembered on this phone: hidden before this visit, a post is left out; hidden
+  // during it, it keeps its place as a line with Undo.
+  const hiddenPosts = useHiddenPosts(viewerId);
+  const { hidden, justHidden } = hiddenPosts;
+
   const showPosts = !feed.loading && !(feed.error && feed.items.length === 0);
   // The first cards rise in once, when the feed first lands; never again as rows re-mount.
   const enter = useListEntrance(showPosts && feed.items.length > 0);
   const rows: Row[] = useMemo(
-    () => (showPosts ? [PILLS_ROW, ...feed.items.map((post) => ({ kind: 'post' as const, post }))] : [PILLS_ROW]),
-    [showPosts, feed.items],
+    () =>
+      showPosts
+        ? [
+            PILLS_ROW,
+            ...feed.items
+              .filter((post) => !hidden.has(post.id))
+              .map((post): Row => ({ kind: justHidden.has(post.id) ? 'hidden' : 'post', post })),
+          ]
+        : [PILLS_ROW],
+    [showPosts, feed.items, hidden, justHidden],
   );
 
-  // The route hands new functions in on every render. Held here, so the cards keep the
+  // The route hands new functions in on every render. Held here, so the posts keep the
   // same handlers and only redraw when their own post changes.
-  const handlers = useRef({ onOpenPost, onOpenHost, linkCard });
+  const handlers = useRef({ onOpenPost, onOpenComments, onOpenHost, linkCard });
   useEffect(() => {
-    handlers.current = { onOpenPost, onOpenHost, linkCard };
-  }, [onOpenPost, onOpenHost, linkCard]);
+    handlers.current = { onOpenPost, onOpenComments, onOpenHost, linkCard };
+  }, [onOpenPost, onOpenComments, onOpenHost, linkCard]);
   const openPost = useCallback((post: PostCard) => handlers.current.onOpenPost(post), []);
+  const openComments = useCallback(
+    (post: PostCard) => (handlers.current.onOpenComments ?? handlers.current.onOpenPost)(post),
+    [],
+  );
   const openHost = useCallback((hostId: string) => handlers.current.onOpenHost?.(hostId), []);
   const linked = linkCard !== undefined;
   const hasPlace = feed.place !== null;
+
+  // One viewer for the whole feed: the tapped photo, and where it sits, to grow from.
+  const [viewing, setViewing] = useState<{ post: PostCard; index: number; from: MediaFrame } | null>(null);
+  const openPhoto = useCallback(
+    (post: PostCard, index: number, from: MediaFrame) => setViewing({ post, index, from }),
+    [],
+  );
+  const viewed = useMemo(
+    () =>
+      viewing
+        ? { full: viewing.post.images.map((p) => p.full), cards: viewing.post.images.map((p) => p.card) }
+        : null,
+    [viewing],
+  );
+
+  const [reporting, setReporting] = useState<string | null>(null);
+  const reportPost = useCallback((post: PostCard) => setReporting(post.id), []);
+  const { hide, unhide } = hiddenPosts;
+  const hidePost = useCallback((post: PostCard) => hide(post.id), [hide]);
+
+  // The heart: remembered on this phone (the API has no likes yet).
+  const { liked, toggle: toggleLiked } = useLikedPosts(viewerId);
+  const toggleLike = useCallback(
+    (post: PostCard) => {
+      haptics.tap();
+      toggleLiked(post.id);
+    },
+    [toggleLiked],
+  );
+
+  // "Copy post link": onto the clipboard, with a word to say so. The clipboard is a native
+  // module some older builds lack; there the share sheet (which offers Copy) opens instead.
+  const [toast, setToast] = useState(false);
+  useEffect(() => {
+    if (!toast) return;
+    const timer = setTimeout(() => setToast(false), TOAST_MS);
+    return () => clearTimeout(timer);
+  }, [toast]);
+  const copyLink = useCallback(async (post: PostCard) => {
+    const link = `${LINKS_ORIGIN}/posts/${encodeURIComponent(post.id)}`;
+    try {
+      const Clipboard = (await import('expo-clipboard')) as typeof import('expo-clipboard');
+      await Clipboard.setStringAsync(link);
+      setToast(true);
+    } catch {
+      shareLink(`${post.title} on Ajala`, link);
+    }
+  }, []);
 
   const renderItem = useCallback(
     ({ item, index }: { item: Row; index: number }) => {
@@ -192,6 +326,7 @@ export function HomeScreen({
         );
       }
       const post = item.post;
+      if (item.kind === 'hidden') return <HiddenPostRow onUndo={() => unhide(post.id)} />;
       const card = (
         <FeedCard
           post={post}
@@ -200,20 +335,44 @@ export function HomeScreen({
           onOpenPost={openPost}
           onOpenHost={openHost}
           onBeforeRsvp={beforeRsvp}
+          onOpenPhoto={openPhoto}
+          liked={liked.has(post.id)}
+          onToggleLike={toggleLike}
+          onOpenComments={openComments}
+          onHide={hidePost}
+          onCopyLink={copyLink}
+          onReport={reportPost}
         />
       );
       const wrap = handlers.current.linkCard;
-      // `index` counts the pills row, so the first card is 1.
+      // `index` counts the pills row, so the first post is 1.
       return (
-        <Animated.View
-          entering={index >= 1 ? enter(index - 1) : undefined}
-          style={{ paddingHorizontal: SCREEN_GUTTER, paddingTop: index === 1 ? SCREEN_GUTTER : 24 }}
-        >
+        <Animated.View entering={index >= 1 ? enter(index - 1) : undefined}>
           {wrap ? wrap(post, card) : card}
         </Animated.View>
       );
     },
-    [openPost, openHost, beforeRsvp, linked, theme, feed.filter, feed.setFilter, hasPlace, feed.loading, enter, viewerId],
+    [
+      openPost,
+      openHost,
+      beforeRsvp,
+      openPhoto,
+      liked,
+      toggleLike,
+      openComments,
+      hidePost,
+      unhide,
+      copyLink,
+      reportPost,
+      linked,
+      theme,
+      feed.filter,
+      feed.setFilter,
+      hasPlace,
+      feed.loading,
+      enter,
+      viewerId,
+    ],
   );
 
   const typeLabel = FEED_FILTERS.find((f) => f.value === feed.filter)?.label.toLowerCase() ?? 'posts';
@@ -235,6 +394,9 @@ export function HomeScreen({
       />
 
       <FlatList
+        ref={list}
+        onScroll={onScroll}
+        scrollEventThrottle={scrollEventThrottle}
         data={rows}
         keyExtractor={(row) => (row.kind === 'pills' ? 'pills' : row.post.id)}
         renderItem={renderItem}
@@ -257,9 +419,7 @@ export function HomeScreen({
         }
         ListFooterComponent={
           feed.loading ? (
-            <View style={{ padding: SCREEN_GUTTER }}>
-              <FeedSkeleton />
-            </View>
+            <FeedSkeleton />
           ) : noLocation ? (
             <Animated.View entering={FadeIn.duration(220)} className="flex-1 items-center justify-center px-20 py-48">
               <Text variant="headingMd" className="text-center" accessibilityRole="header">
@@ -310,14 +470,27 @@ export function HomeScreen({
         onAccept={() => answerNotice(true)}
         onDismiss={() => answerNotice(false)}
       />
+      {/* The tapped photo grows from its place in the feed (`origin`); the card-size copies
+          already on screen are what grows, and hold each page until its full size has loaded. */}
+      <PhotoViewer
+        isPresented={viewing !== null}
+        images={viewed?.full ?? []}
+        previews={viewed?.cards}
+        initialIndex={viewing?.index ?? 0}
+        origin={viewing?.from ?? null}
+        label={viewing?.post.title}
+        onDismiss={() => setViewing(null)}
+      />
+      <ReportPostFlow postId={reporting} onClose={() => setReporting(null)} />
+      <Toast visible={toast} message={homeCopy.post.linkCopied} bottom={barTop + TOAST_LIFT} />
     </Screen>
   );
 }
 
 /**
- * A feed card with its description, which the feed's cards don't carry yet
+ * A feed post with its host's words, which the feed's cards don't carry yet
  * (`useCardDescription`). Memoised with stable handlers, so a change elsewhere on
- * Home (a badge, a fetch status) does not redraw every card.
+ * Home (a badge, a fetch status) does not redraw every post.
  */
 const FeedCard = memo(function FeedCard({
   post,
@@ -326,35 +499,59 @@ const FeedCard = memo(function FeedCard({
   onOpenPost,
   onOpenHost,
   onBeforeRsvp,
+  onOpenPhoto,
+  liked,
+  onToggleLike,
+  onOpenComments,
+  onHide,
+  onCopyLink,
+  onReport,
   onPress: onLinkPress,
 }: {
   post: PostCard;
   mine: boolean;
-  /** The route wraps the card in a link, which does the opening. */
+  /** The route wraps the post in a link, which does the opening. */
   linked: boolean;
   onOpenPost: (post: PostCard) => void;
-  onOpenHost: ComponentProps<typeof PostCardView>['onOpenHost'];
-  onBeforeRsvp: ComponentProps<typeof PostCardView>['onBeforeRsvp'];
+  onOpenHost: (hostId: string) => void;
+  onBeforeRsvp: () => Promise<boolean>;
+  onOpenPhoto: (post: PostCard, index: number, from: MediaFrame) => void;
+  liked: boolean;
+  onToggleLike: (post: PostCard) => void;
+  onOpenComments: (post: PostCard) => void;
+  onHide: (post: PostCard) => void;
+  onCopyLink: (post: PostCard) => void;
+  onReport: (post: PostCard) => void;
   /**
-   * Handed in by the route's `Link asChild` when the card sits in one: the link's
-   * own open (with the zoom transition). It must reach the card's press, or a tap
-   * on the card does nothing and only "View details" opens the post.
+   * Handed in by the route's `Link asChild` when the post sits in one: the link's
+   * own open (with the zoom transition). It must reach the post's own presses, or
+   * a tap on its words or its banner does nothing.
    */
   onPress?: () => void;
 }) {
-  const description = useCardDescription(post);
-  const shown = useMemo(
-    () => (mine || description !== post.description ? { ...post, description, ...(mine ? { mine } : null) } : post),
-    [post, mine, description],
-  );
+  const words = useCardDescription(post);
+  const commentCount = useCardCommentCount(post.id);
   const open = useCallback(() => onOpenPost(post), [onOpenPost, post]);
+  // Once per tap: the link opens the post itself (not through `router`, which has its own
+  // guard), and a double tap opened the post twice.
+  const openOnce = usePressOnce(linked ? (onLinkPress ?? open) : open);
   return (
-    <PostCardView
-      post={shown}
-      onPress={linked ? (onLinkPress ?? open) : open}
-      onViewDetails={open}
+    <FeedPost
+      post={post}
+      description={words.text}
+      descriptionLoading={words.loading}
+      mine={mine}
+      onOpen={openOnce}
       onOpenHost={onOpenHost}
       onBeforeRsvp={onBeforeRsvp}
+      onOpenPhoto={onOpenPhoto}
+      liked={liked}
+      onToggleLike={onToggleLike}
+      commentCount={commentCount}
+      onOpenComments={onOpenComments}
+      onHide={onHide}
+      onCopyLink={onCopyLink}
+      onReport={onReport}
     />
   );
 });

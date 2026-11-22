@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Linking, Platform, useWindowDimensions, TouchableOpacity, View } from 'react-native';
 import Animated, {
   FadeIn,
   interpolate,
+  useAnimatedRef,
   useAnimatedScrollHandler,
   useAnimatedStyle,
   useSharedValue,
@@ -27,6 +28,7 @@ import {
   enterRise,
   type MenuAction,
 } from '@shared/components';
+import { useLocalMoney } from '@shared/hooks/useLocalMoney';
 import { useSavePost } from '@shared/hooks/useSavePost';
 import { useTheme } from '@shared/hooks/useTheme';
 
@@ -104,6 +106,11 @@ export type PostDetailScreenProps = {
    * skeleton band, so the zoom from the card never shows an empty screen.
    */
   preview?: PostPreview | null;
+  /**
+   * Where the page opens. `comments`: scrolled to its comments, for a feed
+   * post's comment button. Left out, at the top.
+   */
+  openAt?: 'comments';
 };
 
 export function PostDetailScreen({
@@ -116,6 +123,7 @@ export function PostDetailScreen({
   canSeePlans = true,
   onUnlock,
   preview = null,
+  openAt,
 }: PostDetailScreenProps) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
@@ -126,13 +134,38 @@ export function PostDetailScreen({
   });
   // The hero's height (see PostHero): the backing fades in over its last 40pt.
   const heroHeight = Math.min(Math.round(width * 0.62), Math.round(screenHeight * 0.42));
-  const statusBarStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(scrollY.value, [heroHeight - 40, heroHeight], [0, 1], 'clamp'),
-  }));
   const vm = usePostDetail(postId);
+  // With no photos there is no photo band: the backing is needed as soon as the page moves.
+  const hasPhotos = vm.post ? vm.post.images.length > 0 : Boolean(preview?.imageUrl);
+  const backingFrom = hasPhotos ? heroHeight - 40 : 0;
+  const backingTo = hasPhotos ? heroHeight : 12;
+  const statusBarStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(scrollY.value, [backingFrom, backingTo], [0, 1], 'clamp'),
+  }));
   const talk = useComments(postId, vm.viewer, commentsClosed(vm.post));
+
+  // Opened at its comments: once the page knows where they are and they have loaded (so the
+  // page is as long as it will be), it goes there, once. No animation: the page arrives there.
+  const scroller = useAnimatedRef<Animated.ScrollView>();
+  const spot = useRef<{ body: number | null; comments: number | null; done: boolean }>({
+    body: null,
+    comments: null,
+    done: false,
+  });
+  const commentsReady = !talk.loading;
+  const landOnComments = useCallback(() => {
+    const at = spot.current;
+    if (openAt !== 'comments' || at.done || !commentsReady || at.body === null || at.comments === null) return;
+    at.done = true;
+    const y = Math.max(0, at.body + at.comments - insets.top - 8);
+    // A frame later: the list has then been laid out at its full height.
+    requestAnimationFrame(() => scroller.current?.scrollTo({ y, animated: false }));
+  }, [openAt, commentsReady, insets.top, scroller]);
+  useEffect(landOnComments, [landOnComments]);
   // The shared save: optimistic, and the same on every card showing this post.
   const save = useSavePost(postId, vm.post?.saved ?? false);
+  // A price in another currency than the reader's gets a rough equivalent in theirs.
+  const money = useLocalMoney(Boolean(vm.post?.price));
   const [reporting, setReporting] = useState<string | null>(null);
   // Which photo is open full screen; null while none is.
   const [viewing, setViewing] = useState<number | null>(null);
@@ -206,6 +239,14 @@ export function PostDetailScreen({
   }
 
   const post = vm.post;
+  const localPrice =
+    (post.price
+      ? money.equivalent({
+          amountCents: Math.round(post.price.amount * 10 ** post.price.exponent),
+          currency: post.price.currency,
+          exponent: post.price.exponent,
+        })
+      : null) ?? undefined;
   // The server's lock (MOB-077: a Plan, or outside the reader's area, without Pro). And a Plan
   // is Pro-only to see here too; the host, and anyone already going, always see theirs.
   const planLocked = post.type === 'plan' && !canSeePlans && !post.isHost && post.rsvpState !== 'going';
@@ -322,6 +363,7 @@ export function PostDetailScreen({
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
       <Animated.ScrollView
+        ref={scroller}
         onScroll={onScroll}
         scrollEventThrottle={16}
         contentContainerStyle={{ paddingBottom: 32 }}
@@ -347,6 +389,10 @@ export function PostDetailScreen({
         <Animated.View
           entering={preview ? FadeIn.duration(180) : enterRise(40)}
           style={{ paddingHorizontal: 20, paddingTop: 20, gap: 16 }}
+          onLayout={(e) => {
+            spot.current.body = e.nativeEvent.layout.y;
+            landOnComments();
+          }}
         >
           <Text variant="headingLg" accessibilityRole="header">
             {post.title}
@@ -415,7 +461,10 @@ export function PostDetailScreen({
           {/* The price or nothing (backend answers C1): no price is not the same as free, and a
               Plan never has one, as each stop costs something different. Joined then fills the row. */}
           <View style={{ flexDirection: 'row', gap: 12 }}>
-            {post.price ? <StatTile label={postCopy.price} value={formatPrice(post.price)} /> : null}
+            {post.price ? (
+              // In another currency than the reader's: about how much that is in theirs, under it.
+              <StatTile label={postCopy.price} value={formatPrice(post.price)} note={localPrice} />
+            ) : null}
             <StatTile
               label={postCopy.joined}
               value={String(post.goingCount)}
@@ -474,22 +523,30 @@ export function PostDetailScreen({
             onRespond={(userId, answer) => vm.respond({ userId, answer })}
           />
 
-          <CommentsSection
-            postId={post.id}
-            comments={talk.comments}
-            total={talk.total}
-            loading={talk.loading}
-            failed={talk.failed}
-            onRetry={talk.retry}
-            hasMore={talk.hasMore}
-            onLoadMore={talk.loadMore}
-            openThreads={talk.openThreads}
-            onToggleThread={talk.toggleThread}
-            onReply={talk.reply}
-            onDelete={confirmDeleteComment}
-            onReport={talk.startReport}
-            onOpenProfile={onOpenProfile}
-          />
+          {/* Measured, so the page can open here (`openAt`). */}
+          <View
+            onLayout={(e) => {
+              spot.current.comments = e.nativeEvent.layout.y;
+              landOnComments();
+            }}
+          >
+            <CommentsSection
+              postId={post.id}
+              comments={talk.comments}
+              total={talk.total}
+              loading={talk.loading}
+              failed={talk.failed}
+              onRetry={talk.retry}
+              hasMore={talk.hasMore}
+              onLoadMore={talk.loadMore}
+              openThreads={talk.openThreads}
+              onToggleThread={talk.toggleThread}
+              onReply={talk.reply}
+              onDelete={confirmDeleteComment}
+              onReport={talk.startReport}
+              onOpenProfile={onOpenProfile}
+            />
+          </View>
         </Animated.View>
       </Animated.ScrollView>
 

@@ -20,11 +20,13 @@ const TYPES: readonly PostPreview['type'][] = ['meetup', 'event', 'plan', 'group
  * route says so when someone going is still waiting for a place in a full chat.
  */
 export default function PostRoute() {
-  const { id, title, image, type } = useLocalSearchParams<{
+  const { id, title, image, type, focus } = useLocalSearchParams<{
     id: string;
     title?: string;
     image?: string;
     type?: string;
+    /** `comments`: open the page at its comments (a feed post's comment button). */
+    focus?: string;
   }>();
   const kind = TYPES.find((t) => t === type);
   // Plans are a Pro feature; while the subscription is still loading, nothing is locked.
@@ -35,6 +37,7 @@ export default function PostRoute() {
     <PostDetailScreen
       postId={id}
       preview={preview}
+      openAt={focus === 'comments' ? 'comments' : undefined}
       onBack={() => (router.canGoBack() ? router.back() : router.replace('/(app)/(tabs)'))}
       onOpenProfile={(userId) => router.push({ pathname: profileRoutes.user, params: { id: userId } })}
       onMessageHost={(userId) => router.push({ pathname: chatRoutes.start, params: { userId } })}

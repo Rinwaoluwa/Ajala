@@ -1,19 +1,16 @@
-import { useMemo } from 'react';
-
 import { PillTabs } from '@shared/components';
-import { useTypeColors } from '@shared/theme/postTypeColors';
 
 import type { FeedFilter } from '../../domain/entities/Feed';
 import { FEED_FILTERS } from '../../domain/rules/feedRules';
 
 /**
- * The post-type pills under the header (Figma Home Feed): All, Meetups, Events,
- * Plans, Groups — the shared `PillTabs`, so Liquid Glass where the phone has it,
- * with a jelly wobble on touch. Before the feed has loaded, they are drawn but
- * inert, as the skeleton frame shows them.
+ * The post-type pills under the header (Home design, 22 Nov): All, Events,
+ * Meetups, Plans, Groups — the shared `PillTabs`, so Liquid Glass where the
+ * phone has it, with a jelly wobble on touch. Before the feed has loaded, they
+ * are drawn but inert, as the skeleton frame shows them.
  *
- * Each type has its own colour (`useTypeColors`), the same as its tag on a
- * post's card: a pale wash with a deep label, filled when chosen.
+ * Plain pills, as the design draws them: the chosen one teal, the rest pale
+ * grey. A type's own colour is on its tag in each post, not here.
  */
 export function FilterPills({
   value,
@@ -24,7 +21,5 @@ export function FilterPills({
   onChange: (filter: FeedFilter) => void;
   disabled?: boolean;
 }) {
-  const colors = useTypeColors();
-  const options = useMemo(() => FEED_FILTERS.map((o) => ({ ...o, color: colors[o.value] })), [colors]);
-  return <PillTabs options={options} value={value} onChange={onChange} disabled={disabled} />;
+  return <PillTabs options={FEED_FILTERS} value={value} onChange={onChange} disabled={disabled} />;
 }

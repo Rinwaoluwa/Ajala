@@ -3,8 +3,9 @@ import type { PostType } from '../domain/entities/Feed';
 /** The home feed's words, from the Figma frames. Copy not drawn there is marked. */
 
 export const homeCopy = {
-  // Not drawn: the frames show a home city, which the feed no longer has; it follows the phone.
-  deviceSubtitle: 'Exploring your current city',
+  // The header's line under the place (Home design, 22 Nov): "Find your next experience in Lagos".
+  deviceSubtitle: (place: string | null) =>
+    place ? `Find your next experience in ${place}` : 'Find your next experience near you',
   // The header's big line when the server names no region for the phone's location.
   nearYou: 'Near you',
   // Not drawn; the spec's wording (§2.11) for a feed a Travel teleport has moved.
@@ -19,6 +20,42 @@ export const homeCopy = {
   messages: 'Messages',
   like: 'Save',
   unlike: 'Saved',
+
+  // A post in the feed (Home design, 22 Nov).
+  post: {
+    more: 'More options',
+    openHost: (name: string) => `Open ${name}’s profile`,
+    photos: (title: string) => title,
+    join: 'Join',
+    // A private post asks its host first.
+    request: 'Request',
+    going: 'Going',
+    requested: 'Requested',
+    waitlisted: 'Waitlisted',
+    hosting: 'Hosting',
+    leaveTitle: 'Leave this one?',
+    leaveBody: 'You can join again later if there is still room.',
+    stay: 'Stay',
+    leave: 'Leave',
+    comment: 'Comments',
+    comments: (n: number) => (n === 1 ? '1 comment' : `${n} comments`),
+    like: 'Like',
+    liked: 'Liked',
+    save: 'Save',
+    saved: 'Saved',
+    menu: {
+      hide: 'Hide post',
+      hideHint: 'Remove this post from your feed',
+      copy: 'Copy post link',
+      copyHint: 'Share this post elsewhere',
+      report: 'Report post',
+      reportHint: 'Flag harmful or inappropriate content',
+    },
+    // Not drawn: what a hidden post leaves in its place until the feed is next loaded.
+    hidden: 'Post hidden.',
+    undo: 'Undo',
+    linkCopied: 'Link copied',
+  },
 
   postType: { meetup: 'Meetup', event: 'Event', plan: 'Plan', group: 'Group' } satisfies Record<
     PostType,

@@ -13,6 +13,10 @@ export const makeLoadFeed =
 export const makeLoadPostDescription = (repo: FeedRepository) => (postId: string) =>
   repo.getPostDescription(postId);
 
+/** A post's comment count, while the feed's cards don't carry one (B11). */
+export const makeLoadPostCommentCount = (repo: FeedRepository) => (postId: string) =>
+  repo.getPostCommentCount(postId);
+
 /** Travel's city search, from two characters; `signal` drops a search typing has overtaken. */
 export const makeSearchCities =
   (repo: FeedRepository) =>

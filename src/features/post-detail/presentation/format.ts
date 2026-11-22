@@ -1,3 +1,5 @@
+import { formatMinor } from '@shared/money';
+
 import type { Money, PostRecurrence } from '../domain/entities/PostDetail';
 
 /** "Sunday, Oct 18 · 6:30 AM" and "$15.00", in the phone's own time zone. */
@@ -40,23 +42,12 @@ export function formatRecurrence(r: PostRecurrence): string {
 
 /**
  * Money with the currency's own decimals (`exponent`, spec §1.5): "$15.50",
- * "¥1,500". A whole naira amount drops its kobo ("₦12,000"), as the design shows.
+ * "¥1,500", "CA$20". A whole amount drops its decimals ("₦12,000"), as the
+ * design shows. Written by the app's one formatter (`@shared/money`), in the
+ * phone's own number style.
  */
 export function formatPrice(price: Money): string {
-  const whole = Number.isInteger(price.amount);
-  const decimals = Math.max(0, Math.min(price.exponent, 20));
-  try {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: price.currency,
-      // "₦12,000", not "NGN 12,000".
-      currencyDisplay: 'narrowSymbol',
-      minimumFractionDigits: whole && price.currency === 'NGN' ? 0 : decimals,
-      maximumFractionDigits: decimals,
-    }).format(price.amount);
-  } catch {
-    return `${price.currency} ${price.amount}`;
-  }
+  return formatMinor(Math.round(price.amount * 10 ** price.exponent), price.currency, price.exponent);
 }
 
 /** "Just now", "12m ago", "5h ago", "3d ago", then the date ("Oct 18"). */
