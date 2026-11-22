@@ -1,7 +1,8 @@
-import { useEffect } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { View, type ColorValue } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import Svg, { Path } from 'react-native-svg';
+import { scheduleOnRN } from 'react-native-worklets';
 
 import {
   vectorIcons,
@@ -23,6 +24,11 @@ import {
  * A `stroked` icon (a post's heart, comment and bookmark) is supplied as a
  * stroke: outlined, the stroke is drawn in `color`; filled, the same shape is
  * painted in `color` under its stroke.
+ *
+ * At rest only the state showing is drawn. Both are drawn, one over the other,
+ * just for the 160ms of a cross-fade. There are three of these on every feed
+ * post; drawing both states of each all the time, with their animation hooks,
+ * was a tenth of what a post costs to re-draw.
  *
  * Icons that do not change state, or are multi-colour art, stay on `SvgIcon`.
  */
@@ -51,14 +57,14 @@ export type VectorIconProps = {
 
 export function VectorIcon({ name, size, color, filled = false, tintFilled = false }: VectorIconProps) {
   const icon: VectorIconData = vectorIcons[name];
-  const on = useSharedValue(filled ? 1 : 0);
-
-  useEffect(() => {
-    on.value = withTiming(filled ? 1 : 0, { duration: FADE_MS, easing: Easing.out(Easing.quad) });
-  }, [filled, on]);
-
-  const outlineStyle = useAnimatedStyle(() => ({ opacity: 1 - on.value }));
-  const filledStyle = useAnimatedStyle(() => ({ opacity: on.value }));
+  // The state last drawn, and whether it is on its way to the other one.
+  const [shown, setShown] = useState(filled);
+  const [fading, setFading] = useState(false);
+  if (filled !== shown) {
+    setShown(filled);
+    setFading(true);
+  }
+  const settle = useCallback(() => setFading(false), []);
 
   const draw = (paths: readonly VectorPath[], mode: 'fill' | 'stroke', ownColours: boolean) => (
     <Svg width={size} height={size} viewBox={icon.viewBox}>
@@ -96,31 +102,60 @@ export function VectorIcon({ name, size, color, filled = false, tintFilled = fal
   // A solid icon (the two-tone house) is outlined by stroking its shapes. An
   // outline icon is filled by painting its silhouette and drawing its own strokes
   // over it a shade darker — the house's two tones, keeping every stroke.
-  const outline = icon.stroked
-    ? strokedShape(false)
-    : icon.solid
-      ? draw(icon.paths, 'stroke', false)
-      : draw(icon.paths, 'fill', false);
-  const solid = icon.stroked ? (
-    strokedShape(true)
-  ) : icon.solid ? (
-    draw(icon.paths, 'fill', !tintFilled)
-  ) : (
-    <Svg width={size} height={size} viewBox={icon.viewBox}>
-      {(icon.silhouette ?? []).map((p, i) => (
-        <Path key={`s${i}`} d={p.d} fill={color} />
-      ))}
-      {icon.paths.map((p, i) => (
-        <Path key={`p${i}`} d={p.d} fill={darken(color)} fillRule={p.evenOdd ? 'evenodd' : 'nonzero'} />
-      ))}
-    </Svg>
-  );
+  const outline = () =>
+    icon.stroked ? strokedShape(false) : icon.solid ? draw(icon.paths, 'stroke', false) : draw(icon.paths, 'fill', false);
+  const solid = () =>
+    icon.stroked ? (
+      strokedShape(true)
+    ) : icon.solid ? (
+      draw(icon.paths, 'fill', !tintFilled)
+    ) : (
+      <Svg width={size} height={size} viewBox={icon.viewBox}>
+        {(icon.silhouette ?? []).map((p, i) => (
+          <Path key={`s${i}`} d={p.d} fill={color} />
+        ))}
+        {icon.paths.map((p, i) => (
+          <Path key={`p${i}`} d={p.d} fill={darken(color)} fillRule={p.evenOdd ? 'evenodd' : 'nonzero'} />
+        ))}
+      </Svg>
+    );
 
   return (
     <View style={{ width: size, height: size }} accessible={false}>
-      <Animated.View style={[{ position: 'absolute' }, outlineStyle]}>{outline}</Animated.View>
-      <Animated.View style={[{ position: 'absolute' }, filledStyle]}>{solid}</Animated.View>
+      {fading ? (
+        // A new fade for each change of direction.
+        <Crossfade
+          key={filled ? 'fill' : 'empty'}
+          from={filled ? outline() : solid()}
+          to={filled ? solid() : outline()}
+          onDone={settle}
+        />
+      ) : filled ? (
+        solid()
+      ) : (
+        outline()
+      )}
     </View>
+  );
+}
+
+/** One drawing fading out over the other fading in, then `onDone`. */
+function Crossfade({ from, to, onDone }: { from: ReactNode; to: ReactNode; onDone: () => void }) {
+  const t = useSharedValue(0);
+  useEffect(() => {
+    t.set(
+      withTiming(1, { duration: FADE_MS, easing: Easing.out(Easing.quad) }, (finished) => {
+        if (finished) scheduleOnRN(onDone);
+      }),
+    );
+  }, [t, onDone]);
+  const fromStyle = useAnimatedStyle(() => ({ opacity: 1 - t.value }));
+  const toStyle = useAnimatedStyle(() => ({ opacity: t.value }));
+  return (
+    <>
+      <Animated.View style={[{ position: 'absolute' }, fromStyle]}>{from}</Animated.View>
+      <Animated.View style={[{ position: 'absolute' }, toStyle]}>{to}</Animated.View>
+    </>
   );
 }
 

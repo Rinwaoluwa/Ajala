@@ -62,9 +62,33 @@ styling through `style`, content as children, explicit dimensions on the Host, a
   `run:android`, and rebuild natively when Expo UI itself is upgraded.
 - **`@expo/ui` is still moving.** Its version is pinned to the SDK. Re-read the API after an SDK
   bump rather than assuming props are stable.
-- **The scheme switch is not perfectly atomic.** NativeWind resolves colours through CSS variables
-  while `useTheme()` resolves them in JS. On a light/dark flip the two can land a frame apart.
-  Only `PaginationDots` reads JS colours today, so the exposure is small.
+- **Read the colour scheme one way: `useAppColorScheme()`** (or `useTheme()`, which uses it). Never
+  React Native's `useColorScheme`; a lint rule bans it. NativeWind's class names and React Native's
+  hook tell React about a theme change in different ways (an ordinary update against an immediate
+  one), so with both in play a switch drew the screen twice, back to back, and the colours read in
+  JS landed a pass before the class names. Measured on 22 Nov: two passes of about 210ms each in
+  development, plus a third for the tick. `useAppColorScheme` reads NativeWind's own value, so
+  everything changes in one render.
+- **The theme switch (`setAppearance`, `ThemeCrossfade`).** Applying a theme takes time that cannot
+  be hurried: the phone re-styles every native view on its main thread (nothing can be drawn
+  meanwhile; 0.1–0.5s on a debug simulator), React re-draws the screen, and glass follows. So on
+  the tap the tick moves and the screen fades to the background it is going to (120ms, UI thread);
+  when that cover is up the theme is applied under it; the cover holds until the new theme is
+  really drawn (it sees itself re-drawn in the new scheme; it does not count frames) and fades
+  away (300ms where there is Liquid Glass, which turns about that long after its background
+  changes; 200ms elsewhere). A choice that changes nothing on screen (Dark while the phone is
+  already dark) moves the tick and nothing else.
+- **Glass is told its scheme** (`GlassBackdrop` passes `useAppColorScheme()` to its Host). Left to
+  pick it up from the phone, glass on a tab that was out of view (detached) when the theme changed
+  could stay in its old look: Trips' pills stayed light on the dark page, labels unreadable.
+- **Screens out of view re-theme when they are next shown** (they are frozen: `enableFreeze`). That
+  one-off cost is paid on the tap that shows them, so it has to be small: Home keeps about four
+  screens of posts either side mounted (`windowSize` 9, three per batch) rather than a whole page,
+  and `VectorIcon` and `RollingCount` are plain views at rest (their animation hooks exist only
+  while they animate). Measured in a development build, 22 Nov: the Home tab after a theme change
+  went from a 2.8s hang to about 0.5–1s. Re-theming the sleeping screens in the background (waking
+  them inside a React transition) was tried and removed: twice in testing it left the app
+  re-rendering in a loop, and the cause was not found.
 
 ## Current components
 

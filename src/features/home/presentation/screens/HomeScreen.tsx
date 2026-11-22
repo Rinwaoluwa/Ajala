@@ -93,6 +93,10 @@ import { travelMemory } from '../state/travelMemory';
 const END_GAP = 6;
 /** "Link copied" sits this far above the bar, clear of it. */
 const TOAST_LIFT = 48;
+/** How much of the feed is kept drawn: see the list. `WINDOW_SCREENS` counts the one in view. */
+const INITIAL_POSTS = 3;
+const POSTS_PER_BATCH = 3;
+const WINDOW_SCREENS = 9;
 
 export type HomeScreenProps = {
   /**
@@ -408,6 +412,14 @@ export function HomeScreen({
         ListHeaderComponent={levelCard}
         onEndReached={showPosts ? feed.loadMore : undefined}
         onEndReachedThreshold={0.6}
+        // A post is most of a screen tall and costly to draw. The list's defaults kept
+        // every post of a page mounted (ten screens' worth either side) and drew them ten at
+        // a time, so anything that touches every post (a theme change, most of all) re-drew
+        // sixteen when two are on screen. Four screens either side, three posts at a time: with
+        // three either side, a run of fast flings reached the end of what was drawn.
+        initialNumToRender={INITIAL_POSTS}
+        maxToRenderPerBatch={POSTS_PER_BATCH}
+        windowSize={WINDOW_SCREENS}
         scrollEnabled={!feed.loading}
         refreshControl={
           showPosts ? (

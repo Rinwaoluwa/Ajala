@@ -1,13 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { StyleSheet, View, type ColorValue } from 'react-native';
 import Animated, {
   Easing,
-  runOnJS,
   useAnimatedStyle,
   useReducedMotion,
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
 
 import { useFontScale } from '@shared/hooks/useFontScale';
 import { textStyles } from '@shared/theme';
@@ -23,6 +23,10 @@ import { Text, type TextVariant } from './Text';
  * It only moves on a change: a count that is simply there does nothing. With
  * Reduce Motion the number swaps in place. Large counts are shortened ("1.2K").
  * With `hideZero` a 0 is drawn as nothing, so the first one rolls in.
+ *
+ * At rest it is plain text. The animated pieces are mounted only for the 170ms
+ * of a roll: there are two of these on every feed post, and carrying their
+ * animation hooks all the time made each re-draw of the feed slower.
  */
 const ROLL_MS = 170;
 
@@ -54,46 +58,71 @@ export function RollingCount({
   const [shown, setShown] = useState(value);
   const [leaving, setLeaving] = useState<number | null>(null);
   const [up, setUp] = useState(true);
-  const roll = useSharedValue(1);
 
   if (value !== shown) {
     setLeaving(reduceMotion ? null : shown);
     setUp(value > shown);
     setShown(value);
   }
+  const settle = useCallback(() => setLeaving(null), []);
 
-  useEffect(() => {
-    if (leaving === null) return;
-    roll.set(0);
-    roll.set(
-      withTiming(1, { duration: ROLL_MS, easing: Easing.out(Easing.quad) }, (finished) => {
-        if (finished) runOnJS(setLeaving)(null);
-      }),
-    );
-  }, [leaving, shown, roll]);
-
-  const direction = up ? 1 : -1;
-  const arriving = useAnimatedStyle(() => ({
-    transform: [{ translateY: (1 - roll.value) * line * direction }],
-  }));
-  const going = useAnimatedStyle(() => ({ transform: [{ translateY: -roll.value * line * direction }] }));
   const style = color ? { color } : undefined;
-  const text = (n: number) => (hideZero && n === 0 ? '' : short(n));
+  const number = (n: number) => (
+    <Text variant={variant} numberOfLines={1} style={style}>
+      {hideZero && n === 0 ? '' : short(n)}
+    </Text>
+  );
 
   return (
     <View style={{ height: line, overflow: 'hidden', justifyContent: 'center' }}>
-      <Animated.View style={leaving === null ? undefined : arriving}>
-        <Text variant={variant} numberOfLines={1} style={style}>
-          {text(shown)}
-        </Text>
-      </Animated.View>
-      {leaving !== null ? (
-        <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { justifyContent: 'center' }, going]}>
-          <Text variant={variant} numberOfLines={1} style={style}>
-            {text(leaving)}
-          </Text>
-        </Animated.View>
-      ) : null}
+      {leaving === null ? (
+        // At rest it is plain text: the animation, and its hooks, exist only while it rolls.
+        number(shown)
+      ) : (
+        <Roll
+          // A new roll for each change, so one arriving mid-roll starts cleanly.
+          key={`${leaving}>${shown}`}
+          line={line}
+          direction={up ? 1 : -1}
+          arriving={number(shown)}
+          going={number(leaving)}
+          onDone={settle}
+        />
+      )}
     </View>
+  );
+}
+
+/** One number sliding out as the next slides in behind it, then `onDone`. */
+function Roll({
+  line,
+  direction,
+  arriving,
+  going,
+  onDone,
+}: {
+  line: number;
+  direction: 1 | -1;
+  arriving: ReactNode;
+  going: ReactNode;
+  onDone: () => void;
+}) {
+  const roll = useSharedValue(0);
+  useEffect(() => {
+    roll.set(
+      withTiming(1, { duration: ROLL_MS, easing: Easing.out(Easing.quad) }, (finished) => {
+        if (finished) scheduleOnRN(onDone);
+      }),
+    );
+  }, [roll, onDone]);
+  const inStyle = useAnimatedStyle(() => ({ transform: [{ translateY: (1 - roll.value) * line * direction }] }));
+  const outStyle = useAnimatedStyle(() => ({ transform: [{ translateY: -roll.value * line * direction }] }));
+  return (
+    <>
+      <Animated.View style={inStyle}>{arriving}</Animated.View>
+      <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { justifyContent: 'center' }, outStyle]}>
+        {going}
+      </Animated.View>
+    </>
   );
 }
