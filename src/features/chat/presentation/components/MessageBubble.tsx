@@ -11,7 +11,7 @@ import { palette } from '@shared/theme';
 import type { ChatMessage, ChatPostLock } from '../../domain/entities/Chat';
 import { chatCopy } from '../copy';
 import { messageTime } from '../format';
-import { PostContextCard } from './PostContextCard';
+import { PostContextCard, PostContextCardPlaceholder } from './PostContextCard';
 
 /**
  * A message (Figma Chat): theirs on the left in a pale bubble with the time
@@ -139,6 +139,11 @@ export function MessageBubble({
       {message.removed ? null : message.taggedPost ? (
         <View style={{ maxWidth: '78%' }}>
           <PostContextCard post={message.taggedPost} onPress={() => onOpenPost(message.taggedPost?.id ?? '', message.taggedPost?.lockReason)} />
+        </View>
+      ) : message.taggedPostPending ? (
+        // Heard live: the card is on its way with the thread (`chatCache`).
+        <View style={{ maxWidth: '78%' }}>
+          <PostContextCardPlaceholder />
         </View>
       ) : message.taggedPostUnavailable ? (
         <Text variant="bodySm" tone="muted" style={{ maxWidth: '78%', fontStyle: 'italic' }}>

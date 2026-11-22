@@ -95,6 +95,8 @@ export const toMessage = (dto: MessageDto): ChatMessage => ({
   images: dto.removed ? [] : (dto.images ?? []).map((i) => ({ thumbUrl: i.thumbUrl, url: i.url })),
   taggedPost: dto.taggedPost && !dto.removed ? toPost(dto.taggedPost) : null,
   taggedPostUnavailable: !!dto.taggedPostUnavailable,
+  // The socket's copy of a message that tags a post: the card comes with the thread over HTTP.
+  ...(dto.taggedPostPending && !dto.taggedPost && !dto.removed ? { taggedPostPending: true } : null),
   removed: !!dto.removed,
   sentAt: dto.createdAt,
 });

@@ -72,6 +72,15 @@ export function dropPostThreads(queryClient: QueryClient, postId: string) {
   dropFromLists(queryClient, (t) => t.kind === 'group' && t.postId === postId);
 }
 
+/** Whether the cached copy of this message is still waiting for its tagged post's card. */
+function stillPending(queryClient: QueryClient, message: ChatMessage): boolean {
+  if (!message.taggedPostPending) return false;
+  const data = queryClient.getQueryData<InfiniteData<MessagesPage>>(chatKeys.messages(message.conversationId));
+  // Not cached (the thread was never opened): marking it stale is all that is needed.
+  if (!data) return true;
+  return data.pages.some((p) => p.items.some((m) => m.id === message.id && m.taggedPostPending));
+}
+
 /** Your id, when one of your messages in this conversation is cached. */
 function myIdIn(queryClient: QueryClient, conversationId: string): string | null {
   const data = queryClient.getQueryData<InfiniteData<MessagesPage>>(chatKeys.messages(conversationId));
@@ -92,7 +101,10 @@ export function applyChatEvent(queryClient: QueryClient, event: ChatEvent, myId:
       putMessage(queryClient, event.message, myId ?? myIdIn(queryClient, event.message.conversationId));
       // The socket does not know where your phone is, so a tagged post arrives locked even when
       // it is near you (MOB-077). The thread over HTTP, with the location, says whether it is.
-      if (event.message.taggedPost?.lockReason) {
+      // Since 21 Nov it carries no card at all for a tagged post (`taggedPostPending`): the
+      // thread over HTTP has it, as this reader may see it (open, locked, or unavailable).
+      // Not asked again when the copy already held had the card (your own send's answer).
+      if (event.message.taggedPost?.lockReason || stillPending(queryClient, event.message)) {
         void queryClient.invalidateQueries({ queryKey: chatKeys.messages(event.message.conversationId) });
       }
       // The list's order, last line and unread counts all move, and so may the

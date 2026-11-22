@@ -99,6 +99,11 @@ export type ChatMessage = {
   taggedPost: ChatPost | null;
   /** The tagged post was deleted or hidden: say "no longer available". */
   taggedPostUnavailable: boolean;
+  /**
+   * A post is tagged, but this copy came over the socket, which carries no
+   * card: a placeholder shows until the thread is read again over HTTP.
+   */
+  taggedPostPending?: boolean;
   /** Removed by a moderator: "This message was removed". */
   removed: boolean;
   /** ISO date-time. */

@@ -89,6 +89,13 @@ describe('chat shapes', () => {
     });
   });
 
+  it('marks the socket’s copy of a tagged post as waiting for its card', () => {
+    const live = toMessage(messageDto({ taggedPost: null, taggedPostId: 'p1', taggedPostPending: true }));
+    expect(live).toMatchObject({ taggedPost: null, taggedPostPending: true });
+    // The list over HTTP carries the card, and nothing is pending.
+    expect(toMessage(messageDto()).taggedPostPending).toBeUndefined();
+  });
+
   it('shows nothing of a removed message', () => {
     expect(toMessage(messageDto({ removed: true }))).toMatchObject({
       removed: true,

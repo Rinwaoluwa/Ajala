@@ -130,6 +130,9 @@ export function withReadMark(members: readonly ChatMember[], userId: string, mes
  * Matching on `clientMsgId` as well as `id` is what turns the dimmed "Sending…"
  * bubble into the confirmed one, and what stops a message that arrives both as
  * the send's answer and over the socket from showing twice.
+ *
+ * A copy from the socket has no post card (it says `taggedPostPending`): it
+ * never wipes a card the held copy already has.
  */
 export function upsertNewest(
   items: readonly ChatMessage[],
@@ -139,7 +142,14 @@ export function upsertNewest(
   const at = items.findIndex((m) => m.id === message.id || sameClientMsg(m, message));
   const settled = (held: ChatMessage | undefined) => {
     const mine = isMine(message, held, myId);
-    return mine === message.mine ? message : { ...message, mine };
+    const next = mine === message.mine ? message : { ...message, mine };
+    // The socket's copy carries no post card (`taggedPostPending`). One already
+    // held (the send's own answer, or the thread read over HTTP) is kept.
+    if (next.taggedPostPending && held && !held.taggedPostPending && (held.taggedPost || held.taggedPostUnavailable)) {
+      const { taggedPostPending: _pending, ...rest } = next;
+      return { ...rest, taggedPost: held.taggedPost, taggedPostUnavailable: held.taggedPostUnavailable };
+    }
+    return next;
   };
   if (at === -1) return [settled(undefined), ...items];
   return items.map((m, i) => (i === at ? settled(m) : m));

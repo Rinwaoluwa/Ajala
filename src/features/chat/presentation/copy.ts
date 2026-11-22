@@ -75,6 +75,8 @@ export const chatCopy = {
     openPost: (title: string) => `Open ${title}`,
     removed: 'This message was removed',
     postUnavailable: 'This activity is no longer available',
+    // A tagged post heard live, before its card has been fetched.
+    loadingPost: 'Loading the activity',
     // A tagged post the reader may not open (MOB-077); the card opens the paywall.
     // The composer saw an Ajala link in what is being written; tapping opens it in the app.
     linkFound: { post: 'Ajala post', user: 'Ajala profile' },

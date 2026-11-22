@@ -43,6 +43,26 @@ describe('socket events into the cache', () => {
     expect(ids(client)).toEqual(['21', '20', '19']);
   });
 
+  it('reads the thread again for a tagged post the socket carried no card for', () => {
+    const client = seeded();
+    const stale = () => client.getQueryState(chatKeys.messages('c1'))?.isInvalidated;
+    applyChatEvent(client, { type: 'message', message: message('21') });
+    expect(stale()).toBe(false);
+    applyChatEvent(client, { type: 'message', message: { ...message('22'), taggedPostPending: true } });
+    expect(stale()).toBe(true);
+  });
+
+  it('keeps the card your own send already has, and asks for nothing', () => {
+    const client = seeded();
+    const card = { id: 'p1', title: 'Walk', startAt: null, placeName: null, lockReason: null };
+    applyChatEvent(client, { type: 'message', message: { ...message('21'), taggedPost: card } });
+    applyChatEvent(client, { type: 'message', message: { ...message('21'), taggedPostPending: true } });
+    const held = client.getQueryData<InfiniteData<MessagesPage>>(chatKeys.messages('c1'))?.pages[0].items[0];
+    expect(held).toMatchObject({ id: '21', taggedPost: card });
+    expect(held?.taggedPostPending).toBeUndefined();
+    expect(client.getQueryState(chatKeys.messages('c1'))?.isInvalidated).toBe(false);
+  });
+
   it('leaves a conversation that was never opened alone', () => {
     const client = newClient();
     applyChatEvent(client, { type: 'message', message: message('1') });

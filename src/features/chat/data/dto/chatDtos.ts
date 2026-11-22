@@ -97,6 +97,14 @@ export interface MessageDto {
   images: MessageImageDto[];
   taggedPost: ChatPostCardDto | null;
   taggedPostUnavailable: boolean;
+  /** The post this message tags, or null (every message, since 21 Nov). */
+  taggedPostId?: string | null;
+  /**
+   * Only on the socket's `message.new` (21 Nov): a post is tagged, and its card
+   * is not carried, because the server knows no reader there. The message list
+   * over HTTP still carries the card, as this reader may see it.
+   */
+  taggedPostPending?: boolean;
   clientMsgId: string;
   removed: boolean;
   mine: boolean;
