@@ -67,6 +67,16 @@ describe('full name', () => {
     expect(isFullNameValid('12 34')).toBe(false);
   });
 
+  it('says when a name has a character the API refuses (21 Nov)', () => {
+    expect(fullNameProblem('Sarah Mitchell2')).toBe('characters');
+    expect(fullNameProblem('Sarah 😀 Mitchell')).toBe('characters');
+    expect(fullNameProblem('Sarah_M Mitchell')).toBe('characters');
+    // Before "incomplete": typing more never fixes it.
+    expect(fullNameProblem('Sarah2')).toBe('characters');
+    expect(fullNameProblem("Anne-Marie O’Brien")).toBeNull();
+    expect(fullNameProblem('Mary St. John')).toBeNull();
+  });
+
   /**
    * The API stores a first and a last name and rejects an empty one, so a name
    * written as a single word cannot be sent at all. That excludes mononyms and

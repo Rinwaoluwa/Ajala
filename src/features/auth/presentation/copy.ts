@@ -199,6 +199,8 @@ export const signUpFieldErrorMessages: Record<string, string> = {
 export const underAgeMessage = 'You must be 18 or older to join Ajala.';
 
 export const fieldLimitMessages = {
+  // The API's own rule (21 Nov): digits, emoji and symbols are refused.
+  nameCharacters: 'Names can only have letters, spaces, apostrophes, hyphens and full stops.',
   nameTooLong: `Keep your first name and your last name to ${fieldLimits.nameMax} characters each.`,
   passwordTooLong: `Use ${PASSWORD_MAX_LENGTH} characters or fewer.`,
 } as const;

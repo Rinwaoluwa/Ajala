@@ -9,6 +9,7 @@ import {
   MAX_LANGUAGES,
   NAME_MAX,
   canContinueBasics,
+  hasBadNameCharacters,
   isFullNameValid,
   toggle,
 } from '../../domain/rules/profileSetupRules';
@@ -84,10 +85,14 @@ export function useProfileBasics() {
       ? setupCopy.basics.dateOfBirth.underAge
       : null;
 
-  const nameError =
-    missing.name && nameTouched && draft.fullName.trim() !== '' && !isFullNameValid(draft.fullName)
-      ? `Enter your first and last name, up to ${NAME_MAX} characters each.`
-      : null;
+  // A character a name may not have is said straight away: typing more never fixes it.
+  const nameError = !missing.name
+    ? null
+    : hasBadNameCharacters(draft.fullName)
+      ? setupCopy.basics.fullName.characters
+      : nameTouched && draft.fullName.trim() !== '' && !isFullNameValid(draft.fullName)
+        ? `Enter your first and last name, up to ${NAME_MAX} characters each.`
+        : null;
 
   const pick = useCallback(
     async (source: 'library' | 'camera') => {

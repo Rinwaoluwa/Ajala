@@ -45,6 +45,8 @@ export const settingsCopy = {
     camera: 'Take a photo',
     displayName: 'Display name',
     displayNameError: 'Enter a first and last name.',
+    // The API's own rule (21 Nov): digits, emoji and symbols are refused.
+    displayNameCharacters: 'Names can only have letters, spaces, apostrophes, hyphens and full stops.',
     username: 'Username',
     usernameChecking: 'Checking…',
     usernameAvailable: 'Available',

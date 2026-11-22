@@ -42,7 +42,12 @@ export const setupCopy = {
     languages: 'Languages spoken',
     // Not drawn. Gender is optional; name and date of birth are asked only when missing (§2.4).
     gender: 'Gender (optional)',
-    fullName: { label: 'Full name', placeholder: 'Enter your full name' },
+    fullName: {
+      label: 'Full name',
+      placeholder: 'Enter your full name',
+      // The API's own rule (21 Nov): digits, emoji and symbols are refused.
+      characters: 'Names can only have letters, spaces, apostrophes, hyphens and full stops.',
+    },
     dateOfBirth: {
       label: 'Date of birth',
       placeholder: 'DD/MM/YYYY',

@@ -1,4 +1,5 @@
 import { isOldEnough } from '@shared/utils/age';
+import { hasOnlyNameCharacters, isNameAllowed } from '@shared/utils/personName';
 
 import type { Gender, MyProfile, TravelStyle } from '../entities/Profile';
 
@@ -168,12 +169,19 @@ export function splitFullName(fullName: string): {
 
 export const NAME_MAX = 60;
 
+/** A first and a last name, each of the characters the API takes (`@shared/utils/personName`). */
 export function isFullNameValid(fullName: string): boolean {
   const { firstName, lastName } = splitFullName(fullName);
   return (
-    firstName.length > 0 && lastName.length > 0 && firstName.length <= NAME_MAX && lastName.length <= NAME_MAX
+    isNameAllowed(firstName) &&
+    isNameAllowed(lastName) &&
+    firstName.length <= NAME_MAX &&
+    lastName.length <= NAME_MAX
   );
 }
+
+/** Whether the name has a character the API refuses: a digit, an emoji, a symbol. */
+export const hasBadNameCharacters = (fullName: string) => !hasOnlyNameCharacters(fullName);
 
 export type BasicsDraft = {
   /** The home city's Google place id. */

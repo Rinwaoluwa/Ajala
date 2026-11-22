@@ -25,6 +25,7 @@ import {
   diffProfile,
   displayNameOf,
   hasChanges,
+  hasBadNameCharacters,
   isDisplayNameValid,
   isHandleFormatValid,
   normaliseHandle,
@@ -260,7 +261,10 @@ export function useEditProfile(account: Account) {
     onSuccess: (next) => accountChanged(next),
   });
 
-  const nameOk = isDisplayNameValid(displayName);
+  // A name left as it was is not sent, so it never blocks saving the rest: names saved
+  // before the API's character rule (21 Nov) keep whatever they have.
+  const nameUnchanged = firstName === (account.firstName ?? '') && lastName === (account.lastName ?? '');
+  const nameOk = nameUnchanged || isDisplayNameValid(displayName);
   const handleOk = handleStatus === 'unchanged' || handleStatus === 'available' || handleStatus === 'checkFailed';
   // Changed interests must land in the API's 3–8; an untouched empty set is left alone.
   const interestsOk = edit.interestIds === undefined || interestsCountOk(interestIds.length);
@@ -269,7 +273,12 @@ export function useEditProfile(account: Account) {
   return {
     displayName,
     setDisplayName: useCallback((t: string) => setDisplayName(t), []),
-    nameError: displayName.trim() && !nameOk ? settingsCopy.edit.displayNameError : null,
+    nameError:
+      !displayName.trim() || nameOk
+        ? null
+        : hasBadNameCharacters(displayName)
+          ? settingsCopy.edit.displayNameCharacters
+          : settingsCopy.edit.displayNameError,
     handle,
     setHandle: useCallback((t: string) => setHandle(t), []),
     handleStatus,

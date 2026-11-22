@@ -106,9 +106,13 @@ export function useSignUpDetails({ onCodeSent }: UseSignUpDetailsOptions) {
   // halfway through typing.
   const emailFormatError =
     emailTouched && email.trim() !== '' && !isEmailValid(email) ? 'Enter a valid email address.' : null;
-  const nameProblem = nameTouched && fullName.trim() !== '' ? fullNameProblem(fullName) : null;
+  // A character a name may not have is said straight away: typing more never fixes it.
+  const nameIssue = fullName.trim() !== '' ? fullNameProblem(fullName) : null;
+  const nameProblem = nameIssue === 'characters' || nameTouched ? nameIssue : null;
   const nameFormatError =
-    nameProblem === 'tooLong'
+    nameProblem === 'characters'
+      ? fieldLimitMessages.nameCharacters
+      : nameProblem === 'tooLong'
       ? fieldLimitMessages.nameTooLong
       : nameProblem === 'incomplete'
         ? 'Enter your first and last name.'

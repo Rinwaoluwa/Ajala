@@ -1,3 +1,5 @@
+import { hasOnlyNameCharacters, isNameAllowed } from '@shared/utils/personName';
+
 import type { Account, DataExport, Draft, PostType, ProfileEdit, SocialLinks } from '../entities/Settings';
 
 /**
@@ -84,12 +86,19 @@ export function splitDisplayName(display: string): { firstName: string; lastName
 export const displayNameOf = (a: Pick<Account, 'firstName' | 'lastName'>) =>
   [a.firstName, a.lastName].filter(Boolean).join(' ');
 
+/** A first and a last name, each of the characters the API takes (`@shared/utils/personName`). */
 export function isDisplayNameValid(display: string): boolean {
   const { firstName, lastName } = splitDisplayName(display);
   return (
-    firstName.length > 0 && lastName.length > 0 && firstName.length <= NAME_MAX && lastName.length <= NAME_MAX
+    isNameAllowed(firstName) &&
+    isNameAllowed(lastName) &&
+    firstName.length <= NAME_MAX &&
+    lastName.length <= NAME_MAX
   );
 }
+
+/** Whether the name has a character the API refuses: a digit, an emoji, a symbol. */
+export const hasBadNameCharacters = (display: string) => !hasOnlyNameCharacters(display);
 
 /** A new password: 8–128 characters with an uppercase letter and a digit (spec §4). */
 export function passwordChecks(password: string) {

@@ -47,6 +47,10 @@ describe('profile edits', () => {
     expect(splitDisplayName('  Maya  Li Chen ')).toEqual({ firstName: 'Maya', lastName: 'Li Chen' });
     expect(isDisplayNameValid('Maya')).toBe(false);
     expect(isDisplayNameValid('Maya Chen')).toBe(true);
+    // The API's character rule (21 Nov).
+    expect(isDisplayNameValid("Anne-Marie O’Brien")).toBe(true);
+    expect(isDisplayNameValid('Maya Chen2')).toBe(false);
+    expect(isDisplayNameValid('Maya 😀')).toBe(false);
   });
 
   it('checks handles as the API does', () => {

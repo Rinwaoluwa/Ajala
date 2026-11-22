@@ -10,6 +10,7 @@
  */
 
 import { isOldEnough } from '@shared/utils/age';
+import { hasOnlyNameCharacters } from '@shared/utils/personName';
 
 import type { SignUpDetails } from '../entities/SignUpDetails';
 import { isEmailValid, isPasswordValid } from './credentialRules';
@@ -35,15 +36,19 @@ export function isFullNameValid(name: string): boolean {
 
 /**
  * What is wrong with a full name, so the field can say which fix it needs:
+ *   - `characters`: something a name may not contain (a digit, an emoji, a
+ *     symbol): the API refuses it (`@shared/utils/personName`). Said first, as
+ *     typing more never fixes it;
  *   - `incomplete`: fewer than two words, or a "word" with no letter in it;
  *   - `tooLong`: the first name, or the rest, is over the API's 60 characters
  *     (`SignupEmailDto.firstName` / `lastName`). Measured the way the mapper
  *     splits it — first word, then everything after.
  */
-export type FullNameProblem = 'incomplete' | 'tooLong';
+export type FullNameProblem = 'characters' | 'incomplete' | 'tooLong';
 
 export function fullNameProblem(name: string): FullNameProblem | null {
   const parts = splitName(name);
+  if (!hasOnlyNameCharacters(name)) return 'characters';
   if (parts.length < 2 || !parts.every((part) => /\p{L}/u.test(part))) return 'incomplete';
   const [first, ...rest] = parts;
   if (first.length > fieldLimits.nameMax || rest.join(' ').length > fieldLimits.nameMax) return 'tooLong';
