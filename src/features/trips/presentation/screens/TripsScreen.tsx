@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
-import { FlatList, RefreshControl, ScrollView, View, useColorScheme } from 'react-native';
+import { FlatList, RefreshControl, ScrollView, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -20,6 +20,7 @@ import {
 } from '@shared/components';
 import { haptics } from '@shared/feedback/haptics';
 import { useTheme } from '@shared/hooks/useTheme';
+import { useAppColorScheme } from '@shared/hooks/useAppColorScheme';
 import { SCREEN_GUTTER } from '@shared/theme';
 
 import type { TripCard, TripsTab } from '../../domain/entities/Trip';
@@ -59,7 +60,7 @@ export type TripsScreenProps = {
 export function TripsScreen({ onOpenTrip, onExplore, toTopSignal }: TripsScreenProps) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const dark = useColorScheme() === 'dark';
+  const dark = useAppColorScheme() === 'dark';
   const [tab, setTab] = useState<TripsTab>('upcoming');
   const list = useTripList(tab);
   const bottom = TAB_BAR_CLEARANCE + insets.bottom;

@@ -24,6 +24,13 @@ const FEATURE_BOUNDARY_PATTERNS = [
     message: 'Use the @features/<name> alias, never a relative path across features.',
   },
   {
+    group: ['react-native'],
+    importNames: ['useColorScheme'],
+    message:
+      "Use useAppColorScheme from @shared/hooks/useAppColorScheme (or useTheme). React Native's hook re-renders " +
+      'by itself, ahead of every class name, so a theme switch drew the screen twice.',
+  },
+  {
     group: ['@expo/ui'],
     importNames: ['Host'],
     message:

@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { memo, useCallback, useMemo, useState } from 'react';
-import { Alert, Pressable, TouchableOpacity, View, useColorScheme } from 'react-native';
+import { Alert, Pressable, TouchableOpacity, View } from 'react-native';
 import Animated, {
   Easing,
   FadeIn,
@@ -31,6 +31,7 @@ import { useFontScale } from '@shared/hooks/useFontScale';
 import { useRsvpPost } from '@shared/hooks/useRsvpPost';
 import { useSavePost } from '@shared/hooks/useSavePost';
 import { useTheme } from '@shared/hooks/useTheme';
+import { useAppColorScheme } from '@shared/hooks/useAppColorScheme';
 import { SCREEN_GUTTER, palette, textStyles } from '@shared/theme';
 import { useTypeColors } from '@shared/theme/postTypeColors';
 
@@ -386,7 +387,7 @@ function PostActions({
   onOpenComments: (post: PostCard) => void;
 }) {
   const theme = useTheme();
-  const dark = useColorScheme() === 'dark';
+  const dark = useAppColorScheme() === 'dark';
   const copy = homeCopy.post;
   const { saved, toggle } = useSavePost(post.id, post.saved);
   const icon = dark ? theme.muted : ICON_LIGHT;

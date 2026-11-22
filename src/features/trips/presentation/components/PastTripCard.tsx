@@ -1,8 +1,9 @@
 import { memo } from 'react';
-import { TouchableOpacity, View, useColorScheme } from 'react-native';
+import { TouchableOpacity, View } from 'react-native';
 
 import { Tag, Text } from '@shared/components';
 import { useTheme } from '@shared/hooks/useTheme';
+import { useAppColorScheme } from '@shared/hooks/useAppColorScheme';
 
 import type { TripCard } from '../../domain/entities/Trip';
 import { tripsCopy } from '../copy';
@@ -16,7 +17,7 @@ import { TravellerDots } from './TravellerDots';
  */
 function PastTripCardComponent({ trip, onOpen }: { trip: TripCard; onOpen: () => void }) {
   const theme = useTheme();
-  const dark = useColorScheme() === 'dark';
+  const dark = useAppColorScheme() === 'dark';
   const when = [tripDates(trip.startAt, trip.endAt), tripsCopy.completed].filter(Boolean).join(' · ');
 
   return (

@@ -1,9 +1,10 @@
-import { View, useColorScheme } from 'react-native';
+import { View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import Svg, { Path } from 'react-native-svg';
 
 import { Text, enterRise } from '@shared/components';
 import { useTheme } from '@shared/hooks/useTheme';
+import { useAppColorScheme } from '@shared/hooks/useAppColorScheme';
 
 import { SettingsFrame } from '../components/SettingsFrame';
 import { settingsCopy } from '../copy';
@@ -16,7 +17,7 @@ import { settingsCopy } from '../copy';
 export function SafetyTipsScreen({ onBack }: { onBack: () => void }) {
   const theme = useTheme();
   const copy = settingsCopy.tips;
-  const dark = useColorScheme() === 'dark';
+  const dark = useAppColorScheme() === 'dark';
   const mark = dark ? theme.accent : theme.primary;
 
   return (

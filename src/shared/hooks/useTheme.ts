@@ -1,5 +1,4 @@
-import { useColorScheme } from 'react-native';
-
+import { useAppColorScheme } from '@shared/hooks/useAppColorScheme';
 import { getTheme, type SemanticColors } from '@shared/theme';
 
 /**
@@ -11,8 +10,8 @@ import { getTheme, type SemanticColors } from '@shared/theme';
  * resolve to the same token contract.
  */
 export function useTheme(): SemanticColors {
-  // React Native's ColorSchemeName also allows null and 'unspecified'. Anything that
-  // is not explicitly dark falls back to light, which is the designed default.
-  const scheme = useColorScheme();
-  return getTheme(scheme === 'dark' ? 'dark' : 'light');
+  // The app's one reading of the scheme (`useAppColorScheme`), so these colours change in
+  // the same render as every class name.
+  const scheme = useAppColorScheme();
+  return getTheme(scheme);
 }

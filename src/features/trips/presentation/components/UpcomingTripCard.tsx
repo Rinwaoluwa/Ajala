@@ -1,9 +1,10 @@
 import { Image } from 'expo-image';
 import { memo } from 'react';
-import { TouchableOpacity, View, useColorScheme } from 'react-native';
+import { TouchableOpacity, View } from 'react-native';
 
 import { Tag, Text, type TagTone } from '@shared/components';
 import { useTheme } from '@shared/hooks/useTheme';
+import { useAppColorScheme } from '@shared/hooks/useAppColorScheme';
 import { useTypeColors } from '@shared/theme/postTypeColors';
 
 import type { TripCard } from '../../domain/entities/Trip';
@@ -34,7 +35,7 @@ function statusTag(trip: TripCard): { label: string; tone: TagTone } {
 function UpcomingTripCardComponent({ trip, onOpen }: { trip: TripCard; onOpen: () => void }) {
   const theme = useTheme();
   const typeColors = useTypeColors();
-  const dark = useColorScheme() === 'dark';
+  const dark = useAppColorScheme() === 'dark';
   const dates = tripDates(trip.startAt, trip.endAt);
   const time = tripTime(trip.startAt);
   const when = [

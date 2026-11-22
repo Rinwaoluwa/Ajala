@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import { useEffect } from 'react';
-import { View, useColorScheme } from 'react-native';
+import { View } from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -13,6 +13,7 @@ import Animated, {
 import { Button, Text } from '@shared/components';
 import { useFontScale } from '@shared/hooks/useFontScale';
 import { useTheme } from '@shared/hooks/useTheme';
+import { useAppColorScheme } from '@shared/hooks/useAppColorScheme';
 import { palette } from '@shared/theme';
 
 import { homeCopy } from '../copy';
@@ -38,7 +39,7 @@ const BADGE = require('../../../../../assets/images/badges/level-badge.png') as 
 export function LevelCard({ onView, onClose }: { onView: () => void; onClose: () => void }) {
   const theme = useTheme();
   const fontScale = useFontScale();
-  const dark = useColorScheme() === 'dark';
+  const dark = useAppColorScheme() === 'dark';
   const reduceMotion = useReducedMotion();
   const level = homeCopy.level;
   const fill = useSharedValue(reduceMotion ? level.progress : 0);

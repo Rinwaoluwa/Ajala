@@ -1,8 +1,9 @@
-import { TouchableOpacity, View, useColorScheme } from 'react-native';
+import { TouchableOpacity, View } from 'react-native';
 
 import { Host, NativeIcon, NativeSpinner, Text, icons } from '@shared/components';
 import { useFontScale } from '@shared/hooks/useFontScale';
 import { useTheme } from '@shared/hooks/useTheme';
+import { useAppColorScheme } from '@shared/hooks/useAppColorScheme';
 import { palette } from '@shared/theme';
 
 import type { Draft } from '../../domain/entities/Settings';
@@ -35,7 +36,7 @@ export function DraftCard({
   onDelete: () => void;
 }) {
   const theme = useTheme();
-  const dark = useColorScheme() === 'dark';
+  const dark = useAppColorScheme() === 'dark';
   const copy = settingsCopy.drafts;
   const stacked = useFontScale() > 1.3;
   return (

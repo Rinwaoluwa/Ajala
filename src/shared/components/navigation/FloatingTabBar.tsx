@@ -6,7 +6,6 @@ import {
   Pressable,
   StyleSheet,
   View,
-  useColorScheme,
   useWindowDimensions,
 } from 'react-native';
 import { useReducedMotion } from 'react-native-reanimated';
@@ -16,6 +15,7 @@ import { haptics } from '@shared/feedback/haptics';
 import { useKeyboardShown } from '@shared/hooks/useKeyboardShown';
 import { useLiquidGlass } from '@shared/hooks/useLiquidGlass';
 import { useTheme } from '@shared/hooks/useTheme';
+import { useAppColorScheme } from '@shared/hooks/useAppColorScheme';
 import { fontFamily, palette } from '@shared/theme';
 
 import { GlassBackdrop } from '../surface/GlassBackdrop';
@@ -124,7 +124,7 @@ const between = (value: Animated.Value, from: number, to: number) =>
 
 export function FloatingTabBar({ tabs, current, onSelect, onCreate, createLabel }: FloatingTabBarProps) {
   const theme = useTheme();
-  const dark = useColorScheme() === 'dark';
+  const dark = useAppColorScheme() === 'dark';
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const reduceMotion = useReducedMotion();

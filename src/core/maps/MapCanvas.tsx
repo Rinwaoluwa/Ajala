@@ -1,6 +1,7 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState, type ReactNode } from 'react';
 import Constants from 'expo-constants';
-import { Platform, StyleSheet, Text, View, useColorScheme } from 'react-native';
+import { useColorScheme } from 'nativewind';
+import { Platform, StyleSheet, Text, View } from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE, type MapPressEvent, type Region } from 'react-native-maps';
 
 import { darkMapStyle, lightMapStyle } from './darkMapStyle';
@@ -69,7 +70,9 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(function Ma
   ref,
 ) {
   const map = useRef<MapView>(null);
-  const dark = useColorScheme() === 'dark';
+  // NativeWind's reading of the scheme, as the rest of the app uses (`useAppColorScheme`):
+  // React Native's own hook re-renders on its own, ahead of everything else.
+  const dark = useColorScheme().colorScheme === 'dark';
 
   useImperativeHandle(ref, () => ({
     animateTo: (region, durationMs = 450) => map.current?.animateToRegion(region as Region, durationMs),

@@ -1,7 +1,8 @@
 import { Image } from 'expo-image';
-import { View, useColorScheme } from 'react-native';
+import { View } from 'react-native';
 
 import { useTheme } from '@shared/hooks/useTheme';
+import { useAppColorScheme } from '@shared/hooks/useAppColorScheme';
 
 import { REFERENCE_AREA_HEIGHT, type OnboardingIllustration as Illustration } from '../onboardingImages';
 
@@ -32,7 +33,7 @@ export type OnboardingIllustrationProps = {
 
 export function OnboardingIllustration({ illustration, height }: OnboardingIllustrationProps) {
   const theme = useTheme();
-  const scheme = useColorScheme();
+  const scheme = useAppColorScheme();
   const scale = height / REFERENCE_AREA_HEIGHT;
   const source =
     scheme === 'dark' ? (illustration?.darkSource ?? illustration?.source) : illustration?.source;

@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { RefreshControl, ScrollView, View, useColorScheme } from 'react-native';
+import { RefreshControl, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
@@ -20,6 +20,7 @@ import {
   useOnSignal,
 } from '@shared/components';
 import { useTheme } from '@shared/hooks/useTheme';
+import { useAppColorScheme } from '@shared/hooks/useAppColorScheme';
 import { SCREEN_GUTTER, palette } from '@shared/theme';
 
 import { LANGUAGES, travelStyleLabel } from '../../domain/rules/profileSetupRules';
@@ -66,7 +67,7 @@ export type OwnProfileScreenProps = {
 
 export function OwnProfileScreen(props: OwnProfileScreenProps) {
   const theme = useTheme();
-  const scheme = useColorScheme();
+  const scheme = useAppColorScheme();
   const insets = useSafeAreaInsets();
   // Scrolling down the profile shrinks the tab bar out of the way; back up brings it back.
   const minimizeOnScroll = useMinimizeTabBarOnScroll();

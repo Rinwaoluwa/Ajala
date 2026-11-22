@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import { useState } from 'react';
-import { ScrollView, View, useColorScheme } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -17,6 +17,7 @@ import {
   icons,
 } from '@shared/components';
 import { useTheme } from '@shared/hooks/useTheme';
+import { useAppColorScheme } from '@shared/hooks/useAppColorScheme';
 import { SCREEN_GUTTER } from '@shared/theme';
 
 import { AllSetSheet } from '../components/AllSetSheet';
@@ -49,7 +50,7 @@ const GLYPH = 120;
 
 export function BiometricSetupScreen({ onBack, onFinish }: { onBack: () => void; onFinish: () => void }) {
   const theme = useTheme();
-  const dark = useColorScheme() === 'dark';
+  const dark = useAppColorScheme() === 'dark';
   const insets = useSafeAreaInsets();
   const availability = useBiometricAvailability();
   const { enable } = useAppLockSetup();

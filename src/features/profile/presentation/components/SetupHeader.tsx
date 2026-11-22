@@ -1,9 +1,10 @@
-import { View, useColorScheme } from 'react-native';
+import { View } from 'react-native';
 
 import { SCREEN_HEADER_HEIGHT, ScreenHeader, StepProgress } from '@shared/components';
 
 import { setupCopy } from '../copy';
 import { SETUP_STEPS } from '../navigation/routes';
+import { useAppColorScheme } from '@shared/hooks/useAppColorScheme';
 
 /**
  * The top of a numbered setup step: "← Back" and the four-segment indicator
@@ -14,7 +15,7 @@ import { SETUP_STEPS } from '../navigation/routes';
  * draw it — the opposite of the headings, which go the other way.
  */
 export function SetupHeader({ step, onBack }: { step: number; onBack?: () => void }) {
-  const dark = useColorScheme() === 'dark';
+  const dark = useAppColorScheme() === 'dark';
   return (
     <View className="px-20">
       {onBack ? (

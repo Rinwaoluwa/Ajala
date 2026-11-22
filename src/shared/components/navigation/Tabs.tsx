@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Pressable, View, useColorScheme, type LayoutChangeEvent } from 'react-native';
+import { Pressable, View, type LayoutChangeEvent } from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -9,6 +9,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { useTheme } from '@shared/hooks/useTheme';
+import { useAppColorScheme } from '@shared/hooks/useAppColorScheme';
 import { palette } from '@shared/theme';
 
 import { Text } from '../ui/Text';
@@ -112,7 +113,7 @@ export function SegmentedControl<T extends string>({
   onChange: (value: T) => void;
 }) {
   const theme = useTheme();
-  const dark = useColorScheme() === 'dark';
+  const dark = useAppColorScheme() === 'dark';
   const index = Math.max(
     0,
     options.findIndex((o) => o.value === value),

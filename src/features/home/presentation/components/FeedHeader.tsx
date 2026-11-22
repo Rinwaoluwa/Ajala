@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Pressable, View, useColorScheme } from 'react-native';
+import { Pressable, View } from 'react-native';
 import Animated, {
   Easing,
   FadeIn,
@@ -14,6 +14,7 @@ import Animated, {
 import { Host, GlassSurface, JellyPress, NativeIcon, SkeletonBlock, Text, VectorIcon, icons } from '@shared/components';
 import { useFontScale } from '@shared/hooks/useFontScale';
 import { useTheme } from '@shared/hooks/useTheme';
+import { useAppColorScheme } from '@shared/hooks/useAppColorScheme';
 import { palette } from '@shared/theme';
 
 import { homeCopy } from '../copy';
@@ -154,7 +155,7 @@ export function FeedHeader({
   unreadChatsCount = 0,
 }: FeedHeaderProps) {
   const theme = useTheme();
-  const dark = useColorScheme() === 'dark';
+  const dark = useAppColorScheme() === 'dark';
   const shown = place !== null || noLocation;
   // Teal (light) / Mist (dark) once loaded; the skeleton's grey before.
   const iconTint = shown ? (dark ? theme.foreground : palette.teal) : theme.track;

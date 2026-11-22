@@ -1,4 +1,4 @@
-import { useColorScheme } from 'react-native';
+import { useAppColorScheme } from '@shared/hooks/useAppColorScheme';
 
 import { palette } from './tokens/colors';
 
@@ -70,5 +70,5 @@ export const typeColors = { light: LIGHT, dark: DARK } as const;
 
 /** The type colours for the current scheme. */
 export function useTypeColors(): Record<TypeColorKey, TypeColor> {
-  return useColorScheme() === 'dark' ? DARK : LIGHT;
+  return useAppColorScheme() === 'dark' ? DARK : LIGHT;
 }
