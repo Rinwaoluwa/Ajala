@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo, useState } from 'react';
 
 import { DRAFTS_KEY, postPageKey } from '@shared/state/postQueryKeys';
+import { localCurrency, preferredCurrency } from '@shared/state/preferredCurrency';
 
 import { postMedia } from '../../createPostModule';
 import { CreatePostError, isCreatePostError } from '../../domain/entities/CreatePostError';
@@ -58,11 +59,21 @@ export type PublishOutcome =
 let keySeed = 0;
 const nextKey = (prefix: string) => `${prefix}-${Date.now().toString(36)}-${(keySeed += 1)}`;
 
-export function useCreatePost(kind: PostKind, draftId: string | null = null, mode: WizardMode = 'create') {
+export function useCreatePost(
+  kind: PostKind,
+  draftId: string | null = null,
+  mode: WizardMode = 'create',
+  /** Travel Pro: the price may be in any currency, so a new post starts in the one they last picked. */
+  canChooseCurrency = false,
+) {
   const editing = mode === 'edit';
   const useCases = useCreatePostUseCases();
   const queryClient = useQueryClient();
-  const [draft, setDraft] = useState<PostDraft>(() => emptyDraft(kind));
+  // A new post is priced in the currency of where the person is. With Travel Pro it starts in
+  // the one they last picked there instead, and the price step lets them change it.
+  const [draft, setDraft] = useState<PostDraft>(() =>
+    emptyDraft(kind, canChooseCurrency ? preferredCurrency() : localCurrency()),
+  );
   const [stepIndex, setStepIndex] = useState(0);
   /** +1 forward, −1 back: which way the step change slides. */
   const [direction, setDirection] = useState<1 | -1>(1);

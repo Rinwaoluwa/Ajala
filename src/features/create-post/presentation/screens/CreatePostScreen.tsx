@@ -37,7 +37,10 @@ import { OwnAreaOnlyContext } from '../state/ownArea';
  * Leaving: the header's arrow goes back a step, and leaves from the first. A
  * post with unsaved changes asks first — save as a draft, discard, or keep
  * editing — whether the person taps back, swipes back or uses Android's back.
- * Straight after Save draft, with nothing changed since, it just leaves.
+ * Straight after Save draft, with nothing changed since and still on the step
+ * it was saved from, Back leaves the wizard at once, whichever step that is
+ * (so do the swipe and Android's back). Moving to another step or changing
+ * anything puts Back to stepping again.
  */
 
 const SLIDE_MS = 240;
@@ -57,6 +60,12 @@ export type CreatePostScreenProps = {
    * phone, the only places the server lets them post. False for Pro.
    */
   ownAreaOnly?: boolean;
+  /**
+   * Travel Pro: the price may be set in any currency (the price step shows the
+   * currency picker). Without it the price is in the currency of where the
+   * person is, shown with no choice. False when left out.
+   */
+  canChooseCurrency?: boolean;
 };
 
 export function CreatePostScreen({
@@ -66,9 +75,10 @@ export function CreatePostScreen({
   onClose,
   onPublished,
   ownAreaOnly = false,
+  canChooseCurrency = false,
 }: CreatePostScreenProps) {
   const editing = editId !== null;
-  const vm = useCreatePost(kind, editId ?? draftId, editing ? 'edit' : 'create');
+  const vm = useCreatePost(kind, editId ?? draftId, editing ? 'edit' : 'create', canChooseCurrency);
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
@@ -88,9 +98,13 @@ export function CreatePostScreen({
 
   // Back a step, or ask before throwing away a post in progress.
   const published = vm.outcome.kind === 'published';
-  // Past the first step, back goes back a step; on the first, it only asks when leaving
-  // would lose something — never straight after Save draft with nothing changed since.
-  const guard = !published && (vm.stepIndex > 0 || vm.unsavedChanges);
+  // Straight after Save draft (still on the step it was saved from, nothing changed since)
+  // Back leaves the wizard at once, from any step: the draft is safe and they are done here.
+  const [savedOnStep, setSavedOnStep] = useState<number | null>(null);
+  const leaveNow = savedOnStep === vm.stepIndex && !vm.unsavedChanges;
+  // Otherwise: past the first step, back goes back a step; on the first, it only asks when
+  // leaving would lose something.
+  const guard = !published && !leaveNow && (vm.stepIndex > 0 || vm.unsavedChanges);
   useEffect(() => {
     // iOS's swipe-back cannot be paused for a question, so it is off while one is needed.
     navigation.setOptions({ gestureEnabled: !guard });
@@ -125,10 +139,13 @@ export function CreatePostScreen({
     ]);
   });
 
-  const saveDraft = () =>
+  const saveDraft = () => {
+    const step = vm.stepIndex;
     void vm.saveDraft().then((error) => {
       if (error) Alert.alert(wizardCopy.saveDraft, failureMessage(error, copy.noun, true));
+      else setSavedOnStep(step);
     });
+  };
 
   // The sheet's button and its dismissal both lead on; only the first may.
   const finished = useRef(false);
@@ -191,7 +208,7 @@ export function CreatePostScreen({
           subtitle={header.subtitle}
           step={vm.stepIndex}
           stepCount={vm.stepCount}
-          onBack={() => (vm.stepIndex > 0 ? vm.back() : onClose())}
+          onBack={() => (vm.stepIndex > 0 && !leaveNow ? vm.back() : onClose())}
           onSaveDraft={saveDraft}
           canSaveDraft={vm.canSaveDraft}
           saving={vm.savingDraft}
@@ -216,7 +233,7 @@ export function CreatePostScreen({
             {vm.step === 'basics' ? <BasicsStep vm={vm} /> : null}
             {vm.step === 'schedule' ? <ScheduleStep vm={vm} /> : null}
             {vm.step === 'participants' ? <ParticipantsStep vm={vm} /> : null}
-            {vm.step === 'price' ? <PriceStep vm={vm} /> : null}
+            {vm.step === 'price' ? <PriceStep vm={vm} canChooseCurrency={canChooseCurrency} /> : null}
             {vm.step === 'review' ? <ReviewStep vm={vm} /> : null}
           </Animated.View>
         </ScrollView>

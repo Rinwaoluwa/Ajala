@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { View } from 'react-native';
 
 import { icons, NoteCard, SelectField, TextField } from '@shared/components';
+import { choosePreferredCurrency } from '@shared/state/preferredCurrency';
 
 import { priceOf } from '../../../domain/rules/postDraftRules';
 import { issueCopy, kindCopy, wizardCopy } from '../../copy';
@@ -13,17 +14,28 @@ import { StepIntro } from '../StepIntro';
 
 /**
  * Step four for a Meetup, Event or Group: an optional price per person
- * (`priceCents` + `currency`) and an optional link to pay or book
+ * (`priceCents` + `currency`; `PriceCard`) and an optional link to pay or book
  * (`externalUrl`). Both may be left out, a paid Event's link included (backend
  * answers C1/C2), and "Skip" at the foot moves on with neither. A post with no
  * price shows no price at all, not "Free".
+ *
+ * The currency is that of where the person is. Pricing in another one is a
+ * Travel Pro feature (`canChooseCurrency`): only then does the row offer the
+ * currency picker, and a new post starts in the currency they last picked.
  *
  * There is no shared cost: it left the API, so nothing here splits a total.
  * A Plan never reaches this step — Plans carry no money.
  *
  * An Event's capacity is shown as drawn, and tapping it goes back to set it.
  */
-export function PriceStep({ vm }: { vm: CreatePostViewModel }) {
+export function PriceStep({
+  vm,
+  canChooseCurrency = false,
+}: {
+  vm: CreatePostViewModel;
+  /** Travel Pro: the currency can be changed. Without it, it is shown and fixed. */
+  canChooseCurrency?: boolean;
+}) {
   const copy = kindCopy[vm.kind].price;
   const { draft, update, issues } = vm;
   const price = priceOf(draft);
@@ -47,7 +59,17 @@ export function PriceStep({ vm }: { vm: CreatePostViewModel }) {
         <PriceCard
           label={copy.priceLabel}
           currency={draft.currency}
-          onCurrency={(currency) => update({ currency })}
+          // Switching currency is a Travel Pro feature: without it there is no picker, only the
+          // currency of where the person is.
+          onCurrency={
+            canChooseCurrency
+              ? (currency) => {
+                  update({ currency });
+                  // Their usual currency from now on: the next post, and Explore's price filter, start in it.
+                  choosePreferredCurrency(currency);
+                }
+              : null
+          }
           amount={draft.price}
           onAmount={setAmount}
           error={issues.price ? issueCopy[issues.price] : null}

@@ -29,7 +29,7 @@ export function ParticipantsStep({ vm }: { vm: CreatePostViewModel }) {
       ? wizardCopy.eventCapacityHint
       : vm.kind === 'group'
         ? wizardCopy.groupCapacityHint
-        : null;
+        : wizardCopy.openCapacityHint;
 
   return (
     <View style={{ gap: 24 }}>

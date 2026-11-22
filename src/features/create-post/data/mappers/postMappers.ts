@@ -141,7 +141,8 @@ export function toCreatePostError(e: unknown, creatingDraft = false): CreatePost
 }
 
 export function toSavedPost(dto: SavedPostDto): SavedPost {
-  const priceCents = dto.price ? hundredths(dto.price.amountCents, dto.price.exponent) : null;
+  // The smallest unit of its own currency, as the API sends it and takes it back.
+  const priceCents = dto.price ? dto.price.amountCents : null;
   return {
     id: dto.id,
     type: dto.type,
@@ -171,6 +172,3 @@ export function toSavedPost(dto: SavedPostDto): SavedPost {
     imageUrls: (dto.images ?? []).map((i) => i.fullUrl || i.cardUrl),
   };
 }
-
-/** The API's money is in the smallest unit with its exponent; the wizard works in hundredths. */
-const hundredths = (amount: number, exponent: number) => Math.round((amount / 10 ** exponent) * 100);

@@ -289,7 +289,7 @@ export const wizardCopy = {
   close: 'Close',
   photos: {
     label: 'Photos',
-    rule: '2–4 photos required',
+    rule: 'Optional, up to 4',
     add: 'Add photo',
     reorder: 'Drag to reorder. The first photo is the cover.',
     remove: (n: number) => `Remove photo ${n}`,
@@ -328,13 +328,19 @@ export const wizardCopy = {
   morePeople: 'More people',
   typeCapacity: 'Type a number, or use the minus and plus buttons.',
   eventCapacityHint: 'Events are for more than 100 people, or have no limit.',
-  groupCapacityHint: 'Groups are for 1 to 100 people.',
+  groupCapacityHint: 'Groups are for 1 to 100 people. Clear the number for no limit.',
+  /** Meetups and Plans: how to say there is no limit. */
+  openCapacityHint: 'Clear the number for no limit.',
   showOnMapTitle: 'Show on map',
   showOnMapBody: 'Visible on public map',
   waitlistTitle: 'Waiting list',
   waitlistBody: 'People can queue for a spot when it’s full',
   amount: 'Amount',
   currency: 'Currency',
+  /** Read out for the currency button: "Currency, Nigerian naira. Change". */
+  changeCurrency: (name: string) => `Currency, ${name}. Change`,
+  /** Read out where the currency cannot be changed: "Currency, Nigerian naira". */
+  currencyIs: (name: string) => `Currency, ${name}`,
   linkLabel: 'Link to pay or book (optional)',
   linkPlaceholder: 'https://',
   /** Moves on from the price step with no price and no link. */
@@ -390,11 +396,10 @@ export const wizardCopy = {
 /** What a field's issue says under it. */
 export const issueCopy: Record<DraftIssue, string> = {
   required: 'This is needed.',
-  tooFewPhotos: 'Add at least 2 photos.',
   inPast: 'Pick a time in the future.',
   endBeforeStart: 'Pick an end time different from the start.',
   capacityRange: 'Pick a size this type allows.',
-  priceRange: 'Enter a whole amount from 1 to 1,000,000, or skip the price.',
+  priceRange: 'Enter an amount, like 5000 or 20.50, or skip the price.',
   tooManyLines: 'Keep it to 30 lines.',
   lineTooLong: 'Keep each line to 120 characters.',
   monthlyDay: 'A monthly group starts on the 1st to the 28th. Pick an earlier date, or repeat weekly.',
@@ -405,7 +410,7 @@ export const issueCopy: Record<DraftIssue, string> = {
 
 /** The review step's list of what is still missing, by field. */
 export const fieldNames: Record<DraftField, string> = {
-  photos: 'Photos (2 to 4)',
+  photos: 'Photos',
   title: 'Title',
   description: 'Description',
   destination: 'Destination',

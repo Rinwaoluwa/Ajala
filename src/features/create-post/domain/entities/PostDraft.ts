@@ -1,3 +1,5 @@
+import { HOME_CURRENCY } from '@shared/money';
+
 import type { PostKind } from '../postKinds';
 
 /**
@@ -7,7 +9,8 @@ import type { PostKind } from '../postKinds';
  * them into what the API takes.
  */
 
-export type Currency = 'NGN' | 'USD';
+/** An ISO 4217 code, capitals ("NGN", "GBP", "JPY"): the API takes any (spec §1.5). */
+export type Currency = string;
 
 /** A photo picked for the carousel, compressed and ready to upload. */
 export type DraftPhoto = { key: string; uri: string; name: string; type: 'image/jpeg' };
@@ -87,18 +90,19 @@ export type PostDraft = {
   showOnMap: boolean;
   waitlist: boolean;
   /**
-   * Meetups, Events and Groups: what each person pays, in whole units as typed.
+   * Meetups, Events and Groups: what each person pays, as typed ("5000", "20.50").
    * Blank is "no price" — the host may skip it, so the post shows no price at all
    * (not "Free"). Plans carry no money, so theirs is never sent.
    */
   price: string;
+  /** The currency of `price`: the person's usual one to start with, any other by the picker. */
   currency: Currency;
   /** Meetups, Events and Groups: an optional https link to pay or book. Never sent on a Plan. */
   externalUrl: string;
   interestIds: string[];
 };
 
-export function emptyDraft(kind: PostKind): PostDraft {
+export function emptyDraft(kind: PostKind, currency: Currency = HOME_CURRENCY): PostDraft {
   return {
     kind,
     photos: [],
@@ -123,7 +127,7 @@ export function emptyDraft(kind: PostKind): PostDraft {
     showOnMap: true,
     waitlist: false,
     price: '',
-    currency: 'NGN',
+    currency,
     externalUrl: '',
     interestIds: [],
   };
@@ -186,7 +190,7 @@ export type SavedPost = {
   lat: number | null;
   lng: number | null;
   capacity: number | null;
-  /** Per person, in hundredths of the currency; null when there is no price. */
+  /** Per person, in the currency's smallest unit (kobo, cents, yen); null when there is no price. */
   priceCents: number | null;
   currency: string | null;
   externalUrl: string | null;

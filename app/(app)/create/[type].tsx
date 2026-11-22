@@ -28,6 +28,8 @@ export default function CreateWizardRoute() {
       editId={editId ?? null}
       // A free member may post only near where they are (MOB-077): the pickers offer only that.
       ownAreaOnly={!isPro}
+      // Pricing a post in another currency than where they are is a Travel Pro feature.
+      canChooseCurrency={isPro}
       onClose={() => (router.canGoBack() ? router.back() : router.replace('/(app)/(tabs)'))}
       onPublished={(id) => {
         // An edit returns to the post page it came from, which redraws with the changes:

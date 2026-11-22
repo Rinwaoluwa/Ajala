@@ -47,13 +47,14 @@ function ready(kind: PostDraft['kind'] = 'meetup'): PostDraft {
 }
 
 describe('the steps', () => {
-  it('needs 2 photos, a title and a description to leave the first step', () => {
-    const draft = { ...ready(), photos: [photo(1)], title: ' ', description: '' };
-    expect(stepIssues(draft, 'basics', NOW)).toEqual({
-      photos: 'tooFewPhotos',
-      title: 'required',
-      description: 'required',
-    });
+  it('needs a title and a description to leave the first step', () => {
+    const draft = { ...ready(), title: ' ', description: '' };
+    expect(stepIssues(draft, 'basics', NOW)).toEqual({ title: 'required', description: 'required' });
+  });
+
+  it('lets a post go without photos, or with one', () => {
+    expect(stepIssues({ ...ready(), photos: [] }, 'basics', NOW)).toEqual({});
+    expect(stepIssues({ ...ready(), photos: [photo(1)] }, 'basics', NOW)).toEqual({});
   });
 
   it('asks a Plan or Group for its destination, and not a Meetup', () => {
@@ -140,8 +141,22 @@ describe('capacity', () => {
     expect(stepCapacity('event', null, -1)).toBeNull();
   });
 
+  it('takes any type from no limit back to its smallest number', () => {
+    expect(stepCapacity('meetup', null, 1)).toBe(1);
+    expect(stepCapacity('group', null, 1)).toBe(1);
+    expect(stepCapacity('meetup', null, -1)).toBeNull();
+  });
+
+  it('lets every type go without a limit', () => {
+    for (const kind of ['meetup', 'event', 'plan', 'group'] as const) {
+      expect(stepIssues({ ...ready(kind), capacity: null }, 'participants', NOW)).toEqual({});
+      expect(toSubmission({ ...ready(kind), capacity: null })).not.toHaveProperty('capacity');
+    }
+  });
+
   it('keeps a Group within 1 to 100 and a Meetup at 1 or more', () => {
     expect(stepCapacity('group', 100, 1)).toBe(100);
+    // Counting down stops at 1: it does not run on into "no limit".
     expect(stepCapacity('group', 1, -1)).toBe(1);
     expect(stepCapacity('meetup', 1, -1)).toBe(1);
     expect(stepIssues({ ...ready('event'), capacity: 50 }, 'participants', NOW).capacity).toBe(
@@ -169,8 +184,25 @@ describe('money', () => {
 
   it('holds a typed price the API would refuse', () => {
     expect(stepIssues({ ...ready('event'), price: '2000000' }, 'price', NOW).price).toBe('priceRange');
-    expect(stepIssues({ ...ready('event'), price: '12.5' }, 'price', NOW).price).toBe('priceRange');
+    expect(stepIssues({ ...ready('event'), price: 'abc' }, 'price', NOW).price).toBe('priceRange');
     expect(stepIssues({ ...ready('event'), price: '1000000' }, 'price', NOW).price).toBeUndefined();
+  });
+
+  it("reads a price by its currency's own decimals", () => {
+    // Kobo and cents: two decimals.
+    expect(priceCentsOf({ ...ready('event'), price: '12.5' })).toBe(1_250);
+    expect(priceCentsOf({ ...ready('event'), price: '20.50', currency: 'USD' })).toBe(2_050);
+    expect(stepIssues({ ...ready('event'), price: '12.505' }, 'price', NOW).price).toBe('priceRange');
+    // The yen has none.
+    expect(priceCentsOf({ ...ready('event'), price: '1500', currency: 'JPY' })).toBe(1_500);
+    expect(stepIssues({ ...ready('event'), price: '1500.5', currency: 'JPY' }, 'price', NOW).price).toBe('priceRange');
+    // The Kuwaiti dinar has three.
+    expect(priceCentsOf({ ...ready('event'), price: '1.250', currency: 'KWD' })).toBe(1_250);
+    // And any currency is sent as it is.
+    expect(toSubmission({ ...ready('event'), price: '15', currency: 'GBP' })).toMatchObject({
+      priceCents: 1_500,
+      currency: 'GBP',
+    });
   });
 });
 
@@ -320,11 +352,14 @@ describe('helpers', () => {
 });
 
 describe('typing a capacity', () => {
-  it('keeps it in range once the field is left, and blank is no limit only where allowed', () => {
+  it('keeps it in range once the field is left, and blank stays no limit', () => {
     expect(clampCapacity('meetup', 0)).toBe(1);
     expect(clampCapacity('meetup', 25)).toBe(25);
     expect(clampCapacity('group', 500)).toBe(100);
-    expect(clampCapacity('meetup', null)).toBe(1);
+    // Cleared is "no limit", for every type: never put back to 1.
+    expect(clampCapacity('meetup', null)).toBeNull();
+    expect(clampCapacity('group', null)).toBeNull();
+    expect(clampCapacity('plan', null)).toBeNull();
     expect(clampCapacity('event', null)).toBeNull();
     expect(clampCapacity('event', 20)).toBe(101);
   });

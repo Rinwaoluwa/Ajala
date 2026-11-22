@@ -13,9 +13,10 @@ import { PHOTOS_MAX } from '../../domain/rules/postDraftRules';
 import { wizardCopy } from '../copy';
 
 /**
- * "Photos * 2–4 photos required" (Figma Basic Details): square tiles three to a
- * row, each numbered at its top-left with a × at its top-right, and the dashed
- * "Add photo" tile after them until there are four.
+ * "Photos · Optional, up to 4" (Figma Basic Details; photos stopped being
+ * required with the Home design of 22 Nov, where a post may be words alone):
+ * square tiles three to a row, each numbered at its top-left with a × at its
+ * top-right, and the dashed "Add photo" tile after them until there are four.
  *
  * Hold a photo and drag it to change the order; the first is the cover. New
  * photos fade in over 200ms.
@@ -37,9 +38,8 @@ export function PhotoGrid({ photos, onAdd, onRemove, onMove }: PhotoGridProps) {
       <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8 }}>
         <Text variant="bodyMd" style={{ flex: 1 }}>
           {wizardCopy.photos.label}
-          <Text variant="bodyMd"> * </Text>
           <Text variant="bodySm" tone="muted">
-            {wizardCopy.photos.rule}
+            {`  ${wizardCopy.photos.rule}`}
           </Text>
         </Text>
         <Text variant="bodySm" tone="muted" accessibilityLabel={`${photos.length} of ${PHOTOS_MAX} photos`}>

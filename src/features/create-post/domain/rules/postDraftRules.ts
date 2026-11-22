@@ -1,3 +1,5 @@
+import { amountAsInput, currencyCode, currencyExponent, parseAmount } from '@shared/money';
+
 import type { PostKind } from '../postKinds';
 import {
   emptyDraft,
@@ -14,7 +16,11 @@ import {
  * everything on Publish — but checking here saves a round trip per mistake.
  */
 
-export const PHOTOS_MIN = 2;
+/**
+ * Photos are optional (Home design, 22 Nov: a post may be words alone): none,
+ * or up to four. The API's publish rule still reads "2 to 4 images" (backend
+ * request B14), and says so itself on the review step until it changes.
+ */
 export const PHOTOS_MAX = 4;
 /** The design says 100; the API takes 80 (API map §5: "use 80"). */
 export const TITLE_MAX = 80;
@@ -35,8 +41,6 @@ export const EXTERNAL_URL_MAX = 2048;
 const PRICE_CENTS_MAX = 100_000_000;
 /** A monthly Group starts on the 1st to the 28th, so every month has its day (spec §2.12). */
 export const MONTHLY_LAST_DAY = 28;
-/** NGN (kobo) and USD (cents) both have two decimal places. */
-const MINOR_UNITS = 100;
 
 /** Every step there is, in order. A Plan skips the price step: see `stepsFor`. */
 export type WizardStep = 'basics' | 'schedule' | 'participants' | 'price' | 'review';
@@ -62,7 +66,6 @@ export type DraftField =
 /** What is wrong with a field, for the screen to put into words. */
 export type DraftIssue =
   | 'required'
-  | 'tooFewPhotos'
   | 'inPast'
   | 'endBeforeStart'
   | 'capacityRange'
@@ -111,13 +114,15 @@ export function stepsFor(kind: PostKind): readonly WizardStep[] {
 // ---------- capacity ----------
 
 /**
- * Capacity per type (spec §2.12): an Event is over 100 or unlimited (`null`), a
- * Group 1–100, Meetups and Plans anything from 1.
+ * Capacity per type (spec §2.12): an Event is over 100, a Group 1–100, Meetups
+ * and Plans anything from 1. Every type may also have no limit (`null`, sent as
+ * no capacity at all): "no limit" is an answer, not a blank to be filled in.
+ * The API publishes each type without a capacity (checked on staging, 22 Nov).
  */
 export function capacityRange(kind: PostKind): { min: number; max: number; unlimited: boolean } {
   if (kind === 'event') return { min: 101, max: 100_000, unlimited: true };
-  if (kind === 'group') return { min: 1, max: 100, unlimited: false };
-  return { min: 1, max: 100_000, unlimited: false };
+  if (kind === 'group') return { min: 1, max: 100, unlimited: true };
+  return { min: 1, max: 100_000, unlimited: true };
 }
 
 export function isCapacityValid(kind: PostKind, capacity: number | null): boolean {
@@ -127,20 +132,22 @@ export function isCapacityValid(kind: PostKind, capacity: number | null): boolea
 }
 
 /**
- * One tap of − or +. For an Event, − from the minimum goes to "no limit" and +
- * from "no limit" comes back to the minimum.
+ * One tap of − or +. From "no limit", + comes back to the smallest number. For
+ * an Event, − from its minimum (101) goes to "no limit", the only thing below
+ * it. Elsewhere − stops at 1: holding it down to count back must not run on
+ * into "no limit". There, "no limit" is chosen by clearing the number.
  */
 export function stepCapacity(kind: PostKind, capacity: number | null, delta: 1 | -1): number | null {
   const range = capacityRange(kind);
   if (capacity === null) return delta > 0 ? range.min : null;
   const next = capacity + delta;
-  if (next < range.min) return range.unlimited ? null : range.min;
+  if (next < range.min) return kind === 'event' ? null : range.min;
   return Math.min(range.max, next);
 }
 
 /**
  * A typed capacity, once the field is left: kept in range. Blank is "no limit"
- * where the kind allows one, and the smallest it can be otherwise.
+ * and stays so, for every type; it is never filled back in with a number.
  */
 export function clampCapacity(kind: PostKind, typed: number | null): number | null {
   const range = capacityRange(kind);
@@ -159,21 +166,21 @@ export function parseWhole(text: string): number | null {
 }
 
 /**
- * The price per person in the smallest unit, as `priceCents` (spec §1.5). Null
- * when there is none — left blank, skipped, out of range, or on a Plan.
+ * The price per person in the currency's smallest unit (kobo, cents, yen), as
+ * `priceCents` (spec §1.5). Each currency has its own decimals: "20.50" is 2050
+ * cents, "1500" is 1500 yen. Null when there is none — left blank, skipped, not
+ * an amount this currency can have, out of range, or on a Plan.
  */
 export function priceCentsOf(draft: PostDraft): number | null {
   if (!hasPrice(draft.kind)) return null;
-  const amount = parseWhole(draft.price);
-  if (amount === null) return null;
-  const cents = amount * MINOR_UNITS;
-  return cents >= 1 && cents <= PRICE_CENTS_MAX ? cents : null;
+  const cents = parseAmount(draft.price, draft.currency);
+  return cents !== null && cents >= 1 && cents <= PRICE_CENTS_MAX ? cents : null;
 }
 
-/** The price in whole units, for the screen to show; null when there is none. */
+/** The price in the currency's whole units, for the screen to show; null when there is none. */
 export function priceOf(draft: PostDraft): number | null {
   const cents = priceCentsOf(draft);
-  return cents === null ? null : cents / MINOR_UNITS;
+  return cents === null ? null : cents / 10 ** currencyExponent(draft.currency);
 }
 
 // ---------- time ----------
@@ -249,7 +256,6 @@ export function stepIssues(draft: PostDraft, step: WizardStep, now: Date = new D
   const issues: DraftIssues = {};
   switch (step) {
     case 'basics':
-      if (draft.photos.length < PHOTOS_MIN) issues.photos = 'tooFewPhotos';
       if (!draft.title.trim()) issues.title = 'required';
       if (!draft.description.trim()) issues.description = 'required';
       if (needsDestination(draft.kind) && !draft.destination) issues.destination = 'required';
@@ -506,6 +512,8 @@ export function draftFromSaved(saved: SavedPost): PostDraft {
   const lines = saved.type === 'event' ? saved.schedule : saved.type === 'plan' ? saved.itinerary : [];
   const repeat = canRepeat(saved.type) ? saved.recurrence : null;
   const priced = hasPrice(saved.type);
+  // Whatever currency it was saved in (any ISO code); the usual one where it has none.
+  const savedCurrency = (priced ? currencyCode(saved.currency) : null) ?? base.currency;
   return {
     ...base,
     photos: saved.imageUrls.slice(0, PHOTOS_MAX).map((uri, i) => ({
@@ -527,8 +535,8 @@ export function draftFromSaved(saved: SavedPost): PostDraft {
     visibility: saved.visibility,
     showOnMap: saved.showOnMap,
     waitlist: saved.waitlistEnabled,
-    price: priced && saved.priceCents !== null ? String(Math.round(saved.priceCents / MINOR_UNITS)) : '',
-    currency: priced && saved.currency === 'USD' ? 'USD' : 'NGN',
+    price: priced && saved.priceCents !== null ? amountAsInput(saved.priceCents, savedCurrency) : '',
+    currency: savedCurrency,
     externalUrl: priced ? (saved.externalUrl ?? '') : '',
     interestIds: saved.interestIds.slice(0, INTERESTS_MAX),
   };

@@ -16,8 +16,8 @@ import { wizardCopy } from '../copy';
  *
  * The number is also a field: tap it and type. What is typed counts as it is
  * typed (`onType`), and is put back in range when the field is left
- * (`onCommit`), so 0 becomes the smallest allowed and blank is "No limit" where
- * the kind allows one.
+ * (`onCommit`), so 0 becomes the smallest allowed. Cleared, it reads "No limit"
+ * and stays so: no limit is an answer for every type, never refilled with 1.
  */
 
 const REPEAT_FIRST_MS = 350;

@@ -7,7 +7,8 @@
 (Figma, light and dark). One wizard, worded per type (`presentation/copy.ts`): five steps, or four
 for a Plan, which has no price step (`stepsFor`):
 
-1. **Basic details** — 2–4 photos (hold and drag to reorder; the first is the cover), title (80,
+1. **Basic details** — photos, optional, up to 4 (hold and drag to reorder; the first is the cover;
+   the API still asks for 2–4 to publish, backend request B14), title (80,
    the API's limit — the design says 100), description (500, the design's; the API takes 1000),
    and a Plan's destination or a Group's location (a city, searched in place with Google through
    `@core/places`: `searchCities`, then `placeDetails`).
@@ -15,9 +16,14 @@ for a Plan, which has no price step (`stepsFor`):
    meeting point or venue (Google suggestions as you type, `searchPlaces`, nearest a Plan's or
    Group's destination first; or just typed), an Event's **schedule** or a Plan's **itinerary** (lines in order, at
    most 30 of 120 characters), and a Group's **Repeats** (weekly, every 2 weeks, monthly; optional last date).
-3. **Who can join?** — capacity (Event: over 100 or no limit; Group: 1–100), open or request to
+3. **Who can join?** — capacity (Event: over 100; Group: 1–100; Meetup and Plan: from 1; or no
+   limit on any type, by clearing the number, which is never refilled), open or request to
    join, show on map, waiting list.
-4. **Price** (Meetups, Events and Groups only) — an optional price per person (NGN or USD) and
+4. **Price** (Meetups, Events and Groups only) — an optional price per person, in the currency
+   of where the person is. Pricing in another currency is a Travel Pro feature
+   (`canChooseCurrency`, from the route): only then is the currency a button that opens the
+   picker, and a new post starts in the one they last picked. The amount is read by the
+   currency's own decimals (`@shared/money`). And
    an optional https link to pay or book. **Skip, no price** moves on with neither and clears
    anything typed. A paid Event needs no link. Plans never see this step.
 5. **Review** — the post as it will look, its interests (1–3), anything still missing, Publish.
