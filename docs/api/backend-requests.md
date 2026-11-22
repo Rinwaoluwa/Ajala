@@ -224,6 +224,63 @@ These three are related:
 - **Problem:** lists that mix my posts with other people's (Trips, Saved, search) can't mark "Hosting" without comparing `host.id` to my id.
 - **Proposal:** add `isHost: boolean` to `PostCardDto`, as `PostDetailDto` has it. This is low priority, because the app can compare ids.
 
+### B10. What a feed post needs on its card (22 Nov, the new Home design)
+**Status: Open.**
+
+- **Problem:** the new Home feed draws each post as a social post: the host, when it was posted, the host's words, the photos, then a Join banner and a row of actions. `PostCardDto` has none of the first three, so the app asks `GET /posts/:id` once per card for the words (20 extra calls a page) and shows the distance where the time should be.
+- **Proposal:** add to `PostCardDto`:
+  ```ts
+  /** The host's words; the feed shows the first two lines. */
+  description: string;
+  /** When it went live. */
+  publishedAt: string;
+  ```
+
+### B11. Comment count on cards
+**Status: Open.**
+
+- **Problem:** the design shows the number of comments beside the comment button. The count exists only as `total` on `GET /posts/:id/comments`.
+- **Today:** the app asks `GET /posts/:id/comments?limit=1` once per post on screen and reads `total` (kept for five minutes), a second extra call per card on top of B10's.
+- **Proposal:** add `commentCount: number` to `PostCardDto`.
+
+### B12. Likes
+**Status: Open. A product decision first.**
+
+- **Problem:** the design has a heart and a like count on every post. The spec says there are none (§2.11 "No likes, no engagement ranking"; comments: "no likes"), and `POST /posts/:id/like` is a 404 (checked again on staging and dev, 22 Nov).
+- **Today:** the heart is drawn and remembered on the phone only, per account. The host is not told and the like does not follow the person to another phone. The count beside it is only the reader's own like (1 or nothing), because the phone knows of no others.
+- **Need:** are likes coming? If so: `POST` / `DELETE /posts/:id/like` (204), and `likeCount: number` and `liked: boolean` on `PostCardDto` and `PostDetailDto`.
+
+### B13. Hide, Not interested and Mute
+**Status: Open.**
+
+- **Problem:** the design's post menu has "Hide post", "Not interested" (see fewer posts like this) and "Mute this person" (stop seeing their posts). None has an endpoint (`/posts/:id/hide`, `/posts/:id/not-interested` and `/users/:id/mute` are 404).
+- **Today:** "Hide post" is done on the phone (the post is remembered there and left out of the feed), so it does not follow the person to another phone. The other two are left out: "see fewer like this" needs the server's ranking, and a mute nobody can see or undo would be a trap.
+- **Proposal:** `POST` / `DELETE /posts/:id/hide`; `POST` / `DELETE /users/:id/mute` with `GET /me/mutes` for a settings list, both leaving the feed, map and search; and a decision on what "Not interested" should change.
+
+### B14. Posts without photos
+**Status: Open on staging (checked 22 Nov, 19:36 WAT). Dev not checked: no working dev test login.**
+
+- **Problem:** the new Home design has posts that are words alone, and product says photos are now optional. The app no longer asks for them (none, or up to four) and sends the publish with no `images`. Staging still answers 400 `VALIDATION_FAILED` `{ field: "images", message: "Add 2 to 4 images" }`:
+  - from the app, 22 Nov 19:33 WAT, request `cfc34b5f-5493-4ad6-af6f-9fb27da8bfdd`;
+  - from curl with no app involved (a Meetup, every other publish rule met), 19:36 WAT, request `1cf6db31-edf4-42c3-ab9d-6177f6184590`.
+- **Today:** the review step shows the server's own "Add 2 to 4 images" with a link back to the photos. A post cannot go live on staging without two photos until the server changes.
+- **Also needed:** a way to empty a carousel when someone removes every photo from a post that had some. `PUT /posts/:id/images` answers 400 on the count, so the app does not call it with none and the old photos stay.
+- **Proposal:** publish with 0 to 4 images, for every type; `PUT /posts/:id/images` with no files clears the carousel (or `DELETE /posts/:id/images`); cards and detail then come with `images: []`.
+
+### B15. Exchange rates
+**Status: Open.**
+
+- **Problem:** the app now works in the currency of where the person is (naira in Lagos, euros in Paris) and shows a price in another currency with its rough equivalent ("₦15,000 · ≈ €8.50"). Explore's "Maximum price" compares posts priced in other currencies the same way. The API has no rates.
+- **Today:** the app reads a public, key-less daily table (the open `currency-api` dataset, from jsDelivr with a mirror; `src/core/fx/exchangeRates.ts`). Nothing about the person is sent. If it does not answer, no estimate is shown. It is a third-party source with no guarantee, and each phone reads it for itself.
+- **Proposal:** `GET /fx/rates` (no auth) → `{ base: "USD", date, rates: { NGN: 1353.02, … } }`, cached for a day, so the app and the server agree and the source is ours to choose. With it, `GET /map/pins` and `GET /search/posts` could also take `maxPrice` + `currency` and filter on the server.
+
+### B16. Capacity: is "no limit" allowed on every type?
+**Status: A question. The app now relies on the answer being yes.**
+
+- **What we see:** the spec says a Group needs 1–100 (§2.12). On staging (22 Nov) a publish with no `capacity` fails only on `images` for a Meetup, a Group and an Event alike; no capacity rule is listed.
+- **Today:** clearing the capacity field means "No limit" on every type, and the post is sent with no `capacity`.
+- **Need:** confirm that no capacity is valid on a Group (and a Plan). If a Group must have 1–100, say so and the app will ask for one again.
+
 ---
 
 ## C. Product decisions we need written down (backend + product)
