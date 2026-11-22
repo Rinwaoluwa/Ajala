@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { FlatList, RefreshControl, ScrollView, View, useColorScheme } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -13,7 +13,10 @@ import {
   Text,
   VectorIcon,
   enterRise,
+  tabBarMinimize,
   useListEntrance,
+  useMinimizeTabBarOnScroll,
+  useOnSignal,
 } from '@shared/components';
 import { haptics } from '@shared/feedback/haptics';
 import { useTheme } from '@shared/hooks/useTheme';
@@ -49,15 +52,25 @@ const TAB_BAR_CLEARANCE = 120;
 export type TripsScreenProps = {
   onOpenTrip: (id: string) => void;
   onExplore: () => void;
+  /** Changes when the Trips tab is tapped while Trips is in front: the list goes back to its top. */
+  toTopSignal?: number;
 };
 
-export function TripsScreen({ onOpenTrip, onExplore }: TripsScreenProps) {
+export function TripsScreen({ onOpenTrip, onExplore, toTopSignal }: TripsScreenProps) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const dark = useColorScheme() === 'dark';
   const [tab, setTab] = useState<TripsTab>('upcoming');
   const list = useTripList(tab);
   const bottom = TAB_BAR_CLEARANCE + insets.bottom;
+  // Scrolling down a list shrinks the tab bar out of the way; back up brings it back.
+  const minimizeOnScroll = useMinimizeTabBarOnScroll();
+  const trips = useRef<FlatList<(typeof list.items)[number]>>(null);
+  // The Trips tab tapped while on Trips: back to the top of the list.
+  useOnSignal(toTopSignal, () => {
+    tabBarMinimize.set(false);
+    trips.current?.scrollToOffset({ offset: 0, animated: true });
+  });
   // The first cards rise in once per tab, never again as the list re-mounts rows.
   const enter = useListEntrance(list.items.length > 0);
 
@@ -165,6 +178,8 @@ export function TripsScreen({ onOpenTrip, onExplore }: TripsScreenProps) {
         </Animated.View>
       ) : (
         <FlatList
+          ref={trips}
+          {...minimizeOnScroll}
           key={tab}
           data={list.items}
           keyExtractor={(t) => t.id}

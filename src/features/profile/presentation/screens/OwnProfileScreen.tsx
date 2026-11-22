@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { RefreshControl, ScrollView, View, useColorScheme } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -14,6 +15,9 @@ import {
   UnderlineTabs,
   VectorIcon,
   icons,
+  tabBarMinimize,
+  useMinimizeTabBarOnScroll,
+  useOnSignal,
 } from '@shared/components';
 import { useTheme } from '@shared/hooks/useTheme';
 import { SCREEN_GUTTER, palette } from '@shared/theme';
@@ -56,12 +60,22 @@ export type OwnProfileScreenProps = {
   onSaved: () => void;
   onAchievements: () => void;
   onOpenPost: (postId: string) => void;
+  /** Changes when the Profile tab is tapped while Profile is in front: the page goes back to its top. */
+  toTopSignal?: number;
 };
 
 export function OwnProfileScreen(props: OwnProfileScreenProps) {
   const theme = useTheme();
   const scheme = useColorScheme();
   const insets = useSafeAreaInsets();
+  // Scrolling down the profile shrinks the tab bar out of the way; back up brings it back.
+  const minimizeOnScroll = useMinimizeTabBarOnScroll();
+  const page = useRef<ScrollView>(null);
+  // The Profile tab tapped while on Profile: back to the top of the page.
+  useOnSignal(props.toTopSignal, () => {
+    tabBarMinimize.set(false);
+    page.current?.scrollTo({ y: 0, animated: true });
+  });
   const vm = useOwnProfile();
   const copy = profileViewCopy;
   const unread = props.unreadNotifications ?? 0;
@@ -143,6 +157,8 @@ export function OwnProfileScreen(props: OwnProfileScreenProps) {
         </RoundIconButton>
       </View>
       <ScrollView
+        ref={page}
+        {...minimizeOnScroll}
         // Android draws scrolled content past the edges unless told to clip, over the header above.
         style={{ flex: 1, overflow: 'hidden' }}
         contentContainerStyle={{
