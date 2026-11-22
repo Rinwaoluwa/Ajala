@@ -100,6 +100,7 @@ function ChipComponent({
     // A jelly wobble on touch (`JellyPress`), as every pill in the app.
     <JellyPress
       onPress={onPress}
+      repeatable
       disabled={inactive}
       onPressIn={() => pressed.set(withTiming(1, { duration: 90 }))}
       onPressOut={() => pressed.set(withTiming(0, { duration: 160 }))}

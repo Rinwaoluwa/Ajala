@@ -93,6 +93,7 @@ function InterestChip({ label, selected, onPress }: { label: string; selected: b
     // A jelly wobble on touch (`JellyPress`), as the home feed's pills.
     <JellyPress
       onPress={onPress}
+      repeatable
       accessibilityRole="radio"
       accessibilityState={{ checked: selected }}
       accessibilityLabel={label}

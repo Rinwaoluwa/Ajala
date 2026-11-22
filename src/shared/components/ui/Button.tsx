@@ -3,6 +3,7 @@ import { useCallback, useState } from 'react';
 import { Platform, View, type LayoutChangeEvent } from 'react-native';
 
 import { useFontScale } from '@shared/hooks/useFontScale';
+import { usePressOnce } from '@shared/hooks/usePressOnce';
 import { useTheme } from '@shared/hooks/useTheme';
 import { layout, textStyles } from '@shared/theme';
 
@@ -147,6 +148,9 @@ export function ButtonCore({
 }: ButtonCoreProps) {
   const theme = useTheme();
   const fontScale = useFontScale();
+  // Once per tap: a second press within half a second is ignored, so a double tap does not
+  // send a form or open a screen twice before `loading` has had time to show.
+  const pressOnce = usePressOnce(onPress);
 
   const height = HEIGHT[size];
   const radius =
@@ -200,7 +204,7 @@ export function ButtonCore({
       // While loading the button stays enabled and swallows taps instead. Disabling
       // it would make SwiftUI dim the label and spinner to a faded grey, which reads
       // as "unavailable" — the opposite of "working, please wait".
-      onPress={loading ? ignorePress : onPress}
+      onPress={loading ? ignorePress : pressOnce}
       disabled={disabled}
       testID={testID}
       modifiers={[

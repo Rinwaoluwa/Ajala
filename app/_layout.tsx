@@ -14,8 +14,10 @@ import { AuthProvider } from '@features/auth';
 import { LaunchOverlay } from '@bootstrap/splash/LaunchOverlay';
 import { queryPersistOptions } from '@core/api/queryClient/persist';
 import { queryClient } from '@core/api/queryClient/queryClient';
+import { installNavigationGuard } from '@core/navigation/navigationGuard';
 import { useStackScreenOptions } from '@shared/hooks/useStackScreenOptions';
 import { restoreAppearance } from '@shared/state/appearance';
+import { restorePreferredCurrency } from '@shared/state/preferredCurrency';
 import { LaunchStateProvider } from '@shared/state/LaunchState';
 import { ThemeCrossfade } from '@shared/components';
 import { fontAssets } from '@shared/theme';
@@ -29,10 +31,15 @@ import '../global.css';
 // 11 Nov at 320-470ms of work per switch in development, against 125ms frozen.
 enableFreeze(true);
 
+// One tap, one screen: a double tap must not open the same screen twice.
+installNavigationGuard();
+
 // Called at module load, before React mounts, so the splash never flashes away early.
 void SplashScreen.preventAutoHideAsync();
 // The chosen Light / Dark / System, applied while the splash still covers the app.
 void restoreAppearance();
+// The currency this person last picked, offered first wherever one is chosen.
+void restorePreferredCurrency();
 
 export default function RootLayout() {
   const screenOptions = useStackScreenOptions();

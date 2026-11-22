@@ -1,5 +1,6 @@
 import { TouchableOpacity } from 'react-native';
 
+import { usePressOnce } from '@shared/hooks/usePressOnce';
 import { useTheme } from '@shared/hooks/useTheme';
 
 import { GlassSurface } from '../surface/GlassSurface';
@@ -24,10 +25,12 @@ export type BackButtonProps = {
 
 export function SolidBackButton({ onPress, label = 'Back' }: BackButtonProps) {
   const theme = useTheme();
+  // Once per tap: a double tap on Back went back two screens.
+  const pressOnce = usePressOnce(onPress);
   return (
     <TouchableOpacity
       activeOpacity={0.6}
-      onPress={onPress}
+      onPress={pressOnce}
       hitSlop={8}
       accessibilityRole="button"
       accessibilityLabel={label}

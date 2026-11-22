@@ -9,6 +9,7 @@ import {
 import { View } from 'react-native';
 
 import { useLiquidGlass } from '@shared/hooks/useLiquidGlass';
+import { usePressOnce } from '@shared/hooks/usePressOnce';
 import { useTheme } from '@shared/hooks/useTheme';
 
 import { SolidBackButton, BACK_BUTTON_SIZE, type BackButtonProps } from './SolidBackButton';
@@ -27,6 +28,8 @@ export { BACK_BUTTON_SIZE, type BackButtonProps } from './SolidBackButton';
 export function BackButton({ onPress, label = 'Back' }: BackButtonProps) {
   const glass = useLiquidGlass();
   const theme = useTheme();
+  // Once per tap: a double tap on Back went back two screens.
+  const pressOnce = usePressOnce(onPress);
 
   if (!glass) return <SolidBackButton onPress={onPress} label={label} />;
 
@@ -36,7 +39,7 @@ export function BackButton({ onPress, label = 'Back' }: BackButtonProps) {
       {/* ignoreSafeArea: near the top of the screen a Host would push its content down. */}
       <Host matchContents ignoreSafeArea="all" style={{ width: BACK_BUTTON_SIZE, height: BACK_BUTTON_SIZE }}>
         <Button
-          onPress={onPress}
+          onPress={pressOnce}
           modifiers={[
             buttonStyle('glass'),
             buttonBorderShape('circle'),
