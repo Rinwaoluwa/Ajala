@@ -97,7 +97,14 @@ async function googleRequest<T>(
     });
   } catch (e) {
     if (init.signal?.aborted) throw e;
-    throw new PlacesError('network', 'Could not reach Google Places.');
+    // The reason goes to the development log (`PlacesError` writes it): "timed out after 8s"
+    // and "the connection was lost" call for different fixes.
+    const why = controller.signal.aborted
+      ? `no answer in ${TIMEOUT_MS / 1000}s`
+      : e instanceof Error
+        ? e.message
+        : String(e);
+    throw new PlacesError('network', `Could not reach Google Places (${why}).`);
   } finally {
     clearTimeout(timer);
     init.signal?.removeEventListener('abort', onCallerAbort);
