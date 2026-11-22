@@ -13,6 +13,7 @@ import { LocationGate } from '@features/location-access';
 import { PushNotifications } from '@features/notifications';
 import { paymentRoutes } from '@features/payment';
 import { postDetailRoutes } from '@features/post-detail';
+import { useCurrencyFollowsLocation } from '@shared/hooks/useLocalMoney';
 import { useStackScreenOptions } from '@shared/hooks/useStackScreenOptions';
 import { ApiRequesterProvider } from '@shared/state/apiRequester';
 
@@ -43,6 +44,8 @@ const PUSH_ENABLED = false;
  * never comes before sign-in or on top of onboarding.
  */
 export default function AppLayout() {
+  // The app's currency follows the country the phone is in (naira in Lagos, euros in Paris).
+  useCurrencyFollowsLocation();
   const auth = useAuthState();
   const entry = useEntryCheck();
   const request = useAuthorizedRequest();

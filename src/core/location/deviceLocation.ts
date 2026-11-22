@@ -68,6 +68,25 @@ export async function getCurrentCoordinates(timeoutMs = 8000): Promise<Coordinat
   }
 }
 
+/**
+ * The country the phone is in ("NG"), by the phone's own geocoder (Apple's on
+ * iOS, Google Play services' on Android), from the same city-accuracy position.
+ * Null without permission, a position, or an answer. It never asks for
+ * permission: it only reads where the app is already allowed to look.
+ */
+export async function getCurrentCountry(): Promise<string | null> {
+  try {
+    if ((await getLocationPermission()) !== 'granted') return null;
+    const coords = await getCurrentCoordinates();
+    if (!coords) return null;
+    const [address] = await Location.reverseGeocodeAsync({ latitude: coords.lat, longitude: coords.lng });
+    const code = address?.isoCountryCode?.trim();
+    return code && /^[A-Za-z]{2}$/.test(code) ? code.toUpperCase() : null;
+  } catch {
+    return null;
+  }
+}
+
 /** This app's page in the system Settings, where a blocked permission is turned back on. */
 export function openAppSettings(): void {
   void Linking.openSettings().catch(() => undefined);
