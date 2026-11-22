@@ -29,7 +29,6 @@ export function SettingsScreen({ onBack, onNavigate, onOpenProfile }: SettingsSc
   const account = useAccount();
   const drafts = useDrafts();
   const support = useSupportLinks();
-  const appearance = useAppearancePreference();
   const signOut = useSignOut();
 
   const logOut = () => {
@@ -81,13 +80,7 @@ export function SettingsScreen({ onBack, onNavigate, onOpenProfile }: SettingsSc
           subtitle={copy.notificationsBody}
           onPress={() => onNavigate('notifications')}
         />
-        <ListRow
-          title={copy.appearance}
-          subtitle={copy.appearanceBody}
-          value={settingsCopy.appearance[appearance]}
-          hideChevron
-          onPress={() => onNavigate('appearance')}
-        />
+        <AppearanceRow onPress={() => onNavigate('appearance')} />
         <ListRow title={copy.privacy} subtitle={copy.privacyBody} onPress={() => onNavigate('privacy')} />
       </ListGroup>
       <ListGroup title={copy.support}>
@@ -96,5 +89,25 @@ export function SettingsScreen({ onBack, onNavigate, onOpenProfile }: SettingsSc
         <ListRow title={copy.logOut} destructive onPress={logOut} />
       </ListGroup>
     </SettingsFrame>
+  );
+}
+
+
+/**
+ * The Appearance row, with "System", "Light" or "Dark" at its right. The choice
+ * is read here, in the row, so choosing a theme re-draws this one row and not
+ * the whole of Settings (which sits, drawn, under the Appearance screen).
+ */
+function AppearanceRow({ onPress }: { onPress: () => void }) {
+  const copy = settingsCopy.hub;
+  const appearance = useAppearancePreference();
+  return (
+    <ListRow
+      title={copy.appearance}
+      subtitle={copy.appearanceBody}
+      value={settingsCopy.appearance[appearance]}
+      hideChevron
+      onPress={onPress}
+    />
   );
 }

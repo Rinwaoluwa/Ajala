@@ -2,6 +2,8 @@ import { Rectangle } from '@expo/ui/swift-ui';
 import { clipShape, foregroundStyle, frame, glassEffect } from '@expo/ui/swift-ui/modifiers';
 import { StyleSheet, View } from 'react-native';
 
+import { useAppColorScheme } from '@shared/hooks/useAppColorScheme';
+
 import type { GlassBackdropProps } from './GlassBackdrop';
 import { Host } from '../ui/Host';
 
@@ -19,6 +21,11 @@ import { Host } from '../ui/Host';
  * It takes no touches: the content above it does.
  */
 export function GlassBackdrop({ variant, tint, shape, appearance }: GlassBackdropProps) {
+  // The scheme is handed to the glass rather than left for it to pick up from the phone. A
+  // tab that is out of view is detached, and its glass did not always hear of a theme change
+  // made meanwhile: on Trips the pills stayed in their light look on the dark page, their
+  // labels unreadable. Told here, the glass is in the app's scheme wherever it is.
+  const scheme = useAppColorScheme();
   // The wrapper refuses touches for the whole layer: a SwiftUI host otherwise
   // swallows taps meant for the pill or button drawn over it.
   return (
@@ -28,7 +35,7 @@ export function GlassBackdrop({ variant, tint, shape, appearance }: GlassBackdro
       <Host
         style={StyleSheet.absoluteFill}
         ignoreSafeArea="all"
-        colorScheme={appearance === 'auto' ? undefined : appearance}
+        colorScheme={appearance === 'auto' ? scheme : appearance}
       >
         <Rectangle
           modifiers={[
