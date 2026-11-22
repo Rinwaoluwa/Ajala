@@ -4,6 +4,9 @@ export type VectorPath = { d: string; fill?: string; evenOdd: boolean };
 export type VectorIconData = {
   viewBox: string;
   solid: boolean;
+  /** Supplied as strokes: stroke the paths; fill them under the stroke when filled. */
+  stroked?: boolean;
+  strokeWidth?: number;
   paths: VectorPath[];
   silhouette: VectorPath[] | null;
 };
@@ -144,6 +147,45 @@ export const vectorIcons = {
         "evenOdd": false
       }
     ]
+  },
+  "heart": {
+    "viewBox": "0 0 22 22",
+    "solid": false,
+    "stroked": true,
+    "strokeWidth": 1.78243,
+    "paths": [
+      {
+        "d": "M10.6881 4.71713C8.87066 2.68189 5.83989 2.13441 3.5627 3.99808C1.28552 5.86176 0.964923 8.9777 2.7532 11.182L10.6881 18.5305L18.6231 11.182C20.4114 8.9777 20.1299 5.84216 17.8136 3.99808C15.4972 2.15402 12.5057 2.68189 10.6881 4.71713Z",
+        "evenOdd": false
+      }
+    ],
+    "silhouette": null
+  },
+  "comment": {
+    "viewBox": "0 0 22 22",
+    "solid": false,
+    "stroked": true,
+    "strokeWidth": 1.78243,
+    "paths": [
+      {
+        "d": "M10.6945 18.0079C15.218 18.0079 19.1775 15.5569 19.1775 10.1099C19.1775 4.66302 15.218 2.21191 10.6945 2.21191C6.17097 2.21191 2.21143 4.66302 2.21143 10.1099C2.21143 12.178 2.78222 13.8143 3.73795 15.0483C4.01753 15.4094 4.12861 15.8892 3.93506 16.3027C3.81718 16.5546 3.69313 16.795 3.56628 17.023C3.0348 17.9777 3.76705 19.3689 4.83855 19.1543C6.02739 18.9163 7.35686 18.5602 8.46595 18.0358C8.69751 17.9264 8.95504 17.8838 9.20906 17.916C9.69406 17.9775 10.1908 18.0079 10.6945 18.0079Z",
+        "evenOdd": false
+      }
+    ],
+    "silhouette": null
+  },
+  "bookmark": {
+    "viewBox": "0 0 22 22",
+    "solid": false,
+    "stroked": true,
+    "strokeWidth": 1.78243,
+    "paths": [
+      {
+        "d": "M4.11182 4.11218C4.11182 2.72722 5.23455 1.60449 6.61951 1.60449H14.7695C16.1545 1.60449 17.2772 2.72722 17.2772 4.11218V19.7852L10.6945 14.1429L4.11182 19.7852V4.11218Z",
+        "evenOdd": false
+      }
+    ],
+    "silhouette": null
   }
 } satisfies Record<string, VectorIconData>;
 

@@ -14,12 +14,25 @@ import { palette } from './tokens/colors';
  *     wash itself; on dark the see-through wash is flattened onto Night, so the
  *     tag reads the same as its pill without a photo showing through it.
  *
+ *   - `cover`: what fills a card's photo area when the post has no photo (photos
+ *     are optional). The type's colour at about a third, solid: a grey block
+ *     there reads as a photo that never loaded, and this is deeper than `tag`,
+ *     so the type tag still shows on it.
+ *
  * Teal for All, coral for Meetups, Marigold for Events, indigo for Plans and
  * green for Groups. Events take an ink label on Marigold, where white would be
  * unreadable.
  */
 export type TypeColorKey = 'all' | 'meetup' | 'event' | 'plan' | 'group';
-export type TypeColor = { fill: string; label: string; soft: string; softLabel: string; tag: string };
+export type TypeColor = {
+  fill: string;
+  label: string;
+  soft: string;
+  softLabel: string;
+  tag: string;
+  /** A card's photo area when the post has no photo: see the note above. */
+  cover: string;
+};
 
 const INDIGO = '#5C5CF6';
 
@@ -31,9 +44,10 @@ function flatten(hexWithAlpha: string, base: string): string {
   return `#${mixed.map((v) => v.toString(16).padStart(2, '0')).join('')}`;
 }
 
-const withTag = (c: Omit<TypeColor, 'tag'>, base: string | null): TypeColor => ({
+const withTag = (c: Omit<TypeColor, 'tag' | 'cover'>, base: string | null): TypeColor => ({
   ...c,
   tag: base ? flatten(c.soft, base) : c.soft,
+  cover: flatten(`${c.fill}59`, base ?? palette.white),
 });
 
 const LIGHT: Record<TypeColorKey, TypeColor> = {

@@ -3,24 +3,31 @@ import { useState } from 'react';
 
 import { CreateSomethingSheet, createPostRoutes, type PostKind } from '@features/create-post';
 import { paymentRoutes, useSubscription } from '@features/payment';
-import { FloatingTabBar, type TabItem } from '@shared/components';
+import { FloatingTabBar, tabReselected, type TabItem } from '@shared/components';
 
 /** Kinds only Travel Pro may create (product, 10 Nov): the sheet tags them, and the rest get the paywall. */
 const PRO_ONLY: readonly PostKind[] = ['plan'];
 
 /**
  * The signed-in app's tabs: Home, Explore, Trips and Profile in the floating
- * bar, with "+" between them opening "Create something" rather than a tab.
+ * bar, and the round "+" above it on the right, which opens "Create something"
+ * rather than a tab.
+ *
+ * Explore has no "+": its foot is the map's own dock and controls, which the
+ * button would sit on.
+ *
+ * Tapping the tab you are on takes it back to its beginning (`tabReselected`;
+ * each tab's route passes that on to its screen).
  */
 
-const LEFT: [TabItem, TabItem] = [
+const TABS: readonly TabItem[] = [
   { key: 'index', label: 'Home', icon: 'home' },
   { key: 'explore', label: 'Explore', icon: 'compass' },
-];
-const RIGHT: [TabItem, TabItem] = [
   { key: 'trips', label: 'Trips', icon: 'luggage' },
   { key: 'profile', label: 'Profile', icon: 'profile' },
 ];
+/** Tabs whose own floating controls take the corner the "+" would. */
+const NO_CREATE: readonly string[] = ['explore'];
 
 export default function TabsLayout() {
   const [creating, setCreating] = useState(false);
@@ -34,16 +41,20 @@ export default function TabsLayout() {
         // (Profile → Saved → back → Home → Profile) could return with its opacity
         // stuck at 0: a blank tab. Instant switching is also how iOS tab bars behave.
         screenOptions={{ headerShown: false }}
-        tabBar={({ state, navigation }) => (
-          <FloatingTabBar
-            left={LEFT}
-            right={RIGHT}
-            current={state.routes[state.index]?.name ?? 'index'}
-            onSelect={(key) => navigation.navigate(key)}
-            onCreate={() => setCreating(true)}
-            createLabel="Create something"
-          />
-        )}
+        tabBar={({ state, navigation }) => {
+          const current = state.routes[state.index]?.name ?? 'index';
+          return (
+            <FloatingTabBar
+              tabs={TABS}
+              current={current}
+              // The tab already in front, tapped again: back to its beginning (the top of the
+              // feed, the map on you). Any other: that tab.
+              onSelect={(key) => (key === current ? tabReselected(key) : navigation.navigate(key))}
+              onCreate={NO_CREATE.includes(current) ? undefined : () => setCreating(true)}
+              createLabel="Create something"
+            />
+          );
+        }}
       >
         <Tabs.Screen name="index" />
         <Tabs.Screen name="explore" />

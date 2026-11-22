@@ -22,6 +22,7 @@ export { icons } from './ui/icons';
 export { NativeSpinner, type NativeSpinnerProps } from './ui/NativeSpinner';
 export { SvgIcon, type SvgIconName, type SvgIconProps } from './ui/SvgIcon';
 export { VectorIcon, type VectorIconName, type VectorIconProps } from './ui/VectorIcon';
+export { RollingCount } from './ui/RollingCount';
 export { Illustration, type IllustrationName } from './ui/Illustration';
 export { TextField, type TextFieldProps, type TrailingAction } from './form/TextField';
 export { PasswordField, type PasswordFieldProps } from './form/PasswordField';
@@ -51,7 +52,8 @@ export { RoundFlag } from './media/RoundFlag';
 export { PaginationDots, type PaginationDotsProps } from './ui/PaginationDots';
 export { Screen, type ScreenProps, type ScreenEdge } from './layout/Screen';
 export { KeyboardStickyBar } from './layout/KeyboardStickyBar';
-export { PhotoViewer, type PhotoViewerProps } from './media/PhotoViewer';
+export { PhotoViewer, type PhotoOrigin, type PhotoViewerProps } from './media/PhotoViewer';
+export { CarouselIndicator, MediaCarousel, type MediaCarouselProps, type MediaFrame } from './media/MediaCarousel';
 export { PillRows, type PillRowsProps } from './layout/PillRows';
 export { LoadFailedState, type LoadFailedStateProps } from './display/LoadFailedState';
 export { NoConnectionArt, ServerDownArt } from './display/FailureArt';
@@ -86,10 +88,21 @@ export { SkeletonBlock, SkeletonPulse, type SkeletonBlockProps } from './feedbac
 export { Sheet, type SheetProps } from './overlay/Sheet';
 export { SuccessSheet, type SuccessSheetProps } from './overlay/SuccessSheet';
 export { PillTabs, type PillColor, type PillTabsProps, type PillTabOption } from './navigation/PillTabs';
-export { FloatingTabBar, type FloatingTabBarProps, type TabItem } from './navigation/FloatingTabBar';
+export {
+  FloatingTabBar,
+  TAB_BAR_HEIGHT,
+  tabBarBottom,
+  tabBarTop,
+  type FloatingTabBarProps,
+  type TabItem,
+} from './navigation/FloatingTabBar';
+export { tabBarMinimize, useMinimizeTabBarOnScroll } from './navigation/tabBarMinimize';
+export { tabReselected, useOnSignal, useTabReselects } from './navigation/tabReselect';
+export { CurrencyPicker, type CurrencyPickerProps } from './money/CurrencyPicker';
 export { CelebrationSheet, type CelebrationSheetProps } from './overlay/CelebrationSheet';
 export { Logo, logoHeight, type LogoProps, type LogoTone } from './brand/Logo';
 
 // Explore
 export { Dialog, type DialogProps } from './overlay/Dialog';
 export { MenuButton, type MenuAction, type MenuButtonProps } from './overlay/MenuButton';
+export { PopoverMenu, type PopoverAction, type PopoverMenuProps } from './overlay/PopoverMenu';

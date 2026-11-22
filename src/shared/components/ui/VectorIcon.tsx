@@ -20,6 +20,10 @@ import {
  * tones of the design's house, with every stroke kept. The house itself fills
  * in its own colours unless `tintFilled`. `filled` cross-fades in 160ms.
  *
+ * A `stroked` icon (a post's heart, comment and bookmark) is supplied as a
+ * stroke: outlined, the stroke is drawn in `color`; filled, the same shape is
+ * painted in `color` under its stroke.
+ *
  * Icons that do not change state, or are multi-colour art, stay on `SvgIcon`.
  */
 
@@ -73,11 +77,33 @@ export function VectorIcon({ name, size, color, filled = false, tintFilled = fal
     </Svg>
   );
 
+  const strokedShape = (fill: boolean) => (
+    <Svg width={size} height={size} viewBox={icon.viewBox}>
+      {icon.paths.map((p, i) => (
+        <Path
+          key={i}
+          d={p.d}
+          fill={fill ? color : 'none'}
+          stroke={color}
+          strokeWidth={icon.strokeWidth ?? STROKE}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      ))}
+    </Svg>
+  );
+
   // A solid icon (the two-tone house) is outlined by stroking its shapes. An
   // outline icon is filled by painting its silhouette and drawing its own strokes
   // over it a shade darker — the house's two tones, keeping every stroke.
-  const outline = icon.solid ? draw(icon.paths, 'stroke', false) : draw(icon.paths, 'fill', false);
-  const solid = icon.solid ? (
+  const outline = icon.stroked
+    ? strokedShape(false)
+    : icon.solid
+      ? draw(icon.paths, 'stroke', false)
+      : draw(icon.paths, 'fill', false);
+  const solid = icon.stroked ? (
+    strokedShape(true)
+  ) : icon.solid ? (
     draw(icon.paths, 'fill', !tintFilled)
   ) : (
     <Svg width={size} height={size} viewBox={icon.viewBox}>

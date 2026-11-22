@@ -71,9 +71,15 @@ export type SheetProps = {
    * touches: a celebration that spills past the sheet (`SuccessSheet`'s confetti).
    */
   overlay?: ReactNode;
+  /**
+   * Stays put above the scroll area, under the title: a search field over a long
+   * list (the currency picker). With one, the keyboard no longer sends the content
+   * to its end, since the field being typed in is here at the top.
+   */
+  header?: ReactNode;
 };
 
-export function Sheet({ isPresented, title, subtitle, onDismiss, children, overlay }: SheetProps) {
+export function Sheet({ isPresented, title, subtitle, onDismiss, children, overlay, header }: SheetProps) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const reduceMotion = useReducedMotion();
@@ -94,6 +100,11 @@ export function Sheet({ isPresented, title, subtitle, onDismiss, children, overl
   const lift = useSharedValue(0);
   const [keyboardRoom, setKeyboardRoom] = useState(0);
   const scroll = useRef<ScrollView>(null);
+  // Whether there is a pinned header (read by the keyboard listener, which outlives a render).
+  const pinned = useRef(false);
+  useEffect(() => {
+    pinned.current = header != null;
+  });
 
   useEffect(() => {
     if (!mounted || Platform.OS !== 'ios') return;
@@ -107,6 +118,7 @@ export function Sheet({ isPresented, title, subtitle, onDismiss, children, overl
     const hide = Keyboard.addListener('keyboardWillHide', (e) => move(0, e.duration));
     // Too little room above the keys: the end of the content, where the field and its button are.
     const didShow = Keyboard.addListener('keyboardDidShow', () => {
+      if (pinned.current) return;
       if (sizes.current.content > sizes.current.viewport + 1) scroll.current?.scrollToEnd({ animated: true });
     });
     return () => {
@@ -198,9 +210,10 @@ export function Sheet({ isPresented, title, subtitle, onDismiss, children, overl
             {subtitle}
           </Text>
         ) : null}
+        {header != null ? <View style={{ marginTop: subtitle ? 16 : title ? 16 : 20 }}>{header}</View> : null}
         <ScrollView
           ref={scroll}
-          style={{ marginTop: subtitle ? 20 : title ? 16 : 20, flexShrink: 1 }}
+          style={{ marginTop: header != null ? 12 : subtitle ? 20 : title ? 16 : 20, flexShrink: 1 }}
           scrollEnabled={contentOverflows}
           showsVerticalScrollIndicator={contentOverflows}
           keyboardShouldPersistTaps="handled"

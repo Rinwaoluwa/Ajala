@@ -204,7 +204,8 @@ function PostCardComponent({ post, onPress, onViewDetails, onOpenHost, onBeforeR
             justifyContent: 'space-between',
             borderRadius: RADIUS,
             overflow: 'hidden',
-            backgroundColor: theme.skeleton,
+            // No photo (they are optional): the type's own colour, not a grey that reads as loading.
+            backgroundColor: post.imageUrl ? theme.skeleton : typeColors[post.type].cover,
           }}
         >
           {post.imageUrl ? (
