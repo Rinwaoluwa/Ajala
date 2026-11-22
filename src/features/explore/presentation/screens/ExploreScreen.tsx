@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, View } from 'react-native';
-import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeOut, useReducedMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { getCurrentCoordinates } from '@core/location/deviceLocation';
@@ -8,13 +8,25 @@ import {
   MapCanvas,
   MapPin,
   regionAround,
+  regionCovering,
   regionToBbox,
   type MapCanvasHandle,
   type MapKind,
   type MapRegion,
 } from '@core/maps';
 import { haptics } from '@shared/feedback/haptics';
-import { Host, GlassSurface, LoadingRing, NativeIcon, StatusSheet, Text, icons } from '@shared/components';
+import {
+  Host,
+  GlassSurface,
+  LoadingRing,
+  NativeIcon,
+  StatusSheet,
+  Text,
+  icons,
+  tabBarTop,
+  useOnSignal,
+} from '@shared/components';
+import { useDebouncedValue } from '@shared/hooks/useDebouncedValue';
 import { useLiquidGlass } from '@shared/hooks/useLiquidGlass';
 import { useTheme } from '@shared/hooks/useTheme';
 import { SCREEN_GUTTER } from '@shared/theme';
@@ -51,6 +63,11 @@ import { useRsvpNotice } from '../hooks/useRsvpNotice';
  * The Explore tab (Figma Explore map, light and dark; API map §7): the map
  * around where the feed looks, full screen under the tab bar, with its pins.
  *
+ * Choosing an interest brings its posts onto the screen: the chip lights at
+ * once, and when the chips have been left alone for a moment the map asks for
+ * that interest and eases to frame its posts in the person's area. Tapping
+ * through several quickly asks and moves once, for the last one.
+ *
  * Over it: the city search and the filter button, the interest chips ("All
  * interests" and the person's own; a chosen one draws the posts with it, from
  * the post search), the map
@@ -70,11 +87,9 @@ import { useRsvpNotice } from '../hooks/useRsvpNotice';
  * place the same way.
  */
 
-/** The tab bar's top edge, as `FloatingTabBar` places it. */
 /** How far above the dock the map controls sit: clear of a mini card at the default text size. */
 const CONTROLS_LIFT = 168;
 
-const tabBarTop = (insetBottom: number) => Math.max(insetBottom - 10, 8) + 92;
 /** Used only if the phone cannot say where it is: the whole map, nothing loaded. */
 const WORLD: MapRegion = regionAround(0, 0, 60);
 
@@ -84,13 +99,24 @@ export type ExploreScreenProps = {
   onTeleport: () => void;
   /** Opens a traveller's profile, from the list's people search. */
   onOpenPerson: (userId: string) => void;
+  /** Changes when the Explore tab is tapped while Explore is in front: the map goes back to where the person is. */
+  toStartSignal?: number;
 };
+
+/**
+ * How long the interest chips must be left alone before the map follows. The
+ * chip itself lights at once; the pins and the camera wait for the last tap of
+ * a run, so tapping through several interests asks once and moves once.
+ */
+const INTEREST_SETTLE_MS = 280;
+/** The camera easing onto an interest's posts. */
+const INTEREST_FLY_MS = 650;
 
 /** Rounded to about 100 m, so the same origin answered twice is one place. */
 const originKey = (o: { lat: number; lng: number; source: string }) =>
   `${o.source}:${o.lat.toFixed(3)},${o.lng.toFixed(3)}`;
 
-export function ExploreScreen({ onOpenPost, onTeleport, onOpenPerson }: ExploreScreenProps) {
+export function ExploreScreen({ onOpenPost, onTeleport, onOpenPerson, toStartSignal }: ExploreScreenProps) {
   const glass = useLiquidGlass();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
@@ -110,7 +136,11 @@ export function ExploreScreen({ onOpenPost, onTeleport, onOpenPerson }: ExploreS
   const [reportFor, setReportFor] = useState<string | null>(null);
   const [reportSent, setReportSent] = useState(false);
 
-  const pins = useMapPins(bbox, null, filters, null, interestId);
+  // The chips show `interestId` at once; the map asks for `shownInterest`, which follows once
+  // the chips have been left alone (see INTEREST_SETTLE_MS).
+  const shownInterest = useDebouncedValue(interestId, INTEREST_SETTLE_MS);
+  const reduceMotion = useReducedMotion();
+  const pins = useMapPins(bbox, null, filters, null, shownInterest);
   const preview = usePostPreview(selectedId);
   const joining = useJoinPost();
   const notice = useRsvpNotice();
@@ -159,6 +189,34 @@ export function ExploreScreen({ onOpenPost, onTeleport, onOpenPerson }: ExploreS
     // `followKey` stands for `origin`, which is a new object on every render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [followKey]);
+
+  // An interest chosen: once its posts have arrived, the camera eases to frame the ones in the
+  // person's area, bringing them onto the screen. Once per choice: after that the map is theirs
+  // to move. Nothing found leaves the map where it is (the status line says so).
+  const framed = useRef<string | null>(null);
+  const answered = pins.answeredInterest;
+  const interestPins = pins.pins;
+  useEffect(() => {
+    if (shownInterest === null) {
+      framed.current = null;
+      return;
+    }
+    if (answered !== shownInterest || framed.current === shownInterest) return;
+    framed.current = shownInterest;
+    const region = regionCovering(
+      interestPins.map((p) => ({ latitude: p.lat, longitude: p.lng })),
+      { around: origin ? { latitude: origin.lat, longitude: origin.lng } : null },
+    );
+    if (region) map.current?.animateTo(region, reduceMotion ? 0 : INTEREST_FLY_MS);
+    // `origin` is a new object on every render; where it is only matters at the moment of framing.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shownInterest, answered, interestPins, reduceMotion]);
+
+  // The Explore tab tapped while on Explore: the map back on where the person is, any open card closed.
+  useOnSignal(toStartSignal, () => {
+    setSelectedId(null);
+    void locate();
+  });
 
   const select = (id: string | null) => {
     // A tick as a pin is picked (not when the card is closed).
@@ -388,6 +446,8 @@ export function ExploreScreen({ onOpenPost, onTeleport, onOpenPerson }: ExploreS
           setFiltersOpen(false);
         }}
         onDismiss={() => setFiltersOpen(false)}
+        // Switching the maximum's currency is a Travel Pro feature.
+        canChooseCurrency={isPro}
       />
       <ExploreListSheet
         isPresented={listOpen}

@@ -28,21 +28,22 @@ export type DateFilter = 'any' | 'today' | 'weekend';
 export type PriceFilter = 'any' | 'free' | 'paid';
 
 /**
- * What the Filters sheet chose. `maxPrice` is in whole units of
- * `FILTER_CURRENCY` (naira), or null for "No limit"; it means nothing with Free.
+ * What the Filters sheet chose. `maxPrice` is in whole units of `currency`
+ * (an ISO code), or null for "No limit"; it means nothing with Free. `currency`
+ * is the one the sheet was showing: the person's usual currency unless they
+ * picked another there. Null until the sheet has been used.
+ *
+ * The one-tap maximums the sheet offers are round amounts in that currency
+ * (`pricePresets` in `@shared/money`); anything else is typed under Custom.
  */
-export type MapFilters = { date: DateFilter; price: PriceFilter; maxPrice: number | null };
+export type MapFilters = {
+  date: DateFilter;
+  price: PriceFilter;
+  maxPrice: number | null;
+  currency: string | null;
+};
 
-export const NO_FILTERS: MapFilters = { date: 'any', price: 'any', maxPrice: null };
-
-/** The currency "Maximum price" is in, as the design labels it. */
-export const FILTER_CURRENCY = 'NGN';
-
-/**
- * The one-tap maximums the Filters sheet offers, in whole naira. Anything else
- * is typed under Custom; the presets are there so most people never need the keyboard.
- */
-export const MAX_PRICE_PRESETS = [5_000, 10_000, 25_000, 50_000] as const;
+export const NO_FILTERS: MapFilters = { date: 'any', price: 'any', maxPrice: null, currency: null };
 
 /** Whether any filter narrows the map (the filter button shows it). */
 export const filtersActive = (f: MapFilters) => f.date !== 'any' || f.price !== 'any' || f.maxPrice !== null;
@@ -70,37 +71,60 @@ export function matchesDate(startAt: string, date: DateFilter, now: Date): boole
 }
 
 /**
+ * A price in whole units of another currency, or null when it cannot be told
+ * (no exchange rate for the pair): how a maximum compares a post priced in a
+ * currency other than its own.
+ */
+export type PriceConverter = (price: PostPrice, to: string) => number | null;
+
+/**
  * Whether a post's price passes the filter. `price` null is free; `undefined`
  * is not known (a pin the price lookup did not cover), which only passes with
- * no price filter on. A maximum compares posts priced in naira; one in another
- * currency is left out rather than guessed at.
+ * no price filter on.
+ *
+ * A maximum is in the filter's own currency. A post priced in that currency is
+ * compared exactly. One priced in another is compared by its rough equivalent
+ * (`convert`, from the day's exchange rates), so a maximum of €20 keeps a
+ * ₦15,000 meetup; with no rate for it, it is left out rather than guessed at.
  */
-export function matchesPrice(price: PostPrice | null | undefined, f: MapFilters): boolean {
+export function matchesPrice(
+  price: PostPrice | null | undefined,
+  f: MapFilters,
+  convert: PriceConverter | null = null,
+): boolean {
   if (!needsPrices(f)) return true;
   if (price === undefined) return false;
   if (f.price === 'free') return price === null;
   if (f.price === 'paid' && price === null) return false;
   if (f.maxPrice === null || price === null) return true;
-  if (price.currency !== FILTER_CURRENCY) return false;
-  return price.amountCents / 10 ** price.exponent <= f.maxPrice;
+  if (!f.currency) return false;
+  const amount =
+    price.currency.toUpperCase() === f.currency.toUpperCase()
+      ? price.amountCents / 10 ** price.exponent
+      : (convert?.(price, f.currency) ?? null);
+  return amount !== null && amount <= f.maxPrice;
 }
 
 /**
  * The pins the filters keep, from those the API sent. `prices` is each post's
- * price by id (null when free), needed only while a price filter is on.
+ * price by id (null when free), needed only while a price filter is on;
+ * `convert` compares prices in other currencies with a maximum.
  */
 export function visiblePins(
   pins: readonly MapPin[],
   filters: MapFilters,
   now: Date,
   prices: ReadonlyMap<string, PostPrice | null> | null = null,
+  convert: PriceConverter | null = null,
 ): MapPin[] {
   return pins.filter(
-    (p) => matchesDate(p.startAt, filters.date, now) && matchesPrice(prices ? prices.get(p.id) : undefined, filters),
+    (p) =>
+      matchesDate(p.startAt, filters.date, now) &&
+      matchesPrice(prices ? prices.get(p.id) : undefined, filters, convert),
   );
 }
 
-/** "No limit", or a whole number of naira typed into the field (digits only; anything else is no limit). */
+/** "No limit", or a whole amount typed into the field (digits only; anything else is no limit). */
 export function readMaxPrice(text: string): number | null {
   const digits = text.replace(/[^0-9]/g, '');
   if (!digits) return null;

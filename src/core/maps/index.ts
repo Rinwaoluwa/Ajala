@@ -8,4 +8,12 @@ export {
   type MapKind,
   type MapPinProps,
 } from './MapCanvas';
-export { regionToBbox, regionAround, bboxParam, MAX_BBOX_SPAN, type Bbox, type MapRegion } from './geo';
+export {
+  regionToBbox,
+  regionAround,
+  regionCovering,
+  bboxParam,
+  MAX_BBOX_SPAN,
+  type Bbox,
+  type MapRegion,
+} from './geo';

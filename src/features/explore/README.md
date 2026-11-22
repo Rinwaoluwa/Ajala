@@ -97,3 +97,16 @@ Curation weights come from the backend; the client never re-ranks. The map SDK (
 Google Maps on both platforms, with `GOOGLE_MAPS_IOS_API_KEY` and `GOOGLE_MAPS_ANDROID_API_KEY` from EAS
 environment variables; an iOS build without its key falls back to Apple Maps) is wrapped in
 `core/maps`; this feature never imports it directly.
+
+## Choosing an interest on the map
+
+A chip lights the moment it is tapped. The map follows once the chips have been left alone for
+280 ms (`INTEREST_SETTLE_MS` in `ExploreScreen`): it asks for that interest's posts and, when they
+arrive, eases the camera (650 ms; at once with Reduce Motion) to frame the ones in the person's
+area (`regionCovering` in `@core/maps`: within about 1.5° of where the server looks, with room
+around them; one post gets a neighbourhood-sized view). Tapping through several interests quickly
+asks once and moves once, for the last one. It frames once per choice; after that the map is the
+person's to move. An interest with no posts leaves the map where it is.
+
+"Maximum price" in the filters is in the currency of where the person is. Changing it is a Travel
+Pro feature (`canChooseCurrency`).

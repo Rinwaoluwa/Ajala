@@ -95,15 +95,37 @@ describe('price filter', () => {
     expect(matchesPrice(null, { ...NO_FILTERS, price: 'paid' })).toBe(false);
     expect(matchesPrice(naira(500), { ...NO_FILTERS, price: 'paid' })).toBe(true);
   });
-  it('a maximum keeps free posts and naira prices up to it, and leaves out other currencies and unknowns', () => {
-    const f = { ...NO_FILTERS, maxPrice: 5000 };
+  it("a maximum keeps free posts and prices in its own currency up to it, and leaves out other currencies and unknowns", () => {
+    const f = { ...NO_FILTERS, maxPrice: 5000, currency: 'NGN' };
     expect(matchesPrice(null, f)).toBe(true);
     expect(matchesPrice(naira(5000), f)).toBe(true);
     expect(matchesPrice(naira(5001), f)).toBe(false);
     expect(matchesPrice({ amountCents: 1000, currency: 'USD', exponent: 2 }, f)).toBe(false);
     expect(matchesPrice(undefined, f)).toBe(false);
   });
-  it('reads the maximum field as whole naira, or no limit', () => {
+  it('compares in whatever currency the filter is in, by that currency\'s own decimals', () => {
+    const pounds = { ...NO_FILTERS, maxPrice: 20, currency: 'GBP' };
+    expect(matchesPrice({ amountCents: 2000, currency: 'GBP', exponent: 2 }, pounds)).toBe(true);
+    expect(matchesPrice({ amountCents: 2001, currency: 'GBP', exponent: 2 }, pounds)).toBe(false);
+    expect(matchesPrice(naira(10), pounds)).toBe(false);
+    const yen = { ...NO_FILTERS, maxPrice: 2000, currency: 'JPY' };
+    expect(matchesPrice({ amountCents: 2000, currency: 'JPY', exponent: 0 }, yen)).toBe(true);
+    // A maximum with no currency (never chosen) cannot be compared: nothing priced passes.
+    expect(matchesPrice(naira(10), { ...NO_FILTERS, maxPrice: 5000 })).toBe(false);
+  });
+  it('compares a price in another currency by its rough equivalent, when there is a rate', () => {
+    const euros = { ...NO_FILTERS, maxPrice: 20, currency: 'EUR' };
+    // ₦1,500 to the euro, for the test.
+    const convert = (price: { amountCents: number; exponent: number; currency: string }, to: string) =>
+      price.currency === 'NGN' && to === 'EUR' ? price.amountCents / 10 ** price.exponent / 1500 : null;
+    expect(matchesPrice(naira(15_000), euros, convert)).toBe(true); // about €10
+    expect(matchesPrice(naira(45_000), euros, convert)).toBe(false); // about €30
+    // No rate for the pair: left out, not guessed at.
+    expect(matchesPrice({ amountCents: 1000, currency: 'GHS', exponent: 2 }, euros, convert)).toBe(false);
+    // The filter's own currency never needs a rate.
+    expect(matchesPrice({ amountCents: 2000, currency: 'EUR', exponent: 2 }, euros, convert)).toBe(true);
+  });
+  it('reads the maximum field as a whole amount, or no limit', () => {
     expect(readMaxPrice('')).toBeNull();
     expect(readMaxPrice('5,000')).toBe(5000);
     expect(readMaxPrice('0')).toBeNull();

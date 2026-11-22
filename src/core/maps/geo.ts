@@ -45,3 +45,47 @@ export const bboxParam = (b: Bbox) => `${b.west},${b.south},${b.east},${b.north}
 export function regionAround(latitude: number, longitude: number, span = 0.08): MapRegion {
   return { latitude, longitude, latitudeDelta: span, longitudeDelta: span };
 }
+
+/**
+ * The view that frames a set of points (the pins of a chosen interest), with
+ * room around them so none sits on the edge. One point, or points on top of
+ * each other, get a neighbourhood-sized view (`minSpan`) rather than the
+ * closest zoom there is.
+ *
+ * `around` keeps it local: with it, only the points within `reach` degrees of
+ * it are framed (about 110 km a degree), so one far-away match does not pull
+ * the map out to a continent. If none is that close, all are framed.
+ *
+ * Null with no points.
+ */
+export function regionCovering(
+  points: readonly { latitude: number; longitude: number }[],
+  options: { around?: { latitude: number; longitude: number } | null; reach?: number; minSpan?: number } = {},
+): MapRegion | null {
+  const { around = null, reach = 1.5, minSpan = 0.03 } = options;
+  const near = around
+    ? points.filter(
+        (p) => Math.abs(p.latitude - around.latitude) <= reach && Math.abs(p.longitude - around.longitude) <= reach,
+      )
+    : points;
+  const framed = near.length ? near : points;
+  if (!framed.length) return null;
+  let south = Infinity;
+  let north = -Infinity;
+  let west = Infinity;
+  let east = -Infinity;
+  for (const p of framed) {
+    south = Math.min(south, p.latitude);
+    north = Math.max(north, p.latitude);
+    west = Math.min(west, p.longitude);
+    east = Math.max(east, p.longitude);
+  }
+  // A third again as wide as the points, so pins and their labels clear the edges.
+  const MARGIN = 1.35;
+  return {
+    latitude: (south + north) / 2,
+    longitude: (west + east) / 2,
+    latitudeDelta: Math.max((north - south) * MARGIN, minSpan),
+    longitudeDelta: Math.max((east - west) * MARGIN, minSpan),
+  };
+}

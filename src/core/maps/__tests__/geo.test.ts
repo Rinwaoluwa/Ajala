@@ -1,6 +1,6 @@
 import { describe, expect, it } from '@jest/globals';
 
-import { MAX_BBOX_SPAN, bboxParam, regionAround, regionToBbox } from '../geo';
+import { MAX_BBOX_SPAN, bboxParam, regionAround, regionCovering, regionToBbox } from '../geo';
 
 describe('regionToBbox', () => {
   it('covers the visible region', () => {
@@ -39,5 +39,39 @@ describe('regionAround', () => {
       latitudeDelta: 0.08,
       longitudeDelta: 0.08,
     });
+  });
+});
+
+describe('regionCovering', () => {
+  const at = (latitude: number, longitude: number) => ({ latitude, longitude });
+
+  it('frames the points with room around them', () => {
+    const region = regionCovering([at(6.4, 3.3), at(6.6, 3.5)]);
+    expect(region?.latitude).toBeCloseTo(6.5);
+    expect(region?.longitude).toBeCloseTo(3.4);
+    expect(region?.latitudeDelta).toBeCloseTo(0.27);
+    expect(region?.longitudeDelta).toBeCloseTo(0.27);
+  });
+
+  it('gives one point a neighbourhood, not the closest zoom', () => {
+    expect(regionCovering([at(6.45, 3.4)])).toEqual({
+      latitude: 6.45,
+      longitude: 3.4,
+      latitudeDelta: 0.03,
+      longitudeDelta: 0.03,
+    });
+  });
+
+  it('keeps to the points near where the person is', () => {
+    // Lagos, with one match in London.
+    const region = regionCovering([at(6.4, 3.3), at(6.6, 3.5), at(51.5, -0.12)], { around: at(6.45, 3.4) });
+    expect(region?.latitude).toBeCloseTo(6.5);
+    expect(region?.latitudeDelta).toBeLessThan(1);
+    // Nothing near: all of them, rather than nothing.
+    expect(regionCovering([at(51.5, -0.12)], { around: at(6.45, 3.4) })?.latitude).toBeCloseTo(51.5);
+  });
+
+  it('has nothing to frame without points', () => {
+    expect(regionCovering([])).toBeNull();
   });
 });

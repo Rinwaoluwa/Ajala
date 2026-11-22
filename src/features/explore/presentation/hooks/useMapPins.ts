@@ -1,6 +1,8 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 
+import { useLocalMoney } from '@shared/hooks/useLocalMoney';
+
 import type { Bbox, PostType } from '../../domain/entities/Explore';
 import { isExploreError, type ExploreErrorCode } from '../../domain/entities/ExploreError';
 import { needsPrices, outsideReach, visiblePins, type MapFilters } from '../../domain/rules/exploreRules';
@@ -75,9 +77,11 @@ export function useMapPins(
     staleTime: 60_000,
   });
 
+  // A maximum is in one currency; posts priced in another are compared by the day's rates.
+  const { inCurrency } = useLocalMoney(filters.maxPrice !== null);
   const pins = useMemo(
-    () => visiblePins(query.data?.pins ?? [], filters, now, priced ? priceMap : null),
-    [query.data, filters, now, priced, priceMap],
+    () => visiblePins(query.data?.pins ?? [], filters, now, priced ? priceMap : null, inCurrency),
+    [query.data, filters, now, priced, priceMap, inCurrency],
   );
   const error: ExploreErrorCode | null = query.error
     ? isExploreError(query.error)
@@ -94,6 +98,12 @@ export function useMapPins(
     outsideReach: !!answer && !!bbox && !query.isPlaceholderData && outsideReach(answer, bbox),
     /** Loaded at least once for some box; an empty map then means "nothing here". */
     loaded: query.isSuccess,
+    /**
+     * The interest the pins on screen are for: the one asked for, once its own
+     * answer is in (while it loads, the pins shown are still the last question's).
+     * Null with no interest chosen, or while its answer is on the way.
+     */
+    answeredInterest: interestId !== null && query.isSuccess && !query.isPlaceholderData ? interestId : null,
     fetching: query.isFetching || (priced && prices.isFetching),
     error,
     /** A price filter is on but the prices could not be read: the map can't tell which pins match. */

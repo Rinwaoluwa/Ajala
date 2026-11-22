@@ -1,3 +1,5 @@
+import { formatMinor } from '@shared/money';
+
 import type { PostPrice } from '../domain/entities/Explore';
 
 /**
@@ -27,27 +29,14 @@ export function formatWeekdayTime(iso: string | null): string | null {
   return d ? `${WEEKDAY.format(d)} · ${TIME.format(d)}` : null;
 }
 
-const SYMBOLS: Record<string, string> = {
-  NGN: '₦',
-  USD: '$',
-  GBP: '£',
-  EUR: '€',
-  CAD: 'CA$',
-  GHS: 'GH₵',
-  KES: 'KSh',
-};
-
 /**
  * An amount in its smallest unit, written out: amountCents / 10 ** exponent
- * (spec §1.5). "₦5,000", "$20.50" — whole amounts without decimals.
+ * (spec §1.5). "₦5,000", "$20.50", "CA$20" — the app's one way of writing money
+ * (`@shared/money`): any currency, the phone's own number style, whole amounts
+ * without decimals.
  */
 export function formatMoney(cents: number, exponent: number, currency: string): string {
-  const amount = cents / 10 ** exponent;
-  const fixed = Number.isInteger(amount) ? amount.toFixed(0) : amount.toFixed(exponent);
-  const [whole = '0', fraction] = fixed.split('.');
-  const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-  const symbol = SYMBOLS[currency] ?? `${currency} `;
-  return `${symbol}${grouped}${fraction ? `.${fraction}` : ''}`;
+  return formatMinor(cents, currency, exponent);
 }
 
 /** A post's price: "₦5,000". */

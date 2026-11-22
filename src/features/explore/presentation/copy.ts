@@ -46,7 +46,11 @@ export const exploreCopy = {
     anyPrice: 'Any price',
     free: 'Free',
     paid: 'Paid',
+    maxPriceHeading: 'Maximum price',
+    /** Read out for the typed maximum: "Maximum price (NGN)". */
     maxPrice: (currency: string) => `Maximum price (${currency})`,
+    /** Read out for the currency button: "Currency, Nigerian naira. Change". */
+    changeCurrency: (name: string) => `Currency, ${name}. Change`,
     noLimit: 'No limit',
     // Not drawn: one-tap maximums, so most people never need the keyboard; Custom types one.
     custom: 'Custom',
