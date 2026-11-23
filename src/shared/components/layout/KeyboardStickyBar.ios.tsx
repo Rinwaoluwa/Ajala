@@ -26,5 +26,10 @@ export function KeyboardStickyBar({ children, gap = 12 }: { children: ReactNode;
   const style = useAnimatedStyle(() => ({
     transform: [{ translateY: -Math.max(0, keyboard.height.value - slack) }],
   }));
-  return <Animated.View style={style}>{children}</Animated.View>;
+  // Touches beside what it holds (a floating compose box) reach the screen under it.
+  return (
+    <Animated.View pointerEvents="box-none" style={style}>
+      {children}
+    </Animated.View>
+  );
 }

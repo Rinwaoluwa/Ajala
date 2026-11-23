@@ -7,5 +7,5 @@ import { View } from 'react-native';
  * iOS file for the bar that rides the keyboard.
  */
 export function KeyboardStickyBar({ children }: { children: ReactNode; gap?: number }) {
-  return <View>{children}</View>;
+  return <View pointerEvents="box-none">{children}</View>;
 }

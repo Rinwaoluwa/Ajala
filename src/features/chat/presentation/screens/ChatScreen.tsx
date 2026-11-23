@@ -284,8 +284,11 @@ export function ChatScreen({ threadId, onBack, onOpenPost, onOpenProfile, onOpen
         {vm.gone ? null : (
           <View pointerEvents="box-none" style={{ position: 'absolute', left: 0, right: 0, bottom: 0 }}>
             <KeyboardStickyBar>
+              {/* Under the floating box the messages thin out into the page colour, strongest
+                  at the foot of the screen, so the box never sits on a busy line of text. */}
+              <EdgeFade edge="bottom" height={composerHeight + 28} solid={insets.bottom} strength={0.92} />
               <View
-                style={{ borderTopWidth: 1, borderTopColor: theme.border }}
+                pointerEvents="box-none"
                 onLayout={(e) => {
                   const h = Math.round(e.nativeEvent.layout.height);
                   setComposerHeight((c) => (c === h ? c : h));

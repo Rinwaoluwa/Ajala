@@ -28,6 +28,7 @@ export { TextField, type TextFieldProps, type TrailingAction } from './form/Text
 export { PasswordField, type PasswordFieldProps } from './form/PasswordField';
 export { SelectField, type SelectFieldProps } from './form/SelectField';
 export { TextArea, type TextAreaProps } from './form/TextArea';
+export { ComposeBox, ComposeButton, type ComposeBoxProps } from './form/ComposeBox';
 export { Toggle, type ToggleProps } from './form/Toggle';
 export { Chip, ChipGroup, type ChipProps, type ChipGroupProps, type ChipTone } from './form/Chip';
 export { FittedChips, type FittedChipsProps } from './form/FittedChips';

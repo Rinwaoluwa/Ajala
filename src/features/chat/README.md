@@ -58,7 +58,9 @@ or with a group.
     longer available"; a moderated message reads "This message was removed".
   - Older messages load when you scroll to the top. While the chat is in focus, the newest message
     is marked read. Long-press someone else's message to report it.
-  - The composer has a photo button (up to 4, resized and re-encoded by `@core/media/imagePicker`
+  - The composer is the shared `ComposeBox`, floating over the messages (they thin out into the page
+    colour under it, `EdgeFade`): the words on a line that grows to five, a round "+" and send below.
+  - The composer's "+" is its photo button (up to 4, resized and re-encoded by `@core/media/imagePicker`
     like every other upload). What you send shows straight away, dimmed. If sending fails, the
     message is taken back, the words and photos stay, and a notice appears for a few seconds;
     sending the same thing again reuses its `clientMsgId`.
