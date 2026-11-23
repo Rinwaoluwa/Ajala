@@ -42,7 +42,9 @@ Achievements):
   `https://go.ajalatrvl.com/users/<id>`, host from `EXPO_PUBLIC_LINKS_HOST`); Saved activities; the achievements preview; and, last, the
   person's lists (`useOwnProfileLists`), each asked for when its tab is opened: **My posts**
   (`GET /users/:me/posts`: what they host, as a visitor sees it) and **Saved** (`GET /me/saved`), drawn as
-  the design's cards (`ProfilePostCard`: the cover with the title on a band along its foot), then
+  the design's cards (`ProfilePostCard`: the cover with the title on a band along its foot; a post
+  with no photo is set as a post of words instead, the way X sets one: the host's photo and name, the
+  title at reading size, then when, where and how many are going, with nothing standing in for a photo), then
   **Going / Requested** (`GET /me/rsvps?state=going`; Requested reads `state=requested` and then
   `state=waitlisted`, tagged Request sent or Waitlisted, the same lists and order as Trips' Requests).
   The design draws My posts and Saved straight under Travel details and has no Going / Requested;
