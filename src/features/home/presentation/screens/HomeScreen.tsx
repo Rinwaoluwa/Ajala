@@ -34,7 +34,7 @@ import { setCurrencyCountry } from '@shared/state/preferredCurrency';
 import { useTheme } from '@shared/hooks/useTheme';
 import { shareLink } from '@shared/utils/shareLink';
 
-import type { PostCard } from '../../domain/entities/Feed';
+import type { FeedFilter, PostCard } from '../../domain/entities/Feed';
 import { FEED_FILTERS } from '../../domain/rules/feedRules';
 import { FeedHeader } from '../components/FeedHeader';
 import { FeedPost, HiddenPostRow } from '../components/FeedPost';
@@ -128,6 +128,12 @@ export type HomeScreenProps = {
    * back to its top, the latest post. Already there, it asks for newer posts.
    */
   toTopSignal?: number;
+  /**
+   * The Plans pill, tapped by someone without Travel Pro: Plans are a Pro
+   * feature, so the route opens the paywall and the feed stays as it was.
+   * Without it, the pill filters like the others.
+   */
+  onPlansLocked?: () => void;
 };
 
 /** The list's rows: the pinned pills, then the posts (one just hidden keeps its place as an Undo line). */
@@ -158,6 +164,7 @@ export function HomeScreen({
   onViewLevel,
   linkCard,
   toTopSignal,
+  onPlansLocked,
 }: HomeScreenProps) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
@@ -165,7 +172,21 @@ export function HomeScreen({
   // Who is signed in, from `GET /me` (already read for Travel): their own cards offer no RSVP.
   const viewerId = useTravelState()?.viewerId ?? null;
   const location = useLocationPrompt(feed.retry);
-  const { isPro } = useSubscription();
+  const { isPro, loading: proLoading } = useSubscription();
+  // Plans are a Pro feature (product, 23 Nov): without Pro the Plans pill opens the paywall
+  // instead of a list of posts that would all be locked. While the subscription is still
+  // being read nobody is turned away: the pill filters, and the server locks what it must.
+  const { setFilter } = feed;
+  const chooseFilter = useCallback(
+    (next: FeedFilter) => {
+      if (next === 'plan' && !isPro && !proLoading && onPlansLocked) {
+        onPlansLocked();
+        return;
+      }
+      setFilter(next);
+    },
+    [isPro, proLoading, onPlansLocked, setFilter],
+  );
   // The country of the posts in front of them stands in for where they are while the phone's
   // own position is unknown (location off): it decides the currency the app works in.
   const feedCountry = feed.items[0]?.countryCode ?? null;
@@ -324,7 +345,7 @@ export function HomeScreen({
           // Opaque, so the cards scroll under the pinned pills rather than through them. With no
           // level card above them, the pills need their own breathing room under the header.
           <View style={{ backgroundColor: theme.background, paddingTop: 16 }}>
-            <FilterPills value={feed.filter} onChange={feed.setFilter} disabled={!hasPlace && feed.loading} />
+            <FilterPills value={feed.filter} onChange={chooseFilter} disabled={!hasPlace && feed.loading} />
             <View className="mt-12" style={{ height: 1, backgroundColor: theme.border }} />
           </View>
         );
@@ -371,7 +392,7 @@ export function HomeScreen({
       linked,
       theme,
       feed.filter,
-      feed.setFilter,
+      chooseFilter,
       hasPlace,
       feed.loading,
       enter,

@@ -3,6 +3,7 @@ import { Link, router } from 'expo-router';
 import { useUnreadChatsCount } from '@features/chat';
 import { HomeScreen, homeRoutes } from '@features/home';
 import { useUnreadNotificationsCount } from '@features/notifications';
+import { paymentRoutes } from '@features/payment';
 import { profileRoutes } from '@features/profile';
 import { useTabReselects } from '@shared/components';
 
@@ -56,6 +57,8 @@ export default function HomeRoute() {
       onMessages={() => router.push('/(app)/messages')}
       unreadChatsCount={unreadChatsCount}
       onViewLevel={() => router.navigate('/(app)/(tabs)/profile')}
+      // Plans are a Pro feature: the Plans pill, without Pro, brings up the paywall.
+      onPlansLocked={() => router.push({ pathname: paymentRoutes.travelPaywall, params: { reason: 'plans' } })}
     />
   );
 }
