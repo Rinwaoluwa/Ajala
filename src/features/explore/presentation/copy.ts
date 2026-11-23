@@ -32,7 +32,8 @@ export const exploreCopy = {
     // Not drawn: a free reader's map only reaches 30 km round where they are (`reach: 'radius'`).
     outsideReach: 'Activities show within 30 km of you.',
     outsideReachTeleported: (place: string) => `Activities show within 30 km of ${place}.`,
-    teleport: 'Teleport',
+    // The button that opens Travel. People read "travel", never "teleport" (product, 23 Nov).
+    teleport: 'Travel',
     // Not drawn: 404 NO_LOCATION on the map. Tapping offers a place (Travel).
     choosePlace: 'Choose a place',
   },

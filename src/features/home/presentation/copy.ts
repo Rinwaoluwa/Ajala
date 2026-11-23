@@ -8,10 +8,11 @@ export const homeCopy = {
     place ? `Find your next experience in ${place}` : 'Find your next experience near you',
   // The header's big line when the server names no region for the phone's location.
   nearYou: 'Near you',
-  // Not drawn; the spec's wording (§2.11) for a feed a Travel teleport has moved.
-  teleportedTo: (place: string) => `Teleported to ${place}`,
+  // A feed that Travel has moved to another city. People read "travel", never "teleport"
+  // (product, 23 Nov); the API's word stays in the code.
+  teleportedTo: (place: string) => `Travelled to ${place}`,
   // A teleport whose name is not known yet (the place lookup failed).
-  teleported: 'Teleported',
+  teleported: 'Travelling',
   chooseCity: 'Choose a city',
   // The header with no location and no teleport (404 NO_LOCATION).
   choosePlace: 'Choose a place',
@@ -118,7 +119,7 @@ export const travelCopy = {
   // Not drawn: why a teleport did not happen (a 402 opens the paywall instead).
   moveFailed: {
     notACity: "That isn't a city we can take you to. Pick another.",
-    unavailable: "Teleport isn't available right now. Try again in a moment.",
+    unavailable: "Travel isn't available right now. Try again in a moment.",
     network: 'No connection. Check your internet and try again.',
     other: "We couldn't move you there. Try again in a moment.",
   },

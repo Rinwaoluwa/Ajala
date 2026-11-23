@@ -42,7 +42,7 @@ export const travelPaywallCopy = {
   // Not drawn: the paywall for someone already subscribed.
   subscribed: {
     title: 'Travel is on',
-    body: 'Teleport to any city from the city picker on Home.',
+    body: 'Travel to any city from the city picker on Home.',
     renews: (date: string) => `Renews on ${date}`,
     ends: (date: string) => `Ends on ${date}`,
     grace: "There's a problem with your payment. The store is retrying, and Travel stays on meanwhile.",
