@@ -39,9 +39,14 @@ Achievements):
   and Edit profile) for the handle, photo, name, pronouns, home city, tagline, bio,
   interests, languages, travel style, favourite places, social links and featured photos; settings
   and messages as glass buttons; Edit profile and Share (the links host,
-  `https://go.ajalatrvl.com/users/<id>`, host from `EXPO_PUBLIC_LINKS_HOST`); Saved activities; the achievements preview; and the
-  **Going / Requested** tabs (`GET /me/rsvps?state=going`; Requested reads `state=requested` and then
+  `https://go.ajalatrvl.com/users/<id>`, host from `EXPO_PUBLIC_LINKS_HOST`); Saved activities; the achievements preview; and, last, the
+  person's lists (`useOwnProfileLists`), each asked for when its tab is opened: **My posts**
+  (`GET /users/:me/posts`: what they host, as a visitor sees it) and **Saved** (`GET /me/saved`), drawn as
+  the design's cards (`ProfilePostCard`: the cover with the title on a band along its foot), then
+  **Going / Requested** (`GET /me/rsvps?state=going`; Requested reads `state=requested` and then
   `state=waitlisted`, tagged Request sent or Waitlisted, the same lists and order as Trips' Requests).
+  The design draws My posts and Saved straight under Travel details and has no Going / Requested;
+  here Featured Photos and Achievements stay above the lists, which come last because they have no end.
 - **Another traveller** (`PublicProfileScreen`, `/(app)/user/[id]`) — `GET /users/:id` (with "Open to
   meet today", travel style and favourite places), their hosted posts, what they attended and — when
   their public plans setting (`sharePlans`) is on — their upcoming plans (`/users/:id/posts`, `/attended`, `/plans`, infinite,

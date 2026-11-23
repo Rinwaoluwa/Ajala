@@ -43,13 +43,23 @@ export const profileViewCopy = {
   travelStyles: 'Travel style',
   favouriteDestinations: 'Favourite places',
   openToMeet: 'Open to meet',
-  myActivities: {
-    title: 'Your activities',
+  // The own profile's lists, at its foot: My posts and Saved as drawn, then Going and Requested.
+  lists: {
+    posts: 'My posts',
+    saved: 'Saved',
     going: 'Going',
     requested: 'Requested',
+    emptyPosts: 'Nothing posted yet. Tap + to plan something, and it shows here.',
+    emptySaved: 'Nothing saved yet. Tap the bookmark on an activity to keep it here.',
     emptyGoing: 'Nothing coming up. Join something and it shows here.',
     emptyRequested: 'Nothing waiting. Requests to join and waitlists you’re on show here.',
-    failed: 'Your activities didn’t load.',
+    failed: {
+      posts: 'Your posts didn’t load.',
+      saved: 'Your saved activities didn’t load.',
+      going: 'Your activities didn’t load.',
+      requested: 'Your activities didn’t load.',
+    },
+    loading: 'Loading',
     retry: 'Try again',
     more: 'Show more',
   },
