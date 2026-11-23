@@ -114,45 +114,40 @@ export function stepsFor(kind: PostKind): readonly WizardStep[] {
 // ---------- capacity ----------
 
 /**
- * Capacity per type (spec §2.12): an Event is over 100, a Group 1–100, Meetups
- * and Plans anything from 1. Every type may also have no limit (`null`, sent as
- * no capacity at all): "no limit" is an answer, not a blank to be filled in.
- * The API publishes each type without a capacity (checked on staging, 22 Nov).
+ * Capacity (product, 23 Nov): no type has a size of its own any more. An Event
+ * used to need more than 100 and a Group at most 100; now every type takes any
+ * whole number of people, or no limit (`null`, sent as no capacity at all):
+ * "no limit" is an answer, not a blank to be filled in.
+ *
+ * What is left is what a number of people is (at least 1) and the most the API
+ * takes on any post (`CreatePostDto`: 100,000). Staging publishes an Event of 50
+ * and a Group of 500 (checked 23 Nov).
  */
-export function capacityRange(kind: PostKind): { min: number; max: number; unlimited: boolean } {
-  if (kind === 'event') return { min: 101, max: 100_000, unlimited: true };
-  if (kind === 'group') return { min: 1, max: 100, unlimited: true };
-  return { min: 1, max: 100_000, unlimited: true };
-}
+export const CAPACITY_MIN = 1;
+export const CAPACITY_MAX = 100_000;
 
-export function isCapacityValid(kind: PostKind, capacity: number | null): boolean {
-  const range = capacityRange(kind);
-  if (capacity === null) return range.unlimited;
-  return Number.isInteger(capacity) && capacity >= range.min && capacity <= range.max;
-}
-
-/**
- * One tap of − or +. From "no limit", + comes back to the smallest number. For
- * an Event, − from its minimum (101) goes to "no limit", the only thing below
- * it. Elsewhere − stops at 1: holding it down to count back must not run on
- * into "no limit". There, "no limit" is chosen by clearing the number.
- */
-export function stepCapacity(kind: PostKind, capacity: number | null, delta: 1 | -1): number | null {
-  const range = capacityRange(kind);
-  if (capacity === null) return delta > 0 ? range.min : null;
-  const next = capacity + delta;
-  if (next < range.min) return kind === 'event' ? null : range.min;
-  return Math.min(range.max, next);
+export function isCapacityValid(capacity: number | null): boolean {
+  if (capacity === null) return true;
+  return Number.isInteger(capacity) && capacity >= CAPACITY_MIN && capacity <= CAPACITY_MAX;
 }
 
 /**
- * A typed capacity, once the field is left: kept in range. Blank is "no limit"
- * and stays so, for every type; it is never filled back in with a number.
+ * One tap of − or +. From "no limit", + starts at 1. − stops at 1: holding it
+ * down to count back must not run on into "no limit", which is chosen by
+ * clearing the number.
  */
-export function clampCapacity(kind: PostKind, typed: number | null): number | null {
-  const range = capacityRange(kind);
-  if (typed === null) return range.unlimited ? null : range.min;
-  return Math.min(range.max, Math.max(range.min, typed));
+export function stepCapacity(capacity: number | null, delta: 1 | -1): number | null {
+  if (capacity === null) return delta > 0 ? CAPACITY_MIN : null;
+  return Math.min(CAPACITY_MAX, Math.max(CAPACITY_MIN, capacity + delta));
+}
+
+/**
+ * A typed capacity, once the field is left: a number of people the API takes.
+ * Blank is "no limit" and stays so; it is never filled back in with a number.
+ */
+export function clampCapacity(typed: number | null): number | null {
+  if (typed === null) return null;
+  return Math.min(CAPACITY_MAX, Math.max(CAPACITY_MIN, typed));
 }
 
 // ---------- money ----------
@@ -286,7 +281,7 @@ export function stepIssues(draft: PostDraft, step: WizardStep, now: Date = new D
       break;
     }
     case 'participants':
-      if (!isCapacityValid(draft.kind, draft.capacity)) issues.capacity = 'capacityRange';
+      if (!isCapacityValid(draft.capacity)) issues.capacity = 'capacityRange';
       break;
     case 'price':
       // Both are optional, a paid Event's link included (backend answers C1/C2):
@@ -531,7 +526,8 @@ export function draftFromSaved(saved: SavedPost): PostDraft {
     notes: lines.length ? lines.map((text, i) => ({ key: `saved-note-${i}`, text })) : base.notes,
     recurrence: repeat?.frequency ?? null,
     recurrenceEndsOn: repeat ? fromIsoDate(repeat.endsOn) : null,
-    capacity: saved.capacity ?? (saved.type === 'event' ? null : base.capacity),
+    // No capacity on a saved post is "no limit", whatever its type.
+    capacity: saved.capacity,
     visibility: saved.visibility,
     showOnMap: saved.showOnMap,
     waitlist: saved.waitlistEnabled,

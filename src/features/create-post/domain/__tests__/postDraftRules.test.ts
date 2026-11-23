@@ -3,6 +3,7 @@ import { describe, expect, it } from '@jest/globals';
 import { emptyDraft, type PostDraft } from '../entities/PostDraft';
 import {
   canLeaveStep,
+  CAPACITY_MAX,
   clampCapacity,
   endsNextDay,
   firstIncompleteStep,
@@ -10,13 +11,13 @@ import {
   move,
   parseWhole,
   priceCentsOf,
-  stepOfField,
-  stepsFor,
   stepCapacity,
   stepIssues,
+  stepOfField,
+  stepsFor,
+  toggleInterest,
   toIsoWithOffset,
   toSubmission,
-  toggleInterest,
 } from '../rules/postDraftRules';
 
 const NOW = new Date(2026, 9, 20, 12, 0);
@@ -135,16 +136,9 @@ describe('the steps', () => {
 });
 
 describe('capacity', () => {
-  it('takes an Event from no limit to 101 and back', () => {
-    expect(stepCapacity('event', null, 1)).toBe(101);
-    expect(stepCapacity('event', 101, -1)).toBeNull();
-    expect(stepCapacity('event', null, -1)).toBeNull();
-  });
-
-  it('takes any type from no limit back to its smallest number', () => {
-    expect(stepCapacity('meetup', null, 1)).toBe(1);
-    expect(stepCapacity('group', null, 1)).toBe(1);
-    expect(stepCapacity('meetup', null, -1)).toBeNull();
+  it('starts at 1 from no limit, and stays at no limit going down', () => {
+    expect(stepCapacity(null, 1)).toBe(1);
+    expect(stepCapacity(null, -1)).toBeNull();
   });
 
   it('lets every type go without a limit', () => {
@@ -154,12 +148,21 @@ describe('capacity', () => {
     }
   });
 
-  it('keeps a Group within 1 to 100 and a Meetup at 1 or more', () => {
-    expect(stepCapacity('group', 100, 1)).toBe(100);
+  it('gives no type a size of its own: a small Event and a big Group are fine', () => {
+    expect(stepIssues({ ...ready('event'), capacity: 50 }, 'participants', NOW)).toEqual({});
+    expect(stepIssues({ ...ready('event'), capacity: 1 }, 'participants', NOW)).toEqual({});
+    expect(stepIssues({ ...ready('group'), capacity: 500 }, 'participants', NOW)).toEqual({});
+    expect(stepIssues({ ...ready('meetup'), capacity: 5000 }, 'participants', NOW)).toEqual({});
+    expect(stepCapacity(100, 1)).toBe(101);
+    expect(stepCapacity(101, -1)).toBe(100);
+  });
+
+  it('counts down to 1 and stops there, and up to the most the API takes', () => {
     // Counting down stops at 1: it does not run on into "no limit".
-    expect(stepCapacity('group', 1, -1)).toBe(1);
-    expect(stepCapacity('meetup', 1, -1)).toBe(1);
-    expect(stepIssues({ ...ready('event'), capacity: 50 }, 'participants', NOW).capacity).toBe(
+    expect(stepCapacity(1, -1)).toBe(1);
+    expect(stepCapacity(CAPACITY_MAX, 1)).toBe(CAPACITY_MAX);
+    expect(stepIssues({ ...ready('meetup'), capacity: 0 }, 'participants', NOW).capacity).toBe('capacityRange');
+    expect(stepIssues({ ...ready('meetup'), capacity: CAPACITY_MAX + 1 }, 'participants', NOW).capacity).toBe(
       'capacityRange',
     );
   });
@@ -352,15 +355,13 @@ describe('helpers', () => {
 });
 
 describe('typing a capacity', () => {
-  it('keeps it in range once the field is left, and blank stays no limit', () => {
-    expect(clampCapacity('meetup', 0)).toBe(1);
-    expect(clampCapacity('meetup', 25)).toBe(25);
-    expect(clampCapacity('group', 500)).toBe(100);
-    // Cleared is "no limit", for every type: never put back to 1.
-    expect(clampCapacity('meetup', null)).toBeNull();
-    expect(clampCapacity('group', null)).toBeNull();
-    expect(clampCapacity('plan', null)).toBeNull();
-    expect(clampCapacity('event', null)).toBeNull();
-    expect(clampCapacity('event', 20)).toBe(101);
+  it('keeps what was typed, whatever the type, and blank stays no limit', () => {
+    expect(clampCapacity(25)).toBe(25);
+    expect(clampCapacity(500)).toBe(500);
+    // Not a number of people, or more than the API takes: the nearest that is.
+    expect(clampCapacity(0)).toBe(1);
+    expect(clampCapacity(CAPACITY_MAX + 5)).toBe(CAPACITY_MAX);
+    // Cleared is "no limit": never put back to a number.
+    expect(clampCapacity(null)).toBeNull();
   });
 });

@@ -121,7 +121,7 @@ export function emptyDraft(kind: PostKind, currency: Currency = HOME_CURRENCY): 
     ],
     recurrence: null,
     recurrenceEndsOn: null,
-    // Events are for more than 100 or no limit (spec §2.12), so they start unlimited.
+    // Only where the stepper starts: an Event at no limit, the rest at 10. Any size is allowed on any type.
     capacity: kind === 'event' ? null : 10,
     visibility: 'private',
     showOnMap: true,

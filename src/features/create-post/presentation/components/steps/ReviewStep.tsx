@@ -1,9 +1,12 @@
 import { Image } from 'expo-image';
+import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
-import { Button, Chip, ChipGroup, EmojiBadge, SkeletonBlock, SkeletonPulse, Text, TextLink } from '@shared/components';
+import { Button, Chip, ChipGroup, EmojiBadge, LoadingRing, Text, TextLink } from '@shared/components';
+import { useFontScale } from '@shared/hooks/useFontScale';
 import { useTheme } from '@shared/hooks/useTheme';
+import { textStyles } from '@shared/theme';
 
 import { priceOf, startOf, stepIssues, stepOfField, stepsFor } from '../../../domain/rules/postDraftRules';
 import { fieldNames, kindCopy, wizardCopy } from '../../copy';
@@ -169,8 +172,32 @@ export function ReviewStep({ vm }: { vm: CreatePostViewModel }) {
   );
 }
 
+/** An interest chip: 8pt above and below its emoji badge (24pt) or its label, whichever is taller. */
+const CHIP_PAD = 16;
+const CHIP_BADGE = 24;
+const CHIP_ROWS = 3;
+const CHIP_ROW_GAP = 8;
+
 function Interests({ vm }: { vm: CreatePostViewModel }) {
   const full = vm.draft.interestIds.length >= 3;
+  // The height of the three rows the chips sit in, for the loader that holds their place.
+  const chip = CHIP_PAD + Math.max(CHIP_BADGE, Math.ceil(textStyles.bodySm.lineHeight * useFontScale()));
+  const chipsHeight = chip * CHIP_ROWS + CHIP_ROW_GAP * (CHIP_ROWS - 1);
+  // The chips come a moment after the step. Some forty of them are slow to draw, and drawn
+  // with the step they held up everything else on it: the Publish button came up only once
+  // they had, a second or more late on a slow phone. Until they are in, the loader has their place.
+  const [stepDrawn, setStepDrawn] = useState(false);
+  useEffect(() => {
+    let second = 0;
+    const first = requestAnimationFrame(() => {
+      second = requestAnimationFrame(() => setStepDrawn(true));
+    });
+    return () => {
+      cancelAnimationFrame(first);
+      cancelAnimationFrame(second);
+    };
+  }, []);
+  const interests = stepDrawn ? vm.interests : null;
   return (
     <View style={{ gap: 8 }}>
       <Text variant="labelXs" tone="muted">
@@ -186,34 +213,48 @@ function Interests({ vm }: { vm: CreatePostViewModel }) {
             {wizardCopy.interests.retry}
           </Text>
         </Text>
-      ) : !vm.interests ? (
-        <SkeletonPulse>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-            {[88, 64, 104, 76, 92].map((w) => (
-              <SkeletonBlock key={w} width={w} height={32} radius={16} />
-            ))}
-          </View>
-        </SkeletonPulse>
       ) : (
-        <Animated.View entering={FadeIn.duration(200)}>
-          <ChipGroup>
-            {vm.interests.map((interest) => {
-              const selected = vm.draft.interestIds.includes(interest.id);
-              return (
-                <Chip
-                  key={interest.id}
-                  // The emoji in its own badge, not in the label: as text it made Android
-                  // break "⚽ Sports" over two lines.
-                  label={interest.name}
-                  leading={<EmojiBadge emoji={interest.emoji} />}
-                  selected={selected}
-                  disabled={full && !selected}
-                  onPress={() => vm.chooseInterest(interest.id)}
-                />
-              );
-            })}
-          </ChipGroup>
-        </Animated.View>
+        // One loader for the whole wait: while the list is fetched, and for the moment its
+        // chips take to be laid out in their rows (a long list is not instant on a slow phone).
+        // It keeps the height the three rows of chips will have, so Publish does not move
+        // when they arrive.
+        <ChipGroup
+          loading={!interests}
+          placeholder={
+            // As tall as the chips will be; the ring and its words sit at the top of that,
+            // where the first row of chips comes in, not adrift in the middle of it.
+            <View
+              accessible
+              accessibilityRole="progressbar"
+              accessibilityLabel={wizardCopy.interests.loading}
+              accessibilityLiveRegion="polite"
+              style={{ minHeight: chipsHeight }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: chip }}>
+                <LoadingRing size={28} accessibilityLabel={wizardCopy.interests.loading} />
+                <Text variant="bodySm" tone="muted" style={{ flexShrink: 1 }}>
+                  {wizardCopy.interests.loading}
+                </Text>
+              </View>
+            </View>
+          }
+        >
+          {(interests ?? []).map((interest) => {
+            const selected = vm.draft.interestIds.includes(interest.id);
+            return (
+              <Chip
+                key={interest.id}
+                // The emoji in its own badge, not in the label: as text it made Android
+                // break "⚽ Sports" over two lines.
+                label={interest.name}
+                leading={<EmojiBadge emoji={interest.emoji} />}
+                selected={selected}
+                disabled={full && !selected}
+                onPress={() => vm.chooseInterest(interest.id)}
+              />
+            );
+          })}
+        </ChipGroup>
       )}
     </View>
   );

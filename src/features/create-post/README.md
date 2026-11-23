@@ -16,8 +16,8 @@ for a Plan, which has no price step (`stepsFor`):
    meeting point or venue (Google suggestions as you type, `searchPlaces`, nearest a Plan's or
    Group's destination first; or just typed), an Event's **schedule** or a Plan's **itinerary** (lines in order, at
    most 30 of 120 characters), and a Group's **Repeats** (weekly, every 2 weeks, monthly; optional last date).
-3. **Who can join?** — capacity (Event: over 100; Group: 1–100; Meetup and Plan: from 1; or no
-   limit on any type, by clearing the number, which is never refilled), open or request to
+3. **Who can join?** — capacity (any number of people on any type, 1 to 100,000, with no size
+   by type any more; or no limit, by clearing the number, which is never refilled), open or request to
    join, show on map, waiting list.
 4. **Price** (Meetups, Events and Groups only) — an optional price per person, in the currency
    of where the person is. Pricing in another currency is a Travel Pro feature
@@ -27,6 +27,9 @@ for a Plan, which has no price step (`stepsFor`):
    an optional https link to pay or book. **Skip, no price** moves on with neither and clears
    anything typed. A paid Event needs no link. Plans never see this step.
 5. **Review** — the post as it will look, its interests (1–3), anything still missing, Publish.
+   The interests come in a moment after the step, behind a loader (the app's ring and "Loading
+   interests…") that keeps the height their three rows will have: it covers the fetch and the
+   time some forty chips take to be laid out, so the space is never blank and Publish never moves.
 
 ## API (docs/api, API map §5)
 

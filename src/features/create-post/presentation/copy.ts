@@ -130,7 +130,7 @@ export const kindCopy: Record<PostKind, KindCopy> = {
       placeLabel: 'Venue',
       placePlaceholder: 'Enter the venue name and address',
       lines: { label: 'Event schedule', placeholders: ['Doors open', 'Main event'], add: 'Add schedule item' },
-      tip: 'Make sure the venue details are clear before publishing.',
+      tip: 'Help your guests stay safe by making sure your venue details are crystal clear before posting.',
     },
     participants: {
       heading: 'Who can join?',
@@ -327,10 +327,8 @@ export const wizardCopy = {
   fewerPeople: 'Fewer people',
   morePeople: 'More people',
   typeCapacity: 'Type a number, or use the minus and plus buttons.',
-  eventCapacityHint: 'Events are for more than 100 people, or have no limit.',
-  groupCapacityHint: 'Groups are for 1 to 100 people. Clear the number for no limit.',
-  /** Meetups and Plans: how to say there is no limit. */
-  openCapacityHint: 'Clear the number for no limit.',
+  /** Every type: any size, and how to say there is no limit. */
+  capacityHint: 'Clear the number for no limit.',
   showOnMapTitle: 'Show on map',
   showOnMapBody: 'Visible on public map',
   waitlistTitle: 'Waiting list',
@@ -398,7 +396,7 @@ export const issueCopy: Record<DraftIssue, string> = {
   required: 'This is needed.',
   inPast: 'Pick a time in the future.',
   endBeforeStart: 'Pick an end time different from the start.',
-  capacityRange: 'Pick a size this type allows.',
+  capacityRange: 'Enter a whole number of people, or clear it for no limit.',
   priceRange: 'Enter an amount, like 5000 or 20.50, or skip the price.',
   tooManyLines: 'Keep it to 30 lines.',
   lineTooLong: 'Keep each line to 120 characters.',

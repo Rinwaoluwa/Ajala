@@ -24,12 +24,6 @@ export function ParticipantsStep({ vm }: { vm: CreatePostViewModel }) {
   const copy = kindCopy[vm.kind].participants;
   const { draft, update } = vm;
   const open = draft.visibility === 'open';
-  const hint =
-    vm.kind === 'event'
-      ? wizardCopy.eventCapacityHint
-      : vm.kind === 'group'
-        ? wizardCopy.groupCapacityHint
-        : wizardCopy.openCapacityHint;
 
   return (
     <View style={{ gap: 24 }}>
@@ -37,10 +31,10 @@ export function ParticipantsStep({ vm }: { vm: CreatePostViewModel }) {
       <CapacityStepper
         label={copy.capacityLabel}
         value={draft.capacity}
-        onStep={(delta) => update({ capacity: stepCapacity(vm.kind, draft.capacity, delta) })}
+        onStep={(delta) => update({ capacity: stepCapacity(draft.capacity, delta) })}
         onType={(capacity) => update({ capacity })}
-        onCommit={() => update({ capacity: clampCapacity(vm.kind, draft.capacity) })}
-        hint={hint}
+        onCommit={() => update({ capacity: clampCapacity(draft.capacity) })}
+        hint={wizardCopy.capacityHint}
       />
       <SettingsCard>
         <ToggleRow
