@@ -97,9 +97,15 @@ export type PostDetailScreenProps = {
   canSeePlans?: boolean;
   /**
    * The paywall, from a locked post's button: `plans` for a Plan, `distance`
-   * for a post outside the reader's area (MOB-077).
+   * for a post outside the reader's area (MOB-077), `any` when the page cannot
+   * tell which (the server refused it, and nothing said what kind of post it is).
    */
-  onUnlock?: (reason: 'plans' | 'distance') => void;
+  onUnlock?: (reason: LockedReason) => void;
+  /**
+   * The post's type, when whoever opened the page knew it but brought no
+   * `preview` (Explore). A Plan the server refuses is then named as a Plan.
+   */
+  knownType?: PostType | null;
   /**
    * The tapped card's photo, title and type. With it the page opens on its real
    * header (the photo is already in the image cache) rather than a blank or a
@@ -122,6 +128,7 @@ export function PostDetailScreen({
   onEditPost,
   canSeePlans = true,
   onUnlock,
+  knownType = null,
   preview = null,
   openAt,
 }: PostDetailScreenProps) {
@@ -197,13 +204,16 @@ export function PostDetailScreen({
   }
 
   // 402: outside the reader's area (or a Plan) without Pro. What the card brought, and the paywall.
+  const lockedType = preview?.type ?? knownType;
   if (!vm.post && vm.error === 'proRequired') {
     return (
       <LockedPost
         title={preview?.title ?? null}
         imageUrl={preview?.imageUrl ?? null}
         type={preview?.type ?? null}
-        reason={preview?.type === 'plan' ? 'plans' : 'distance'}
+        // The server does not say which it is. A Plan is said to be a Plan; any other type
+        // is outside the reader's area; and with no type to go by, neither is claimed.
+        reason={lockedType === 'plan' ? 'plans' : lockedType ? 'distance' : 'any'}
         onBack={onBack}
         onUnlock={onUnlock}
       />
@@ -256,7 +266,8 @@ export function PostDetailScreen({
         title={post.title}
         imageUrl={post.images[0] ?? null}
         type={post.type}
-        reason={post.lockReason === 'distance' ? 'distance' : 'plans'}
+        // A Plan needs Pro wherever it is, so it never reads "outside your area".
+        reason={post.type !== 'plan' && post.lockReason === 'distance' ? 'distance' : 'plans'}
         onBack={onBack}
         onUnlock={onUnlock}
       />
@@ -632,6 +643,9 @@ function menuActions(
   ];
 }
 
+/** Why a post is locked: a Plan, a post outside the reader's area, or one the page cannot tell apart. */
+export type LockedReason = 'plans' | 'distance' | 'any';
+
 /**
  * A post the reader may not open without Pro: a Plan, or one outside their
  * area (MOB-077). Its photo and title, why, and the paywall. Opened from a
@@ -648,13 +662,13 @@ function LockedPost({
   title: string | null;
   imageUrl: string | null;
   type: PostType | null;
-  reason: 'plans' | 'distance';
+  reason: LockedReason;
   onBack: () => void;
-  onUnlock?: (reason: 'plans' | 'distance') => void;
+  onUnlock?: (reason: LockedReason) => void;
 }) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const p = reason === 'plans' ? postCopy.proPlan : postCopy.farPost;
+  const p = reason === 'plans' ? postCopy.proPlan : reason === 'distance' ? postCopy.farPost : postCopy.proPost;
   const unlock = onUnlock ? <Button label={p.unlock} size="lg" fullWidth onPress={() => onUnlock(reason)} /> : null;
   if (!title || !type) {
     return (

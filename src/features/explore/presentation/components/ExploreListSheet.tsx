@@ -22,7 +22,7 @@ import { haptics } from '@shared/feedback/haptics';
 import { useTheme } from '@shared/hooks/useTheme';
 import { SCREEN_GUTTER } from '@shared/theme';
 
-import type { Interest } from '../../domain/entities/Explore';
+import type { Interest, PostType } from '../../domain/entities/Explore';
 import { SEARCH_MAX, SEARCH_MIN, readSearch, startingWith } from '../../domain/rules/exploreRules';
 import { exploreCopy, exploreErrorMessages } from '../copy';
 import { useInterests } from '../hooks/useInterests';
@@ -83,7 +83,7 @@ export function ExploreListSheet({
   /** Changes when the list is opened anew (not when it comes back from a result). */
   session: number;
   onDismiss: () => void;
-  onOpenMeetup: (id: string) => void;
+  onOpenMeetup: (id: string, type: PostType) => void;
   onOpenPerson: (userId: string) => void;
   /** The interest the map is showing; null is all of them. */
   interestId: string | null;
@@ -114,7 +114,7 @@ function ListFlow({
 }: {
   isPresented: boolean;
   onDismiss: () => void;
-  onOpenMeetup: (id: string) => void;
+  onOpenMeetup: (id: string, type: PostType) => void;
   onOpenPerson: (userId: string) => void;
   interestId: string | null;
   onInterestChange: (interestId: string | null) => void;
@@ -496,7 +496,7 @@ function Results({
 }: {
   words: string;
   search: ReturnType<typeof useSearchPosts>;
-  onOpen: (id: string) => void;
+  onOpen: (id: string, type: PostType) => void;
   onSeePeople: () => void;
   onClear: () => void;
 }) {
@@ -538,7 +538,7 @@ function Results({
     <Animated.View entering={FadeIn.duration(180)} style={{ gap: 12 }}>
       {search.items.map((post, index) => (
         <Animated.View key={post.id} entering={index < 3 ? enterRise(index * 60) : undefined}>
-          <MeetupCard meetup={post} fill onPress={() => onOpen(post.id)} />
+          <MeetupCard meetup={post} fill onPress={() => onOpen(post.id, post.type)} />
         </Animated.View>
       ))}
       {search.hasMore ? (
@@ -657,7 +657,7 @@ function Browse({
   interests: ReturnType<typeof useInterests>;
   interestId: string | null;
   onInterestChange: (interestId: string | null) => void;
-  onOpenMeetup: (id: string) => void;
+  onOpenMeetup: (id: string, type: PostType) => void;
 }) {
   const copy = exploreCopy.list;
   const meetups = useNearbyMeetups(interestId);
@@ -750,7 +750,7 @@ function Browse({
           <View style={{ gap: 12 }}>
             {meetups.items.map((meetup, index) => (
               <Animated.View key={meetup.id} entering={enterMeetup(index)}>
-                <MeetupCard meetup={meetup} fill onPress={() => onOpenMeetup(meetup.id)} />
+                <MeetupCard meetup={meetup} fill onPress={() => onOpenMeetup(meetup.id, meetup.type)} />
               </Animated.View>
             ))}
             {meetups.hasMore ? (

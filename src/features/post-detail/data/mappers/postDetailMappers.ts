@@ -53,7 +53,8 @@ export function toPostDetail(dto: PostDetailDto): PostDetail {
     externalUrl: dto.externalUrl ?? null,
     rsvpState: dto.rsvpState ?? 'none',
     // `locked` with no reason predates MOB-077, when only Plans locked.
-    lockReason: dto.locked ? (dto.lockReason === 'distance' ? 'distance' : 'plan') : null,
+    // A Plan is locked as a Plan wherever it is: it never reads "outside your area".
+    lockReason: dto.locked ? (dto.type !== 'plan' && dto.lockReason === 'distance' ? 'distance' : 'plan') : null,
     visibility: dto.visibility === 'private' ? 'private' : 'open',
     waitlistEnabled: dto.waitlistEnabled ?? false,
     waitlistPosition: dto.waitlistPosition ?? null,

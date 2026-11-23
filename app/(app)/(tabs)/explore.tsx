@@ -16,7 +16,7 @@ export default function ExploreRoute() {
   return (
     <ExploreScreen
       toStartSignal={toStart}
-      onOpenPost={(id) => router.push({ pathname: exploreRoutes.post, params: { id } })}
+      onOpenPost={(id, type) => router.push({ pathname: exploreRoutes.post, params: type ? { id, type } : { id } })}
       onTeleport={() => router.push(homeRoutes.travel)}
       onOpenPerson={(id) => router.push({ pathname: profileRoutes.user, params: { id } })}
     />

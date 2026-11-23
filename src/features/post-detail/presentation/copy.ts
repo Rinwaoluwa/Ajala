@@ -128,13 +128,21 @@ export const postCopy = {
     cancelReply: 'Cancel',
     sending: 'Sending…',
   },
-  // Not drawn: a Plan opened without Travel Pro (Plans are a Pro feature, 10 Nov).
+  // Not drawn: a Plan opened without Travel Pro (Plans are a Pro feature, 10 Nov). The wording
+  // is product's (23 Nov), and a Plan reads this wherever it is: never "outside your area".
   proPlan: {
-    title: 'Plans are a Pro feature',
+    title: 'Go to Pro to see plan',
     body: 'See the full plan, its stops and who is going, and join it, with a Travel subscription.',
     unlock: 'Unlock with Travel',
   },
-  // Not drawn: a post outside the reader's area, without Pro (MOB-077).
+  // Not drawn: a post the server will not open without Pro, when the page was not told what
+  // kind of post it is. It may be a Plan, so it never says "outside your area".
+  proPost: {
+    title: 'Go to Pro to see this',
+    body: 'Plans, and posts outside your area, open with a Travel subscription.',
+    unlock: 'Go Pro',
+  },
+  // Not drawn: a post outside the reader's area, without Pro (MOB-077). Never a Plan.
   farPost: {
     title: 'This is outside your area',
     body: 'Free members see posts near them. Go Pro to see posts anywhere, and join them.',
@@ -205,7 +213,8 @@ export const postErrorMessages: Record<PostDetailErrorCode, string> = {
   hasAttendees: 'People have joined, so it can’t be deleted. Cancel it instead.',
   // Also joining your own post (409): the page then re-reads it and shows "Manage post".
   notAllowed: 'You can’t do that on this post.',
-  proRequired: 'This is outside your area. Go Pro to see posts anywhere.',
+  // It may be a Plan, which is Pro wherever it is: so not "outside your area".
+  proRequired: 'Go to Pro to see this.',
   noLocation: 'Turn on location to open this post.',
   rateLimited: 'Too many tries. Wait a moment and try again.',
   network: 'You seem to be offline. Check your connection and try again.',

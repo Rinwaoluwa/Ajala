@@ -34,7 +34,7 @@ import { SCREEN_GUTTER } from '@shared/theme';
 
 import { useSubscription } from '@features/payment';
 
-import type { Bbox, PlaceLocation, PostPreview } from '../../domain/entities/Explore';
+import type { Bbox, PlaceLocation, PostPreview, PostType } from '../../domain/entities/Explore';
 import {
   NO_FILTERS,
   filtersActive,
@@ -95,7 +95,8 @@ const CONTROLS_LIFT = 168;
 const WORLD: MapRegion = regionAround(0, 0, 60);
 
 export type ExploreScreenProps = {
-  onOpenPost: (postId: string) => void;
+  /** `type`, when known: the post page then names a locked Plan as a Plan. */
+  onOpenPost: (postId: string, type?: PostType) => void;
   /** Opens Travel (Home's city picker), to look somewhere the map can't reach. */
   onTeleport: () => void;
   /** Opens a traveller's profile, from the list's people search. */
@@ -410,7 +411,7 @@ export function ExploreScreen({ onOpenPost, onTeleport, onOpenPerson, toStartSig
               joining={joining.joining}
               onRetry={preview.retry}
               onJoin={join}
-              onPreview={() => onOpenPost(selectedId)}
+              onPreview={() => onOpenPost(selectedId, pins.pins.find((pin) => pin.id === selectedId)?.type)}
               onReport={() => reportPost(selectedId)}
               onClose={() => select(null)}
             />
@@ -471,10 +472,10 @@ export function ExploreScreen({ onOpenPost, onTeleport, onOpenPerson, toStartSig
         onDismiss={() => setListOpen(false)}
         // The list is a modal over the whole app, so it steps aside for the screen it opens
         // and comes back when that screen is left.
-        onOpenMeetup={(id) => {
+        onOpenMeetup={(id, type) => {
           backToList.current = true;
           setListOpen(false);
-          onOpenPost(id);
+          onOpenPost(id, type);
         }}
         onOpenPerson={(id) => {
           backToList.current = true;
