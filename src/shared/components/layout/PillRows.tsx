@@ -1,5 +1,8 @@
-import { useState, type ReactElement } from 'react';
+import { useState, type ReactElement, type ReactNode } from 'react';
 import { ScrollView, View, type LayoutChangeEvent } from 'react-native';
+import Animated, { FadeIn, ReduceMotion } from 'react-native-reanimated';
+
+import { splitIntoRows } from './splitIntoRows';
 
 /**
  * Pills on one line while they fit, then in `maxRows` rows that scroll sideways
@@ -16,49 +19,38 @@ import { ScrollView, View, type LayoutChangeEvent } from 'react-native';
  * its very first frame, before anything is measured. After that it keeps its
  * layout while a newly added pill is measured (its width counts as nothing for
  * that frame), so picking a chip never makes the group blink or jump.
+ *
+ * That first frame is not always one frame. A long list of chips (the create
+ * wizard's interests) is drawn twice, once to be measured and once in its rows,
+ * and on a slow phone that left a blank gap of a second or more, with whatever
+ * came after the group pushed down the page by the hidden, wrapped list. With a
+ * `placeholder` the gap shows that instead (a loader), and the pills are
+ * measured out of the way, taking no room; they then fade in over it. `loading`
+ * keeps the placeholder up while the list itself is still on its way, so one
+ * loader covers the wait for the list and the wait to lay it out.
  */
 export type PillRowsProps = {
   pills: ReactElement[];
   maxRows?: number;
   gap?: number;
   rowGap?: number;
+  /** Shown in the group's place until its pills can be shown (see above). */
+  placeholder?: ReactNode;
+  /** The pills are not here yet: keep the `placeholder` up. */
+  loading?: boolean;
 };
 
 type Mode = 'unknown' | 'line' | 'rows';
 
-/**
- * Splits widths, in order, into at most `rows` runs of about equal length.
- * Returns the index each run starts at.
- */
-export function splitIntoRows(widths: number[], rows: number, gap: number): number[] {
-  const count = Math.min(rows, widths.length);
-  if (count <= 1) return [0];
-  const total = widths.reduce((sum, w) => sum + w, 0) + gap * (widths.length - 1);
-  const target = total / count;
-  const starts = [0];
-  let line = 0;
-  widths.forEach((w, i) => {
-    const left = widths.length - i;
-    const rowsLeft = count - starts.length;
-    const longer = line === 0 ? w : line + gap + w;
-    // Start a new row when this pill takes the row further past the target than
-    // stopping short of it would, or when every remaining row needs a pill.
-    const breakHere =
-      i > 0 && line > 0 && rowsLeft > 0 && (longer - target > target - line || left === rowsLeft);
-    if (breakHere) {
-      starts.push(i);
-      line = w;
-    } else line = longer;
-  });
-  return starts;
-}
-
-export function PillRows({ pills, maxRows = 3, gap = 8, rowGap = 8 }: PillRowsProps) {
+export function PillRows({ pills, maxRows = 3, gap = 8, rowGap = 8, placeholder, loading = false }: PillRowsProps) {
   const [space, setSpace] = useState(0);
   const [widths, setWidths] = useState<Record<string, number>>({});
   const [mode, setMode] = useState<Mode>('unknown');
   const keys = pills.map((p, i) => String(p.key ?? i));
-  const allMeasured = space > 0 && keys.every((k) => widths[k] !== undefined);
+  // With no pills there is nothing to measure and no layout to settle on: a group that is
+  // still waiting for its list must not decide it is "one line" and then show the list
+  // that way for the frame it takes to measure it.
+  const allMeasured = space > 0 && keys.length > 0 && keys.every((k) => widths[k] !== undefined);
   const measured = keys.map((k) => widths[k] ?? 0);
 
   // The length of one line of every pill.
@@ -101,15 +93,40 @@ export function PillRows({ pills, maxRows = 3, gap = 8, rowGap = 8 }: PillRowsPr
     );
   }
 
+  const onSpace = (e: LayoutChangeEvent) => {
+    const w = e.nativeEvent.layout.width;
+    setSpace((s) => (s === w ? s : w));
+  };
+
+  if (placeholder == null) {
+    return (
+      <View onLayout={onSpace} style={{ opacity: wanted === 'unknown' ? 0 : 1 }}>
+        {body}
+      </View>
+    );
+  }
+
+  // With a placeholder: it holds the group's place until the pills are here and measured.
+  // Meanwhile they are measured over it, unseen and taking no room, so nothing below moves
+  // for a list nobody can see yet.
+  const waiting = loading || wanted === 'unknown';
   return (
-    <View
-      onLayout={(e) => {
-        const w = e.nativeEvent.layout.width;
-        setSpace((s) => (s === w ? s : w));
-      }}
-      style={{ opacity: wanted === 'unknown' ? 0 : 1 }}
-    >
-      {body}
+    <View onLayout={onSpace}>
+      {waiting ? (
+        <>
+          {placeholder}
+          <View
+            pointerEvents="none"
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+            style={{ position: 'absolute', top: 0, left: 0, right: 0, opacity: 0 }}
+          >
+            {body}
+          </View>
+        </>
+      ) : (
+        <Animated.View entering={FadeIn.duration(180).reduceMotion(ReduceMotion.System)}>{body}</Animated.View>
+      )}
     </View>
   );
 }

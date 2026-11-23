@@ -1,6 +1,6 @@
 import { describe, expect, it } from '@jest/globals';
 
-import { splitIntoRows } from '../PillRows';
+import { splitIntoRows } from '../splitIntoRows';
 
 describe('splitting pills into rows', () => {
   it('keeps the order and makes the rows about the same length', () => {

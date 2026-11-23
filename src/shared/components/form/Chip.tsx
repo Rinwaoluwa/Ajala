@@ -159,6 +159,13 @@ export type ChipGroupProps = {
   maxRows?: number;
   /** Every chip on as many rows as it takes, never scrolling sideways (setup screens). */
   wrap?: boolean;
+  /**
+   * Shown in the group's place until its chips can be shown: while `loading`, and for the
+   * moment a long list takes to be laid out (`PillRows`). Not used with `wrap`.
+   */
+  placeholder?: ReactNode;
+  /** The chips are not here yet (a list still being fetched): keep the `placeholder` up. */
+  loading?: boolean;
 };
 
 /**
@@ -166,10 +173,27 @@ export type ChipGroupProps = {
  * sideways together (`PillRows`), so a long list (36 travel styles, every
  * language) never takes over the page.
  */
-export function ChipGroup({ children, gap = 6, rowGap = 8, maxRows = 3, wrap = false }: ChipGroupProps) {
+export function ChipGroup({
+  children,
+  gap = 6,
+  rowGap = 8,
+  maxRows = 3,
+  wrap = false,
+  placeholder,
+  loading,
+}: ChipGroupProps) {
   const pills = Children.toArray(children).filter(isValidElement);
   if (wrap) {
     return <View style={{ flexDirection: 'row', flexWrap: 'wrap', columnGap: gap, rowGap }}>{pills}</View>;
   }
-  return <PillRows pills={pills} maxRows={maxRows} gap={gap} rowGap={rowGap} />;
+  return (
+    <PillRows
+      pills={pills}
+      maxRows={maxRows}
+      gap={gap}
+      rowGap={rowGap}
+      placeholder={placeholder}
+      loading={loading}
+    />
+  );
 }
