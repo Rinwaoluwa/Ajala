@@ -258,7 +258,7 @@ These three are related:
 - **Proposal:** `POST` / `DELETE /posts/:id/hide`; `POST` / `DELETE /users/:id/mute` with `GET /me/mutes` for a settings list, both leaving the feed, map and search; and a decision on what "Not interested" should change.
 
 ### B14. Posts without photos
-**Status: Open on staging (checked 22 Nov, 19:36 WAT). Dev not checked: no working dev test login.**
+**Status: Done on staging (checked 23 Nov, 10:20 WAT): a Meetup, a Group and an Event each published with no `images`. The carousel question below is still open. Dev not checked: no working dev test login.**
 
 - **Problem:** the new Home design has posts that are words alone, and product says photos are now optional. The app no longer asks for them (none, or up to four) and sends the publish with no `images`. Staging still answers 400 `VALIDATION_FAILED` `{ field: "images", message: "Add 2 to 4 images" }`:
   - from the app, 22 Nov 19:33 WAT, request `cfc34b5f-5493-4ad6-af6f-9fb27da8bfdd`;
@@ -275,7 +275,7 @@ These three are related:
 - **Proposal:** `GET /fx/rates` (no auth) → `{ base: "USD", date, rates: { NGN: 1353.02, … } }`, cached for a day, so the app and the server agree and the source is ours to choose. With it, `GET /map/pins` and `GET /search/posts` could also take `maxPrice` + `currency` and filter on the server.
 
 ### B16. Capacity: is "no limit" allowed on every type?
-**Status: A question. The app now relies on the answer being yes.**
+**Status: Answered by staging (23 Nov, 10:20 WAT). The app no longer has a size by type (product, 23 Nov): any type takes 1 to 100,000 people, or no limit. Staging published an Event of 50, a Group of 500 and a Meetup of 5,000, so the per-type rule in §2.12 is not enforced there. Please keep it that way on every server, and correct the spec.**
 
 - **What we see:** the spec says a Group needs 1–100 (§2.12). On staging (22 Nov) a publish with no `capacity` fails only on `images` for a Meetup, a Group and an Event alike; no capacity rule is listed.
 - **Today:** clearing the capacity field means "No limit" on every type, and the post is sent with no `capacity`.

@@ -111,7 +111,7 @@ The whole wizard is one request. Collect every step locally and send a single PO
 | Schedule (Event only) | running order (not drawn) | **(new)** schedule (repeat the field, one line each) | Events only; a 400 on any other type. **(Nov 9)** Up to 30 lines of 120 characters |
 | Schedule (Plan only) | itinerary / stops (not drawn) | **(new)** itinerary (repeat the field, one line each) | Plans only; a 400 on any other type. Replaces the old Plan checklist. **(Nov 9)** Up to 30 lines of 120 characters |
 | Schedule (Group only) | repeats (not drawn) | **(new)** recurrence (weekly, biweekly, monthly), recurrenceEndsOn (date) | Groups only. A monthly Group must start on the 1st to the 28th. The server moves the date on after each meeting and keeps the people going |
-| Participants | Capacity ("10 people") | capacity | Optional. Event: over 100 or none. Group: 1 to 100. Meetup and Plan: any |
+| Participants | Capacity ("10 people") | capacity | Optional. Any type: 1 to 100,000, or none for no limit (product, 23 Nov: no size by type any more) |
 | Participants | Open to everyone / Request to join | visibility | open or private. Private means people request and the host accepts |
 | Participants | Show on map | showOnMap | true or false as text |
 | Participants | waiting list (not drawn) | waitlistEnabled | true lets people queue when full. Worth a toggle |
