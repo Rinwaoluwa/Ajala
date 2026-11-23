@@ -15,7 +15,6 @@ import {
 import { FORM_FIELD_GAP } from '@shared/theme';
 
 import { GENDERS, LANGUAGES } from '../../domain/rules/profileSetupRules';
-import { chipToneFor } from '../chipTones';
 import { AvatarPicker } from '../components/AvatarPicker';
 import { CityField } from '../components/CityField';
 import { SetupHeader } from '../components/SetupHeader';
@@ -109,7 +108,8 @@ export function ProfileBasicsScreen({ onContinue }: ProfileBasicsScreenProps) {
               key={language.value}
               label={language.label}
               selected={vm.draft.languages.includes(language.value)}
-              tone={chipToneFor(language.label)}
+              // One colour, the app's green: a language is not a category to tell apart by colour.
+              tone="teal"
               onPress={() => vm.toggleLanguage(language.value)}
             />
           ))}
