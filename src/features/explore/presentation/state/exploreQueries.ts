@@ -35,6 +35,8 @@ export const exploreKeys = {
   /** The map's city search on the phone, by what was typed. */
   places: (query: string) => ['explore', 'places', query] as const,
   rsvpNotice: ['explore', 'rsvpNotice'] as const,
+  /** The list's past searches, on this phone, for one account. */
+  recentSearches: (userId: string) => ['explore', 'recentSearches', userId] as const,
   /** The signed-in person (id and interests). The id never changes within a session; signing out clears the cache. */
   me: ['me', 'explore'] as const,
 };

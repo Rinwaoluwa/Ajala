@@ -35,6 +35,7 @@ export function useNearbyMeetups(interestId: string | null) {
     loading: query.isPending,
     failed: query.isError && items.length === 0,
     noLocation: isExploreError(query.error) && query.error.code === 'noLocation',
+    hasMore: query.hasNextPage,
     loadingMore: query.isFetchingNextPage,
     retry: () => void query.refetch(),
     loadMore: () => {

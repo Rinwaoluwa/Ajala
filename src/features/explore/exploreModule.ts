@@ -1,3 +1,4 @@
+import { recentSearchStore } from './data/datasources/local/recentSearchStore';
 import { createExploreRepository } from './data/repositories/ExploreRepositoryImpl';
 import type { ExploreRequest } from './data/datasources/remote/exploreApi';
 import {
@@ -42,6 +43,8 @@ export function createExploreUseCases(request: ExploreRequest) {
     searchPeople: makeSearchPeople(repo),
     loadPrices: makeLoadPrices(repo),
     rsvpNotice: makeRsvpNotice(repo),
+    /** The list's past searches, kept on this phone. */
+    recentSearches: recentSearchStore,
   };
 }
 

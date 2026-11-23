@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
 import { Pressable, View } from 'react-native';
 import Animated, { FadeIn, FadeOut, useReducedMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -131,6 +132,18 @@ export function ExploreScreen({ onOpenPost, onTeleport, onOpenPerson, toStartSig
   const [kind, setKind] = useState<MapKind>('standard');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [listOpen, setListOpen] = useState(false);
+  // Changes each time View List is tapped: the list starts afresh. It is left alone when the
+  // list closes only to show a result, so the search is still there on the way back.
+  const [listSession, setListSession] = useState(0);
+  // A result was opened from the list: coming back lands on the list, not the map.
+  const backToList = useRef(false);
+  useFocusEffect(
+    useCallback(() => {
+      if (!backToList.current) return;
+      backToList.current = false;
+      setListOpen(true);
+    }, []),
+  );
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [noticeFor, setNoticeFor] = useState<PostPreview | null>(null);
   const [reportFor, setReportFor] = useState<string | null>(null);
@@ -416,7 +429,10 @@ export function ExploreScreen({ onOpenPost, onTeleport, onOpenPerson, toStartSig
               style={{ borderRadius: 999 }}
             >
               <Pressable
-                onPress={() => setListOpen(true)}
+                onPress={() => {
+                  setListSession((n) => n + 1);
+                  setListOpen(true);
+                }}
                 accessibilityRole="button"
                 style={{
                   flexDirection: 'row',
@@ -451,15 +467,23 @@ export function ExploreScreen({ onOpenPost, onTeleport, onOpenPerson, toStartSig
       />
       <ExploreListSheet
         isPresented={listOpen}
+        session={listSession}
         onDismiss={() => setListOpen(false)}
+        // The list is a modal over the whole app, so it steps aside for the screen it opens
+        // and comes back when that screen is left.
         onOpenMeetup={(id) => {
+          backToList.current = true;
           setListOpen(false);
           onOpenPost(id);
         }}
         onOpenPerson={(id) => {
+          backToList.current = true;
           setListOpen(false);
           onOpenPerson(id);
         }}
+        // The map's own interest: the list and the map behind it show the same thing.
+        interestId={interestId}
+        onInterestChange={setInterestId}
       />
       <RsvpNoticeDialog
         isPresented={noticeFor !== null}

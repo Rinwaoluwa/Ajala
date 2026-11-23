@@ -27,7 +27,10 @@ because API map §7 makes it the Explore tab; `map/` is still the empty scaffold
 | Browse By Interest | `GET /interests` |
 | Meetups Near You, no interest | `GET /feed?type=meetup` (infinite) — search refuses a call with neither words nor interests |
 | Meetups Near You, an interest chosen | `GET /search/posts?interestIds=<id>&type=meetup` (infinite) |
-| The list's search box | `GET /search/posts?q=` on submit (2–100 characters; a hint under 2). Results, any type, replace the list until the box is cleared; "Show more" pages; at 100 results it asks to narrow the search |
+| The list's search box | Pinned at the top of the full-height sheet. `GET /search/posts?q=` when a search is run (the keyboard's Search key, the "Search for …" row, or a past search; 2–100 characters, a hint under 2). Results, any type, take the page until Cancel or the box is cleared; "Show more" pages; at 100 results it asks to narrow the search. Nothing found says where search looked (within 30 km) and offers People and Clear search |
+| People | `GET /search/people?q=`, asked once the People tab is opened |
+| Recent searches | Kept on the phone (`recentSearchStore`, AsyncStorage, per account, the latest 6): shown when the box is tapped, removable one by one or all |
+| Suggestions while typing | Worked out on the phone from the recent searches and `GET /interests` (`startingWith`): the API has no typeahead, so nothing is asked per keystroke. An interest picked there is Browse By Interest |
 
 Every map, post, feed and search call sends `X-Client-Location`. `GET /explore/meetups` was
 removed from the API.
@@ -97,6 +100,28 @@ Curation weights come from the backend; the client never re-ranks. The map SDK (
 Google Maps on both platforms, with `GOOGLE_MAPS_IOS_API_KEY` and `GOOGLE_MAPS_ANDROID_API_KEY` from EAS
 environment variables; an iOS build without its key falls back to Apple Maps) is wrapped in
 `core/maps`; this feature never imports it directly.
+
+## The Explore list (View List): how it is laid out, and why
+
+One full-height sheet (`Sheet fill`), one scroll area, the search box pinned above it.
+
+| What | Why |
+| --- | --- |
+| Full height, kept as the content changes | A sheet sized to its content jumps as results arrive. NN/g: a sheet that holds a whole task should be a page, with a visible way out (the × and Cancel) |
+| The search box never moves; the list makes room for the keyboard | The box was inside the scrolling content of a sheet that rose with the keyboard, so the keyboard scrolled it out of sight. Apple HIG and Material both keep the field fixed at the top while searching |
+| Tapping the box opens search in place, with Cancel beside it | HIG search fields; Material's search view. One obvious way back to browsing |
+| Recent searches when the box is empty | HIG ("consider showing recent searches"), Baymard, Algolia: the cheapest search is one not typed again |
+| Suggestions while typing come from the phone | The API searches on submit only. Local matches still save typing, and "Search for …" makes the next step plain |
+| Activities and People a tap apart, under the box | Scopes belong with the field (HIG scope bar), and only once there is something to scope |
+| Nothing found is never a dead end | Baymard, NN/g: say what was searched and where, offer the nearest other thing to do |
+| Browse By Interest opens out in place | It opened a second sheet over the first. NN/g: don't stack sheets |
+| The interest chosen is the map's own | The list and the map are two views of the same thing (as Airbnb and Google Maps keep them) |
+| Meetups Near You reads down, one full-width card each | The design has a row to swipe sideways. Sideways rows hide most of their content and are skipped (Baymard, NN/g on carousels). **A departure from the Figma frame** |
+| Back from a result lands on the list, search intact | Baymard: losing the list on the way back is among the most common mobile search failures. The scroll position is not restored yet |
+
+Sources: NN/g "Bottom Sheets" · Apple HIG "Search fields", "Searching" · Material 3 "Search" ·
+Baymard "Mobile UX" · Algolia "Mobile search UX" (parts one and two) · Smashing Magazine "Things
+users would appreciate in mobile apps" · eBay Playbook "Bottom sheet".
 
 ## Choosing an interest on the map
 

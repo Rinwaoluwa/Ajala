@@ -1,12 +1,11 @@
-import { useState } from 'react';
-import { FlatList, ScrollView, TouchableOpacity, View, useWindowDimensions } from 'react-native';
+import { useState, type ReactNode } from 'react';
+import { Keyboard, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
 import {
   Avatar,
   Button,
   Host,
-  LoadingRing,
   NativeIcon,
   Sheet,
   SkeletonBlock,
@@ -19,76 +18,127 @@ import {
   icons,
   useListEntrance,
 } from '@shared/components';
+import { haptics } from '@shared/feedback/haptics';
 import { useTheme } from '@shared/hooks/useTheme';
 import { SCREEN_GUTTER } from '@shared/theme';
 
-import { SEARCH_MAX, readSearch } from '../../domain/rules/exploreRules';
+import type { Interest } from '../../domain/entities/Explore';
+import { SEARCH_MAX, SEARCH_MIN, readSearch, startingWith } from '../../domain/rules/exploreRules';
 import { exploreCopy, exploreErrorMessages } from '../copy';
 import { useInterests } from '../hooks/useInterests';
 import { useNearbyMeetups } from '../hooks/useNearbyMeetups';
+import { useRecentSearches } from '../hooks/useRecentSearches';
 import { useSearchPeople } from '../hooks/useSearchPeople';
 import { useSearchPosts } from '../hooks/useSearchPosts';
 import { InterestGrid, columnsFor } from './InterestGrid';
 import { MeetupCard } from './MeetupCard';
 
 /**
- * "Explore" (Figma, opened by View List): "Find your people. Discover your city.",
- * a search box, Browse By Interest, then Meetups Near You.
+ * "Explore" (opened by View List): search, Browse By Interest and Meetups Near
+ * You, as one page in a full-height sheet.
  *
- * The search box searches on submit (2–100 characters; no typeahead, as the spec
- * asks), in two tabs: Activities, posts within 30 km of where the feed looks
- * (`GET /search/posts?q=`), and People, travellers by first name or handle
- * (`GET /search/people?q=`; opened on their profile). The results replace the
- * interests and meetups until the box is cleared. Fewer than
- * two characters gets a hint under the box rather than a call the server would
- * refuse.
+ * How it is laid out, and why (the feature's README has the sources):
  *
- * Meetups Near You follows the interest grid: the feed's meetups with none
- * chosen, a search by the chosen interest otherwise (`useNearbyMeetups`).
+ *   - The search box is pinned at the top of the sheet and the sheet keeps its
+ *     full height. It was inside the scrolling content of a sheet that rose
+ *     with the keyboard, so opening the keyboard scrolled the box out of sight.
+ *     Now the box never moves and is never under the keys; the list below makes
+ *     room for them, and dragging it puts the keyboard away.
+ *   - Tapping the box opens search in place: Cancel appears beside it, and the
+ *     page under it becomes what helps a search get going. Empty, that is the
+ *     past searches (kept on this phone). While typing, it is a "Search for …"
+ *     row, the past searches that match, and the interests that match, all
+ *     worked out on the phone: the API searches on submit and has no typeahead
+ *     (spec §2.18), so nothing is asked of it per keystroke.
+ *   - A search is run from the keyboard's Search key, the "Search for …" row or
+ *     a past search. The keyboard goes away and the results take the page, with
+ *     Activities and People a tap apart just under the box. People is asked
+ *     only once it is opened.
+ *   - Finding nothing is not a dead end: it says where the search looked and
+ *     offers the other kind of result and a way back.
+ *   - Browse By Interest opens out in place ("View all"), where it used to open
+ *     a second sheet over this one. The interest chosen is the map's own: the
+ *     list and the map behind it always show the same thing.
+ *   - Meetups Near You is a list to read down, one full-width card each, with
+ *     "Show more" at its end. It was a row to swipe sideways, which hides all
+ *     but the first card and a half.
  *
- * A tall sheet whose body scrolls; its queries run only while it is open.
+ * `session` starts the sheet afresh: the screen changes it when View List is
+ * tapped, and leaves it alone when the sheet closes only to show a result and
+ * opens again on the way back, so a search and its results are still there.
+ *
+ * The searches run only while it is open, and Meetups Near You only while it is
+ * drawn (the sheet's content is mounted only while the sheet is).
  */
 export function ExploreListSheet({
   isPresented,
+  session,
   onDismiss,
   onOpenMeetup,
   onOpenPerson,
+  interestId,
+  onInterestChange,
 }: {
   isPresented: boolean;
+  /** Changes when the list is opened anew (not when it comes back from a result). */
+  session: number;
   onDismiss: () => void;
   onOpenMeetup: (id: string) => void;
   onOpenPerson: (userId: string) => void;
+  /** The interest the map is showing; null is all of them. */
+  interestId: string | null;
+  onInterestChange: (interestId: string | null) => void;
 }) {
   return (
-    <Sheet isPresented={isPresented} title={exploreCopy.list.title} onDismiss={onDismiss}>
-      <ListBody onOpenMeetup={onOpenMeetup} onOpenPerson={onOpenPerson} />
-    </Sheet>
+    <ListFlow
+      key={session}
+      isPresented={isPresented}
+      onDismiss={onDismiss}
+      onOpenMeetup={onOpenMeetup}
+      onOpenPerson={onOpenPerson}
+      interestId={interestId}
+      onInterestChange={onInterestChange}
+    />
   );
 }
 
 type SearchScope = 'activities' | 'people';
 
-function ListBody({
+function ListFlow({
+  isPresented,
+  onDismiss,
   onOpenMeetup,
   onOpenPerson,
+  interestId,
+  onInterestChange,
 }: {
+  isPresented: boolean;
+  onDismiss: () => void;
   onOpenMeetup: (id: string) => void;
   onOpenPerson: (userId: string) => void;
+  interestId: string | null;
+  onInterestChange: (interestId: string | null) => void;
 }) {
   const theme = useTheme();
-  const { height } = useWindowDimensions();
   const copy = exploreCopy.list;
+  /** What is in the box now. */
   const [draft, setDraft] = useState('');
-  /** The words last submitted; null shows the interests and meetups instead of results. */
+  /** The words last run; null while nothing has been searched. */
   const [words, setWords] = useState<string | null>(null);
-  const [tooShort, setTooShort] = useState(false);
-  // Remounting the uncontrolled field is how it is cleared.
+  /** Search is open: the box has been tapped, or there are results. */
+  const [searching, setSearching] = useState(false);
+  // The box keeps its own text and starts with `draft`; it is made anew (a new key) to empty it
+  // or to put a past search in it. It also starts with `draft` when the sheet comes back.
   const [fieldKey, setFieldKey] = useState(0);
   const [scope, setScope] = useState<SearchScope>('activities');
-  const search = useSearchPosts(scope === 'activities' ? words : null);
   // Asked only once People is opened; kept after, so switching back and forth is instant.
   const [peopleAsked, setPeopleAsked] = useState(false);
-  const people = useSearchPeople(words, peopleAsked || scope === 'people');
+
+  const posts = useSearchPosts(isPresented && scope === 'activities' ? words : null);
+  const people = useSearchPeople(isPresented ? words : null, peopleAsked || scope === 'people');
+  const recent = useRecentSearches();
+  const interests = useInterests();
+
   const chooseScope = (next: SearchScope) => {
     setScope(next);
     if (next === 'people') setPeopleAsked(true);
@@ -96,259 +146,551 @@ function ListBody({
 
   const change = (text: string) => {
     setDraft(text);
-    setTooShort(false);
-    // Emptying the box by hand goes back to the list, as the clear button does.
-    if (!text.trim()) setWords(null);
+    // Edited after a search (or emptied, by hand or the ×): the results belong to other
+    // words now, so the page goes back to what helps the next search get going.
+    if (words !== null && text.trim() !== words) setWords(null);
   };
-  const submit = () => {
-    const input = readSearch(draft);
-    if (input.kind === 'empty') setWords(null);
-    else if (input.kind === 'tooShort') setTooShort(true);
-    else setWords(input.words);
+
+  const run = (text: string) => {
+    const input = readSearch(text);
+    // Too short says so under the box as it is typed (`Suggestions`); nothing is run.
+    if (input.kind !== 'ready') return;
+    setWords(input.words);
+    recent.add(input.words);
+    // The results have the whole page: the keyboard has done its work.
+    Keyboard.dismiss();
   };
-  const clear = () => {
+
+  /** A past search, tapped: it goes in the box and runs. */
+  const runAgain = (text: string) => {
+    haptics.select();
+    setDraft(text);
+    setFieldKey((k) => k + 1);
+    run(text);
+  };
+
+  const leaveSearch = () => {
+    Keyboard.dismiss();
     setDraft('');
     setWords(null);
-    setTooShort(false);
+    setSearching(false);
     setFieldKey((k) => k + 1);
   };
 
-  return (
-    <ScrollView
-      style={{ height: Math.round(height * 0.72) }}
-      keyboardShouldPersistTaps="handled"
-      keyboardDismissMode="on-drag"
-      showsVerticalScrollIndicator={false}
-      contentContainerStyle={{ paddingBottom: 12 }}
-    >
-      <Text variant="bodyMd" tone="muted">
-        {copy.subtitle}
-      </Text>
-      <View className="mt-16">
-        <TextField
-          key={fieldKey}
-          label={copy.searchPlaceholder}
-          labelHidden
-          filled
-          placeholder={copy.searchPlaceholder}
-          onChangeText={change}
-          onSubmitEditing={submit}
-          maxLength={SEARCH_MAX}
-          autoCorrect={false}
-          returnKeyType="search"
-          helper={tooShort ? copy.searchTooShort : null}
-          clearable
-          leading={<NativeIcon source={icons.search} size={16} color={theme.muted} />}
-          trailing={draft ? <NativeIcon source={icons.close} size={12} color={theme.muted} /> : undefined}
-          trailingAction={draft ? { onPress: clear, accessibilityLabel: copy.clearSearch } : undefined}
-        />
-      </View>
+  /** An interest picked from what was typed: browse by it. */
+  const browseBy = (id: string) => {
+    haptics.select();
+    onInterestChange(id);
+    leaveSearch();
+  };
 
-      {words !== null ? (
-        <>
-          <View className="mt-16">
-            <UnderlineTabs
-              options={[
-                { value: 'activities' as const, label: copy.scopes.activities },
-                { value: 'people' as const, label: copy.scopes.people },
-              ]}
-              value={scope}
-              onChange={chooseScope}
-            />
-          </View>
-          {scope === 'activities' ? (
-            <Results search={search} onOpen={onOpenMeetup} />
-          ) : (
-            <PeopleResults people={people} onOpen={onOpenPerson} />
-          )}
-        </>
-      ) : (
-        <BrowseAndNearby onOpenMeetup={onOpenMeetup} />
-      )}
-    </ScrollView>
-  );
-}
-
-/** Search results, one full-width card each, paged with "Show more". */
-function Results({
-  search,
-  onOpen,
-}: {
-  search: ReturnType<typeof useSearchPosts>;
-  onOpen: (id: string) => void;
-}) {
-  const copy = exploreCopy.list;
-  return (
-    <Animated.View entering={FadeIn.duration(180)}>
-      <Text variant="headingSm" className="mt-24" accessibilityRole="header">
-        {copy.results}
-      </Text>
-      <View className="mt-12">
-        {search.loading ? (
-          <SkeletonPulse>
-            <View style={{ gap: 12 }}>
-              {[0, 1].map((i) => (
-                <View key={i} style={{ gap: 8 }}>
-                  <SkeletonBlock height={112} radius={14} />
-                  <SkeletonBlock width="70%" height={14} />
-                </View>
-              ))}
-            </View>
-          </SkeletonPulse>
-        ) : search.error ? (
-          <Inline
-            message={search.error === 'noLocation' ? exploreErrorMessages.noLocation : copy.resultsFailed}
-            onRetry={search.retry}
+  const header = (
+    <View style={{ gap: 12 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+        <View style={{ flex: 1 }}>
+          <TextField
+            key={fieldKey}
+            label={copy.searchPlaceholder}
+            labelHidden
+            filled
+            placeholder={copy.searchPlaceholder}
+            defaultValue={draft}
+            onChangeText={change}
+            onSubmitEditing={() => run(draft)}
+            // Search stays open until Cancel: putting the keyboard away (a drag on the
+            // list does) is not leaving it.
+            onFocus={() => setSearching(true)}
+            maxLength={SEARCH_MAX}
+            autoCorrect={false}
+            autoCapitalize="none"
+            returnKeyType="search"
+            clearable
+            leading={<NativeIcon source={icons.search} size={16} color={theme.muted} />}
+            testID="explore-search"
           />
-        ) : search.items.length === 0 ? (
-          <Text variant="bodySm" tone="muted" className="py-12" accessibilityLiveRegion="polite">
-            {copy.resultsEmpty}
-          </Text>
+        </View>
+        {searching ? (
+          <Animated.View entering={FadeIn.duration(160)}>
+            <TextLink label={copy.cancel} onPress={leaveSearch} emphasis="plain" testID="explore-search-cancel" />
+          </Animated.View>
+        ) : null}
+      </View>
+      {words !== null ? (
+        <UnderlineTabs
+          options={[
+            { value: 'activities' as const, label: copy.scopes.activities },
+            { value: 'people' as const, label: copy.scopes.people },
+          ]}
+          value={scope}
+          onChange={chooseScope}
+        />
+      ) : null}
+    </View>
+  );
+
+  return (
+    <Sheet
+      isPresented={isPresented}
+      title={copy.title}
+      onDismiss={onDismiss}
+      header={header}
+      fill
+      // Each of these is a page of its own, read from its top.
+      page={!searching ? 'browse' : words === null ? 'suggest' : `${scope}:${words}`}
+    >
+      <View style={{ paddingBottom: 24 }}>
+        {!searching ? (
+          <Browse
+            interests={interests}
+            interestId={interestId}
+            onInterestChange={onInterestChange}
+            onOpenMeetup={onOpenMeetup}
+          />
+        ) : words === null ? (
+          <Suggestions
+            typed={draft}
+            recent={recent}
+            interests={interests.interests}
+            onRun={run}
+            onRunAgain={runAgain}
+            onBrowse={browseBy}
+          />
+        ) : scope === 'activities' ? (
+          <Results
+            words={words}
+            search={posts}
+            onOpen={onOpenMeetup}
+            onSeePeople={() => chooseScope('people')}
+            onClear={leaveSearch}
+          />
         ) : (
-          <View style={{ gap: 12 }}>
-            {search.items.map((post, index) => (
-              <Animated.View key={post.id} entering={index < 3 ? enterRise(index * 60) : undefined}>
-                <MeetupCard meetup={post} fill onPress={() => onOpen(post.id)} />
-              </Animated.View>
-            ))}
-            {search.hasMore ? (
-              <View style={{ alignSelf: 'center' }}>
-                <Button
-                  label={copy.showMore}
-                  size="sm"
-                  variant="secondary"
-                  loading={search.loadingMore}
-                  onPress={search.loadMore}
-                />
-              </View>
-            ) : null}
-            {search.capped ? (
-              <Text variant="bodySm" tone="muted" className="text-center">
-                {copy.resultsCapped}
-              </Text>
-            ) : null}
-          </View>
+          <PeopleResults
+            words={words}
+            people={people}
+            onOpen={onOpenPerson}
+            onSeeActivities={() => chooseScope('activities')}
+            onClear={leaveSearch}
+          />
         )}
       </View>
-    </Animated.View>
+    </Sheet>
   );
 }
 
-/** People results: avatar, name, then @handle and where they're based; a tap opens their profile. */
-function PeopleResults({
-  people,
-  onOpen,
+/** One row of the search page: a glyph, a line (and a quieter one), and something at its end. */
+function Row({
+  glyph,
+  title,
+  detail,
+  trailing,
+  onPress,
+  accessibilityLabel,
+  first = false,
+  testID,
 }: {
-  people: ReturnType<typeof useSearchPeople>;
-  onOpen: (userId: string) => void;
+  glyph: ReactNode;
+  title: string;
+  detail?: string;
+  trailing?: ReactNode;
+  onPress: () => void;
+  accessibilityLabel?: string;
+  first?: boolean;
+  testID?: string;
+}) {
+  const theme = useTheme();
+  return (
+    // A plain style: a style function on a Pressable is dropped by the class-name interop.
+    <TouchableOpacity
+      activeOpacity={0.6}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel ?? title}
+      testID={testID}
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        minHeight: 52,
+        paddingVertical: 10,
+        borderTopWidth: first ? 0 : 1,
+        borderTopColor: theme.border,
+      }}
+    >
+      <View style={{ width: 28, alignItems: 'center' }}>{glyph}</View>
+      <View style={{ flex: 1, gap: 2 }}>
+        <Text variant="bodyMd" numberOfLines={1}>
+          {title}
+        </Text>
+        {detail ? (
+          <Text variant="bodyXs" tone="muted" numberOfLines={1}>
+            {detail}
+          </Text>
+        ) : null}
+      </View>
+      {trailing}
+    </TouchableOpacity>
+  );
+}
+
+/**
+ * Under the box before a search is run. Nothing typed: the past searches. As
+ * someone types: a way to run what they have, then the past searches and the
+ * interests it could be the start of. All from the phone; the server is asked
+ * only when a search is run.
+ */
+function Suggestions({
+  typed,
+  recent,
+  interests,
+  onRun,
+  onRunAgain,
+  onBrowse,
+}: {
+  typed: string;
+  recent: ReturnType<typeof useRecentSearches>;
+  interests: Interest[];
+  onRun: (text: string) => void;
+  onRunAgain: (text: string) => void;
+  onBrowse: (interestId: string) => void;
 }) {
   const theme = useTheme();
   const copy = exploreCopy.list;
-  return (
-    <Animated.View entering={FadeIn.duration(180)} className="mt-16">
-      {people.loading ? (
-        <SkeletonPulse>
-          <View style={{ gap: 16 }}>
-            {[0, 1, 2].map((i) => (
-              <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                <SkeletonBlock width={44} height={44} radius={22} />
-                <View style={{ flex: 1, gap: 6 }}>
-                  <SkeletonBlock width="50%" height={14} />
-                  <SkeletonBlock width="70%" height={10} />
-                </View>
-              </View>
-            ))}
-          </View>
-        </SkeletonPulse>
-      ) : people.error ? (
-        <Inline message={copy.peopleFailed} onRetry={people.retry} />
-      ) : people.items.length === 0 ? (
-        <Text variant="bodySm" tone="muted" className="py-12" accessibilityLiveRegion="polite">
-          {copy.peopleEmpty}
-        </Text>
-      ) : (
-        <View>
-          {people.items.map((person, index) => {
-            const detail = [person.handle ? `@${person.handle}` : null, person.place].filter(Boolean).join(' · ');
-            return (
-              <TouchableOpacity
-                key={person.id}
-                activeOpacity={0.6}
-                onPress={() => onOpen(person.id)}
-                accessibilityRole="button"
-                accessibilityLabel={copy.openPerson(person.displayName)}
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 12,
-                  paddingVertical: 12,
-                  borderTopWidth: index === 0 ? 0 : 1,
-                  borderTopColor: theme.border,
-                }}
-              >
-                <Avatar name={person.displayName} uri={person.avatarUrl} size={44} />
-                <View style={{ flex: 1, gap: 2 }}>
-                  <Text variant="labelMd" numberOfLines={1}>
-                    {person.displayName}
-                  </Text>
-                  {detail ? (
-                    <Text variant="bodyXs" tone="muted" numberOfLines={1}>
-                      {detail}
-                    </Text>
-                  ) : null}
-                </View>
-                <Host matchContents pointerEvents="none">
-                  <NativeIcon source={icons.chevronRight} size={14} color={theme.muted} />
-                </Host>
-              </TouchableOpacity>
-            );
-          })}
-          {people.hasMore ? (
-            <View style={{ alignSelf: 'center', marginTop: 8 }}>
-              <Button
-                label={copy.showMore}
-                size="sm"
-                variant="secondary"
-                loading={people.loadingMore}
-                onPress={people.loadMore}
-              />
-            </View>
-          ) : null}
-          {people.capped ? (
-            <Text variant="bodySm" tone="muted" className="text-center mt-8">
-              {copy.peopleCapped}
-            </Text>
-          ) : null}
+  const text = typed.trim();
+  const clock = (
+    <Host matchContents pointerEvents="none" ignoreSafeArea="all">
+      <NativeIcon source={icons.clock} size={16} color={theme.muted} />
+    </Host>
+  );
+
+  if (!text) {
+    return recent.items.length ? (
+      <Animated.View entering={FadeIn.duration(180)}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+          <Text variant="labelSm" tone="muted" accessibilityRole="header">
+            {copy.recent}
+          </Text>
+          <TextLink label={copy.clearRecent} onPress={recent.clear} emphasis="plain" />
         </View>
+        <View style={{ marginTop: 4 }}>
+          {recent.items.map((item, index) => (
+            <Row
+              key={item}
+              first={index === 0}
+              glyph={clock}
+              title={item}
+              accessibilityLabel={copy.searchAgain(item)}
+              onPress={() => onRunAgain(item)}
+              trailing={
+                <TouchableOpacity
+                  activeOpacity={0.6}
+                  onPress={() => recent.remove(item)}
+                  hitSlop={12}
+                  accessibilityRole="button"
+                  accessibilityLabel={copy.removeRecent(item)}
+                  style={{ padding: 6 }}
+                >
+                  <Host matchContents pointerEvents="none" ignoreSafeArea="all">
+                    <NativeIcon source={icons.close} size={11} color={theme.muted} />
+                  </Host>
+                </TouchableOpacity>
+              }
+            />
+          ))}
+        </View>
+      </Animated.View>
+    ) : (
+      <Animated.View entering={FadeIn.duration(180)}>
+        <Text variant="bodySm" tone="muted">
+          {copy.searchHint}
+        </Text>
+      </Animated.View>
+    );
+  }
+
+  const pastMatches = startingWith(recent.items, text, (r) => r, 3).filter(
+    (r) => r.toLowerCase() !== text.toLowerCase(),
+  );
+  const interestMatches = startingWith(interests, text, (i) => i.name, 4);
+  const ready = text.length >= SEARCH_MIN;
+
+  return (
+    <View>
+      {ready ? (
+        <Row
+          first
+          glyph={
+            <Host matchContents pointerEvents="none" ignoreSafeArea="all">
+              <NativeIcon source={icons.search} size={16} color={theme.primary} />
+            </Host>
+          }
+          title={copy.searchFor(text)}
+          onPress={() => onRun(text)}
+          testID="explore-search-run"
+        />
+      ) : (
+        <Text variant="bodySm" tone="muted" style={{ paddingVertical: 10 }} accessibilityLiveRegion="polite">
+          {copy.searchTooShort}
+        </Text>
       )}
+      {pastMatches.map((item) => (
+        <Row
+          key={`past-${item}`}
+          glyph={clock}
+          title={item}
+          accessibilityLabel={copy.searchAgain(item)}
+          onPress={() => onRunAgain(item)}
+        />
+      ))}
+      {interestMatches.map((interest) => (
+        <Row
+          key={`interest-${interest.id}`}
+          glyph={<Text variant="bodyMd">{interest.emoji ?? '•'}</Text>}
+          title={interest.name}
+          detail={copy.browseInterest}
+          accessibilityLabel={copy.browseBy(interest.name)}
+          onPress={() => onBrowse(interest.id)}
+        />
+      ))}
+    </View>
+  );
+}
+
+/** Nothing found: where the search looked, and what to try next. Never a dead end. */
+function NothingFound({
+  title,
+  body,
+  other,
+  onOther,
+  onClear,
+}: {
+  title: string;
+  body: string;
+  other: string;
+  onOther: () => void;
+  onClear: () => void;
+}) {
+  return (
+    <Animated.View entering={FadeIn.duration(180)} style={{ paddingVertical: 28, alignItems: 'center', gap: 8 }}>
+      <Text variant="headingSm" className="text-center" accessibilityRole="header" accessibilityLiveRegion="polite">
+        {title}
+      </Text>
+      <Text variant="bodySm" tone="muted" className="text-center">
+        {body}
+      </Text>
+      {/* Side by side when they fit, stacked at large text or on a narrow phone. */}
+      <View style={{ marginTop: 12, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 12 }}>
+        <Button label={other} size="sm" onPress={onOther} />
+        <Button label={exploreCopy.list.clearSearch} size="sm" variant="secondary" onPress={onClear} />
+      </View>
     </Animated.View>
   );
 }
 
-function BrowseAndNearby({ onOpenMeetup }: { onOpenMeetup: (id: string) => void }) {
+/** Activities found, one full-width card each, with "Show more" at the end. */
+function Results({
+  words,
+  search,
+  onOpen,
+  onSeePeople,
+  onClear,
+}: {
+  words: string;
+  search: ReturnType<typeof useSearchPosts>;
+  onOpen: (id: string) => void;
+  onSeePeople: () => void;
+  onClear: () => void;
+}) {
   const copy = exploreCopy.list;
-  const [interestId, setInterestId] = useState<string | null>(null);
-  const interests = useInterests();
+  if (search.loading) {
+    return (
+      <SkeletonPulse>
+        <View style={{ gap: 16 }}>
+          {[0, 1, 2].map((i) => (
+            <View key={i} style={{ gap: 8 }}>
+              <SkeletonBlock height={112} radius={14} />
+              <SkeletonBlock width="70%" height={14} />
+            </View>
+          ))}
+        </View>
+      </SkeletonPulse>
+    );
+  }
+  if (search.error) {
+    return (
+      <Inline
+        message={search.error === 'noLocation' ? exploreErrorMessages.noLocation : copy.resultsFailed}
+        onRetry={search.retry}
+      />
+    );
+  }
+  if (search.items.length === 0) {
+    return (
+      <NothingFound
+        title={copy.noActivities(words)}
+        body={copy.noActivitiesBody}
+        other={copy.seePeople}
+        onOther={onSeePeople}
+        onClear={onClear}
+      />
+    );
+  }
+  return (
+    <Animated.View entering={FadeIn.duration(180)} style={{ gap: 12 }}>
+      {search.items.map((post, index) => (
+        <Animated.View key={post.id} entering={index < 3 ? enterRise(index * 60) : undefined}>
+          <MeetupCard meetup={post} fill onPress={() => onOpen(post.id)} />
+        </Animated.View>
+      ))}
+      {search.hasMore ? (
+        <View style={{ alignSelf: 'center' }}>
+          <Button
+            label={copy.showMore}
+            size="sm"
+            variant="secondary"
+            loading={search.loadingMore}
+            onPress={search.loadMore}
+          />
+        </View>
+      ) : null}
+      {search.capped ? (
+        <Text variant="bodySm" tone="muted" className="text-center">
+          {copy.resultsCapped}
+        </Text>
+      ) : null}
+    </Animated.View>
+  );
+}
+
+/** People found: photo, name, then @handle and where they're based; a tap opens their profile. */
+function PeopleResults({
+  words,
+  people,
+  onOpen,
+  onSeeActivities,
+  onClear,
+}: {
+  words: string;
+  people: ReturnType<typeof useSearchPeople>;
+  onOpen: (userId: string) => void;
+  onSeeActivities: () => void;
+  onClear: () => void;
+}) {
+  const theme = useTheme();
+  const copy = exploreCopy.list;
+  if (people.loading) {
+    return (
+      <SkeletonPulse>
+        <View style={{ gap: 16 }}>
+          {[0, 1, 2, 3].map((i) => (
+            <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <SkeletonBlock width={44} height={44} radius={22} />
+              <View style={{ flex: 1, gap: 6 }}>
+                <SkeletonBlock width="50%" height={14} />
+                <SkeletonBlock width="70%" height={10} />
+              </View>
+            </View>
+          ))}
+        </View>
+      </SkeletonPulse>
+    );
+  }
+  if (people.error) return <Inline message={copy.peopleFailed} onRetry={people.retry} />;
+  if (people.items.length === 0) {
+    return (
+      <NothingFound
+        title={copy.noPeople(words)}
+        body={copy.noPeopleBody}
+        other={copy.seeActivities}
+        onOther={onSeeActivities}
+        onClear={onClear}
+      />
+    );
+  }
+  return (
+    <Animated.View entering={FadeIn.duration(180)}>
+      {people.items.map((person, index) => {
+        const detail = [person.handle ? `@${person.handle}` : null, person.place].filter(Boolean).join(' · ');
+        return (
+          <Row
+            key={person.id}
+            first={index === 0}
+            glyph={<Avatar name={person.displayName} uri={person.avatarUrl} size={28} />}
+            title={person.displayName}
+            detail={detail || undefined}
+            accessibilityLabel={copy.openPerson(person.displayName)}
+            onPress={() => onOpen(person.id)}
+            trailing={
+              <Host matchContents pointerEvents="none" ignoreSafeArea="all">
+                <NativeIcon source={icons.chevronRight} size={14} color={theme.muted} />
+              </Host>
+            }
+          />
+        );
+      })}
+      {people.hasMore ? (
+        <View style={{ alignSelf: 'center', marginTop: 12 }}>
+          <Button
+            label={copy.showMore}
+            size="sm"
+            variant="secondary"
+            loading={people.loadingMore}
+            onPress={people.loadMore}
+          />
+        </View>
+      ) : null}
+      {people.capped ? (
+        <Text variant="bodySm" tone="muted" className="mt-8 text-center">
+          {copy.peopleCapped}
+        </Text>
+      ) : null}
+    </Animated.View>
+  );
+}
+
+/** The page before any search: the interests, then the meetups nearby (for the one chosen, if any). */
+function Browse({
+  interests,
+  interestId,
+  onInterestChange,
+  onOpenMeetup,
+}: {
+  interests: ReturnType<typeof useInterests>;
+  interestId: string | null;
+  onInterestChange: (interestId: string | null) => void;
+  onOpenMeetup: (id: string) => void;
+}) {
+  const copy = exploreCopy.list;
   const meetups = useNearbyMeetups(interestId);
-  const [allOpen, setAllOpen] = useState(false);
-  // Two rows of tiles here; the rest are a search away in "View all". The chosen
+  const [allShown, setAllShown] = useState(false);
+  // Two rows of tiles; "View all" opens the rest out in place. The chosen
   // interest always shows, in the last place if it isn't already among them.
   const { width, fontScale } = useWindowDimensions();
   const shownCount = columnsFor(width - SCREEN_GUTTER * 2, fontScale) * 2;
   const first = interests.interests.slice(0, shownCount);
   const chosen = interestId ? interests.interests.find((i) => i.id === interestId) : undefined;
-  const shownInterests =
-    chosen && !first.some((i) => i.id === chosen.id) ? [...first.slice(0, shownCount - 1), chosen] : first;
+  const shownInterests = allShown
+    ? interests.interests
+    : chosen && !first.some((i) => i.id === chosen.id)
+      ? [...first.slice(0, shownCount - 1), chosen]
+      : first;
   const enterMeetup = useListEntrance(meetups.items.length > 0);
 
   return (
     <>
-      <View className="mt-24 flex-row items-center justify-between" style={{ gap: 12 }}>
+      <Text variant="bodyMd" tone="muted">
+        {copy.subtitle}
+      </Text>
+
+      <View className="mt-20 flex-row items-center justify-between" style={{ gap: 12 }}>
         <Text variant="headingSm" accessibilityRole="header" style={{ flexShrink: 1 }}>
           {copy.interests}
         </Text>
         {interests.interests.length > shownCount ? (
-          <TextLink label={copy.viewAllInterests} onPress={() => setAllOpen(true)} emphasis="plain" />
+          <TextLink
+            label={allShown ? copy.showFewerInterests : copy.viewAllInterests}
+            onPress={() => setAllShown((v) => !v)}
+            emphasis="plain"
+          />
         ) : null}
       </View>
       <View className="mt-12">
@@ -367,36 +709,29 @@ function BrowseAndNearby({ onOpenMeetup }: { onOpenMeetup: (id: string) => void 
           <Inline message={copy.interestsFailed} onRetry={interests.retry} />
         ) : (
           <Animated.View entering={FadeIn.duration(220)}>
-            <InterestGrid interests={shownInterests} selected={interestId} onSelect={setInterestId} />
+            <InterestGrid interests={shownInterests} selected={interestId} onSelect={onInterestChange} />
           </Animated.View>
         )}
       </View>
-      <AllInterestsSheet
-        isPresented={allOpen}
-        interests={interests.interests}
-        selected={interestId}
-        onSelect={(id) => {
-          setInterestId(id);
-          setAllOpen(false);
-        }}
-        onDismiss={() => setAllOpen(false)}
-      />
 
-      <Text variant="headingSm" className="mt-24" accessibilityRole="header">
-        {copy.nearby}
-      </Text>
+      <View className="mt-24 flex-row items-center justify-between" style={{ gap: 12 }}>
+        <Text variant="headingSm" accessibilityRole="header" style={{ flexShrink: 1 }}>
+          {chosen ? copy.nearbyFor(chosen.name) : copy.nearby}
+        </Text>
+        {chosen ? <TextLink label={copy.showAllMeetups} onPress={() => onInterestChange(null)} emphasis="plain" /> : null}
+      </View>
       <Text variant="bodySm" tone="muted">
         {copy.nearbySubtitle}
       </Text>
       <View className="mt-12">
         {meetups.loading ? (
           <SkeletonPulse>
-            <View style={{ flexDirection: 'row', gap: 12 }}>
+            <View style={{ gap: 16 }}>
               {[0, 1].map((i) => (
-                <View key={i} style={{ width: 200, gap: 8 }}>
+                <View key={i} style={{ gap: 8 }}>
                   <SkeletonBlock height={112} radius={14} />
-                  <SkeletonBlock width="80%" height={14} />
-                  <SkeletonBlock width="50%" height={10} />
+                  <SkeletonBlock width="70%" height={14} />
+                  <SkeletonBlock width="45%" height={10} />
                 </View>
               ))}
             </View>
@@ -407,31 +742,29 @@ function BrowseAndNearby({ onOpenMeetup }: { onOpenMeetup: (id: string) => void 
             onRetry={meetups.retry}
           />
         ) : meetups.items.length === 0 ? (
-          <Text variant="bodySm" tone="muted" className="py-12">
-            {interestId ? copy.nearbyNoInterest : copy.nearbyEmpty}
+          // With an interest chosen, the way back to every meetup is the link beside the heading.
+          <Text variant="bodySm" tone="muted" style={{ paddingVertical: 12 }} accessibilityLiveRegion="polite">
+            {chosen ? copy.nearbyNoInterest : copy.nearbyEmpty}
           </Text>
         ) : (
-          <FlatList
-            horizontal
-            data={meetups.items}
-            keyExtractor={(m) => m.id}
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ gap: 12 }}
-            renderItem={({ item, index }) => (
-              <Animated.View entering={enterMeetup(index)}>
-                <MeetupCard meetup={item} onPress={() => onOpenMeetup(item.id)} />
+          <View style={{ gap: 12 }}>
+            {meetups.items.map((meetup, index) => (
+              <Animated.View key={meetup.id} entering={enterMeetup(index)}>
+                <MeetupCard meetup={meetup} fill onPress={() => onOpenMeetup(meetup.id)} />
               </Animated.View>
-            )}
-            onEndReached={meetups.loadMore}
-            onEndReachedThreshold={0.5}
-            ListFooterComponent={
-              meetups.loadingMore ? (
-                <View style={{ justifyContent: 'center', height: 112, paddingHorizontal: 8 }}>
-                  <LoadingRing size={24} accessibilityLabel="Loading more" />
-                </View>
-              ) : null
-            }
-          />
+            ))}
+            {meetups.hasMore ? (
+              <View style={{ alignSelf: 'center' }}>
+                <Button
+                  label={copy.showMore}
+                  size="sm"
+                  variant="secondary"
+                  loading={meetups.loadingMore}
+                  onPress={meetups.loadMore}
+                />
+              </View>
+            ) : null}
+          </View>
         )}
       </View>
     </>
@@ -446,49 +779,5 @@ function Inline({ message, onRetry }: { message: string; onRetry: () => void }) 
       </Text>
       <Button label={exploreCopy.list.retry} size="sm" variant="secondary" onPress={onRetry} />
     </View>
-  );
-}
-
-/** Every interest, with a search: "View all" from the list's interests. Choosing one closes it. */
-function AllInterestsSheet({
-  isPresented,
-  interests,
-  selected,
-  onSelect,
-  onDismiss,
-}: {
-  isPresented: boolean;
-  interests: Parameters<typeof InterestGrid>[0]['interests'];
-  selected: string | null;
-  onSelect: (id: string | null) => void;
-  onDismiss: () => void;
-}) {
-  const copy = exploreCopy.list;
-  const theme = useTheme();
-  const [query, setQuery] = useState('');
-  const words = query.trim().toLowerCase();
-  const matching = words ? interests.filter((i) => i.name.toLowerCase().includes(words)) : interests;
-  return (
-    <Sheet isPresented={isPresented} title={copy.allInterests} onDismiss={onDismiss}>
-      <View style={{ gap: 16 }}>
-        <TextField
-          label={copy.searchInterests}
-          labelHidden
-          placeholder={copy.searchInterests}
-          onChangeText={setQuery}
-          autoCorrect={false}
-          returnKeyType="search"
-          clearable
-          leading={<NativeIcon source={icons.search} size={16} color={theme.muted} />}
-        />
-        {matching.length ? (
-          <InterestGrid interests={matching} selected={selected} onSelect={onSelect} />
-        ) : (
-          <Text variant="bodySm" tone="muted">
-            {copy.noInterestMatches}
-          </Text>
-        )}
-      </View>
-    </Sheet>
   );
 }

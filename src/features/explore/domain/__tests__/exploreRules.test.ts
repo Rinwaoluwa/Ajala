@@ -2,24 +2,28 @@ import { describe, expect, it } from '@jest/globals';
 
 import type { MapPin, PostPreview } from '../entities/Explore';
 import {
-  REPORT_DETAILS_MAX,
   asSeenBy,
   canSubmitReport,
-  NO_FILTERS,
   filtersActive,
   isHappeningToday,
   isThisWeekend,
   matchesPrice,
-  readMaxPrice,
   maxBboxSpan,
-  outsideReach,
+  NO_FILTERS,
   optimisticJoin,
+  outsideReach,
+  readMaxPrice,
   readSearch,
+  RECENT_SEARCHES_MAX,
+  REPORT_DETAILS_MAX,
   reportDetailsRoom,
   rsvpAction,
   spotsLeft,
+  startingWith,
   toReportPayload,
   visiblePins,
+  withoutRecentSearch,
+  withRecentSearch,
 } from '../rules/exploreRules';
 
 const POST: PostPreview = {
@@ -255,5 +259,52 @@ describe('how far the map reaches', () => {
     expect(maxBboxSpan(false)).toBeLessThan(5);
     expect(maxBboxSpan(true)).toBeLessThan(20);
     expect(maxBboxSpan(true)).toBeGreaterThan(maxBboxSpan(false));
+  });
+});
+
+describe('recent searches', () => {
+  it('puts the latest search first', () => {
+    expect(withRecentSearch(['yoga'], 'hiking')).toEqual(['hiking', 'yoga']);
+  });
+
+  it('moves a search run again to the front instead of listing it twice', () => {
+    expect(withRecentSearch(['yoga', 'hiking', 'brunch'], ' Hiking ')).toEqual(['Hiking', 'yoga', 'brunch']);
+  });
+
+  it('keeps only the latest few', () => {
+    const many = Array.from({ length: RECENT_SEARCHES_MAX }, (_, i) => `search ${i}`);
+    const next = withRecentSearch(many, 'new');
+    expect(next).toHaveLength(RECENT_SEARCHES_MAX);
+    expect(next[0]).toBe('new');
+    expect(next).not.toContain(`search ${RECENT_SEARCHES_MAX - 1}`);
+  });
+
+  it('ignores an empty search', () => {
+    expect(withRecentSearch(['yoga'], '   ')).toEqual(['yoga']);
+  });
+
+  it('removes one, whatever its case', () => {
+    expect(withoutRecentSearch(['Yoga', 'hiking'], 'yoga')).toEqual(['hiking']);
+  });
+});
+
+describe('suggestions while typing', () => {
+  const names = ['Street art', 'Arts & crafts', 'Hiking', 'Martial arts', 'Art galleries'];
+  const find = (text: string, max = 10) => startingWith(names, text, (n) => n, max);
+
+  it('offers nothing for nothing typed', () => {
+    expect(find('  ')).toEqual([]);
+  });
+
+  it('puts names that start with what was typed before names with a word that does', () => {
+    expect(find('art')).toEqual(['Arts & crafts', 'Art galleries', 'Street art', 'Martial arts']);
+  });
+
+  it('does not match the middle of a word', () => {
+    expect(find('rt')).toEqual([]);
+  });
+
+  it('ignores case and stops at the most it may offer', () => {
+    expect(find('ART', 2)).toEqual(['Arts & crafts', 'Art galleries']);
   });
 });

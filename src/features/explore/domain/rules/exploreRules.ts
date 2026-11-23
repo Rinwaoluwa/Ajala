@@ -132,6 +132,40 @@ export function readMaxPrice(text: string): number | null {
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 
+/** How many past searches the list keeps to offer again. */
+export const RECENT_SEARCHES_MAX = 6;
+
+const sameSearch = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
+
+/** The list with `words` at its head: a search run again moves up rather than appearing twice. */
+export function withRecentSearch(recent: readonly string[], words: string): string[] {
+  const text = words.trim();
+  if (!text) return [...recent];
+  return [text, ...recent.filter((r) => !sameSearch(r, text))].slice(0, RECENT_SEARCHES_MAX);
+}
+
+export const withoutRecentSearch = (recent: readonly string[], words: string): string[] =>
+  recent.filter((r) => !sameSearch(r, words));
+
+/**
+ * What the search box can offer as someone types, without asking the server
+ * (search has no typeahead, spec §2.18): the past searches and the interests
+ * that what is typed could be the start of. A word in the middle counts too
+ * ("art" finds "Street art"), after those that start with it.
+ */
+export function startingWith<T>(items: readonly T[], text: string, nameOf: (item: T) => string, max: number): T[] {
+  const typed = text.trim().toLowerCase();
+  if (!typed) return [];
+  const starts: T[] = [];
+  const within: T[] = [];
+  for (const item of items) {
+    const name = nameOf(item).toLowerCase();
+    if (name.startsWith(typed)) starts.push(item);
+    else if (name.split(/[\s&/,-]+/).some((word) => word.startsWith(typed))) within.push(item);
+  }
+  return [...starts, ...within].slice(0, max);
+}
+
 /**
  * How wide a box the map may ask pins for (spec §3.11): under 5° a side for
  * everyone, under 20° for a Travel subscriber. Just under, as the API refuses
