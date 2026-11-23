@@ -44,6 +44,8 @@ export type TextFieldProps = {
   defaultValue?: string;
   onChangeText?: (text: string) => void;
   onSubmitEditing?: () => void;
+  /** Called when the field takes focus: a search box opening its suggestions. */
+  onFocus?: () => void;
   /** Called when the field loses focus — the usual moment to show a format error. */
   onBlur?: () => void;
   error?: string | null;
@@ -97,6 +99,7 @@ function TextFieldComponent({
   defaultValue,
   onChangeText,
   onSubmitEditing,
+  onFocus,
   onBlur,
   error,
   helper,
@@ -205,6 +208,7 @@ function TextFieldComponent({
           onFocus={() => {
             setFocused(true);
             if (dismissOnOutsideTap) searchFocus.focus(self);
+            onFocus?.();
           }}
           onBlur={() => {
             setFocused(false);

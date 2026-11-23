@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Pressable, View, type LayoutChangeEvent } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Pressable, ScrollView, View, type LayoutChangeEvent } from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -19,7 +19,10 @@ import { haptics } from '@shared/feedback/haptics';
  * Two kinds of one-of switch between views of a screen:
  *
  *   - `UnderlineTabs` — labels across the width with a line under the chosen one
- *     (a profile's Hosting / Attending, Going / Requested).
+ *     (a profile's Hosting / Attending). With `hug`, each label keeps its own
+ *     width and they sit together at the start, the line as wide as the chosen
+ *     label (the own profile's My posts / Saved); labels that don't fit scroll
+ *     sideways, so they never wrap or shrink.
  *   - `SegmentedControl` — a pale track with the chosen half filled (Achievements'
  *     Badges / Stamps): teal on light, Marigold with ink on dark, as drawn.
  *
@@ -45,6 +48,103 @@ function useSlider(index: number, count: number) {
 }
 
 export function UnderlineTabs<T extends string>({
+  options,
+  value,
+  onChange,
+  hug = false,
+}: {
+  options: readonly Option<T>[];
+  value: T;
+  onChange: (value: T) => void;
+  /** Labels keep their own width, together at the start, instead of sharing the width. */
+  hug?: boolean;
+}) {
+  return hug ? (
+    <HuggingTabs options={options} value={value} onChange={onChange} />
+  ) : (
+    <SpreadTabs options={options} value={value} onChange={onChange} />
+  );
+}
+
+/** The gap between hugging labels. */
+const HUG_GAP = 24;
+
+function HuggingTabs<T extends string>({
+  options,
+  value,
+  onChange,
+}: {
+  options: readonly Option<T>[];
+  value: T;
+  onChange: (value: T) => void;
+}) {
+  const theme = useTheme();
+  const reduceMotion = useReducedMotion();
+  // Where each label sits in the row, as measured: the line goes under the chosen one.
+  const [frames, setFrames] = useState<Record<string, { x: number; width: number }>>({});
+  const chosen = frames[value];
+  const chosenX = chosen ? chosen.x : null;
+  const chosenWidth = chosen ? chosen.width : null;
+  const x = useSharedValue(0);
+  const width = useSharedValue(0);
+  // The line is put under the first choice; it slides only to later ones.
+  const placed = useRef(false);
+  useEffect(() => {
+    if (chosenX === null || chosenWidth === null) return;
+    const timing = {
+      duration: reduceMotion || !placed.current ? 0 : 220,
+      easing: Easing.out(Easing.cubic),
+    };
+    placed.current = true;
+    x.set(withTiming(chosenX, timing));
+    width.set(withTiming(chosenWidth, timing));
+  }, [chosenX, chosenWidth, reduceMotion, x, width]);
+  const line = useAnimatedStyle(() => ({ width: width.value, transform: [{ translateX: x.value }] }));
+
+  return (
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} accessibilityRole="tablist">
+      <View style={{ flexDirection: 'row', gap: HUG_GAP }}>
+        {options.map((o) => {
+          const selected = o.value === value;
+          return (
+            <Pressable
+              key={o.value}
+              onLayout={(e: LayoutChangeEvent) => {
+                const { x: at, width: wide } = e.nativeEvent.layout;
+                setFrames((now) =>
+                  now[o.value]?.x === at && now[o.value]?.width === wide
+                    ? now
+                    : { ...now, [o.value]: { x: at, width: wide } },
+                );
+              }}
+              onPress={() => {
+                if (o.value !== value) haptics.select();
+                onChange(o.value);
+              }}
+              hitSlop={{ top: 4, bottom: 4, left: HUG_GAP / 2, right: HUG_GAP / 2 }}
+              accessibilityRole="tab"
+              accessibilityState={{ selected }}
+              style={{ paddingTop: 8, paddingBottom: 10 }}
+            >
+              <Text variant="labelMd" tone={selected ? 'default' : 'muted'}>
+                {o.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            { position: 'absolute', bottom: 0, left: 0, height: 2, borderRadius: 1, backgroundColor: theme.foreground },
+            line,
+          ]}
+        />
+      </View>
+    </ScrollView>
+  );
+}
+
+function SpreadTabs<T extends string>({
   options,
   value,
   onChange,

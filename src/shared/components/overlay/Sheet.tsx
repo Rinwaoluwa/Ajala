@@ -49,7 +49,8 @@ import { Host } from '../ui/Host';
  * a field in it and the buttons under that field stay above the keys; if that
  * leaves too little room, the content scrolls to its end, where a sheet's field
  * and its Apply usually are. Android resizes a modal's window for the keyboard
- * itself, which lifts the sheet the same way.
+ * itself, which lifts the sheet the same way. A `fill` sheet does neither: it
+ * holds its place and its scroll area makes room (see `fill`).
  */
 
 const RISE_MS = 300;
@@ -77,9 +78,36 @@ export type SheetProps = {
    * to its end, since the field being typed in is here at the top.
    */
   header?: ReactNode;
+  /**
+   * A sheet that is a page of its own (the Explore list): it takes all the height
+   * there is, to just under the status bar, and keeps it. Sized to its content it
+   * would jump as that content changes (results arriving, a search cleared).
+   *
+   * With the keyboard up it stays where it is. Its scroll area makes room for the
+   * keys instead, so the pinned `header`, where its search field is, never moves
+   * and is never covered; and dragging the content puts the keyboard away.
+   */
+  fill?: boolean;
+  /**
+   * Names what the scroll area is showing, for a sheet whose content is swapped
+   * whole (browsing, then search results). When it changes the scroll area goes
+   * back to its top: the new page is read from its start, and is never left
+   * scrolled past its own end.
+   */
+  page?: string | number;
 };
 
-export function Sheet({ isPresented, title, subtitle, onDismiss, children, overlay, header }: SheetProps) {
+export function Sheet({
+  isPresented,
+  title,
+  subtitle,
+  onDismiss,
+  children,
+  overlay,
+  header,
+  fill = false,
+  page,
+}: SheetProps) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const reduceMotion = useReducedMotion();
@@ -118,7 +146,7 @@ export function Sheet({ isPresented, title, subtitle, onDismiss, children, overl
     const hide = Keyboard.addListener('keyboardWillHide', (e) => move(0, e.duration));
     // Too little room above the keys: the end of the content, where the field and its button are.
     const didShow = Keyboard.addListener('keyboardDidShow', () => {
-      if (pinned.current) return;
+      if (pinned.current || fill) return;
       if (sizes.current.content > sizes.current.viewport + 1) scroll.current?.scrollToEnd({ animated: true });
     });
     return () => {
@@ -126,7 +154,11 @@ export function Sheet({ isPresented, title, subtitle, onDismiss, children, overl
       hide.remove();
       didShow.remove();
     };
-  }, [mounted, insets.bottom, lift]);
+  }, [mounted, insets.bottom, lift, fill]);
+
+  useEffect(() => {
+    scroll.current?.scrollTo({ y: 0, animated: false });
+  }, [page]);
 
   if (isPresented && !mounted) setMounted(true);
 
@@ -146,7 +178,8 @@ export function Sheet({ isPresented, title, subtitle, onDismiss, children, overl
   const scrimStyle = useAnimatedStyle(() => ({ opacity: shown.value }));
   const sheetStyle = useAnimatedStyle(() => ({
     opacity: reduceMotion ? shown.value : 1,
-    transform: [{ translateY: (reduceMotion ? 0 : (1 - shown.value) * height) - lift.value }],
+    // A full-height sheet stays put for the keyboard: lifted, its header would leave the screen.
+    transform: [{ translateY: (reduceMotion ? 0 : (1 - shown.value) * height) - (fill ? 0 : lift.value) }],
   }));
 
   if (!mounted) return null;
@@ -165,7 +198,9 @@ export function Sheet({ isPresented, title, subtitle, onDismiss, children, overl
             left: 0,
             right: 0,
             bottom: 0,
-            maxHeight: window.height - insets.top - 12 - keyboardRoom,
+            // A full-height sheet is held by its top edge: where the window is resized for the
+            // keyboard (Android), it gets shorter instead of sliding its header off screen.
+            ...(fill ? { top: insets.top + 12 } : { maxHeight: window.height - insets.top - 12 - keyboardRoom }),
             opacity: height === 0 ? 0 : 1,
             backgroundColor: theme.surface,
             borderTopLeftRadius: 28,
@@ -213,10 +248,14 @@ export function Sheet({ isPresented, title, subtitle, onDismiss, children, overl
         {header != null ? <View style={{ marginTop: subtitle ? 16 : title ? 16 : 20 }}>{header}</View> : null}
         <ScrollView
           ref={scroll}
-          style={{ marginTop: header != null ? 12 : subtitle ? 20 : title ? 16 : 20, flexShrink: 1 }}
-          scrollEnabled={contentOverflows}
+          style={[{ marginTop: header != null ? 12 : subtitle ? 20 : title ? 16 : 20 }, fill ? { flex: 1 } : { flexShrink: 1 }]}
+          // A full-height sheet always scrolls: with the keyboard up, part of even a short page is under it.
+          scrollEnabled={fill || contentOverflows}
           showsVerticalScrollIndicator={contentOverflows}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode={fill ? 'on-drag' : 'none'}
+          // iOS makes room for the keyboard at the foot of the scroll area, in the keyboard's own time.
+          automaticallyAdjustKeyboardInsets={fill}
           onLayout={(e) => measure('viewport', e.nativeEvent.layout.height)}
           onContentSizeChange={(_w, h) => measure('content', h)}
         >
