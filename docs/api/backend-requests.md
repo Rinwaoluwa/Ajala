@@ -244,7 +244,7 @@ These three are related:
 - **Proposal:** add `commentCount: number` to `PostCardDto`.
 
 ### B12. Likes
-**Status: Open. A product decision first.**
+**Status: Not needed (24 Nov). Product took liking out of the app: there is no heart on a post any more, and nothing is kept on the phone. The rest is how it stood, for if likes come back.**
 
 - **Problem:** the design has a heart and a like count on every post. The spec says there are none (§2.11 "No likes, no engagement ranking"; comments: "no likes"), and `POST /posts/:id/like` is a 404 (checked again on staging and dev, 22 Nov).
 - **Today:** the heart is drawn and remembered on the phone only, per account. The host is not told and the like does not follow the person to another phone. The count beside it is only the reader's own like (1 or nothing), because the phone knows of no others.

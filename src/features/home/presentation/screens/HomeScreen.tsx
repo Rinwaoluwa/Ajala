@@ -47,7 +47,6 @@ import { useCardCommentCount } from '../hooks/useCardCommentCount';
 import { useCardDescription } from '../hooks/useCardDescription';
 import { useFeed } from '../hooks/useFeed';
 import { useHiddenPosts } from '../hooks/useHiddenPosts';
-import { useLikedPosts } from '../hooks/useLikedPosts';
 import { useLocationPrompt } from '../hooks/useLocationPrompt';
 import { useTravelState } from '../hooks/useTravelState';
 import { travelMemory } from '../state/travelMemory';
@@ -65,7 +64,6 @@ import { travelMemory } from '../state/travelMemory';
  * A post's photo opens full screen from where it sits (one `PhotoViewer` for
  * the whole feed). Its ⋮ menu hides it (remembered on this phone, with Undo in
  * its place until the feed next loads), copies its link, or reports it. Its
- * heart is remembered on this phone too (the API has no likes yet), and its
  * comment button opens the post at its comments.
  *
  * The level card scrolls away with the cards; the pills and their hairline stay
@@ -309,16 +307,6 @@ export function HomeScreen({
   const { hide, unhide } = hiddenPosts;
   const hidePost = useCallback((post: PostCard) => hide(post.id), [hide]);
 
-  // The heart: remembered on this phone (the API has no likes yet).
-  const { liked, toggle: toggleLiked } = useLikedPosts(viewerId);
-  const toggleLike = useCallback(
-    (post: PostCard) => {
-      haptics.tap();
-      toggleLiked(post.id);
-    },
-    [toggleLiked],
-  );
-
   // "Copy post link": onto the clipboard, with a word to say so. The clipboard is a native
   // module some older builds lack; there the share sheet (which offers Copy) opens instead.
   const [toast, setToast] = useState(false);
@@ -361,8 +349,6 @@ export function HomeScreen({
           onOpenHost={openHost}
           onBeforeRsvp={beforeRsvp}
           onOpenPhoto={openPhoto}
-          liked={liked.has(post.id)}
-          onToggleLike={toggleLike}
           onOpenComments={openComments}
           onHide={hidePost}
           onCopyLink={copyLink}
@@ -382,8 +368,6 @@ export function HomeScreen({
       openHost,
       beforeRsvp,
       openPhoto,
-      liked,
-      toggleLike,
       openComments,
       hidePost,
       unhide,
@@ -533,8 +517,6 @@ const FeedCard = memo(function FeedCard({
   onOpenHost,
   onBeforeRsvp,
   onOpenPhoto,
-  liked,
-  onToggleLike,
   onOpenComments,
   onHide,
   onCopyLink,
@@ -549,8 +531,6 @@ const FeedCard = memo(function FeedCard({
   onOpenHost: (hostId: string) => void;
   onBeforeRsvp: () => Promise<boolean>;
   onOpenPhoto: (post: PostCard, index: number, from: MediaFrame) => void;
-  liked: boolean;
-  onToggleLike: (post: PostCard) => void;
   onOpenComments: (post: PostCard) => void;
   onHide: (post: PostCard) => void;
   onCopyLink: (post: PostCard) => void;
@@ -578,8 +558,6 @@ const FeedCard = memo(function FeedCard({
       onOpenHost={onOpenHost}
       onBeforeRsvp={onBeforeRsvp}
       onOpenPhoto={onOpenPhoto}
-      liked={liked}
-      onToggleLike={onToggleLike}
       commentCount={commentCount}
       onOpenComments={onOpenComments}
       onHide={onHide}

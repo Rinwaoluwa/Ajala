@@ -1,4 +1,4 @@
-import { hiddenPostsStore, likedPostsStore } from './data/datasources/local/postListStores';
+import { hiddenPostsStore } from './data/datasources/local/postListStores';
 import { createFeedRepository } from './data/repositories/FeedRepositoryImpl';
 import type { FeedRequest } from './data/datasources/remote/feedApi';
 import {
@@ -31,9 +31,8 @@ export function createHomeUseCases(request: FeedRequest) {
     teleport: makeTeleport(repo),
     returnHome: makeReturnHome(repo),
     loadTravelState: makeLoadTravelState(repo),
-    /** "Hide post" and the heart, remembered on this phone (there are no endpoints yet). */
+    /** "Hide post", remembered on this phone (there is no endpoint yet). */
     hiddenPosts: hiddenPostsStore,
-    likedPosts: likedPostsStore,
   };
 }
 

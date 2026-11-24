@@ -6,8 +6,8 @@ import type { PostListStore } from '../../domain/repositories/PostListStore';
 const NONE: readonly string[] = [];
 
 /**
- * One of the lists of posts kept on this phone (`PostListStore`: hidden,
- * liked), as a cached query: read once per account, changed at once on screen,
+ * A list of posts kept on this phone (`PostListStore`: the hidden ones), as a
+ * cached query: read once per account, changed at once on screen,
  * and saved behind the change.
  *
  * Until the account is known (`userId` null) nothing is read or saved, and a

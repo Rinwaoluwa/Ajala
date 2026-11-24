@@ -1,5 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { memo, useCallback, useMemo, useState } from 'react';
+import { memo, useCallback, useMemo } from 'react';
 import { Alert, Pressable, TouchableOpacity, View } from 'react-native';
 import Animated, {
   Easing,
@@ -53,20 +53,17 @@ import { homeCopy } from '../copy';
  *   - **Banner:** the type's tag, the title, the day, time and place, and Join.
  *     Join is the quick RSVP every card has (`useRsvpPost`): it fills at once,
  *     says Going / Requested / Waitlisted after, and asks before leaving.
- *   - **Actions:** the heart, comments with their count, and the bookmark
- *     (`useSavePost`), as the design lays them out.
- *       - The heart is kept on this phone (`useLikedPosts`): the API has no
- *         likes yet (request B12), so it fills for the person who tapped it,
- *         and has no count, because there is no true number to show.
- *       - The comment count is the real one, read from the comments endpoint
- *         (cards don't carry it, request B11); the button opens the post at
- *         its comments.
+ *   - **Actions:** comments with their count, and the bookmark
+ *     (`useSavePost`). The comment count is the real one, read from the
+ *     comments endpoint (cards don't carry it, request B11); the button opens
+ *     the post at its comments. There is no heart: liking was taken out
+ *     (product, 24 Nov), and the API never had likes (request B12).
  *
  * Tapping the host's words or the banner opens the post (`onOpen`).
  *
- * Motion: Join answers the touch with the jelly press every pill has; the heart
- * and the bookmark pop a little as they fill; a comment count that changes
- * rolls to its new number. Nothing moves by itself.
+ * Motion: Join answers the touch with the jelly press every pill has; the
+ * bookmark pops a little as it fills; a comment count that changes rolls to its
+ * new number. Nothing moves by itself.
  */
 export type FeedPostProps = {
   post: PostCard;
@@ -81,9 +78,6 @@ export type FeedPostProps = {
   /** Asked before the first quick RSVP; resolve true to go ahead. */
   onBeforeRsvp: () => Promise<boolean>;
   onOpenPhoto: (post: PostCard, index: number, from: MediaFrame) => void;
-  /** Whether this person liked it (kept on this phone for now). */
-  liked: boolean;
-  onToggleLike: (post: PostCard) => void;
   /** How many comments it has; null until known. */
   commentCount: number | null;
   /** The comment button: the post, opened at its comments. */
@@ -106,8 +100,6 @@ function FeedPostComponent({
   onOpenHost,
   onBeforeRsvp,
   onOpenPhoto,
-  liked,
-  onToggleLike,
   commentCount,
   onOpenComments,
   onHide,
@@ -198,13 +190,7 @@ function FeedPostComponent({
 
       <View style={{ paddingHorizontal: SCREEN_GUTTER, paddingBottom: 6 }}>
         <JoinBanner post={post} mine={mine} onOpen={onOpen} onBeforeRsvp={onBeforeRsvp} />
-        <PostActions
-          post={post}
-          liked={liked}
-          onToggleLike={onToggleLike}
-          commentCount={commentCount}
-          onOpenComments={onOpenComments}
-        />
+        <PostActions post={post} commentCount={commentCount} onOpenComments={onOpenComments} />
       </View>
       <View style={{ height: 1, backgroundColor: theme.border }} />
     </View>
@@ -372,17 +358,13 @@ function usePop() {
   return { style, pop };
 }
 
-/** The heart and the comments on the left, the bookmark on the right, as the design lays them out. */
+/** The comments on the left, the bookmark on the right, as the design lays them out. */
 function PostActions({
   post,
-  liked,
-  onToggleLike,
   commentCount,
   onOpenComments,
 }: {
   post: PostCard;
-  liked: boolean;
-  onToggleLike: (post: PostCard) => void;
   commentCount: number | null;
   onOpenComments: (post: PostCard) => void;
 }) {
@@ -391,53 +373,17 @@ function PostActions({
   const copy = homeCopy.post;
   const { saved, toggle } = useSavePost(post.id, post.saved);
   const icon = dark ? theme.muted : ICON_LIGHT;
-  const heart = usePop();
   const mark = usePop();
-  // The heart answers the tap itself, at once; the feed's own list of likes catches up behind
-  // it (that redraws the whole feed, which a tap should not wait for). It follows `liked`
-  // whenever that changes from outside.
-  const [shown, setShown] = useState(liked);
-  const [lastLiked, setLastLiked] = useState(liked);
-  if (liked !== lastLiked) {
-    setLastLiked(liked);
-    setShown(liked);
-  }
-  // The count beside the heart. The API has no likes (backend request B12), so there is no
-  // number from anyone else yet: it is this person's own like, 1 or nothing. When cards carry
-  // a like count, it is that count here.
-  const likes = shown ? 1 : 0;
 
   return (
     <View style={{ marginTop: 6, flexDirection: 'row', alignItems: 'center' }}>
-      <TouchableOpacity
-        activeOpacity={0.6}
-        onPress={() => {
-          heart.pop();
-          setShown(!shown);
-          onToggleLike(post);
-        }}
-        hitSlop={8}
-        accessibilityRole="button"
-        accessibilityLabel={shown ? copy.liked : copy.like}
-        accessibilityValue={likes ? { text: String(likes) } : undefined}
-        accessibilityState={{ selected: shown }}
-        // Wide enough for the icon and a short count, so the first like does not push the
-        // comment button along.
-        style={{ minHeight: 40, minWidth: 60, flexDirection: 'row', alignItems: 'center', gap: 6 }}
-      >
-        <Animated.View style={heart.style}>
-          <VectorIcon name="heart" size={22} color={shown ? palette.coral : icon} filled={shown} />
-        </Animated.View>
-        {/* Rolls up by one on a like and back down on an unlike; nothing at 0. */}
-        <RollingCount value={likes} hideZero variant="bodySm" color={shown ? palette.coral : theme.muted} />
-      </TouchableOpacity>
       <TouchableOpacity
         activeOpacity={0.6}
         onPress={() => onOpenComments(post)}
         hitSlop={8}
         accessibilityRole="button"
         accessibilityLabel={commentCount ? copy.comments(commentCount) : copy.comment}
-        style={{ minHeight: 40, minWidth: 60, flexDirection: 'row', alignItems: 'center', gap: 6, marginLeft: 12 }}
+        style={{ minHeight: 40, minWidth: 60, flexDirection: 'row', alignItems: 'center', gap: 6 }}
       >
         <VectorIcon name="comment" size={22} color={icon} />
         {/* No "0", as the design shows none; in place once known, so a first comment rolls in. */}

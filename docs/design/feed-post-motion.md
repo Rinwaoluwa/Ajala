@@ -92,14 +92,14 @@ Worth as much as what does: no entrance animation on the photos, no parallax, no
 | Indicator | Pills 22 / 11 × 4, 6 apart, widths and colours blended on the UI thread from the scroll position, clamped at the ends. Theme colours: the text colour at 60% for the chosen pill, the track colour for the rest. |
 | Opening | The tapped photo grows from its measured place to the fitted full-width frame in 220 ms (ease-out cubic) while black fades in behind it over the first 170 ms; then the viewer's pager takes over at the same frame. Scale and position only. It starts when the viewer's window has appeared, not when it is asked for: started sooner, most of the growth ran before anything was on screen. |
 | Full-screen paging | The viewer's existing pager (system paging). |
-| Count roll | 170 ms, for any count that changes while on screen (`RollingCount`): the like count rolling up by one on a like and down on an unlike, and the comment count when a comment is added or deleted. Nothing is drawn at 0, so the first one rolls in from nothing. |
+| Count roll | 170 ms, for a count that changes while on screen (`RollingCount`): the comment count when a comment is added or deleted. Nothing is drawn at 0, so the first one rolls in from nothing. (The like count rolled the same way until liking was taken out, 24 Nov.) |
 | Reduce Motion | The indicator still follows the finger (it is the finger's own movement). The viewer fades in instead of growing. Counts swap without rolling. |
 
 ## What the feed cannot show yet
 
 The design's post has a like count, a comment count and the time it was posted. `GET /feed` sends none of them, and the API has no likes at all (spec §2.11: "No likes"). Until it does:
 
-- **The heart** is drawn and kept on the phone, per account. It fills for the person who tapped it, and the count beside it rolls up by one (and back down on an unlike), as on X. That count is only their own like: the host is not told, and the phone knows of no one else's.
+- **The heart** is not drawn. It was, kept on the phone per account with a count of the reader's own like, until product took liking out of the app (24 Nov).
 - **The comment count** is read from the comments endpoint, one small call per post on screen, and rolls when it changes. The comment button opens the post at its comments.
 - **The time it was posted** is not sent, so the line under the host's name shows the distance.
 

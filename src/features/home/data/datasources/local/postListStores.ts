@@ -27,5 +27,3 @@ function devicePostList(name: string): PostListStore {
 
 /** "Hide post". See the contract for why it lives on the phone. */
 export const hiddenPostsStore = devicePostList('hiddenPosts');
-/** The heart. See the contract for why it lives on the phone. */
-export const likedPostsStore = devicePostList('likedPosts');

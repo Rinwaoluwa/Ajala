@@ -19,8 +19,6 @@ export const homeCopy = {
   locationOff: 'Location is off',
   notifications: 'Notifications',
   messages: 'Messages',
-  like: 'Save',
-  unlike: 'Saved',
 
   // A post in the feed (Home design, 22 Nov).
   post: {
@@ -40,8 +38,6 @@ export const homeCopy = {
     leave: 'Leave',
     comment: 'Comments',
     comments: (n: number) => (n === 1 ? '1 comment' : `${n} comments`),
-    like: 'Like',
-    liked: 'Liked',
     save: 'Save',
     saved: 'Saved',
     menu: {
