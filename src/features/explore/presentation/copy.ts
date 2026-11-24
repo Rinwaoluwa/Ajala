@@ -4,9 +4,20 @@ import type { PostType } from '../domain/entities/Explore';
 /** Every word Explore shows, in one place. */
 export const exploreCopy = {
   map: {
-    // It finds cities (Google) and people (`GET /search/people`), not activities: those
-    // are in the list sheet's search.
+    // The field on the map. Its Search key opens the Explore list on what was typed (`MapSearchBar`).
     searchPlaceholder: 'Search activities...',
+    // What follows is the wording of the results that were listed under the field as it was
+    // typed in (`RESULTS_HERE`, off).
+    activitiesHeading: 'Activities',
+    searching: 'Searching…',
+    // Search looks within 30 km of where the feed looks (spec §2.18): said, so nothing found is understood.
+    noActivities: (words: string) => `No activities for “${words}” within 30 km.`,
+    activitiesFailed: "Couldn't search right now.",
+    retrySearch: 'Try again',
+    /** Read out for a result: what choosing it does. */
+    showOnMap: 'Show on the map',
+    seeAllResults: 'See all results',
+    searchPeople: (words: string) => `Search people for “${words}”`,
     placesHeading: 'Places',
     peopleHeading: 'People',
     noPeople: 'No one by that name or @handle',

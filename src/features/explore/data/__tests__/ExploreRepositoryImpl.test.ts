@@ -90,6 +90,8 @@ const LISTED = {
   formattedAddress: '1 Admiralty Way, Lekki, Lagos, Nigeria',
   localityLabel: 'Lagos, Nigeria',
   countryCode: 'NG',
+  lat: 6.43,
+  lng: 3.42,
   goingCount: 47,
   distanceKm: 1.2,
 };

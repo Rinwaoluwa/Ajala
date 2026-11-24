@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Keyboard, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
@@ -67,12 +67,26 @@ import { MeetupCard } from './MeetupCard';
  * tapped, and leaves it alone when the sheet closes only to show a result and
  * opens again on the way back, so a search and its results are still there.
  *
+ * `search` is the search it opens on (`ListSearch`), when the map's field hands
+ * one over: the words typed there are in the box and what they find is listed.
+ * Without one it opens on its browse page (View List).
+ *
  * The searches run only while it is open, and Meetups Near You only while it is
  * drawn (the sheet's content is mounted only while the sheet is).
  */
+
+/**
+ * A search handed to the list as it opens (the Search key on the map's field):
+ * the words typed there, and which of what they find to show. Two characters
+ * or more are searched for at once. Fewer cannot be (spec §2.18): they are put
+ * in the box, with the keyboard up, to be carried on with.
+ */
+export type ListSearch = { words: string; scope: 'activities' | 'people' };
+
 export function ExploreListSheet({
   isPresented,
   session,
+  search = null,
   onDismiss,
   onOpenMeetup,
   onOpenPerson,
@@ -82,6 +96,8 @@ export function ExploreListSheet({
   isPresented: boolean;
   /** Changes when the list is opened anew (not when it comes back from a result). */
   session: number;
+  /** The search to open on. Read when the list is opened anew. */
+  search?: ListSearch | null;
   onDismiss: () => void;
   onOpenMeetup: (id: string, type: PostType) => void;
   onOpenPerson: (userId: string) => void;
@@ -92,6 +108,7 @@ export function ExploreListSheet({
   return (
     <ListFlow
       key={session}
+      startWith={search}
       isPresented={isPresented}
       onDismiss={onDismiss}
       onOpenMeetup={onOpenMeetup}
@@ -105,6 +122,7 @@ export function ExploreListSheet({
 type SearchScope = 'activities' | 'people';
 
 function ListFlow({
+  startWith,
   isPresented,
   onDismiss,
   onOpenMeetup,
@@ -112,6 +130,7 @@ function ListFlow({
   interestId,
   onInterestChange,
 }: {
+  startWith: ListSearch | null;
   isPresented: boolean;
   onDismiss: () => void;
   onOpenMeetup: (id: string, type: PostType) => void;
@@ -121,23 +140,42 @@ function ListFlow({
 }) {
   const theme = useTheme();
   const copy = exploreCopy.list;
+  // Opened on a search from the map's field: its words, when they are enough to search for.
+  const [handed] = useState(() => {
+    if (!startWith) return null;
+    const read = readSearch(startWith.words);
+    return read.kind === 'ready' ? { words: read.words, scope: startWith.scope } : null;
+  });
+  // Too few to search for (one character): they go in the box to be carried on with.
+  const [carried] = useState(() => (startWith && !handed ? startWith.words.trim() : ''));
+  // Then the box takes the keyboard as the sheet comes up. Once only, so the keyboard does
+  // not come back with the sheet after a result has been opened and left.
+  const [focusOnOpen, setFocusOnOpen] = useState(carried !== '');
   /** What is in the box now. */
-  const [draft, setDraft] = useState('');
+  const [draft, setDraft] = useState(handed?.words ?? carried);
   /** The words last run; null while nothing has been searched. */
-  const [words, setWords] = useState<string | null>(null);
+  const [words, setWords] = useState<string | null>(handed?.words ?? null);
   /** Search is open: the box has been tapped, or there are results. */
-  const [searching, setSearching] = useState(false);
+  const [searching, setSearching] = useState(handed !== null || carried !== '');
   // The box keeps its own text and starts with `draft`; it is made anew (a new key) to empty it
   // or to put a past search in it. It also starts with `draft` when the sheet comes back.
   const [fieldKey, setFieldKey] = useState(0);
-  const [scope, setScope] = useState<SearchScope>('activities');
+  const [scope, setScope] = useState<SearchScope>(handed?.scope ?? 'activities');
   // Asked only once People is opened; kept after, so switching back and forth is instant.
-  const [peopleAsked, setPeopleAsked] = useState(false);
+  const [peopleAsked, setPeopleAsked] = useState(handed?.scope === 'people');
 
   const posts = useSearchPosts(isPresented && scope === 'activities' ? words : null);
   const people = useSearchPeople(isPresented ? words : null, peopleAsked || scope === 'people');
   const recent = useRecentSearches();
   const interests = useInterests();
+  // A search handed over is a search run: it is kept with the recent ones like any other.
+  const { add: addRecent } = recent;
+  const handedWords = handed?.words ?? null;
+  useEffect(() => {
+    if (handedWords) addRecent(handedWords);
+    // Once, on opening. `addRecent` is a new function each render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const chooseScope = (next: SearchScope) => {
     setScope(next);
@@ -197,9 +235,13 @@ function ListFlow({
             defaultValue={draft}
             onChangeText={change}
             onSubmitEditing={() => run(draft)}
+            autoFocus={focusOnOpen}
             // Search stays open until Cancel: putting the keyboard away (a drag on the
             // list does) is not leaving it.
-            onFocus={() => setSearching(true)}
+            onFocus={() => {
+              setSearching(true);
+              setFocusOnOpen(false);
+            }}
             maxLength={SEARCH_MAX}
             autoCorrect={false}
             autoCapitalize="none"

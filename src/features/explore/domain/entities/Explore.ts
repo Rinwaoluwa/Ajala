@@ -110,6 +110,9 @@ export type ListedPost = {
   /** The city and country, e.g. "Lagos, Nigeria". */
   localityLabel: string | null;
   countryCode: string | null;
+  /** Where it is, to show it on the map; null when the card carries no position. */
+  lat: number | null;
+  lng: number | null;
   goingCount: number;
   distanceKm: number | null;
 };

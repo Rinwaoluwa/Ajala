@@ -281,6 +281,16 @@ These three are related:
 - **Today:** clearing the capacity field means "No limit" on every type, and the post is sent with no `capacity`.
 - **Need:** confirm that no capacity is valid on a Group (and a Plan). If a Group must have 1–100, say so and the app will ask for one again.
 
+### B17. Search as the person types
+**Status: Not needed for now (24 Nov). The app is back to searching on submit, as the spec says. Kept for if it returns.**
+
+- **What the spec says:** search "runs on submit; no typeahead" (§2.18).
+- **What happened:** for a day (23 to 24 Nov) the field on the Explore map listed the activities found under it as someone typed, asking `GET /search/posts?q=` once typing had paused for 350 ms, for 2 characters or more.
+- **Now:** the map's field searches on submit (product, 24 Nov). Someone types there and presses the keyboard's Search key; the Explore list then opens with those words and asks `GET /search/posts?q=` once. The list's own box asks the same way (its Search key, the "Search for …" row, a past search). Nothing is asked while typing. The listing under the field is still in the code, switched off (`RESULTS_HERE` in `MapSearchBar`).
+- **Only if it comes back:**
+  - confirm asking after a pause is all right for `GET /search/posts`, and say if there is a rate limit on it (the only one in the spec, 30 a minute, is on signing in);
+  - if it is not, say what is: a longer pause, a minimum of 3 characters, or a lighter endpoint for suggestions (titles and ids only), which the app would switch to.
+
 ---
 
 ## C. Product decisions we need written down (backend + product)

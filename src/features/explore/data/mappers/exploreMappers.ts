@@ -135,6 +135,8 @@ const toListedPost = (dto: PostCardDto): ListedPost => ({
   imageUrl: dto.images?.[0]?.cardUrl ?? null,
   startAt: dto.startAt ?? null,
   ...placeOf(dto),
+  lat: dto.lat ?? null,
+  lng: dto.lng ?? null,
   goingCount: dto.goingCount ?? 0,
   distanceKm: dto.distanceKm ?? null,
 });

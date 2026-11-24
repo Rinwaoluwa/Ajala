@@ -35,7 +35,7 @@ import { SCREEN_GUTTER } from '@shared/theme';
 
 import { useSubscription } from '@features/payment';
 
-import type { Bbox, PlaceLocation, PostPreview, PostType } from '../../domain/entities/Explore';
+import type { Bbox, ListedPost, PlaceLocation, PostPreview, PostType } from '../../domain/entities/Explore';
 import {
   NO_FILTERS,
   filtersActive,
@@ -47,7 +47,7 @@ import {
 } from '../../domain/rules/exploreRules';
 import { FilterSheet } from '../components/FilterSheet';
 import { InterestChips } from '../components/InterestChips';
-import { ExploreListSheet } from '../components/ExploreListSheet';
+import { ExploreListSheet, type ListSearch } from '../components/ExploreListSheet';
 import { MapButton } from '../components/MapButton';
 import { MapSearchBar } from '../components/MapSearchBar';
 import { MiniPostCard, miniCardEntering, miniCardExiting } from '../components/MiniPostCard';
@@ -94,6 +94,8 @@ const CONTROLS_LIFT = 168;
 
 /** Used only if the phone cannot say where it is: the whole map, nothing loaded. */
 const WORLD: MapRegion = regionAround(0, 0, 60);
+/** How much of the map shows round an activity chosen from the search: a few streets each way. */
+const FOUND_SPAN = 0.03;
 
 export type ExploreScreenProps = {
   /** `type`, when known: the post page then names a locked Plan as a Plan. */
@@ -138,6 +140,8 @@ export function ExploreScreen({ onOpenPost, onTeleport, onOpenPerson, toStartSig
   // Changes each time View List is tapped: the list starts afresh. It is left alone when the
   // list closes only to show a result, so the search is still there on the way back.
   const [listSession, setListSession] = useState(0);
+  // The search the list opens on, when the map's field hands one over; none from View List.
+  const [listSearch, setListSearch] = useState<ListSearch | null>(null);
   // A result was opened from the list: coming back lands on the list, not the map.
   const backToList = useRef(false);
   useFocusEffect(
@@ -241,6 +245,28 @@ export function ExploreScreen({ onOpenPost, onTeleport, onOpenPerson, toStartSig
     setSelectedId(id);
   };
 
+  // The list, opened anew: from View List on its browse page, or on the search the map's
+  // field hands over (its Search key).
+  const openList = (search: ListSearch | null) => {
+    // Whatever card was up goes: the list is about to cover it, and a search starts clean.
+    select(null);
+    setListSearch(search);
+    setListSession((n) => n + 1);
+    setListOpen(true);
+  };
+
+  // An activity chosen from the search results: the camera goes to it and its card comes up, as
+  // if its pin had been tapped. The pin itself arrives with the pins of where the map settles.
+  // One with no position to go to (it is not shown on the map) opens its page instead.
+  const showOnMap = (post: ListedPost) => {
+    if (post.lat === null || post.lng === null) {
+      onOpenPost(post.id, post.type);
+      return;
+    }
+    map.current?.animateTo(regionAround(post.lat, post.lng, FOUND_SPAN), reduceMotion ? 0 : 600);
+    select(post.id);
+  };
+
   const join = (post: PostPreview, action: RsvpAction) => {
     if (action.kind !== 'join') return;
     if (!notice.seen) return setNoticeFor(post);
@@ -330,46 +356,52 @@ export function ExploreScreen({ onOpenPost, onTeleport, onOpenPerson, toStartSig
           tab bar) turns to the next page; anywhere else it moves the map. */}
       <PageSwipeZones />
 
-      {/* Search, filter and type chips. */}
-      <View pointerEvents="box-none" style={{ position: 'absolute', top: insets.top + 8, left: 0, right: 0 }}>
-        <View style={{ paddingHorizontal: SCREEN_GUTTER }}>
-          <MapSearchBar
-            onChoose={goTo}
-            onOpenPerson={onOpenPerson}
-            onOpenFilters={() => setFiltersOpen(true)}
-            filtersActive={filtersActive(filters)}
-          />
-        </View>
-        <View className="mt-10">
-          <InterestChips value={interestId} onChange={setInterestId} />
-        </View>
-        {status ? (
-          <Animated.View
-            // Glass materialises by itself; a fade would make it blink (see GlassSurface).
-            entering={glass ? undefined : FadeIn.duration(200)}
-            exiting={glass ? undefined : FadeOut.duration(160)}
-            className="mt-10 items-center"
-            // Side margins, so a status that wraps at large text stays off the screen edges.
-            style={{ paddingHorizontal: SCREEN_GUTTER }}
-          >
-            <GlassSurface fallbackColor={theme.card} style={{ borderRadius: 999 }}>
-              <Pressable
-                onPress={status.action?.onPress}
-                disabled={!status.action}
-                accessibilityRole={status.action ? 'button' : 'text'}
-                accessibilityLiveRegion="polite"
-                style={{ paddingHorizontal: 14, paddingVertical: 8 }}
-              >
-                <Text variant="labelSm" className="text-center">
-                  {status.text}
-                  {status.action ? (
-                    <Text variant="labelSm" tone="link">{`  ${status.action.label}`}</Text>
-                  ) : null}
-                </Text>
-              </Pressable>
-            </GlassSurface>
-          </Animated.View>
-        ) : null}
+      {/* Search and filter, and under them the type chips and the status line. The layer runs to
+          the foot of the screen and sits over everything else on the map, so the search's
+          results (laid over the chips) are inside it and on top; it takes no touches itself. */}
+      <View
+        pointerEvents="box-none"
+        style={{ position: 'absolute', top: insets.top + 8, left: 0, right: 0, bottom: 0, zIndex: 1 }}
+      >
+        <MapSearchBar
+          onShowPost={showOnMap}
+          onSeeAll={(words, scope) => openList({ words, scope })}
+          onChoose={goTo}
+          onOpenPerson={onOpenPerson}
+          onOpenFilters={() => setFiltersOpen(true)}
+          filtersActive={filtersActive(filters)}
+        >
+          <View className="mt-10">
+            <InterestChips value={interestId} onChange={setInterestId} />
+          </View>
+          {status ? (
+            <Animated.View
+              // Glass materialises by itself; a fade would make it blink (see GlassSurface).
+              entering={glass ? undefined : FadeIn.duration(200)}
+              exiting={glass ? undefined : FadeOut.duration(160)}
+              className="mt-10 items-center"
+              // Side margins, so a status that wraps at large text stays off the screen edges.
+              style={{ paddingHorizontal: SCREEN_GUTTER }}
+            >
+              <GlassSurface fallbackColor={theme.card} style={{ borderRadius: 999 }}>
+                <Pressable
+                  onPress={status.action?.onPress}
+                  disabled={!status.action}
+                  accessibilityRole={status.action ? 'button' : 'text'}
+                  accessibilityLiveRegion="polite"
+                  style={{ paddingHorizontal: 14, paddingVertical: 8 }}
+                >
+                  <Text variant="labelSm" className="text-center">
+                    {status.text}
+                    {status.action ? (
+                      <Text variant="labelSm" tone="link">{`  ${status.action.label}`}</Text>
+                    ) : null}
+                  </Text>
+                </Pressable>
+              </GlassSurface>
+            </Animated.View>
+          ) : null}
+        </MapSearchBar>
       </View>
 
       {/* Map controls, right side above the card's place. */}
@@ -438,10 +470,7 @@ export function ExploreScreen({ onOpenPost, onTeleport, onOpenPerson, toStartSig
               style={{ borderRadius: 999 }}
             >
               <Pressable
-                onPress={() => {
-                  setListSession((n) => n + 1);
-                  setListOpen(true);
-                }}
+                onPress={() => openList(null)}
                 accessibilityRole="button"
                 style={{
                   flexDirection: 'row',
@@ -477,6 +506,7 @@ export function ExploreScreen({ onOpenPost, onTeleport, onOpenPerson, toStartSig
       <ExploreListSheet
         isPresented={listOpen}
         session={listSession}
+        search={listSearch}
         onDismiss={() => setListOpen(false)}
         // The list is a modal over the whole app, so it steps aside for the screen it opens
         // and comes back when that screen is left.
