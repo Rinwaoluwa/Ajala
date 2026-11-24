@@ -11,6 +11,7 @@ import {
   NativeIcon,
   Screen,
   SvgIcon,
+  SwipeSwitch,
   Text,
   UnderlineTabs,
   VectorIcon,
@@ -281,38 +282,47 @@ function ProfileLists({
   return (
     <View style={{ gap: 16 }}>
       <UnderlineTabs hug options={LIST_TABS} value={tab} onChange={lists.setTab} />
-      {lists.loading ? (
-        <ActivityCardSkeleton label={copy.loading} />
-      ) : lists.failed ? (
-        <View style={{ gap: 12, alignItems: 'center', paddingVertical: 16 }}>
-          <Text variant="bodySm" tone="muted" className="text-center">
-            {copy.failed[tab]}
-          </Text>
-          <Button label={copy.retry} variant="secondary" size="sm" onPress={lists.retry} />
-        </View>
-      ) : lists.items.length === 0 ? (
-        <Text variant="bodySm" tone="muted" className="py-16 text-center" accessibilityLiveRegion="polite">
-          {empty}
-        </Text>
-      ) : (
-        <>
-          {lists.items.map(({ activity, state }) =>
-            state ? (
-              <ActivityCard
-                key={activity.id}
-                activity={activity}
-                status={state}
-                onPress={() => onOpenPost(activity.id)}
-              />
-            ) : (
-              <ProfilePostCard key={activity.id} activity={activity} onPress={() => onOpenPost(activity.id)} />
-            ),
+      {/* Swipe sideways between the lists, as between Instagram's profile tabs. */}
+      <SwipeSwitch
+        index={LIST_TABS.findIndex((t) => t.value === tab)}
+        count={LIST_TABS.length}
+        onChange={(i) => lists.setTab(LIST_TABS[i]!.value)}
+      >
+        <View style={{ gap: 16 }}>
+          {lists.loading ? (
+            <ActivityCardSkeleton label={copy.loading} />
+          ) : lists.failed ? (
+            <View style={{ gap: 12, alignItems: 'center', paddingVertical: 16 }}>
+              <Text variant="bodySm" tone="muted" className="text-center">
+                {copy.failed[tab]}
+              </Text>
+              <Button label={copy.retry} variant="secondary" size="sm" onPress={lists.retry} />
+            </View>
+          ) : lists.items.length === 0 ? (
+            <Text variant="bodySm" tone="muted" className="py-16 text-center" accessibilityLiveRegion="polite">
+              {empty}
+            </Text>
+          ) : (
+            <>
+              {lists.items.map(({ activity, state }) =>
+                state ? (
+                  <ActivityCard
+                    key={activity.id}
+                    activity={activity}
+                    status={state}
+                    onPress={() => onOpenPost(activity.id)}
+                  />
+                ) : (
+                  <ProfilePostCard key={activity.id} activity={activity} onPress={() => onOpenPost(activity.id)} />
+                ),
+              )}
+              {lists.hasMore ? (
+                <Button label={copy.more} variant="secondary" loading={lists.loadingMore} onPress={lists.loadMore} />
+              ) : null}
+            </>
           )}
-          {lists.hasMore ? (
-            <Button label={copy.more} variant="secondary" loading={lists.loadingMore} onPress={lists.loadMore} />
-          ) : null}
-        </>
-      )}
+        </View>
+      </SwipeSwitch>
     </View>
   );
 }
