@@ -67,7 +67,9 @@ export const exploreCopy = {
     cancel: 'Cancel',
     rsvp: 'RSVP',
     rsvpPriced: (price: string) => `RSVP · ${price}`,
-    request: 'Request to join',
+    // A private post asks its host first; the button still says Join (product, 24 Nov: "Request
+    // to join" broke over two lines beside Preview), and reads Requested once it is sent.
+    request: 'Join',
     requested: 'Requested',
     going: 'Going',
     waitlisted: (n: number | null) => (n ? `Waitlisted · #${n}` : 'Waitlisted'),

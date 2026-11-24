@@ -16,6 +16,7 @@ import {
 } from '@shared/components';
 import { useFontScale } from '@shared/hooks/useFontScale';
 import { useTheme } from '@shared/hooks/useTheme';
+import { layout, textStyles } from '@shared/theme';
 import { useTypeColors } from '@shared/theme/postTypeColors';
 
 import type { PostPreview } from '../../domain/entities/Explore';
@@ -30,19 +31,32 @@ import { formatPrice, formatShortDay } from '../format';
  * left"; then the join button and Preview. × closes it, ⋯ offers Report.
  *
  * The button follows the post's own state (spec §2.13): RSVP, with its price
- * when it has one (a card shows the price or nothing), or Request to join on a
- * private post; Requested, Going and Waitlisted once done; "You're hosting" on
- * the person's own post, never Join; nothing once declined or removed. A post
- * with a link opens it as it joins (see `useJoinPost`).
+ * when it has one (a card shows the price or nothing), or Join on a private
+ * post (which asks its host); Requested, Going and Waitlisted once done;
+ * "You're hosting" on the person's own post, never Join; nothing once declined
+ * or removed. A post with a link opens it as it joins (see `useJoinPost`).
+ *
+ * The two buttons sit side by side while both labels fit on one line each, and
+ * stack when they would not (a long label, a narrow phone, large text): a label
+ * is never broken over two lines.
  *
  * Motion: it rises 12pt and fades in over 250ms, and sinks out in 180ms (a fade
- * alone under Reduce Motion). At large text the buttons stack.
+ * alone under Reduce Motion).
  */
 
 const IMAGE_WIDTH = 116;
 const card = { radius: 16, padding: 12 };
-/** The narrowest button row that fits the join and Preview buttons next to each other. */
-const SIDE_BY_SIDE_MIN = 210;
+/** Between the two buttons. */
+const BUTTON_GAP = 8;
+
+/**
+ * How wide a button needs to be to keep its label on one line: the label at a
+ * generous average glyph (0.6 em; the face runs about 0.55) plus the button's
+ * padding. Generous on purpose: stacking a row that would have fitted costs a
+ * little height, and a label broken in two looks broken.
+ */
+const buttonNeeds = (label: string, fontScale: number) =>
+  Math.ceil(label.length * textStyles.labelSm.fontSize * 0.6 * fontScale) + layout.button.paddingX * 2;
 
 export const miniCardEntering = FadeInDown.duration(250)
   .easing(Easing.out(Easing.cubic))
@@ -126,11 +140,15 @@ function Loaded({
   const theme = useTheme();
   const typeColors = useTypeColors();
   const fontScale = useFontScale();
-  // Side by side only when the column has room for both labels ("Request to join" and
-  // "Preview" need about 210pt): bigger text or a narrower phone stacks them.
-  const [columnWidth, setColumnWidth] = useState<number | null>(null);
-  const stacked = fontScale > 1.3 || (columnWidth !== null && columnWidth < SIDE_BY_SIDE_MIN * fontScale);
   const action = rsvpAction(post);
+  const joinLabel = actionLabel(action);
+  // Side by side only when the column has room for both labels on one line each (see the
+  // note above). Until the column is measured it is taken as roomy: most cards are.
+  const [columnWidth, setColumnWidth] = useState<number | null>(null);
+  const needed =
+    (action.kind !== 'none' ? buttonNeeds(joinLabel, fontScale) + BUTTON_GAP : 0) +
+    buttonNeeds(exploreCopy.card.preview, fontScale);
+  const stacked = columnWidth !== null && columnWidth < needed;
   const when = [formatShortDay(post.startAt), post.placeName].filter(Boolean).join(' · ');
   const left = spotsLeft(post.goingCount, post.capacity);
   const counts = [
@@ -214,13 +232,13 @@ function Loaded({
             marginTop: 10,
             flexDirection: stacked ? 'column' : 'row',
             alignItems: stacked ? 'stretch' : 'center',
-            gap: 8,
+            gap: BUTTON_GAP,
           }}
         >
           {action.kind !== 'none' ? (
             <View style={{ flex: stacked ? undefined : 1 }}>
               <Button
-                label={actionLabel(action)}
+                label={joinLabel}
                 size="sm"
                 fullWidth
                 loading={joining}

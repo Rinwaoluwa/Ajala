@@ -19,7 +19,7 @@ because API map §7 makes it the Explore tab; `map/` is still the empty scaffold
 | Bolt ("Happening today") | client-side, over the pins' `startAt` |
 | Search city or country | `@core/places` `searchCities` (debounced, cancelled through `AbortSignal`), then `placeDetails` for where the chosen city is — moves the camera; `endPlacesSession` when the search goes away without a choice. `GET /cities` is gone. A `PlacesError` reads "Place search isn't available right now". Pins still come from where the server looks (a free reader then sees the reach note and Teleport) |
 | Mini card | `GET /posts/:id`; the place line is `placeName`, else `localityLabel` ("Lagos, Nigeria"); `placeId`, `formattedAddress`, `countryCode` are mapped too (same on the list's cards) |
-| RSVP (· price, when there is one) / Request to join | `POST /posts/:id/rsvp`, optimistic, rolled back on a refusal |
+| RSVP (· price, when there is one) / Join | `POST /posts/:id/rsvp`, optimistic, rolled back on a refusal. A private post asks its host first; its button says **Join** too (24 Nov: "Request to join" broke over two lines beside Preview) and reads Requested once sent. The card's two buttons sit side by side while both labels fit on a line each, and stack when they would not |
 | … on a post with `externalUrl` | the link opens and `POST /posts/:id/link-click` counts it, then the RSVP as usual |
 | "You're hosting" (never Join on your own post) | `isHost`, or `host.id` = your id from `GET /me` (backend answers B9) |
 | Before you RSVP | local only: shown before the first RSVP, remembered per install (AsyncStorage) |
