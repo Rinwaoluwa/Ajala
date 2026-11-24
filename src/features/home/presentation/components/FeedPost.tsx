@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { memo, useCallback, useMemo } from 'react';
-import { Alert, Pressable, TouchableOpacity, View } from 'react-native';
+import { Pressable, TouchableOpacity, View } from 'react-native';
 import Animated, {
   Easing,
   FadeIn,
@@ -13,7 +13,7 @@ import Animated, {
 
 import {
   Avatar,
-  JellyPress,
+  JoinPill,
   MediaCarousel,
   PopoverMenu,
   RollingCount,
@@ -24,15 +24,15 @@ import {
   formatCardDate,
   formatCardTime,
   formatDistance,
+  type JoinPillLabels,
   type MediaFrame,
   type PopoverAction,
 } from '@shared/components';
 import { useFontScale } from '@shared/hooks/useFontScale';
-import { useRsvpPost } from '@shared/hooks/useRsvpPost';
 import { useSavePost } from '@shared/hooks/useSavePost';
 import { useTheme } from '@shared/hooks/useTheme';
 import { useAppColorScheme } from '@shared/hooks/useAppColorScheme';
-import { SCREEN_GUTTER, palette, textStyles } from '@shared/theme';
+import { SCREEN_GUTTER, textStyles } from '@shared/theme';
 import { useTypeColors } from '@shared/theme/postTypeColors';
 
 import type { PostCard } from '../../domain/entities/Feed';
@@ -51,7 +51,7 @@ import { homeCopy } from '../copy';
  *     open (as grey bars) until then, so nothing below jumps when it lands.
  *   - **Photos:** `MediaCarousel`. A tap opens that photo full screen.
  *   - **Banner:** the type's tag, the title, the day, time and place, and Join.
- *     Join is the quick RSVP every card has (`useRsvpPost`): it fills at once,
+ *     Join is the quick RSVP every card has (`JoinPill`): it fills at once,
  *     says Going / Requested / Waitlisted after, and asks before leaving.
  *   - **Actions:** comments with their count, and the bookmark
  *     (`useSavePost`). The comment count is the real one, read from the
@@ -257,89 +257,32 @@ function JoinBanner({
           </Text>
         ) : null}
       </View>
-      <JoinButton post={post} mine={mine} onBeforeRsvp={onBeforeRsvp} />
+      {/* The quick RSVP every card has (`JoinPill`). */}
+      <JoinPill
+        postId={post.id}
+        rsvpState={post.rsvpState}
+        privatePost={post.visibility === 'private'}
+        mine={mine}
+        onBeforeRsvp={onBeforeRsvp}
+        labels={JOIN_LABELS}
+      />
     </Pressable>
   );
 }
 
-/**
- * Join, on the banner: the quick RSVP (`useRsvpPost`). Solid teal until joined;
- * after, a quiet pill with a tick that says where the person stands, and a tap
- * asks before leaving. A private post says Request. The host's own post says
- * Hosting and takes no tap. Someone the host turned away is offered nothing.
- */
-function JoinButton({
-  post,
-  mine,
-  onBeforeRsvp,
-}: {
-  post: PostCard;
-  mine: boolean;
-  onBeforeRsvp: () => Promise<boolean>;
-}) {
-  const theme = useTheme();
-  const copy = homeCopy.post;
-  const rsvp = useRsvpPost(post.id, post.rsvpState);
-  const box = { borderRadius: 999, minHeight: 36, paddingHorizontal: 16, justifyContent: 'center' } as const;
-
-  if (mine) {
-    return (
-      <View style={[box, { paddingHorizontal: 12 }]}>
-        <Text variant="labelSm" tone="muted">
-          {copy.hosting}
-        </Text>
-      </View>
-    );
-  }
-  if (rsvp.closed) return null;
-
-  const press = () => {
-    if (rsvp.pending) return;
-    if (rsvp.joined) {
-      Alert.alert(copy.leaveTitle, copy.leaveBody, [
-        { text: copy.stay, style: 'cancel' },
-        { text: copy.leave, style: 'destructive', onPress: rsvp.leave },
-      ]);
-      return;
-    }
-    void onBeforeRsvp().then((ok) => ok && rsvp.join());
-  };
-  const label = !rsvp.joined
-    ? post.visibility === 'private'
-      ? copy.request
-      : copy.join
-    : rsvp.state === 'requested'
-      ? copy.requested
-      : rsvp.state === 'waitlisted'
-        ? copy.waitlisted
-        : copy.going;
-
-  return (
-    // The jelly press and light tap every pill in the app has.
-    <JellyPress
-      onPress={press}
-      hitSlop={6}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      accessibilityState={{ busy: rsvp.pending, selected: rsvp.joined }}
-    >
-      <View
-        style={[
-          box,
-          { flexDirection: 'row', alignItems: 'center', gap: 6, opacity: rsvp.pending ? 0.6 : 1 },
-          rsvp.joined
-            ? { backgroundColor: theme.card, borderWidth: 1, borderColor: theme.primary, paddingHorizontal: 12 }
-            : { backgroundColor: theme.primaryFill },
-        ]}
-      >
-        {rsvp.joined ? <Ionicons name="checkmark" size={16} color={theme.primary} /> : null}
-        <Text variant="labelSm" style={{ color: rsvp.joined ? theme.primary : palette.white }}>
-          {label}
-        </Text>
-      </View>
-    </JellyPress>
-  );
-}
+/** The banner's Join, in the feed's own words: a private post says Request. */
+const JOIN_LABELS: JoinPillLabels = {
+  join: homeCopy.post.join,
+  request: homeCopy.post.request,
+  going: homeCopy.post.going,
+  requested: homeCopy.post.requested,
+  waitlisted: homeCopy.post.waitlisted,
+  hosting: homeCopy.post.hosting,
+  leaveTitle: homeCopy.post.leaveTitle,
+  leaveBody: homeCopy.post.leaveBody,
+  stay: homeCopy.post.stay,
+  leave: homeCopy.post.leave,
+};
 
 /** A mark that answers its tap: up to 120% and back as it fills. Still with Reduce Motion. */
 function usePop() {

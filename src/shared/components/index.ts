@@ -75,6 +75,7 @@ export { Tag, type TagTone } from './display/Tag';
 export { ListGroup, ListRow, type ListRowProps } from './list/ListGroup';
 export { UnderlineTabs, SegmentedControl } from './navigation/Tabs';
 export { PostCard, type PostCardModel } from './post/PostCard';
+export { JoinPill, type JoinPillLabels, type JoinPillProps } from './post/JoinPill';
 export { formatCardDate, formatCardTime, formatDistance } from './post/formatPost';
 export { SwirlPattern, type SwirlPatternProps } from './brand/SwirlPattern';
 export { StepProgress, type StepProgressProps, type StepProgressTone } from './feedback/StepProgress';
