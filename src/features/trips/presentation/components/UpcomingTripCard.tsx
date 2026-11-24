@@ -22,6 +22,10 @@ import { TravellerDots } from './TravellerDots';
  * place and the link in Marigold.
  *
  * The whole card opens the trip. Rows wrap at large text sizes rather than clip.
+ *
+ * A trip with no photo (photos are optional) has no cover at all: the tags, the
+ * title and the details make the card, as a post of words is set on a profile.
+ * The type's colour filling a cover's space read as a photo that never loaded.
  */
 function statusTag(trip: TripCard): { label: string; tone: TagTone } {
   if (trip.status === 'cancelled') return { label: tripsCopy.cancelled, tone: 'neutral' };
@@ -70,12 +74,11 @@ function UpcomingTripCardComponent({ trip, onOpen }: { trip: TripCard; onOpen: (
         overflow: 'hidden',
       }}
     >
-      {/* No photo (they are optional): the type's own colour, not a grey that reads as loading. */}
-      <View style={{ aspectRatio: 2, backgroundColor: trip.imageUrl ? theme.skeleton : typeColors[trip.type].cover }}>
-        {trip.imageUrl ? (
+      {trip.imageUrl ? (
+        <View style={{ aspectRatio: 2, backgroundColor: theme.skeleton }}>
           <Image source={{ uri: trip.imageUrl }} style={{ flex: 1 }} contentFit="cover" transition={250} />
-        ) : null}
-      </View>
+        </View>
+      ) : null}
       <View style={{ padding: 18, gap: 6 }}>
         <View
           style={{
@@ -85,7 +88,24 @@ function UpcomingTripCardComponent({ trip, onOpen }: { trip: TripCard; onOpen: (
             marginBottom: 4,
           }}
         >
-          <Tag label={tripsCopy.types[trip.type]} tone="outline" />
+          {trip.imageUrl ? (
+            <Tag label={tripsCopy.types[trip.type]} tone="outline" />
+          ) : (
+            // No cover to say what kind of post it is: the type in its own colour, as on a profile.
+            <View
+              style={{
+                paddingHorizontal: 10,
+                paddingVertical: 3,
+                borderRadius: 999,
+                backgroundColor: typeColors[trip.type].soft,
+                justifyContent: 'center',
+              }}
+            >
+              <Text variant="labelSm" style={{ color: typeColors[trip.type].softLabel }}>
+                {tripsCopy.types[trip.type]}
+              </Text>
+            </View>
+          )}
           <Tag label={tag.label} tone={tag.tone} />
         </View>
         {trip.localityLabel ? (
