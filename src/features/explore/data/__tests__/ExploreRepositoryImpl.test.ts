@@ -94,6 +94,9 @@ const LISTED = {
   lng: 3.42,
   goingCount: 47,
   distanceKm: 1.2,
+  rsvpState: 'none',
+  visibility: 'open',
+  hostId: 'h',
 };
 
 const ORIGIN = { lat: 6.453, lng: 3.396, label: null, region: 'Lagos' };
@@ -157,9 +160,17 @@ describe('explore repository', () => {
       externalUrl: null,
       isHost: false,
       hostId: 'h',
+      // The server here sends none: a card with no words, not a crash.
+      description: '',
     });
     // Shared cost is gone from the API: nothing of it reaches the card.
     expect(post).not.toHaveProperty('costShare');
+  });
+
+  it("reads a post's words, for a card that has no photo to show", async () => {
+    const { request } = fake(() => ({ ...POST, description: '  Quiet work sprints with chatty breaks.  ' }));
+    const post = await createExploreRepository(request, notice).getPost('p1');
+    expect(post.description).toBe('Quiet work sprints with chatty breaks.');
   });
 
   it("keeps a post's link: joining opens it as well as RSVPing", async () => {

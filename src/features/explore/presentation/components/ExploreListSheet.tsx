@@ -22,16 +22,20 @@ import { haptics } from '@shared/feedback/haptics';
 import { useTheme } from '@shared/hooks/useTheme';
 import { SCREEN_GUTTER } from '@shared/theme';
 
-import type { Interest, PostType } from '../../domain/entities/Explore';
+import type { Interest, ListedPost, PostType } from '../../domain/entities/Explore';
 import { SEARCH_MAX, SEARCH_MIN, readSearch, startingWith } from '../../domain/rules/exploreRules';
 import { exploreCopy, exploreErrorMessages } from '../copy';
 import { useInterests } from '../hooks/useInterests';
+import { useMe } from '../hooks/useMe';
 import { useNearbyMeetups } from '../hooks/useNearbyMeetups';
 import { useRecentSearches } from '../hooks/useRecentSearches';
+import { useRsvpGate } from '../hooks/useRsvpGate';
 import { useSearchPeople } from '../hooks/useSearchPeople';
 import { useSearchPosts } from '../hooks/useSearchPosts';
 import { InterestGrid, columnsFor } from './InterestGrid';
 import { MeetupCard } from './MeetupCard';
+import { RsvpNoticeDialog } from './RsvpNoticeDialog';
+import { TextPostCard } from './TextPostCard';
 
 /**
  * "Explore" (opened by View List): search, Browse By Interest and Meetups Near
@@ -70,6 +74,10 @@ import { MeetupCard } from './MeetupCard';
  * `search` is the search it opens on (`ListSearch`), when the map's field hands
  * one over: the words typed there are in the box and what they find is listed.
  * Without one it opens on its browse page (View List).
+ *
+ * A post with no photo is drawn as a text card (`TextPostCard`: its words, when
+ * and where, and Join) where one with a photo is a photo card. Join's "Before
+ * you RSVP" notice is drawn here, inside the sheet, so it can open over it.
  *
  * The searches run only while it is open, and Meetups Near You only while it is
  * drawn (the sheet's content is mounted only while the sheet is).
@@ -168,6 +176,9 @@ function ListFlow({
   const people = useSearchPeople(isPresented ? words : null, peopleAsked || scope === 'people');
   const recent = useRecentSearches();
   const interests = useInterests();
+  // For the text cards' Join: whose posts are the reader's own, and the notice before a first RSVP.
+  const myId = useMe().data?.id ?? null;
+  const gate = useRsvpGate();
   // A search handed over is a search run: it is kept with the recent ones like any other.
   const { add: addRecent } = recent;
   const handedWords = handed?.words ?? null;
@@ -287,6 +298,8 @@ function ListFlow({
             interestId={interestId}
             onInterestChange={onInterestChange}
             onOpenMeetup={onOpenMeetup}
+            myId={myId}
+            onBeforeRsvp={gate.beforeRsvp}
           />
         ) : words === null ? (
           <Suggestions
@@ -301,6 +314,8 @@ function ListFlow({
           <Results
             words={words}
             search={posts}
+            myId={myId}
+            onBeforeRsvp={gate.beforeRsvp}
             onOpen={onOpenMeetup}
             onSeePeople={() => chooseScope('people')}
             onClear={leaveSearch}
@@ -315,7 +330,33 @@ function ListFlow({
           />
         )}
       </View>
+      {/* Inside the sheet's own window: drawn under it, it could not open over it. */}
+      <RsvpNoticeDialog {...gate.dialog} />
     </Sheet>
+  );
+}
+
+/**
+ * A post in the list: its photo card, or the text card when it has no photo to
+ * show. A photo card opens the post; a text card also joins it from the list.
+ */
+function ListedCard({
+  post,
+  myId,
+  onOpen,
+  onBeforeRsvp,
+}: {
+  post: ListedPost;
+  /** The signed-in person, to know their own posts; null until known. */
+  myId: string | null;
+  onOpen: (id: string, type: PostType) => void;
+  onBeforeRsvp: () => Promise<boolean>;
+}) {
+  const open = () => onOpen(post.id, post.type);
+  return post.imageUrl ? (
+    <MeetupCard meetup={post} fill onPress={open} />
+  ) : (
+    <TextPostCard post={post} mine={myId !== null && post.hostId === myId} onPress={open} onBeforeRsvp={onBeforeRsvp} />
   );
 }
 
@@ -532,12 +573,16 @@ function NothingFound({
 function Results({
   words,
   search,
+  myId,
+  onBeforeRsvp,
   onOpen,
   onSeePeople,
   onClear,
 }: {
   words: string;
   search: ReturnType<typeof useSearchPosts>;
+  myId: string | null;
+  onBeforeRsvp: () => Promise<boolean>;
   onOpen: (id: string, type: PostType) => void;
   onSeePeople: () => void;
   onClear: () => void;
@@ -580,7 +625,7 @@ function Results({
     <Animated.View entering={FadeIn.duration(180)} style={{ gap: 12 }}>
       {search.items.map((post, index) => (
         <Animated.View key={post.id} entering={index < 3 ? enterRise(index * 60) : undefined}>
-          <MeetupCard meetup={post} fill onPress={() => onOpen(post.id, post.type)} />
+          <ListedCard post={post} myId={myId} onOpen={onOpen} onBeforeRsvp={onBeforeRsvp} />
         </Animated.View>
       ))}
       {search.hasMore ? (
@@ -695,11 +740,15 @@ function Browse({
   interestId,
   onInterestChange,
   onOpenMeetup,
+  myId,
+  onBeforeRsvp,
 }: {
   interests: ReturnType<typeof useInterests>;
   interestId: string | null;
   onInterestChange: (interestId: string | null) => void;
   onOpenMeetup: (id: string, type: PostType) => void;
+  myId: string | null;
+  onBeforeRsvp: () => Promise<boolean>;
 }) {
   const copy = exploreCopy.list;
   const meetups = useNearbyMeetups(interestId);
@@ -792,7 +841,7 @@ function Browse({
           <View style={{ gap: 12 }}>
             {meetups.items.map((meetup, index) => (
               <Animated.View key={meetup.id} entering={enterMeetup(index)}>
-                <MeetupCard meetup={meetup} fill onPress={() => onOpenMeetup(meetup.id, meetup.type)} />
+                <ListedCard post={meetup} myId={myId} onOpen={onOpenMeetup} onBeforeRsvp={onBeforeRsvp} />
               </Animated.View>
             ))}
             {meetups.hasMore ? (

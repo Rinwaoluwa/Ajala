@@ -80,6 +80,8 @@ export type PostPreview = {
   isHost: boolean;
   /** Also compared with the signed-in person's id (`asSeenBy`), as the API asks every card to do. */
   hostId: string;
+  /** The host's words about it. Lists don't carry them (backend request B10); the post's own page does. */
+  description: string;
 };
 
 /** The answer to joining: what the button should now say. */
@@ -115,6 +117,12 @@ export type ListedPost = {
   lng: number | null;
   goingCount: number;
   distanceKm: number | null;
+  /** How the reader stands with it, for the card's own Join. */
+  rsvpState: RsvpState;
+  /** A private post asks its host before letting anyone in. */
+  visibility: 'open' | 'private';
+  /** Compared with the signed-in person's id: their own post offers no Join. */
+  hostId: string;
 };
 
 export type PostsPage = { items: ListedPost[]; nextCursor: string | null };

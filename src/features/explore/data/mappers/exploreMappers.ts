@@ -79,6 +79,7 @@ export const toPostPreview = (dto: PostDetailDto): PostPreview => ({
   waitlistPosition: dto.waitlistPosition ?? null,
   isHost: dto.isHost ?? false,
   hostId: dto.host?.id ?? '',
+  description: dto.description?.trim() ?? '',
 });
 
 export const toRsvpResult = (dto: RsvpStateResponseDto): RsvpResult => ({
@@ -139,6 +140,9 @@ const toListedPost = (dto: PostCardDto): ListedPost => ({
   lng: dto.lng ?? null,
   goingCount: dto.goingCount ?? 0,
   distanceKm: dto.distanceKm ?? null,
+  rsvpState: dto.rsvpState ?? 'none',
+  visibility: dto.visibility ?? 'open',
+  hostId: dto.host?.id ?? '',
 });
 
 /** A page of `GET /feed` or `GET /search/posts`: the same cards either way. */

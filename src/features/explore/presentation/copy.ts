@@ -90,6 +90,20 @@ export const exploreCopy = {
     loadFailed: "Couldn't load this activity.",
     retry: 'Try again',
   },
+  // Join, as a pill on a card in the list (`JoinPill`): what it says before and after.
+  join: {
+    join: 'Join',
+    // A private post asks its host first; the button says Join all the same, then Requested.
+    request: 'Join',
+    going: 'Going',
+    requested: 'Requested',
+    waitlisted: 'Waitlisted',
+    hosting: 'Hosting',
+    leaveTitle: 'Leave this one?',
+    leaveBody: 'You can join again later if there is still room.',
+    stay: 'Stay',
+    leave: 'Leave',
+  },
   notice: {
     title: 'Before you RSVP',
     body: "You're joining a pop-up organised by another traveller. AJALA helps you connect, but does not organise or supervise the experience.",
