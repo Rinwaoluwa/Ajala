@@ -45,7 +45,7 @@ export function ProfilePostCard({ activity, onPress }: { activity: ProfileActivi
   return activity.imageUrl ? (
     <CoverCard activity={activity} imageUrl={activity.imageUrl} label={label} onPress={onPress} />
   ) : (
-    <WordsCard activity={activity} label={label} onPress={onPress} />
+    <TextPostCard activity={activity} accessibilityLabel={label} onPress={onPress} />
   );
 }
 
@@ -108,16 +108,29 @@ function CoverCard({
 
 const AVATAR = 40;
 
-/** A post of words alone: who, the words, then when, where and how many. */
-function WordsCard({
+/**
+ * A post of words alone: who, the words, then when, where and how many. Used for
+ * every post without a photo on a profile: My posts and Saved here, and the
+ * activity lists (another person's profile, Going and Requested) through
+ * `ActivityCard`, which passes the post's standing (Hosting, Going…) as `badge`.
+ */
+export function TextPostCard({
   activity,
-  label,
   onPress,
+  badge,
+  accessibilityLabel,
 }: {
   activity: ProfileActivity;
-  label: string;
   onPress: () => void;
+  /** Beside the type: how the person stands with the post (a `Tag`). */
+  badge?: ReactNode;
+  accessibilityLabel?: string;
 }) {
+  const label =
+    accessibilityLabel ??
+    [activity.title, profileViewCopy.types[activity.type], activity.host.name || null, formatDay(activity.startAt)]
+      .filter(Boolean)
+      .join(', ');
   const theme = useTheme();
   const typeColors = useTypeColors();
   const copy = profileViewCopy.activities;
@@ -157,6 +170,7 @@ function WordsCard({
           <Text variant="labelSm" style={{ color: typeColors[activity.type].softLabel }}>
             {profileViewCopy.types[activity.type]}
           </Text>
+          {badge}
         </View>
         {/* The words, at reading size. Four lines of a title is every title; it is never cut mid-word. */}
         <Text variant="bodyMd" numberOfLines={4}>

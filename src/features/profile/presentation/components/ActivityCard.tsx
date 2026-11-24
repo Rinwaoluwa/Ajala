@@ -4,10 +4,10 @@ import { TouchableOpacity, View } from 'react-native';
 
 import { Tag, Text, type TagTone } from '@shared/components';
 import { useTheme } from '@shared/hooks/useTheme';
-import { useTypeColors } from '@shared/theme/postTypeColors';
 
 import type { ProfileActivity } from '../../domain/entities/PublicProfile';
 import { formatDay, formatTime } from '../profileFormat';
+import { TextPostCard } from './ProfilePostCard';
 import { profileViewCopy } from '../profileViewCopy';
 
 /** How the person stands with the post, as its second tag says. */
@@ -27,6 +27,10 @@ const STATUS_TAG: Record<ActivityStatus, { label: string; tone: TagTone }> = {
  * the type and status tags (Hosting, Completed, Going, Request sent, Waitlisted), the city
  * and country in caps when the post has a place (`localityLabel`), the title, the day and start time, the place,
  * how many are joining, and "View plan ›". The whole card opens the post.
+ *
+ * A post with no photo is set as a post of words instead (`TextPostCard`, as on
+ * My posts), with its status tag beside the type: an empty block of the type's
+ * colour in a cover's place read as a photo that never loaded.
  */
 export function ActivityCard({
   activity,
@@ -38,13 +42,15 @@ export function ActivityCard({
   onPress: () => void;
 }) {
   const theme = useTheme();
-  const typeColors = useTypeColors();
   const copy = profileViewCopy.activities;
   const day = formatDay(activity.startAt);
   const time = formatTime(activity.startAt);
   const tag = STATUS_TAG[status];
   // Locked to this reader (MOB-077): a hint of the photo, why, and the paywall on tap.
   const locked = activity.lockReason;
+  if (!activity.imageUrl) {
+    return <TextPostCard activity={activity} onPress={onPress} badge={<Tag label={tag.label} tone={tag.tone} />} />;
+  }
   return (
     <TouchableOpacity
       activeOpacity={0.85}
@@ -61,11 +67,11 @@ export function ActivityCard({
         overflow: 'hidden',
       }}
     >
-      {/* No photo (they are optional): the type's own colour, not a grey that reads as loading. */}
+      {/* Only posts with a photo get this far: one without is a post of words (above). */}
       <View
         style={{
           aspectRatio: 16 / 7,
-          backgroundColor: activity.imageUrl ? theme.skeleton : typeColors[activity.type].cover,
+          backgroundColor: theme.skeleton,
         }}
       >
         {activity.imageUrl ? (
