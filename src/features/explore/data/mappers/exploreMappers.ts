@@ -134,6 +134,7 @@ const toListedPost = (dto: PostCardDto): ListedPost => ({
   type: dto.type,
   title: dto.title,
   imageUrl: dto.images?.[0]?.cardUrl ?? null,
+  images: (dto.images ?? []).map((image) => image.cardUrl).filter(Boolean),
   startAt: dto.startAt ?? null,
   ...placeOf(dto),
   lat: dto.lat ?? null,

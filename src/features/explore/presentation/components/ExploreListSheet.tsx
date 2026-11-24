@@ -8,6 +8,7 @@ import {
   Host,
   NativeIcon,
   Sheet,
+  PostListCardSkeleton,
   SkeletonBlock,
   SkeletonPulse,
   Text,
@@ -33,9 +34,8 @@ import { useRsvpGate } from '../hooks/useRsvpGate';
 import { useSearchPeople } from '../hooks/useSearchPeople';
 import { useSearchPosts } from '../hooks/useSearchPosts';
 import { InterestGrid, columnsFor } from './InterestGrid';
-import { MeetupCard } from './MeetupCard';
+import { ListedPostCard } from './ListedPostCard';
 import { RsvpNoticeDialog } from './RsvpNoticeDialog';
-import { TextPostCard } from './TextPostCard';
 
 /**
  * "Explore" (opened by View List): search, Browse By Interest and Meetups Near
@@ -75,9 +75,10 @@ import { TextPostCard } from './TextPostCard';
  * one over: the words typed there are in the box and what they find is listed.
  * Without one it opens on its browse page (View List).
  *
- * A post with no photo is drawn as a text card (`TextPostCard`: its words, when
- * and where, and Join) where one with a photo is a photo card. Join's "Before
- * you RSVP" notice is drawn here, inside the sheet, so it can open over it.
+ * A post is the card it is on Home (`ListedPostCard`): its photos when it has
+ * any, the type's tag, the title, the host's words, when and where, and Join.
+ * Join's "Before you RSVP" notice is drawn here, inside the sheet, so it can
+ * open over it.
  *
  * The searches run only while it is open, and Meetups Near You only while it is
  * drawn (the sheet's content is mounted only while the sheet is).
@@ -336,10 +337,7 @@ function ListFlow({
   );
 }
 
-/**
- * A post in the list: its photo card, or the text card when it has no photo to
- * show. A photo card opens the post; a text card also joins it from the list.
- */
+/** A post in the list, as the card it is on Home; the reader's own says Hosting. */
 function ListedCard({
   post,
   myId,
@@ -352,11 +350,13 @@ function ListedCard({
   onOpen: (id: string, type: PostType) => void;
   onBeforeRsvp: () => Promise<boolean>;
 }) {
-  const open = () => onOpen(post.id, post.type);
-  return post.imageUrl ? (
-    <MeetupCard meetup={post} fill onPress={open} />
-  ) : (
-    <TextPostCard post={post} mine={myId !== null && post.hostId === myId} onPress={open} onBeforeRsvp={onBeforeRsvp} />
+  return (
+    <ListedPostCard
+      post={post}
+      mine={myId !== null && post.hostId === myId}
+      onPress={() => onOpen(post.id, post.type)}
+      onBeforeRsvp={onBeforeRsvp}
+    />
   );
 }
 
@@ -591,13 +591,9 @@ function Results({
   if (search.loading) {
     return (
       <SkeletonPulse>
-        <View style={{ gap: 16 }}>
-          {[0, 1, 2].map((i) => (
-            <View key={i} style={{ gap: 8 }}>
-              <SkeletonBlock height={112} radius={14} />
-              <SkeletonBlock width="70%" height={14} />
-            </View>
-          ))}
+        <View style={{ gap: 12 }}>
+          <PostListCardSkeleton photo />
+          <PostListCardSkeleton />
         </View>
       </SkeletonPulse>
     );
@@ -817,14 +813,9 @@ function Browse({
       <View className="mt-12">
         {meetups.loading ? (
           <SkeletonPulse>
-            <View style={{ gap: 16 }}>
-              {[0, 1].map((i) => (
-                <View key={i} style={{ gap: 8 }}>
-                  <SkeletonBlock height={112} radius={14} />
-                  <SkeletonBlock width="70%" height={14} />
-                  <SkeletonBlock width="45%" height={10} />
-                </View>
-              ))}
+            <View style={{ gap: 12 }}>
+              <PostListCardSkeleton photo />
+              <PostListCardSkeleton />
             </View>
           </SkeletonPulse>
         ) : meetups.failed ? (

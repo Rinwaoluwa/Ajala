@@ -103,6 +103,8 @@ export type ListedPost = {
   type: PostType;
   title: string;
   imageUrl: string | null;
+  /** Every photo at card size, in the host's order, for the card's head. Empty when the post has none. */
+  images: string[];
   startAt: string | null;
   /** The line under the title: the host's name for the place, else the city around it. */
   placeName: string | null;

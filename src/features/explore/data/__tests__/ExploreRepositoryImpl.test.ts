@@ -84,6 +84,7 @@ const LISTED = {
   type: 'meetup',
   title: 'Lagos Tech Founders Networking',
   imageUrl: 'https://cdn/card.jpg',
+  images: ['https://cdn/card.jpg'],
   startAt: '2026-10-04T18:00:00+01:00',
   placeName: 'The Nest',
   placeId: 'g-nest',
@@ -288,6 +289,25 @@ describe('explore repository', () => {
       headers: { 'X-Client-Location': '6.453,3.396' },
     });
     expect(page).toEqual({ items: [LISTED], nextCursor: 'c2' });
+  });
+
+  it('lists every photo of a post in the host’s order, and none for a post without', async () => {
+    const two = [
+      { thumbUrl: 't1', cardUrl: 'https://cdn/one.jpg', fullUrl: 'f1' },
+      { thumbUrl: 't2', cardUrl: 'https://cdn/two.jpg', fullUrl: 'f2' },
+    ];
+    const { request } = fake(() => ({
+      items: [
+        { ...POST, id: 'p2', images: two },
+        { ...POST, id: 'p3', images: [] },
+      ],
+      nextCursor: null,
+      origin: ORIGIN,
+      originSource: 'device',
+    }));
+    const page = await createExploreRepository(request, notice).getFeed('meetup', null, 20);
+    expect(page.items.map((p) => p.images)).toEqual([['https://cdn/one.jpg', 'https://cdn/two.jpg'], []]);
+    expect(page.items.map((p) => p.imageUrl)).toEqual(['https://cdn/one.jpg', null]);
   });
 
   it('searches posts by words, or by interests repeated once each', async () => {

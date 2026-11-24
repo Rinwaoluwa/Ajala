@@ -1,6 +1,3 @@
-// From its own file, not the components' index: this module is plain functions, and the index
-// would bring every native component with it (into tests too).
-import { formatCardDate } from '@shared/components/post/formatPost';
 import { formatMinor } from '@shared/money';
 
 import type { PostPrice } from '../domain/entities/Explore';
@@ -30,24 +27,6 @@ export function formatShortDay(iso: string | null): string | null {
 export function formatWeekdayTime(iso: string | null): string | null {
   const d = valid(iso);
   return d ? `${WEEKDAY.format(d)} · ${TIME.format(d)}` : null;
-}
-
-/**
- * A text card's day: "Thu 26 Nov", and the year only when it is not this one
- * ("Thu 26 Nov 2027"). The design writes the year every time; in the drawer the
- * line is short of room, and this year goes without saying.
- */
-export function formatCardDay(iso: string | null, now: Date = new Date()): string | null {
-  const d = valid(iso);
-  const day = d && iso ? formatCardDate(iso) : null;
-  if (!d || !day) return null;
-  return d.getFullYear() === now.getFullYear() ? day : `${day} ${d.getFullYear()}`;
-}
-
-/** "6:00 PM" */
-export function formatClock(iso: string | null): string | null {
-  const d = valid(iso);
-  return d ? TIME.format(d) : null;
 }
 
 /**

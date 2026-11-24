@@ -167,7 +167,6 @@ export const exploreCopy = {
     nearbyNoInterest: 'No meetups for that interest nearby yet.',
     nearbyFailed: "Couldn't load meetups.",
     retry: 'Try again',
-    going: (n: number) => `${n} going`,
   },
 };
 

@@ -12,16 +12,30 @@ import { currentUpdateId } from '@core/updates/otaUpdates';
  * background as usual; this only fills the gap until it answers.
  *
  * Kept for a day, written at most once a second, and thrown away whenever the
- * app's version or its over-the-air update changes (`buster`): an old bundle's
- * shapes must never feed a new one. Signing out clears the cache, which clears
- * this too. The query client keeps unused answers as long (`gcTime`), or they
- * would leave memory, and so the saved copy, after ten minutes.
+ * app's version or its over-the-air update changes, or the shape of what is
+ * saved does (`buster`, `CACHE_SHAPE`): an old bundle's shapes must never feed
+ * a new one. Signing out clears the cache, which clears this too. The query
+ * client keeps unused answers as long (`gcTime`), or they would leave memory,
+ * and so the saved copy, after ten minutes.
  *
  * Only finished, successful answers are saved, and not those that go stale on
  * their own: chat (its picture links last an hour, and typing is live), a feed
  * card's description, and the create wizard's place lookups.
  */
 export const QUERY_CACHE_MAX_AGE_MS = 24 * 60 * 60_000;
+
+/**
+ * Part of the `buster`, raised by hand when a saved answer changes shape in a
+ * way its readers cannot do without (a list whose cards read a new field).
+ *
+ * For people, the app's version and its update already throw the saved copy
+ * away. A build run from Metro has neither: its version and update stay put
+ * while the code under it changes, so yesterday's shapes came back on launch
+ * and a card that read a field they did not have took the screen down.
+ *
+ *   2 (24 Nov): a post in Explore's lists carries `images`.
+ */
+const CACHE_SHAPE = 2;
 
 export const queryPersister = createAsyncStoragePersister({
   storage: AsyncStorage,
@@ -40,6 +54,6 @@ export function shouldSaveQuery(query: Pick<Query, 'queryKey' | 'state'>): boole
 export const queryPersistOptions = {
   persister: queryPersister,
   maxAge: QUERY_CACHE_MAX_AGE_MS,
-  buster: `${getInstalledAppVersion() ?? 'dev'}:${currentUpdateId() ?? 'embedded'}`,
+  buster: `${getInstalledAppVersion() ?? 'dev'}:${currentUpdateId() ?? 'embedded'}:${CACHE_SHAPE}`,
   dehydrateOptions: { shouldDehydrateQuery: shouldSaveQuery },
 };
