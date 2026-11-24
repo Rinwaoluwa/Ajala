@@ -97,8 +97,10 @@ export {
   type FloatingTabBarProps,
   type TabItem,
 } from './navigation/FloatingTabBar';
-export { tabBarMinimize, useMinimizeTabBarOnScroll } from './navigation/tabBarMinimize';
+export { lastListScrollAt, tabBarMinimize, useMinimizeTabBarOnScroll } from './navigation/tabBarMinimize';
 export { tabReselected, useOnSignal, useTabReselects } from './navigation/tabReselect';
+export { SwipePager, type SwipePage, type SwipePagerProps } from './navigation/SwipePager';
+export { PageSwipeZones } from './navigation/PageSwipeZones';
 export { CurrencyPicker, type CurrencyPickerProps } from './money/CurrencyPicker';
 export { CelebrationSheet, type CelebrationSheetProps } from './overlay/CelebrationSheet';
 export { Logo, logoHeight, type LogoProps, type LogoTone } from './brand/Logo';

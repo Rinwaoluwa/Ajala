@@ -1,5 +1,8 @@
 import { useState, type ReactNode } from 'react';
-import { ScrollView, View } from 'react-native';
+import { View } from 'react-native';
+// The gesture library's scroll view: once it moves it keeps the touch, so swiping the row
+// never also swipes the page to the next tab (`TabSwipePage`).
+import { ScrollView } from 'react-native-gesture-handler';
 
 import { useFontScale } from '@shared/hooks/useFontScale';
 

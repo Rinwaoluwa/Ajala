@@ -1,5 +1,7 @@
 import { useState, type ReactElement, type ReactNode } from 'react';
-import { ScrollView, View, type LayoutChangeEvent } from 'react-native';
+import { View, type LayoutChangeEvent } from 'react-native';
+// The gesture library's scroll view keeps its own swipe (see `ScrollRow`).
+import { ScrollView } from 'react-native-gesture-handler';
 import Animated, { FadeIn, ReduceMotion } from 'react-native-reanimated';
 
 import { splitIntoRows } from './splitIntoRows';

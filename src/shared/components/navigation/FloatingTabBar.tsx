@@ -410,7 +410,31 @@ function TabButton({
     Animated.timing(pop, { toValue: 1, duration: 180, easing: EASE_OUT, ...NATIVE }).start();
   }, [active, reduceMotion, pop]);
 
-  const iconScale = useMemo(() => (active ? Animated.multiply(pop, keepSize) : pop), [active, pop, keepSize]);
+  // Whether this is the current tab, as a number the native side can read (1 or 0).
+  //
+  // What fades and what keeps its size depend on it. Choosing between two animated styles in
+  // JavaScript (`active ? … : …`) left the view with the value of the one taken away: a tab
+  // that became current while the bar was shrunk (a swipe to the next page) kept the opacity
+  // it had faded to, and stayed invisible. React does not know these values, the native
+  // driver sets them, so it cannot put them back. Here each view keeps one animated style
+  // for good, and `selected` moves inside it.
+  const [selected] = useState(() => new Animated.Value(active ? 1 : 0));
+  useEffect(() => {
+    selected.setValue(active ? 1 : 0);
+  }, [active, selected]);
+  const follow = useMemo(() => {
+    // Two things that are each 0 to 1, added: never more than fully there.
+    const shown = (sum: Animated.AnimatedAddition<number>) =>
+      sum.interpolate({ inputRange: [0, 1], outputRange: [0, 1], extrapolate: 'clamp' });
+    return {
+      // The whole tab: there for the current one, fading with the bar for the others.
+      tab: shown(Animated.add(fade, selected)),
+      // The label: fading with the bar for the current tab (the others go with their tab).
+      label: shown(Animated.add(fade, Animated.subtract(1, selected))),
+      // The icon: the current one is scaled back up as the bar is scaled down.
+      icon: Animated.multiply(pop, Animated.add(1, Animated.multiply(selected, Animated.subtract(keepSize, 1)))),
+    };
+  }, [fade, keepSize, pop, selected]);
   // On glass the pale grey disappears into bright content behind the bar; the
   // scheme's secondary text colour stays readable on light and dark glass alike.
   const color = active ? theme.accent : glass ? theme.muted : INACTIVE;
@@ -426,13 +450,11 @@ function TabButton({
       style={{ flex: 1, height: BAR }}
     >
       {/* The current tab keeps its icon through the shrink; everything else fades. */}
-      <Animated.View
-        style={[{ flex: 1, alignItems: 'center', paddingTop: ICON_TOP, gap: 3 }, active ? null : { opacity: fade }]}
-      >
-        <Animated.View style={{ transform: [{ scale: iconScale }] }}>
+      <Animated.View style={{ flex: 1, alignItems: 'center', paddingTop: ICON_TOP, gap: 3, opacity: follow.tab }}>
+        <Animated.View style={{ transform: [{ scale: follow.icon }] }}>
           <VectorIcon name={item.icon} size={ICON} color={color} filled={active} />
         </Animated.View>
-        <Animated.View style={active ? { opacity: fade } : null}>
+        <Animated.View style={{ opacity: follow.label }}>
           <Text
             variant="labelSm"
             maxFontSizeMultiplier={1.3}

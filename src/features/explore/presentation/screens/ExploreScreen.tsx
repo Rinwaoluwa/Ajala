@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useIsFocused } from 'expo-router';
 import { Pressable, View } from 'react-native';
 import Animated, { FadeIn, FadeOut, useReducedMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -21,6 +21,7 @@ import {
   GlassSurface,
   LoadingRing,
   NativeIcon,
+  PageSwipeZones,
   StatusSheet,
   Text,
   icons,
@@ -123,6 +124,7 @@ export function ExploreScreen({ onOpenPost, onTeleport, onOpenPerson, toStartSig
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const map = useRef<MapCanvasHandle>(null);
+  const inFront = useIsFocused();
   const { isPro } = useSubscription();
   const span = maxBboxSpan(isPro);
 
@@ -296,7 +298,10 @@ export function ExploreScreen({ onOpenPost, onTeleport, onOpenPerson, toStartSig
             ref={map}
             initialRegion={initialRegion}
             kind={kind}
-            showsUserLocation
+            // Only while Explore is in front. The map is kept ready beside Home and Trips
+            // (so a swipe to it shows the map, not an empty page), and following the phone's
+            // position all that time, out of sight, would spend battery on nothing.
+            showsUserLocation={inFront}
             padding={{ top: insets.top + 110, right: 0, bottom, left: 0 }}
             onRegionSettled={settle}
             onPressMap={() => select(null)}
@@ -321,6 +326,9 @@ export function ExploreScreen({ onOpenPost, onTeleport, onOpenPerson, toStartSig
           <LoadingRing size={48} accessibilityLabel="Loading the map" />
         </View>
       )}
+      {/* Over the map, under everything else: a drag from either side of the screen (or on the
+          tab bar) turns to the next page; anywhere else it moves the map. */}
+      <PageSwipeZones />
 
       {/* Search, filter and type chips. */}
       <View pointerEvents="box-none" style={{ position: 'absolute', top: insets.top + 8, left: 0, right: 0 }}>

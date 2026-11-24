@@ -12,7 +12,15 @@ import Animated, {
   type SharedValue,
 } from 'react-native-reanimated';
 
+import { ScrollView as GestureScrollView } from 'react-native-gesture-handler';
+
 import { useTheme } from '@shared/hooks/useTheme';
+
+/**
+ * The gesture library's scroll view, animated: once the photos move it keeps the touch, so
+ * swiping through them never also swipes the page to the next tab (`TabSwipePage`).
+ */
+const PhotoStrip = Animated.createAnimatedComponent(GestureScrollView);
 
 /**
  * A post's photos in the feed: a strip that scrolls sideways, edge to edge,
@@ -125,7 +133,7 @@ function MediaCarouselComponent({ images, gutter, onOpen, label }: MediaCarousel
   return (
     <View>
       <CarouselIndicator count={count} progress={progress} style={{ marginLeft: gutter, marginBottom: 10 }} />
-      <Animated.ScrollView
+      <PhotoStrip
         horizontal
         showsHorizontalScrollIndicator={false}
         onScroll={onScroll}
@@ -147,7 +155,7 @@ function MediaCarouselComponent({ images, gutter, onOpen, label }: MediaCarousel
             style={{ width: itemWidth, height: itemHeight }}
           />
         ))}
-      </Animated.ScrollView>
+      </PhotoStrip>
     </View>
   );
 }

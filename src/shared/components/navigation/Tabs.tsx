@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { Pressable, ScrollView, View, type LayoutChangeEvent } from 'react-native';
+import { Pressable, View, type LayoutChangeEvent } from 'react-native';
+// The gesture library's scroll view keeps its own swipe (see `ScrollRow`).
+import { ScrollView } from 'react-native-gesture-handler';
 import Animated, {
   Easing,
   useAnimatedStyle,

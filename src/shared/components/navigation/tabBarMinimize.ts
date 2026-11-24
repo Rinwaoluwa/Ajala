@@ -16,6 +16,8 @@ import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 
 let minimized = false;
 const listeners = new Set<() => void>();
+/** When a tab's main list last moved, by the clock: see `lastListScrollAt`. */
+let scrolledAt = 0;
 
 const subscribe = (listener: () => void) => {
   listeners.add(listener);
@@ -33,6 +35,13 @@ export const tabBarMinimize = {
   },
   get: snapshot,
 };
+
+/**
+ * When a tab's main list last scrolled (milliseconds, as `Date.now()`; 0 if
+ * never). For work that should wait until nobody is scrolling: drawing the next
+ * page ahead of a swipe to it must not land in the middle of a scroll.
+ */
+export const lastListScrollAt = () => scrolledAt;
 
 export function useTabBarMinimized(): boolean {
   return useSyncExternalStore(subscribe, snapshot, snapshot);
@@ -57,6 +66,7 @@ export function useMinimizeTabBarOnScroll() {
   const run = useRef(0);
   const onScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
+    scrolledAt = Date.now();
     const y = contentOffset.y;
     const dy = y - last.current;
     last.current = y;
