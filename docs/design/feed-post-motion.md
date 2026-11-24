@@ -4,7 +4,9 @@
 
 **How it was studied:** every one of the 1,324 frames was measured (the photos' edges and the indicator's pills, to the pixel), and the fast moments were read frame by frame. Numbers below are in points unless they say px.
 
-This is the reference for `MediaCarousel`, `CarouselIndicator` and the photo viewer's opening (`src/shared/components/media`).
+This was the reference for the feed's photo strip and its pills (`MediaCarousel`, `CarouselIndicator`) and is still the reference for the photo viewer's opening (`src/shared/components/media`).
+
+> **24 Nov: the feed's posts are cards now (Home design, 24 Nov).** A post's photos are a banner at the head of its card, one at a time, with dots and a count (`CardPhotos`), not the strip described in sections 1 to 4. The strip and its pills are out of the app (last in commit `7738bfb`). What still holds: the count's roll (5), a photo opening from its place (6), paging full screen (7), and what does not move (8). The table at the end says what the app does today.
 
 ## 1. At rest
 
@@ -87,9 +89,8 @@ Worth as much as what does: no entrance animation on the photos, no parallax, no
 
 | Motion | In the app |
 | --- | --- |
-| Strip, resting places, one photo per swipe, rubber band | A native horizontal scroll view with `snapToOffsets`, fast deceleration and `disableIntervalMomentum`. iOS gives the rubber band; Android gives its own stretch at the ends. |
-| Sizes | Photo 70% of the screen's width at 1.18 : 1; 6 between; the first aligned with the post's text; the last resting on the trailing gutter. One photo alone fills the text column. Corners follow Ajala's cards (14), not the recording's 6. |
-| Indicator | Pills 22 / 11 × 4, 6 apart, widths and colours blended on the UI thread from the scroll position, clamped at the ends. Theme colours: the text colour at 60% for the chosen pill, the track colour for the rest. |
+| A card's photos | `CardPhotos`: a banner the card's whole width, 3 : 1, one photo at a time. More than one are pages in a native horizontal scroll view with paging on: one photo per swipe, and the rubber band at the ends is the system's (iOS's bounce, Android's stretch). |
+| Which photo is in front | Dots at the photo's foot, 7 across and 7 apart: a white ring each, filled by how nearly its photo is the one in front, on the UI thread from the scroll position and held at the ends. A count at the foot's right ("1/4"). Both sit on a soft dark fade so they read on a pale photo. One photo alone has neither. |
 | Opening | The tapped photo grows from its measured place to the fitted full-width frame in 220 ms (ease-out cubic) while black fades in behind it over the first 170 ms; then the viewer's pager takes over at the same frame. Scale and position only. It starts when the viewer's window has appeared, not when it is asked for: started sooner, most of the growth ran before anything was on screen. |
 | Full-screen paging | The viewer's existing pager (system paging). |
 | Count roll | 170 ms, for a count that changes while on screen (`RollingCount`): the comment count when a comment is added or deleted. Nothing is drawn at 0, so the first one rolls in from nothing. (The like count rolled the same way until liking was taken out, 24 Nov.) |
@@ -101,6 +102,6 @@ The design's post has a like count, a comment count and the time it was posted. 
 
 - **The heart** is not drawn. It was, kept on the phone per account with a count of the reader's own like, until product took liking out of the app (24 Nov).
 - **The comment count** is read from the comments endpoint, one small call per post on screen, and rolls when it changes. The comment button opens the post at its comments.
-- **The time it was posted** is not sent, so the line under the host's name shows the distance.
+- **The time it was posted** is not sent. The card's design (24 Nov) has no line for it, nor for the host or the distance.
 
 Requests B10–B12 in `docs/api/backend-requests.md`.

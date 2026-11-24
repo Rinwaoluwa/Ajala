@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { memo, useCallback, useMemo } from 'react';
-import { Pressable, TouchableOpacity, View } from 'react-native';
+import { TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import Animated, {
   Easing,
   FadeIn,
@@ -12,58 +12,55 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import {
-  Avatar,
+  CardPhotos,
   JoinPill,
-  MediaCarousel,
   PopoverMenu,
+  PostListCard,
   RollingCount,
-  SkeletonBlock,
   Text,
   TextLink,
   VectorIcon,
-  formatCardDate,
-  formatCardTime,
-  formatDistance,
   type JoinPillLabels,
   type MediaFrame,
   type PopoverAction,
 } from '@shared/components';
-import { useFontScale } from '@shared/hooks/useFontScale';
 import { useSavePost } from '@shared/hooks/useSavePost';
 import { useTheme } from '@shared/hooks/useTheme';
-import { useAppColorScheme } from '@shared/hooks/useAppColorScheme';
-import { SCREEN_GUTTER, textStyles } from '@shared/theme';
-import { useTypeColors } from '@shared/theme/postTypeColors';
+import { SCREEN_GUTTER } from '@shared/theme';
 
 import type { PostCard } from '../../domain/entities/Feed';
 import { homeCopy } from '../copy';
 
 /**
- * A post in the home feed (Home design, 22 Nov): who is hosting, their words,
- * the photos, a banner that says what it is and joins it in one tap, and the
- * row of actions under it. Posts run edge to edge with a hairline between them.
+ * A post in the home feed (Home design, 24 Nov): a card, one under another with
+ * the page showing between them. It is the app's list card (`PostListCard`)
+ * with everything the feed adds to it:
  *
- *   - **Host row:** photo, name and one quiet line under it, then ⋮ (the menu).
- *     The design's line is when it was posted; cards don't carry that yet
- *     (backend request B10), so it says how far away the post is.
- *   - **Words:** the host's description, two lines. The feed's cards don't carry
- *     it either, so it arrives a moment after the card; the two lines are held
- *     open (as grey bars) until then, so nothing below jumps when it lands.
- *   - **Photos:** `MediaCarousel`. A tap opens that photo full screen.
- *   - **Banner:** the type's tag, the title, the day, time and place, and Join.
- *     Join is the quick RSVP every card has (`JoinPill`): it fills at once,
- *     says Going / Requested / Waitlisted after, and asks before leaving.
- *   - **Actions:** comments with their count, and the bookmark
- *     (`useSavePost`). The comment count is the real one, read from the
- *     comments endpoint (cards don't carry it, request B11); the button opens
- *     the post at its comments. There is no heart: liking was taken out
- *     (product, 24 Nov), and the API never had likes (request B12).
+ *   - **Photos** at its head when the post has any (`CardPhotos`): one at a
+ *     time, swiped between, with dots and a count. A tap opens that photo full
+ *     screen. A post with none is the same card without a head.
+ *   - **The type's tag, the title and the host's words.** The feed's cards
+ *     don't carry the words, so they arrive a moment after the card; two lines
+ *     are held open (as grey bars) until then, so nothing below jumps.
+ *   - **When and where, and Join** at the end of their line: the quick RSVP
+ *     every card has (`JoinPill`). It fills at once, says Going / Requested /
+ *     Waitlisted after, and asks before leaving.
+ *   - **Comment and Save** under a hairline. Comment opens the post at its
+ *     comments and carries their number once there are any (the real one, read
+ *     from the comments endpoint: cards don't carry it, request B11). Save is
+ *     the bookmark (`useSavePost`).
+ *   - **⋯** at the top right, level with the tag: hide the post, copy its
+ *     link, report it. The design draws no menu; these have nowhere else to
+ *     live, so it is kept, small.
  *
- * Tapping the host's words or the banner opens the post (`onOpen`).
+ * The design's card does not say who is hosting or how far away it is, so the
+ * feed no longer does: both are on the post's page.
  *
- * Motion: Join answers the touch with the jelly press every pill has; the
- * bookmark pops a little as it fills; a comment count that changes rolls to its
- * new number. Nothing moves by itself.
+ * Tapping the card anywhere else opens the post (`onOpen`).
+ *
+ * Motion: the card dips a little under a press; Join answers the touch with the
+ * jelly press every pill has; the bookmark pops as it fills; a comment count
+ * that changes rolls to its new number. Nothing moves by itself.
  */
 export type FeedPostProps = {
   post: PostCard;
@@ -74,7 +71,6 @@ export type FeedPostProps = {
   /** The reader's own post: no Join, and nothing to hide or report. */
   mine: boolean;
   onOpen: () => void;
-  onOpenHost?: (hostId: string) => void;
   /** Asked before the first quick RSVP; resolve true to go ahead. */
   onBeforeRsvp: () => Promise<boolean>;
   onOpenPhoto: (post: PostCard, index: number, from: MediaFrame) => void;
@@ -87,9 +83,8 @@ export type FeedPostProps = {
   onReport: (post: PostCard) => void;
 };
 
-/** The design's action icons are drawn in this pale slate (the supplied SVGs' own stroke). */
-const ICON_LIGHT = '#B7C0D2';
-const WORDS_LINES = 2;
+/** Between one card and the next, and under the pills. */
+const CARD_GAP = 16;
 
 function FeedPostComponent({
   post,
@@ -97,7 +92,6 @@ function FeedPostComponent({
   descriptionLoading,
   mine,
   onOpen,
-  onOpenHost,
   onBeforeRsvp,
   onOpenPhoto,
   commentCount,
@@ -107,11 +101,9 @@ function FeedPostComponent({
   onReport,
 }: FeedPostProps) {
   const theme = useTheme();
-  const scale = useFontScale();
+  const { width: screen } = useWindowDimensions();
   const copy = homeCopy.post;
-  const hostTap = onOpenHost && post.host.id ? () => onOpenHost(post.host.id) : undefined;
-  const meta = formatDistance(post.distanceKm) ?? post.localityLabel;
-  const cards = useMemo(() => post.images.map((p) => p.card), [post.images]);
+  const photos = useMemo(() => post.images.map((p) => p.card), [post.images]);
   const openPhoto = useCallback(
     (index: number, from: MediaFrame) => onOpenPhoto(post, index, from),
     [onOpenPhoto, post],
@@ -128,149 +120,55 @@ function FeedPostComponent({
     [mine, copy, post, onHide, onCopyLink, onReport],
   );
 
-  const wordsHeight = Math.round(WORDS_LINES * textStyles.bodyMd.lineHeight * scale);
-
   return (
-    // One native view, never flattened away: the route's zoom link (`Link.AppleZoom`) takes a
-    // single native child, and without this the post's pieces reached it one by one and only
-    // the first (this background) was kept, so the feed drew blank.
-    <View collapsable={false} style={{ backgroundColor: theme.background }}>
-      <View style={{ paddingHorizontal: SCREEN_GUTTER, paddingTop: 16 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          {/* Plain styles: a style function on a Pressable is dropped by the class-name interop. */}
-          <TouchableOpacity
-            activeOpacity={0.7}
-            onPress={hostTap}
-            disabled={!hostTap}
-            accessibilityRole={hostTap ? 'button' : undefined}
-            accessibilityLabel={hostTap ? copy.openHost(post.host.name) : undefined}
-            style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 }}
-          >
-            <Avatar name={post.host.name} uri={post.host.avatarUrl} size={44} />
-            <View style={{ flex: 1 }}>
-              <Text variant="labelMd" numberOfLines={1}>
-                {post.host.name}
-              </Text>
-              {meta ? (
-                <Text variant="bodySm" tone="muted" numberOfLines={1}>
-                  {meta}
-                </Text>
-              ) : null}
-            </View>
-          </TouchableOpacity>
-          <PopoverMenu actions={menu} accessibilityLabel={copy.more}>
-            <View style={{ width: 32, height: 32, alignItems: 'center', justifyContent: 'center' }}>
-              <Ionicons name="ellipsis-vertical" size={20} color={theme.foreground} />
-            </View>
-          </PopoverMenu>
-        </View>
-
-        {descriptionLoading || description ? (
-          <Pressable onPress={onOpen} accessibilityRole="button" style={{ marginTop: 12, minHeight: wordsHeight }}>
-            {description ? (
-              <Text variant="bodyMd" numberOfLines={WORDS_LINES}>
-                {description}
-              </Text>
-            ) : (
-              // The words on their way: two bars where the two lines will be.
-              <View style={{ height: wordsHeight, justifyContent: 'space-evenly' }}>
-                <SkeletonBlock height={12} radius={6} />
-                <SkeletonBlock width="62%" height={12} radius={6} />
-              </View>
-            )}
-          </Pressable>
-        ) : null}
-      </View>
-
-      {cards.length > 0 ? (
-        <View style={{ marginTop: 12 }}>
-          <MediaCarousel images={cards} gutter={SCREEN_GUTTER} onOpen={openPhoto} label={copy.photos(post.title)} />
-        </View>
-      ) : null}
-
-      <View style={{ paddingHorizontal: SCREEN_GUTTER, paddingBottom: 6 }}>
-        <JoinBanner post={post} mine={mine} onOpen={onOpen} onBeforeRsvp={onBeforeRsvp} />
-        <PostActions post={post} commentCount={commentCount} onOpenComments={onOpenComments} />
-      </View>
-      <View style={{ height: 1, backgroundColor: theme.border }} />
-    </View>
+    <PostListCard
+      type={post.type}
+      typeLabel={homeCopy.postType[post.type]}
+      title={post.title}
+      words={description}
+      wordsLoading={descriptionLoading}
+      startAt={post.startAt}
+      placeName={post.placeName}
+      localityLabel={post.localityLabel}
+      onPress={onOpen}
+      style={{ marginHorizontal: SCREEN_GUTTER, marginTop: CARD_GAP }}
+      photos={
+        photos.length > 0 ? (
+          <CardPhotos
+            images={photos}
+            // The card is the screen less its margins and its own hairline each side.
+            width={screen - SCREEN_GUTTER * 2 - 2}
+            onOpen={openPhoto}
+            label={copy.photos(post.title)}
+          />
+        ) : null
+      }
+      corner={
+        <PopoverMenu actions={menu} accessibilityLabel={copy.more}>
+          <View style={{ width: 36, height: 36, alignItems: 'center', justifyContent: 'center' }}>
+            <Ionicons name="ellipsis-horizontal" size={18} color={theme.muted} />
+          </View>
+        </PopoverMenu>
+      }
+      action={
+        <JoinPill
+          postId={post.id}
+          rsvpState={post.rsvpState}
+          privatePost={post.visibility === 'private'}
+          mine={mine}
+          onBeforeRsvp={onBeforeRsvp}
+          labels={JOIN_LABELS}
+        />
+      }
+      footer={<PostActions post={post} commentCount={commentCount} onOpenComments={onOpenComments} />}
+    />
   );
 }
 
 /** Memoised with stable handlers, so a change elsewhere on Home redraws no post but the one it touches. */
 export const FeedPost = memo(FeedPostComponent);
 
-/**
- * "Meetup · Gallery Walk · 28 Nov · 6:00 PM · [Join]": the post as one line
- * you can act on. The whole banner opens the post; the button joins it.
- */
-function JoinBanner({
-  post,
-  mine,
-  onOpen,
-  onBeforeRsvp,
-}: {
-  post: PostCard;
-  mine: boolean;
-  onOpen: () => void;
-  onBeforeRsvp: () => Promise<boolean>;
-}) {
-  const typeColors = useTypeColors();
-  const scale = useFontScale();
-  // The banner is the brand's own pale teal in both schemes; the tag keeps its type's colour.
-  const banner = typeColors.all;
-  const type = typeColors[post.type];
-  const date = post.startAt ? formatCardDate(post.startAt) : null;
-  const time = post.startAt ? formatCardTime(post.startAt) : null;
-  const when = [date, time, post.placeName].filter(Boolean).join(' · ');
-
-  return (
-    <Pressable
-      onPress={onOpen}
-      accessibilityRole="button"
-      accessibilityLabel={[homeCopy.postType[post.type], post.title, when].filter(Boolean).join(', ')}
-      style={{
-        marginTop: 12,
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 10,
-        borderRadius: 16,
-        paddingVertical: 12,
-        paddingLeft: 12,
-        paddingRight: 10,
-        backgroundColor: banner.soft,
-      }}
-    >
-      <View style={{ borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4, backgroundColor: type.tag }}>
-        <Text variant="labelXs" style={{ color: type.softLabel }}>
-          {homeCopy.postType[post.type]}
-        </Text>
-      </View>
-      <View style={{ flex: 1 }}>
-        {/* One line at the default size; at a large text size the title may take two. */}
-        <Text variant="labelSm" numberOfLines={scale > 1.15 ? 2 : 1} style={{ color: banner.softLabel }}>
-          {post.title}
-        </Text>
-        {when ? (
-          <Text variant="bodyXs" tone="muted" numberOfLines={1}>
-            {when}
-          </Text>
-        ) : null}
-      </View>
-      {/* The quick RSVP every card has (`JoinPill`). */}
-      <JoinPill
-        postId={post.id}
-        rsvpState={post.rsvpState}
-        privatePost={post.visibility === 'private'}
-        mine={mine}
-        onBeforeRsvp={onBeforeRsvp}
-        labels={JOIN_LABELS}
-      />
-    </Pressable>
-  );
-}
-
-/** The banner's Join, in the feed's own words: a private post says Request. */
+/** The card's Join, in the feed's own words: a private post says Request. */
 const JOIN_LABELS: JoinPillLabels = {
   join: homeCopy.post.join,
   request: homeCopy.post.request,
@@ -301,7 +199,7 @@ function usePop() {
   return { style, pop };
 }
 
-/** The comments on the left, the bookmark on the right, as the design lays them out. */
+/** The card's foot: Comment on the left, the bookmark on the right, as the design lays them out. */
 function PostActions({
   post,
   commentCount,
@@ -312,26 +210,25 @@ function PostActions({
   onOpenComments: (post: PostCard) => void;
 }) {
   const theme = useTheme();
-  const dark = useAppColorScheme() === 'dark';
   const copy = homeCopy.post;
   const { saved, toggle } = useSavePost(post.id, post.saved);
-  const icon = dark ? theme.muted : ICON_LIGHT;
   const mark = usePop();
 
   return (
-    <View style={{ marginTop: 6, flexDirection: 'row', alignItems: 'center' }}>
+    <View style={{ flexDirection: 'row', alignItems: 'center', minHeight: 48 }}>
       <TouchableOpacity
         activeOpacity={0.6}
         onPress={() => onOpenComments(post)}
         hitSlop={8}
         accessibilityRole="button"
-        accessibilityLabel={commentCount ? copy.comments(commentCount) : copy.comment}
-        style={{ minHeight: 40, minWidth: 60, flexDirection: 'row', alignItems: 'center', gap: 6 }}
+        accessibilityLabel={commentCount ? copy.comments(commentCount) : copy.commentLabel}
+        style={{ minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 10 }}
       >
-        <VectorIcon name="comment" size={22} color={icon} />
+        <VectorIcon name="comment" size={20} color={theme.foreground} />
+        <Text variant="labelSm">{copy.commentLabel}</Text>
         {/* No "0", as the design shows none; in place once known, so a first comment rolls in. */}
         {commentCount !== null ? (
-          <RollingCount value={commentCount} hideZero variant="bodySm" color={theme.muted} />
+          <RollingCount value={commentCount} hideZero variant="labelSm" color={theme.muted} />
         ) : null}
       </TouchableOpacity>
       <View style={{ flex: 1 }} />
@@ -345,10 +242,10 @@ function PostActions({
         accessibilityRole="button"
         accessibilityLabel={saved ? copy.saved : copy.save}
         accessibilityState={{ selected: saved }}
-        style={{ minHeight: 40, minWidth: 40, alignItems: 'flex-end', justifyContent: 'center' }}
+        style={{ minHeight: 44, minWidth: 44, alignItems: 'flex-end', justifyContent: 'center' }}
       >
         <Animated.View style={mark.style}>
-          <VectorIcon name="bookmark" size={22} color={saved ? theme.primary : icon} filled={saved} />
+          <VectorIcon name="bookmark" size={20} color={saved ? theme.primary : theme.foreground} filled={saved} />
         </Animated.View>
       </TouchableOpacity>
     </View>
@@ -356,30 +253,34 @@ function PostActions({
 }
 
 /**
- * What a post hidden a moment ago leaves in its place: one line and Undo, so a
- * slip is put right where it happened. Gone the next time the feed loads.
+ * What a post hidden a moment ago leaves in its place: one line and Undo, in a
+ * card's place among the cards, so a slip is put right where it happened. Gone
+ * the next time the feed loads.
  */
 export function HiddenPostRow({ onUndo }: { onUndo: () => void }) {
   const theme = useTheme();
   return (
-    <Animated.View entering={FadeIn.duration(180)} style={{ backgroundColor: theme.background }}>
-      <View
-        style={{
-          paddingHorizontal: SCREEN_GUTTER,
-          paddingVertical: 14,
-          flexDirection: 'row',
-          flexWrap: 'wrap',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 12,
-        }}
-      >
-        <Text variant="bodySm" tone="muted" accessibilityLiveRegion="polite">
-          {homeCopy.post.hidden}
-        </Text>
-        <TextLink label={homeCopy.post.undo} onPress={onUndo} />
-      </View>
-      <View style={{ height: 1, backgroundColor: theme.border }} />
+    <Animated.View
+      entering={FadeIn.duration(180)}
+      style={{
+        marginHorizontal: SCREEN_GUTTER,
+        marginTop: CARD_GAP,
+        borderRadius: 14,
+        borderWidth: 1,
+        borderColor: theme.border,
+        paddingHorizontal: 16,
+        paddingVertical: 14,
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 12,
+      }}
+    >
+      <Text variant="bodySm" tone="muted" accessibilityLiveRegion="polite">
+        {homeCopy.post.hidden}
+      </Text>
+      <TextLink label={homeCopy.post.undo} onPress={onUndo} />
     </Animated.View>
   );
 }

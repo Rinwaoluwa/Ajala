@@ -23,7 +23,6 @@ export const homeCopy = {
   // A post in the feed (Home design, 22 Nov).
   post: {
     more: 'More options',
-    openHost: (name: string) => `Open ${name}’s profile`,
     photos: (title: string) => title,
     join: 'Join',
     // A private post asks its host first.
@@ -36,7 +35,8 @@ export const homeCopy = {
     leaveBody: 'You can join again later if there is still room.',
     stay: 'Stay',
     leave: 'Leave',
-    comment: 'Comments',
+    // The button's word, as the design writes it; its number sits beside it once there are any.
+    commentLabel: 'Comment',
     comments: (n: number) => (n === 1 ? '1 comment' : `${n} comments`),
     save: 'Save',
     saved: 'Saved',

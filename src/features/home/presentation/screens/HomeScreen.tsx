@@ -52,19 +52,19 @@ import { useTravelState } from '../hooks/useTravelState';
 import { travelMemory } from '../state/travelMemory';
 
 /**
- * The home feed (Home design, 22 Nov; light and dark): the place header, the
- * post-type pills over a hairline, then the posts, edge to edge with a hairline
- * between them (`FeedPost`: the host, their words, the photos, the Join banner
- * and the actions).
+ * The home feed (Home design, 24 Nov; light and dark): the place header, the
+ * post-type pills over a hairline, then the posts, each a card with the page
+ * showing between them (`FeedPost`: its photos, the type's tag, the title, the
+ * host's words, when and where with Join, and Comment and Save at its foot).
  *
  * Until the first page lands the whole screen is the skeleton frame. The posts
  * enter in a short stagger (the first three; later pages simply appear). Pull to
  * refresh asks again from the top; nearing the end loads the next page.
  *
  * A post's photo opens full screen from where it sits (one `PhotoViewer` for
- * the whole feed). Its ⋮ menu hides it (remembered on this phone, with Undo in
+ * the whole feed). Its ⋯ menu hides it (remembered on this phone, with Undo in
  * its place until the feed next loads), copies its link, or reports it. Its
- * comment button opens the post at its comments.
+ * Comment button opens the post at its comments.
  *
  * The level card scrolls away with the cards; the pills and their hairline stay
  * pinned under the place header once it has gone (a sticky row in the list), so
@@ -106,8 +106,6 @@ export type HomeScreenProps = {
   onOpenPost: (post: PostCard) => void;
   /** A post's comment button: the post, opened at its comments. Without it, the post simply opens. */
   onOpenComments?: (post: PostCard) => void;
-  /** The host's photo or name on a card opens their profile. */
-  onOpenHost?: (hostId: string) => void;
   onNotifications: () => void;
   /** Unread notifications, for the bell's badge (the route reads it from the notifications feature). */
   unreadCount?: number;
@@ -154,7 +152,6 @@ export function HomeScreen({
   onChooseCity,
   onOpenPost,
   onOpenComments,
-  onOpenHost,
   onNotifications,
   unreadCount,
   onMessages,
@@ -275,16 +272,15 @@ export function HomeScreen({
 
   // The route hands new functions in on every render. Held here, so the posts keep the
   // same handlers and only redraw when their own post changes.
-  const handlers = useRef({ onOpenPost, onOpenComments, onOpenHost, linkCard });
+  const handlers = useRef({ onOpenPost, onOpenComments, linkCard });
   useEffect(() => {
-    handlers.current = { onOpenPost, onOpenComments, onOpenHost, linkCard };
-  }, [onOpenPost, onOpenComments, onOpenHost, linkCard]);
+    handlers.current = { onOpenPost, onOpenComments, linkCard };
+  }, [onOpenPost, onOpenComments, linkCard]);
   const openPost = useCallback((post: PostCard) => handlers.current.onOpenPost(post), []);
   const openComments = useCallback(
     (post: PostCard) => (handlers.current.onOpenComments ?? handlers.current.onOpenPost)(post),
     [],
   );
-  const openHost = useCallback((hostId: string) => handlers.current.onOpenHost?.(hostId), []);
   const linked = linkCard !== undefined;
   const hasPlace = feed.place !== null;
 
@@ -346,7 +342,6 @@ export function HomeScreen({
           mine={viewerId !== null && post.host.id === viewerId}
           linked={linked}
           onOpenPost={openPost}
-          onOpenHost={openHost}
           onBeforeRsvp={beforeRsvp}
           onOpenPhoto={openPhoto}
           onOpenComments={openComments}
@@ -365,7 +360,6 @@ export function HomeScreen({
     },
     [
       openPost,
-      openHost,
       beforeRsvp,
       openPhoto,
       openComments,
@@ -514,7 +508,6 @@ const FeedCard = memo(function FeedCard({
   mine,
   linked,
   onOpenPost,
-  onOpenHost,
   onBeforeRsvp,
   onOpenPhoto,
   onOpenComments,
@@ -528,7 +521,6 @@ const FeedCard = memo(function FeedCard({
   /** The route wraps the post in a link, which does the opening. */
   linked: boolean;
   onOpenPost: (post: PostCard) => void;
-  onOpenHost: (hostId: string) => void;
   onBeforeRsvp: () => Promise<boolean>;
   onOpenPhoto: (post: PostCard, index: number, from: MediaFrame) => void;
   onOpenComments: (post: PostCard) => void;
@@ -555,7 +547,6 @@ const FeedCard = memo(function FeedCard({
       descriptionLoading={words.loading}
       mine={mine}
       onOpen={openOnce}
-      onOpenHost={onOpenHost}
       onBeforeRsvp={onBeforeRsvp}
       onOpenPhoto={onOpenPhoto}
       commentCount={commentCount}

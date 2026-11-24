@@ -51,7 +51,7 @@ export type PhotoViewerProps = {
   /** Said for each photo: "Sunset hike, photo 2 of 4". */
   label?: string;
   /**
-   * Where the tapped photo sits on screen (`MediaCarousel`'s `onOpen`): the
+   * Where the tapped photo sits on screen (`CardPhotos`' `onOpen`): the
    * viewer opens by growing it from there. Left out, it fades in.
    */
   origin?: PhotoOrigin | null;

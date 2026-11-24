@@ -4,7 +4,6 @@ import { useUnreadChatsCount } from '@features/chat';
 import { HomeScreen, homeRoutes } from '@features/home';
 import { useUnreadNotificationsCount } from '@features/notifications';
 import { paymentRoutes } from '@features/payment';
-import { profileRoutes } from '@features/profile';
 import { useTabReselects } from '@shared/components';
 
 /**
@@ -40,7 +39,6 @@ export default function HomeRoute() {
           params: { id: post.id, title: post.title, image: post.imageUrl ?? '', type: post.type, focus: 'comments' },
         })
       }
-      onOpenHost={(hostId) => router.push({ pathname: profileRoutes.user, params: { id: hostId } })}
       linkCard={(post, card) => (
         <Link
           href={{
