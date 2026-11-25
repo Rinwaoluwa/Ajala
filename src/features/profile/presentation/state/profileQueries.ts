@@ -1,5 +1,5 @@
 import type { PersonActivityTab } from '../../domain/usecases/ProfileViewUseCases';
-import type { MyRsvpTab, SavedFilter } from '../../domain/entities/PublicProfile';
+import type { SavedFilter } from '../../domain/entities/PublicProfile';
 
 /**
  * The profile feature's TanStack Query keys, under `profile` so they never meet
@@ -20,8 +20,6 @@ export const profileKeys = {
   person: (userId: string) => ['profile', 'person', userId] as const,
   personHistory: (userId: string) => ['profile', 'history', userId] as const,
   personActivity: (userId: string, tab: PersonActivityTab) => ['profile', 'activity', userId, tab] as const,
-  /** Going / Requested (requests, then waitlists) on the own profile (`GET /me/rsvps`). */
-  myRsvps: (tab: MyRsvpTab) => ['profile', 'rsvps', tab] as const,
   /** "Saved activities" (`GET /me/saved`): refreshed by the bookmark, see above. */
   saved: (filter: SavedFilter) => ['saved', filter] as const,
 };

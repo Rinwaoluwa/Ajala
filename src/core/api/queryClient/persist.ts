@@ -36,8 +36,10 @@ export const QUERY_CACHE_MAX_AGE_MS = 24 * 60 * 60_000;
  *   2 (24 Nov): a post in Explore's lists carries `images`.
  *   3 (24 Nov): a post in Explore's lists carries `price`; the feed's price is
  *     in the currency's smallest unit, with its `exponent`.
+ *   4 (25 Nov): a post in the profile's lists (Saved, My posts, Going) carries
+ *     `images`, `price`, `rsvpState` and `visibility`, for the Saved list's card.
  */
-const CACHE_SHAPE = 3;
+const CACHE_SHAPE = 4;
 
 export const queryPersister = createAsyncStoragePersister({
   storage: AsyncStorage,

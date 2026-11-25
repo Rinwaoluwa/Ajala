@@ -39,16 +39,10 @@ Achievements):
   and Edit profile) for the handle, photo, name, pronouns, home city, tagline, bio,
   interests, languages, travel style, favourite places, social links and featured photos; settings
   and messages as glass buttons; Edit profile and Share (the links host,
-  `https://go.ajalatrvl.com/users/<id>`, host from `EXPO_PUBLIC_LINKS_HOST`); Saved activities; the achievements preview; and, last, the
-  person's lists (`useOwnProfileLists`), each asked for when its tab is opened: **My posts**
-  (`GET /users/:me/posts`: what they host, as a visitor sees it) and **Saved** (`GET /me/saved`), drawn as
-  the design's cards (`ProfilePostCard`: the cover with the title on a band along its foot; a post
-  with no photo is set as a post of words instead, the way X sets one: the host's photo and name, the
-  title at reading size, then when, where and how many are going, with nothing standing in for a photo), then
-  **Going / Requested** (`GET /me/rsvps?state=going`; Requested reads `state=requested` and then
-  `state=waitlisted`, tagged Request sent or Waitlisted, the same lists and order as Trips' Requests).
-  The design draws My posts and Saved straight under Travel details and has no Going / Requested;
-  here Featured Photos and Achievements stay above the lists, which come last because they have no end.
+  `https://go.ajalatrvl.com/users/<id>`, host from `EXPO_PUBLIC_LINKS_HOST`); Saved activities (a row in Travel details); and the achievements preview.
+  It has no lists of posts (product, 25 Nov). The design drew My posts and Saved at its foot, and
+  Going and Requested followed them: My posts is now a pill on the Trips tab, Going and Requested
+  are Trips' Upcoming and Requests, and Saved is the Saved activities screen.
 - **Another traveller** (`PublicProfileScreen`, `/(app)/user/[id]`) — `GET /users/:id` (with "Open to
   meet today", travel style and favourite places), their hosted posts, what they attended and — when
   their public plans setting (`sharePlans`) is on — their upcoming plans (`/users/:id/posts`, `/attended`, `/plans`, infinite,
@@ -59,8 +53,14 @@ Achievements):
   and block / unblock (`POST|DELETE /users/:id/block`; blocking refreshes the feed and the map, where
   they disappear). A 404 shows "not available".
 - **Saved activities** (`/(app)/saved`) — `GET /me/saved?type=all|meetup|event|plan|group`, an
-  infinite query per filter under `['saved', type]`. The bookmark on each card is the shared
-  `useSavePost`, which refreshes every `['saved', …]` query after a save or unsave.
+  infinite query per filter under `['saved', type]`. A post is the card it is on Home (`SavedPostCard`
+  on the shared `PostListCard`, product 25 Nov): its photos (a tap opens one full screen), the type's
+  tag, the title, the price, when and where with Join (`JoinPill`; "Before you RSVP" is Explore's
+  `useRsvpGate`), and Comment and the bookmark at its foot (`PostCardActions`; the comment count is
+  Home's `useCardCommentCount`, request B11). A locked post (MOB-077) shows a blurred photo and a lock
+  with why in Join's place, and every tap on it opens the paywall. The pills sit over a hairline, as
+  Home's do. The bookmark is the shared `useSavePost`, which refreshes every `['saved', …]` query
+  after a save or unsave.
 - **Achievements** (`/(app)/achievements`) — Badges and Stamps, **worked out on the phone** from the
   attended history (`GET /me/attended`, all pages): there is no achievements API (§12), so
   `domain/rules/achievementRules.ts` holds a small badge catalogue (Trail Seeker, Ajala Foodie, Good

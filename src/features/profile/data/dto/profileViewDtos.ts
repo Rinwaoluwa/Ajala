@@ -57,7 +57,12 @@ export interface ActivityCardDto {
   /** ISO 3166-1 alpha-2 of the post's place. */
   countryCode: string | null;
   capacity: number | null;
+  /** amount = amountCents / 10 ** exponent (spec §1.5); null when the post has no price. */
+  price?: { amountCents: number; currency: string; exponent: number } | null;
   goingCount: number;
+  /** How the reader stands with it, for the card's Join. */
+  rsvpState?: 'none' | 'requested' | 'going' | 'waitlisted' | 'declined' | 'removed' | null;
+  visibility?: 'open' | 'private' | null;
   saved: boolean;
   host: HostCardDto;
   interests: InterestDto[] | null;

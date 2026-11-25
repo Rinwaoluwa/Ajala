@@ -7,29 +7,26 @@ import { useTheme } from '@shared/hooks/useTheme';
 
 import type { ProfileActivity } from '../../domain/entities/PublicProfile';
 import { formatDay, formatTime } from '../profileFormat';
-import { TextPostCard } from './ProfilePostCard';
+import { TextPostCard } from './TextPostCard';
 import { profileViewCopy } from '../profileViewCopy';
 
 /** How the person stands with the post, as its second tag says. */
-export type ActivityStatus = 'hosting' | 'completed' | 'going' | 'requested' | 'waitlisted';
+export type ActivityStatus = 'hosting' | 'completed' | 'going';
 
 const STATUS_TAG: Record<ActivityStatus, { label: string; tone: TagTone }> = {
   hosting: { label: profileViewCopy.hostingTag, tone: 'success' },
   completed: { label: profileViewCopy.completedTag, tone: 'success' },
   going: { label: profileViewCopy.goingTag, tone: 'success' },
-  requested: { label: profileViewCopy.requestedTag, tone: 'pending' },
-  // Like a request, still waiting to get in.
-  waitlisted: { label: profileViewCopy.waitlistedTag, tone: 'pending' },
 };
 
 /**
  * A post on a profile (Figma Other User, "A weekend in Barcelona"): the cover,
- * the type and status tags (Hosting, Completed, Going, Request sent, Waitlisted), the city
+ * the type and status tags (Hosting, Completed, Going), the city
  * and country in caps when the post has a place (`localityLabel`), the title, the day and start time, the place,
  * how many are joining, and "View plan ›". The whole card opens the post.
  *
- * A post with no photo is set as a post of words instead (`TextPostCard`, as on
- * My posts), with its status tag beside the type: an empty block of the type's
+ * A post with no photo is set as a post of words instead (`TextPostCard`),
+ * with its status tag beside the type: an empty block of the type's
  * colour in a cover's place read as a photo that never loaded.
  */
 export function ActivityCard({

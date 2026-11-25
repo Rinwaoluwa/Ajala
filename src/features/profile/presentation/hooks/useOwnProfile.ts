@@ -8,20 +8,17 @@ import { isProfileError } from '../../domain/entities/ProfileError';
 import { badgeProgress, profileCounters, streakDays, topBadges } from '../../domain/rules/achievementRules';
 import { profileKeys } from '../state/profileQueries';
 import { useProfileViewUseCases } from '../state/useProfileViewUseCases';
-import { useOwnProfileLists } from './useOwnProfileLists';
 
 /**
  * View model for the Profile tab: `GET /me` (the shared cache profile setup and
- * Edit profile also write), the attended history the counters and badge
- * preview are worked out from, and the lists at its foot (My posts, Saved,
- * Going, Requested: `useOwnProfileLists`). Each is a separate query, so the
- * page draws as soon as `/me` lands and the rest fill in after.
+ * Edit profile also write) and the attended history the counters and badge
+ * preview are worked out from. Each is a separate query, so the page draws as
+ * soon as `/me` lands and the rest fills in after.
  */
 export function useOwnProfile() {
   const useCases = useProfileViewUseCases();
   const me = useQuery({ queryKey: sharedQueryKeys.me, queryFn: () => useCases.getMyProfile() });
   const history = useQuery({ queryKey: profileKeys.myHistory, queryFn: () => useCases.loadMyHistory() });
-  const lists = useOwnProfileLists(me.data?.id ?? null);
 
   const derived = useMemo(() => {
     if (!history.data) return null;
@@ -36,11 +33,7 @@ export function useOwnProfile() {
 
   const { refetch: refetchMe } = me;
   const { refetch: refetchHistory } = history;
-  const { refetch: refetchList } = lists;
-  const reload = useCallback(
-    () => Promise.all([refetchMe(), refetchHistory(), refetchList()]),
-    [refetchMe, refetchHistory, refetchList],
-  );
+  const reload = useCallback(() => Promise.all([refetchMe(), refetchHistory()]), [refetchMe, refetchHistory]);
   const pull = usePullRefresh(reload);
 
   return {
@@ -54,6 +47,5 @@ export function useOwnProfile() {
     refreshing: pull.refreshing,
     refresh: pull.refresh,
     derived,
-    lists,
   };
 }

@@ -1,10 +1,9 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 
-import type { PostCardModel } from '@shared/components';
 import { usePullRefresh } from '@shared/hooks/usePullRefresh';
 
-import type { ProfileActivity, SavedFilter } from '../../domain/entities/PublicProfile';
+import type { SavedFilter } from '../../domain/entities/PublicProfile';
 import { profileKeys } from '../state/profileQueries';
 import { useProfileViewUseCases } from '../state/useProfileViewUseCases';
 
@@ -28,7 +27,7 @@ export function useSavedActivities() {
     getNextPageParam: (last) => last.nextCursor,
   });
 
-  const items = useMemo(() => list.data?.pages.flatMap((p) => p.items.map(toPostCard)) ?? [], [list.data]);
+  const items = useMemo(() => list.data?.pages.flatMap((p) => p.items) ?? [], [list.data]);
 
   const pull = usePullRefresh(list.refetch);
 
@@ -47,21 +46,5 @@ export function useSavedActivities() {
     loadMore: () => {
       if (list.hasNextPage && !list.isFetchingNextPage) void list.fetchNextPage();
     },
-  };
-}
-
-/** The shared post card, with the server's `saved` so the bookmark starts filled. */
-function toPostCard(a: ProfileActivity): PostCardModel {
-  return {
-    id: a.id,
-    type: a.type,
-    title: a.title,
-    imageUrl: a.imageUrl,
-    startAt: a.startAt,
-    placeName: a.placeName ?? a.locality?.label ?? null,
-    host: { name: a.host.name, avatarUrl: a.host.avatarUrl },
-    distanceKm: a.distanceKm,
-    saved: a.saved,
-    lockReason: a.lockReason,
   };
 }

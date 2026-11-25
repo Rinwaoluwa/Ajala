@@ -14,6 +14,13 @@ export default function SavedRoute() {
           ? router.push(lockedPostPaywall(lockReason))
           : router.push({ pathname: '/(app)/post/[id]', params: { id: id } })
       }
+      // The comment button: the same page, opened at its comments.
+      onOpenComments={(post) =>
+        router.push({
+          pathname: '/(app)/post/[id]',
+          params: { id: post.id, title: post.title, image: post.imageUrl ?? '', type: post.type, focus: 'comments' },
+        })
+      }
       onExplore={() => router.navigate('/(app)/(tabs)/explore')}
     />
   );

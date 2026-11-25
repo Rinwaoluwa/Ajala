@@ -36,18 +36,6 @@ export function createProfileViewApi(request: ProfileRequest) {
         headers,
       }),
 
-    getMyRsvps: (
-      state: 'going' | 'requested' | 'waitlisted',
-      cursor: string | null,
-      limit: number,
-      headers?: Record<string, string>,
-    ) =>
-      request<ActivityPageDto>({
-        method: 'GET',
-        path: `${V1}/me/rsvps?${query({ state, cursor, limit })}`,
-        headers,
-      }),
-
     getPerson: (userId: string) =>
       request<PublicProfileDto>({ method: 'GET', path: `${V1}/users/${id(userId)}` }),
 

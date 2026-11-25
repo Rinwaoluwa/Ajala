@@ -84,14 +84,12 @@ describe('ProfileViewRepository over the API', () => {
     expect(person).not.toHaveProperty('visiting');
   });
 
-  it('pages saved posts by type, Going / Requested, and their plans', async () => {
+  it('pages saved posts by type, and their plans', async () => {
     const { repo, calls } = fake(() => ({ items: [CARD], nextCursor: null }));
     const saved = await repo.getMySaved('event', null, 20);
-    await repo.getMyRsvps('requested', '20', 20);
     await repo.getPersonPlans('u1', null, 20);
     expect(calls.map((c) => c.path)).toEqual([
       '/api/v1/me/saved?type=event&limit=20',
-      '/api/v1/me/rsvps?state=requested&cursor=20&limit=20',
       '/api/v1/users/u1/plans?limit=20',
     ]);
     expect(saved.items[0]).toMatchObject({
@@ -99,6 +97,40 @@ describe('ProfileViewRepository over the API', () => {
       host: { name: 'Liam T.' },
       distanceKm: 1.2,
     });
+  });
+
+  it("reads what a saved post's card shows: every photo, the price, and how the reader stands", async () => {
+    const { repo } = fake(() => ({
+      items: [
+        {
+          ...CARD,
+          type: 'event',
+          images: [
+            { thumbUrl: 't1', cardUrl: 'one.jpg', fullUrl: 'one-full.jpg' },
+            { thumbUrl: 't2', cardUrl: 'two.jpg', fullUrl: '' },
+          ],
+          price: { amountCents: 500000, currency: 'NGN', exponent: 2 },
+          rsvpState: 'going',
+          visibility: 'private',
+        },
+        // An older answer without them, and a Plan (which carries no money).
+        { ...CARD, images: null },
+        { ...CARD, price: { amountCents: 500000, currency: 'NGN', exponent: 2 } },
+      ],
+      nextCursor: null,
+    }));
+    const items = (await repo.getMySaved('all', null, 20)).items;
+    expect(items[0]).toMatchObject({
+      images: [
+        { card: 'one.jpg', full: 'one-full.jpg' },
+        { card: 'two.jpg', full: 'two.jpg' },
+      ],
+      price: { amountCents: 500000, currency: 'NGN', exponent: 2 },
+      rsvpState: 'going',
+      visibility: 'private',
+    });
+    expect(items[1]).toMatchObject({ images: [], price: null, rsvpState: 'none', visibility: 'open' });
+    expect(items[2]?.price).toBeNull();
   });
 
   it("reads a card's place from localityLabel, and keeps a card with none", async () => {

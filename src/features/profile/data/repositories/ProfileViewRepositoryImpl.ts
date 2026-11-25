@@ -27,8 +27,6 @@ export function createProfileViewRepository(request: ProfileRequest): ProfileVie
       guard(async () => toActivityPage(await api.getMyAttended(cursor, limit, await location()))),
     getMySaved: (filter, cursor, limit) =>
       guard(async () => toActivityPage(await api.getMySaved(filter, cursor, limit, await location()))),
-    getMyRsvps: (state, cursor, limit) =>
-      guard(async () => toActivityPage(await api.getMyRsvps(state, cursor, limit, await location()))),
     getPerson: (userId) => guard(async () => toPublicProfile(await api.getPerson(userId)), true),
     getPersonPosts: (userId, cursor, limit) =>
       guard(

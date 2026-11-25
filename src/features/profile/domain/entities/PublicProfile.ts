@@ -43,11 +43,22 @@ export type ProfileActivity = {
   type: PostKind;
   title: string;
   imageUrl: string | null;
+  /**
+   * Every photo, in the host's order: `card` for a card's head, `full` for the
+   * viewer. Empty when the post has none.
+   */
+  images: { card: string; full: string }[];
   /** ISO date-time; null only on a draft. */
   startAt: string | null;
   placeName: string | null;
   /** The city and country of the post's place; null on a post with none (a draft). */
   locality: PostLocality | null;
+  /** As the API sends it (`amountCents / 10 ** exponent`); null when the post has no price. */
+  price: { amountCents: number; currency: string; exponent: number } | null;
+  /** How the reader stands with it, for a card's Join. */
+  rsvpState: 'none' | 'requested' | 'going' | 'waitlisted' | 'declined' | 'removed';
+  /** A private post asks its host before letting anyone in. */
+  visibility: 'open' | 'private';
   goingCount: number;
   capacity: number | null;
   interests: Interest[];
@@ -81,23 +92,6 @@ export type ActivityPage = {
 
 /** The "Saved activities" filter: `GET /me/saved?type=`. */
 export type SavedFilter = 'all' | PostKind;
-
-/** The lists `GET /me/rsvps?state=` reads (`waitlisted` since backend answers B8). */
-export type RsvpListState = 'going' | 'requested' | 'waitlisted';
-
-/**
- * The own profile's Going / Requested tabs. Requested is everything waiting to
- * get in, as on the Trips tab: requests, then waitlists.
- */
-export type MyRsvpTab = 'going' | 'requested';
-
-/** Where a tab has got to: which `/me/rsvps` list, and the cursor in it. */
-export type RsvpCursor = { state: RsvpListState; cursor: string | null };
-
-/** A post on those tabs, with the list it came from (which picks its tag). */
-export type MyRsvp = { activity: ProfileActivity; state: RsvpListState };
-
-export type MyRsvpPage = { items: MyRsvp[]; nextCursor: RsvpCursor | null };
 
 /** The API's report reasons for a person (`ReportUserDto`). */
 export type PersonReportReason = 'harassment' | 'impersonation' | 'spam' | 'inappropriate_content' | 'other';

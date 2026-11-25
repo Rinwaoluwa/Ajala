@@ -14,7 +14,6 @@ export const POST_LIST_PREFIXES = [
   ['trips'],
   ['saved'],
   ['profile', 'activity'],
-  ['profile', 'rsvps'],
 ] as const;
 
 /** A post's own page (post-detail's `postDetailKeys.post`). */

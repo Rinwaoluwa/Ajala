@@ -22,7 +22,6 @@ export default function ProfileRoute() {
       onEditProfile={() => router.push(settingsRoutes.editProfile)}
       onSaved={() => router.push(profileRoutes.saved)}
       onAchievements={() => router.push(profileRoutes.achievements)}
-      onOpenPost={(id) => router.push({ pathname: '/(app)/post/[id]', params: { id } })}
     />
   );
 }

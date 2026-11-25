@@ -1,118 +1,24 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Image } from 'expo-image';
 import type { ReactNode } from 'react';
 import { TouchableOpacity, View } from 'react-native';
 
 import { Avatar, SvgIcon, Text, VectorIcon } from '@shared/components';
 import { useTheme } from '@shared/hooks/useTheme';
-import { palette } from '@shared/theme';
 import { useTypeColors } from '@shared/theme/postTypeColors';
 
 import type { ProfileActivity } from '../../domain/entities/PublicProfile';
 import { formatDay, formatTime } from '../profileFormat';
 import { profileViewCopy } from '../profileViewCopy';
 
-/**
- * A post on the own profile's My posts and Saved. The whole card opens the post.
- *
- * With a photo (Figma Own Profile, "My lagoon adventure"): its cover across the
- * width, and its title on a dark band along the foot of the cover.
- *
- * Without one (photos are optional), the words are the post, so it is laid out
- * as a post of words, the way X sets one: whose it is first, their photo to the
- * left of their name; the words on their own lines under that; then what an
- * activity needs said about it (when, where, how many are going) where X has
- * its row of counts. Nothing stands in for the photo. It had the type's colour
- * filling a cover's space, a large empty block with one line at its foot; a card
- * with no picture should not keep room for one.
- *
- * A post locked to this reader (a saved Plan without Pro, MOB-077) shows only a
- * blur of its cover and a lock by the title, or the lock and why in the place of
- * the details.
- */
-export function ProfilePostCard({ activity, onPress }: { activity: ProfileActivity; onPress: () => void }) {
-  const locked = activity.lockReason;
-  const day = formatDay(activity.startAt);
-  const label = [
-    activity.title,
-    profileViewCopy.types[activity.type],
-    activity.host.name || null,
-    day,
-    locked ? profileViewCopy.activities.locked[locked] : activity.placeName,
-  ]
-    .filter(Boolean)
-    .join(', ');
-  return activity.imageUrl ? (
-    <CoverCard activity={activity} imageUrl={activity.imageUrl} label={label} onPress={onPress} />
-  ) : (
-    <TextPostCard activity={activity} accessibilityLabel={label} onPress={onPress} />
-  );
-}
-
-/** The design's card: the cover, with the title on a band along its foot. */
-function CoverCard({
-  activity,
-  imageUrl,
-  label,
-  onPress,
-}: {
-  activity: ProfileActivity;
-  imageUrl: string;
-  label: string;
-  onPress: () => void;
-}) {
-  const theme = useTheme();
-  const locked = activity.lockReason;
-  return (
-    <TouchableOpacity
-      activeOpacity={0.85}
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      style={{ borderRadius: 16, overflow: 'hidden', backgroundColor: theme.skeleton }}
-    >
-      <View style={{ aspectRatio: 1.95, minHeight: 150 }}>
-        <Image
-          source={{ uri: imageUrl }}
-          style={{ flex: 1 }}
-          contentFit="cover"
-          transition={200}
-          blurRadius={locked ? 24 : undefined}
-        />
-      </View>
-      {/* The title keeps to two lines; at a large text size the band grows up over the cover. */}
-      <View
-        style={{
-          position: 'absolute',
-          left: 0,
-          right: 0,
-          bottom: 0,
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: 8,
-          paddingHorizontal: 12,
-          paddingVertical: 12,
-          borderTopLeftRadius: 10,
-          borderTopRightRadius: 10,
-          backgroundColor: 'rgba(17,20,23,0.68)',
-        }}
-      >
-        {locked ? <Ionicons name="lock-closed" size={14} color={palette.white} /> : null}
-        <Text variant="bodySm" numberOfLines={2} style={{ color: palette.white, flex: 1 }}>
-          {activity.title}
-        </Text>
-      </View>
-    </TouchableOpacity>
-  );
-}
-
 const AVATAR = 40;
 
 /**
  * A post of words alone: who, the words, then when, where and how many. Used for
- * every post without a photo on a profile: My posts and Saved here, and the
- * activity lists (another person's profile, Going and Requested) through
- * `ActivityCard`, which passes the post's standing (Hosting, Going…) as `badge`.
+ * every post without a photo in a profile's activity lists (another person's
+ * Hosting, Attending and Upcoming) through `ActivityCard`, which passes the
+ * post's standing (Hosting, Going…) as `badge`. Nothing stands in for the
+ * photo: a block of the type's colour in a cover's place read as a photo that
+ * never loaded.
  */
 export function TextPostCard({
   activity,

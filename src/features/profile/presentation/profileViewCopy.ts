@@ -44,25 +44,6 @@ export const profileViewCopy = {
   favouriteDestinations: 'Favourite places',
   openToMeet: 'Open to meet',
   // The own profile's lists, at its foot: My posts and Saved as drawn, then Going and Requested.
-  lists: {
-    posts: 'My posts',
-    saved: 'Saved',
-    going: 'Going',
-    requested: 'Requested',
-    emptyPosts: 'Nothing posted yet. Tap + to plan something, and it shows here.',
-    emptySaved: 'Nothing saved yet. Tap the bookmark on an activity to keep it here.',
-    emptyGoing: 'Nothing coming up. Join something and it shows here.',
-    emptyRequested: 'Nothing waiting. Requests to join and waitlists you’re on show here.',
-    failed: {
-      posts: 'Your posts didn’t load.',
-      saved: 'Your saved activities didn’t load.',
-      going: 'Your activities didn’t load.',
-      requested: 'Your activities didn’t load.',
-    },
-    loading: 'Loading',
-    retry: 'Try again',
-    more: 'Show more',
-  },
   photos: {
     title: 'Featured Photos',
     count: (n: number) => `${n} ${n === 1 ? 'photo' : 'photos'}`,
@@ -103,8 +84,6 @@ export const profileViewCopy = {
   hostingTag: 'Hosting',
   completedTag: 'Completed',
   goingTag: 'Going',
-  requestedTag: 'Request sent',
-  waitlistedTag: 'Waitlisted',
   options: {
     title: 'Profile options',
     share: 'Share profile',
@@ -163,6 +142,28 @@ export const profileViewCopy = {
     emptyFiltered: 'Nothing saved of this type yet.',
     failed: 'Your saved activities didn’t load.',
     retry: 'Try again',
+    loading: 'Loading saved activities',
+    // The card is the home feed's (`SavedPostCard`): its Join, in this screen's words.
+    join: {
+      join: 'Join',
+      // A private post asks its host first: the button says Request, as Home's does (product, 25 Nov).
+      request: 'Request',
+      going: 'Going',
+      requested: 'Requested',
+      waitlisted: 'Waitlisted',
+      hosting: 'Hosting',
+      leaveTitle: 'Leave this one?',
+      leaveBody: 'You can join again later if there is still room.',
+      stay: 'Stay',
+      leave: 'Leave',
+    },
+    // The card's foot: Comment and the bookmark.
+    actions: {
+      comment: 'Comment',
+      comments: (n: number) => (n === 1 ? '1 comment' : `${n} comments`),
+      save: 'Save',
+      saved: 'Saved. Remove from saved',
+    },
   },
   badges: {
     title: 'Achievements',

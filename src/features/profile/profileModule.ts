@@ -20,7 +20,6 @@ import {
   makeBlockPerson,
   makeGetPerson,
   makeLoadMyHistory,
-  makeLoadMyRsvps,
   makeLoadPersonActivity,
   makeLoadPersonHistory,
   makeLoadSaved,
@@ -61,7 +60,6 @@ export function createProfileViewUseCases(request: ProfileRequest) {
   return {
     loadMyHistory: makeLoadMyHistory(repo),
     loadSaved: makeLoadSaved(repo),
-    loadMyRsvps: makeLoadMyRsvps(repo),
     loadPersonHistory: makeLoadPersonHistory(repo),
     getPerson: makeGetPerson(repo),
     loadPersonActivity: makeLoadPersonActivity(repo),

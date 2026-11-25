@@ -71,7 +71,7 @@ import {
  * moving it, but it does not run on by itself: let go, the page is simply there.
  */
 
-/** A sideways drag is a swipe after this far. More than a row of tabs inside a page takes (`SwipeSwitch`), so that wins. */
+/** A sideways drag is a swipe after this far: far enough that a scroller inside a page takes the drag first. */
 const GRAB = 20;
 /** Up or down this far first: a scroll, never a swipe. */
 const SCROLL_FIRST = 14;

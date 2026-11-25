@@ -11,9 +11,7 @@ import {
   NativeIcon,
   Screen,
   SvgIcon,
-  SwipeSwitch,
   Text,
-  UnderlineTabs,
   VectorIcon,
   icons,
   tabBarMinimize,
@@ -27,14 +25,10 @@ import { SCREEN_GUTTER, palette } from '@shared/theme';
 import { LANGUAGES, travelStyleLabel } from '../../domain/rules/profileSetupRules';
 import { AchievementsPreview } from '../components/AchievementsPreview';
 import { FeaturedPhotos } from '../components/FeaturedPhotos';
-import { ActivityCard } from '../components/ActivityCard';
-import { ActivityCardSkeleton } from '../components/ActivityCardSkeleton';
 import { ProfileHero } from '../components/ProfileHero';
-import { ProfilePostCard } from '../components/ProfilePostCard';
 import { RoundIconButton } from '../components/RoundIconButton';
 import { TravelDetails } from '../components/TravelDetails';
 import { useOwnProfile } from '../hooks/useOwnProfile';
-import type { OwnProfileTab, useOwnProfileLists } from '../hooks/useOwnProfileLists';
 import { profileViewCopy } from '../profileViewCopy';
 import { profileLink, shareProfile } from '../shareProfile';
 
@@ -43,13 +37,16 @@ import { profileLink, shareProfile } from '../shareProfile';
  * bell and settings on glass; the hero (photo, name, @handle, city, Meetups ·
  * Countries · Streak, interests); Edit profile and share; the bio; "Travel
  * details" (languages, travel style, favourite places, links, Saved
- * activities); Featured Photos; the Achievements preview; then the person's
- * lists, last because they are the part with no end: My posts and Saved as the
- * design draws them, and Going and Requested after those.
+ * activities); Featured Photos; and the Achievements preview.
  *
- * From `GET /me` (shared with Edit profile and setup), the attended history and
- * the lists' own reads (`useOwnProfileLists`). Sections with nothing to show
- * are left out rather than drawn empty. Pull to refresh asks again.
+ * It has no lists of posts (product, 25 Nov). The design drew My posts and
+ * Saved at its foot, and Going and Requested followed them; My posts is now a
+ * pill on Trips, Going and Requested are Trips' Upcoming and Requests, and
+ * Saved is the "Saved activities" row in Travel details.
+ *
+ * From `GET /me` (shared with Edit profile and setup) and the attended
+ * history. Sections with nothing to show are left out rather than drawn empty.
+ * Pull to refresh asks again.
  */
 
 const TAB_BAR_CLEARANCE = 120;
@@ -63,7 +60,6 @@ export type OwnProfileScreenProps = {
   onEditProfile: () => void;
   onSaved: () => void;
   onAchievements: () => void;
-  onOpenPost: (postId: string) => void;
   /** Changes when the Profile tab is tapped while Profile is in front: the page goes back to its top. */
   toTopSignal?: number;
 };
@@ -235,94 +231,7 @@ export function OwnProfileScreen(props: OwnProfileScreenProps) {
             onOpenBadge={props.onAchievements}
           />
         ) : null}
-
-        <ProfileLists lists={vm.lists} onOpenPost={props.onOpenPost} />
       </ScrollView>
     </Screen>
-  );
-}
-
-const LIST_TABS: readonly { value: OwnProfileTab; label: string }[] = [
-  { value: 'posts', label: profileViewCopy.lists.posts },
-  { value: 'saved', label: profileViewCopy.lists.saved },
-  { value: 'going', label: profileViewCopy.lists.going },
-  { value: 'requested', label: profileViewCopy.lists.requested },
-];
-
-/**
- * The person's lists (Figma Own Profile, "My posts · Saved"): the tabs hug
- * their labels at the start, and under them the chosen list.
- *
- *   - My posts and Saved are the design's cards: the cover with the title on a
- *     band along its foot (`ProfilePostCard`).
- *   - Going and Requested keep the fuller card, since what matters there is
- *     when and where, and how the person stands with it (Going, Request sent,
- *     Waitlisted).
- *
- * A page at a time, with "Show more": the screen scrolls as a whole, so a list
- * does not page itself on scroll. A list is asked for when its tab is opened.
- */
-function ProfileLists({
-  lists,
-  onOpenPost,
-}: {
-  lists: ReturnType<typeof useOwnProfileLists>;
-  onOpenPost: (postId: string) => void;
-}) {
-  const copy = profileViewCopy.lists;
-  const tab = lists.tab;
-  const empty =
-    tab === 'posts'
-      ? copy.emptyPosts
-      : tab === 'saved'
-        ? copy.emptySaved
-        : tab === 'going'
-          ? copy.emptyGoing
-          : copy.emptyRequested;
-  return (
-    <View style={{ gap: 16 }}>
-      <UnderlineTabs hug options={LIST_TABS} value={tab} onChange={lists.setTab} />
-      {/* Swipe sideways between the lists, as between Instagram's profile tabs. */}
-      <SwipeSwitch
-        index={LIST_TABS.findIndex((t) => t.value === tab)}
-        count={LIST_TABS.length}
-        onChange={(i) => lists.setTab(LIST_TABS[i]!.value)}
-      >
-        <View style={{ gap: 16 }}>
-          {lists.loading ? (
-            <ActivityCardSkeleton label={copy.loading} />
-          ) : lists.failed ? (
-            <View style={{ gap: 12, alignItems: 'center', paddingVertical: 16 }}>
-              <Text variant="bodySm" tone="muted" className="text-center">
-                {copy.failed[tab]}
-              </Text>
-              <Button label={copy.retry} variant="secondary" size="sm" onPress={lists.retry} />
-            </View>
-          ) : lists.items.length === 0 ? (
-            <Text variant="bodySm" tone="muted" className="py-16 text-center" accessibilityLiveRegion="polite">
-              {empty}
-            </Text>
-          ) : (
-            <>
-              {lists.items.map(({ activity, state }) =>
-                state ? (
-                  <ActivityCard
-                    key={activity.id}
-                    activity={activity}
-                    status={state}
-                    onPress={() => onOpenPost(activity.id)}
-                  />
-                ) : (
-                  <ProfilePostCard key={activity.id} activity={activity} onPress={() => onOpenPost(activity.id)} />
-                ),
-              )}
-              {lists.hasMore ? (
-                <Button label={copy.more} variant="secondary" loading={lists.loadingMore} onPress={lists.loadMore} />
-              ) : null}
-            </>
-          )}
-        </View>
-      </SwipeSwitch>
-    </View>
   );
 }

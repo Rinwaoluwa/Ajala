@@ -41,11 +41,21 @@ export function toActivity(dto: ActivityCardDto): ProfileActivity {
     type: dto.type,
     title: dto.title,
     imageUrl: dto.images?.[0]?.cardUrl ?? null,
+    images: (dto.images ?? [])
+      .filter((i) => i.cardUrl)
+      .map((i) => ({ card: i.cardUrl, full: i.fullUrl || i.cardUrl })),
     startAt: dto.startAt ?? null,
     placeName: dto.placeName ?? null,
     locality: dto.localityLabel?.trim()
       ? { label: dto.localityLabel.trim(), countryCode: dto.countryCode ?? null }
       : null,
+    // A Plan carries no money (the API refuses it).
+    price:
+      dto.type !== 'plan' && dto.price
+        ? { amountCents: dto.price.amountCents, currency: dto.price.currency, exponent: dto.price.exponent }
+        : null,
+    rsvpState: dto.rsvpState ?? 'none',
+    visibility: dto.visibility === 'private' ? 'private' : 'open',
     goingCount: dto.goingCount ?? 0,
     capacity: dto.capacity ?? null,
     interests: (dto.interests ?? []).map(toInterest),
