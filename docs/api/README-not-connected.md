@@ -72,7 +72,8 @@ No call was found to an endpoint that is not in the spec.
 |---|---|---|---|---|
 | **Achievements, badges and stamps** | `src/features/profile/domain/rules/achievementRules.ts`, `useAchievements.ts` | From the person's attended history | An achievements endpoint, if they should match across phones | README only |
 | **Streak, Countries and Meetups counts** on a profile | profile feature | From up to 300 past activities | A profile summary with the counts | README only |
-| **Comment count on a Home card** | `useCardCommentCount` | One `GET /posts/{id}/comments` per card | `commentCount` on `PostCardDto` | B11 (open) |
+| **Comment count on a Home card** (and, since 25 Nov, a Saved card) | `useCardCommentCount` | One `GET /posts/{id}/comments` per card | `commentCount` on `PostCardDto` | B11 (open) |
+| **Faces of the people going, on a Trips card** (since 25 Nov; plain circles before) | `useTravellerFaces.ts` | One `GET /posts/{id}/attendees?state=going&limit=3` per card with someone going | `goingPreview` on `PostCardDto` | B18 (open) |
 | **"Hosting" instead of Join on your own post** | `FeedPost.tsx`, `ListedPostCard.tsx` | `host.id` compared with the signed-in id | `isHost` on cards | B9 (not now) |
 | **Map price filter** (Free, Paid, a maximum) | Explore | Pins carry no price; prices are read from the feed, up to 5 requests of 100, and only cover the feed's 30 km | `price` on `MapPinDto`, or price parameters on `GET /map/pins` | README only |
 | **Map date filter** (Today, This weekend) | `exploreRules.ts` | From each pin's start time | Optional: date parameters on `GET /map/pins` | README only |
@@ -122,6 +123,7 @@ From [backend-requests.md](backend-requests.md); only the ones still open.
 | B11 | `commentCount` on a card | One extra request per card |
 | B13 | Hide, Not interested, Mute | Hide stays on the phone |
 | B15 | Exchange rates | Rates come from a third party |
+| B18 | Who is going, on a card | One extra request per Trips card |
 
 ## How to keep this current
 

@@ -59,6 +59,8 @@ These follow the 24 Nov design, so they may be intended, but they are things the
 
 ### R5. Screens that did not move to the new card
 
+**Fixed on 25 Nov:** Saved activities now draws Home's card, and the older shared `PostCard` is deleted. What follows is the finding as it was written.
+
 `SavedActivitiesScreen` is now the only user of the older shared `PostCard` (`src/shared/components/post/PostCard.tsx`, 466 lines), which writes time on a 24-hour clock (`formatCardTime`) where the new card writes "6:00 PM". Profile and Trips have their own cards as well. See [D4](#d4-eight-ways-to-draw-a-post).
 
 ### R6. Nothing tests a screen
@@ -116,6 +118,8 @@ Auth has a third copy of the name rules (`splitFullName`, `isFullNameValid`, `to
 
 ### D4. Eight ways to draw a post
 
+**Four since 25 Nov** (`PostListCard`, `MiniPostCard`, `ActivityCard` with its `TextPostCard`, `DraftCard`)**:** Trips moved to `PostListCard` too, and its two cards are deleted. Before that, Saved activities moved to `PostListCard` and the old `PostCard` (with its copy of the type names) is deleted; the profile's own lists went (My posts is a Trips pill), and `ProfilePostCard` with them.
+
 `PostListCard` (Home, Explore list), `PostCard` (Saved), `MiniPostCard` (map), `ProfilePostCard` and its `TextPostCard`, `ActivityCard` (profile lists), `UpcomingTripCard`, `PastTripCard` (Trips, which share two 8-line blocks) and `DraftCard` (settings). They disagree on the clock (24-hour or 12-hour), on whether the year is written, and on how a post without a photo looks.
 
 The post type's name is written out seven times: `home/presentation/copy.ts:57`, `explore/presentation/copy.ts:174`, `profile/presentation/profileViewCopy.ts:102`, `post-detail/presentation/copy.ts:7`, `trips/presentation/copy.ts:18`, `settings/.../DraftCard.tsx:21`, `shared/components/post/PostCard.tsx:67`.
@@ -129,7 +133,7 @@ The post type's name is written out seven times: `home/presentation/copy.ts:57`,
 - `Pager` (onboarding, stamps, `PhotoViewer`, `ImageCarousel` on the post page), with `PaginationDots`;
 - `CardPhotos` (the new card's photos), with its own dots;
 - `SwipePager` (the four tabs);
-- `SwipeSwitch` (the profile's lists).
+- `SwipeSwitch` (the profile's lists). Deleted on 25 Nov with those lists.
 
 `CardPhotos` could be a `Pager`. The last two are different gestures and are fair as separate pieces.
 

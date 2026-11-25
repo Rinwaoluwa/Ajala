@@ -291,6 +291,18 @@ These three are related:
   - confirm asking after a pause is all right for `GET /search/posts`, and say if there is a rate limit on it (the only one in the spec, 30 a minute, is on signing in);
   - if it is not, say what is: a longer pause, a minimum of 3 characters, or a lighter endpoint for suggestions (titles and ids only), which the app would switch to.
 
+### B18. Who is going, on a card (25 Nov)
+**Status: Open.**
+
+- **Problem:** the Trips cards draw the faces of the people going beside "3 joining". `PostCardDto` and `MyPostDto` carry `goingCount` but not who, so the cards drew plain circles (product, 25 Nov: "plain greys instead of images of the people").
+- **Today:** each card on screen with someone going asks `GET /posts/:id/attendees?state=going&limit=3` and shows those three (kept for five minutes): one extra request per card. On a private post the reader has only asked to join, the list is refused (403) and the card keeps its plain circles.
+- **Proposal:** add the first few people going to the card:
+  ```ts
+  /** The first three going, oldest first; empty when there are none or the reader may not see them. */
+  goingPreview: HostCardDto[];
+  ```
+  on `PostCardDto` (and so `MyPostDto`). The app would then ask nothing per card.
+
 ---
 
 ## C. Product decisions we need written down (backend + product)
