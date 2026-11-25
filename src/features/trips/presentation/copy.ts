@@ -8,11 +8,14 @@ export const tripsCopy = {
     upcoming: 'Good company for wherever you’re headed.',
     requests: 'Activities you’re waiting to get into: requests and waitlists.',
     past: 'A look back at the places and activities you joined.',
+    mine: 'Everything you host, newest first.',
   } satisfies Record<TripsTab, string>,
   tabs: [
     { value: 'upcoming', label: 'Upcoming' },
     { value: 'requests', label: 'Requests' },
     { value: 'past', label: 'Past' },
+    // What the person hosts. It was a tab on the profile until 25 Nov (product).
+    { value: 'mine', label: 'My posts' },
   ] as const,
   types: {
     meetup: 'Meetup',
@@ -23,19 +26,19 @@ export const tripsCopy = {
   /** The status tag on each card, by how I relate to the post. */
   roles: {
     hosting: 'Hosting',
+    // A post of mine that is over (My posts).
+    hosted: 'Completed',
     going: 'Going',
     requested: 'Request sent',
     waitlisted: 'Waitlisted',
     attended: 'Completed',
   } satisfies Record<TripRole, string>,
   cancelled: 'Cancelled',
-  completed: 'Completed',
   recurrence: {
     weekly: 'Weekly',
     biweekly: 'Every two weeks',
     monthly: 'Monthly',
   } satisfies Record<TripRecurrence, string>,
-  starts: (time: string) => `Starts ${time}`,
   joining: (n: number) => (n === 0 ? 'No one has joined yet' : `${n} joining`),
   travellers: (n: number) => `${n} traveller${n === 1 ? '' : 's'}`,
   viewTrip: 'View trip ›',
@@ -53,6 +56,10 @@ export const tripsCopy = {
       title: 'Nothing here yet',
       body: 'Activities you’ve been to will show here.',
     },
+    mine: {
+      title: 'Nothing posted yet',
+      body: 'Tap + to plan something, and it shows here.',
+    },
   },
   notes: {
     waiting: {
@@ -68,6 +75,7 @@ export const tripsCopy = {
     title: 'Your trips didn’t load',
     retry: 'Try again',
   },
+  loading: 'Loading your trips',
   loadingMore: 'Loading more',
 };
 

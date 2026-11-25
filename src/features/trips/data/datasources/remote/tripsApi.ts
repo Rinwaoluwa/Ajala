@@ -1,5 +1,5 @@
 import type { RsvpListState } from '../../../domain/entities/Trip';
-import type { MyPostDto, PageDto, PostCardDto } from '../../dto/tripsDtos';
+import type { AttendeeDto, MyPostDto, PageDto, PostCardDto } from '../../dto/tripsDtos';
 
 /** The API's version prefix, as every other client in the app writes it. */
 const V1 = '/api/v1';
@@ -31,6 +31,13 @@ export function createTripsApi(request: TripsRequest) {
       request<PageDto<PostCardDto>>({
         method: 'GET',
         path: `${V1}/me/attended?${query({ cursor, limit })}`,
+      }),
+
+    /** The first people going to a post, oldest first. 403 where the reader may not see the list. */
+    listGoing: (postId: string, limit: number) =>
+      request<PageDto<AttendeeDto>>({
+        method: 'GET',
+        path: `${V1}/posts/${encodeURIComponent(postId)}/attendees?${query({ state: 'going', limit })}`,
       }),
   };
 }

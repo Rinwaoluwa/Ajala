@@ -39,23 +39,29 @@ const flatten = (pages: readonly { items: TripCard[] }[] | undefined) => {
  *     join (`/me/rsvps?state=requested`), then full posts whose waitlist I'm on
  *     (`state=waitlisted`), one query that reads the two lists in turn.
  *   - Past: what I went to (`/me/attended`), latest first.
+ *   - My posts: everything I host (`/me/posts`), newest first, past ones
+ *     included and taken-down ones left out. A page can filter down to
+ *     nothing here too, and the next is fetched the same way.
  *
- * All four queries are always declared (hooks cannot be conditional); only the
+ * All five queries are always declared (hooks cannot be conditional); only the
  * ones behind the current tab are enabled.
  */
 export function useTripList(tab: TripsTab) {
-  const { loadGoing, loadHostedUpcoming, loadWaiting, loadPast } = useTripsUseCases();
+  const { loadGoing, loadHostedUpcoming, loadWaiting, loadPast, loadMyPosts } = useTripsUseCases();
   const [pulling, setPulling] = useState(false);
 
   const going = usePagedTrips('going', loadGoing, tab === 'upcoming');
   const hosted = usePagedTrips('hosted', loadHostedUpcoming, tab === 'upcoming');
   const waiting = usePagedTrips('waiting', loadWaiting, tab === 'requests');
   const past = usePagedTrips('past', loadPast, tab === 'past');
+  const mine = usePagedTrips('mine', loadMyPosts, tab === 'mine');
 
-  const sources = tab === 'upcoming' ? [going, hosted] : tab === 'requests' ? [waiting] : [past];
+  const sources =
+    tab === 'upcoming' ? [going, hosted] : tab === 'requests' ? [waiting] : tab === 'past' ? [past] : [mine];
 
   const goingComplete = going.isSuccess && !going.hasNextPage;
-  const shownPages = tab === 'requests' ? waiting.data?.pages : past.data?.pages;
+  const shownPages =
+    tab === 'requests' ? waiting.data?.pages : tab === 'past' ? past.data?.pages : mine.data?.pages;
   const items: TripCard[] = useMemo(
     () =>
       tab === 'upcoming'

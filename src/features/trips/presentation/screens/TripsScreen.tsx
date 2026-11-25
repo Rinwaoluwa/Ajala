@@ -9,7 +9,9 @@ import {
   LoadingRing,
   NoteCard,
   PillTabs,
+  PostListCardSkeleton,
   Screen,
+  SkeletonPulse,
   Text,
   VectorIcon,
   enterRise,
@@ -24,16 +26,14 @@ import { useAppColorScheme } from '@shared/hooks/useAppColorScheme';
 import { SCREEN_GUTTER } from '@shared/theme';
 
 import type { TripCard, TripsTab } from '../../domain/entities/Trip';
-import { PastTripCard } from '../components/PastTripCard';
-import { TripsSkeleton } from '../components/TripsSkeleton';
-import { UpcomingTripCard } from '../components/UpcomingTripCard';
+import { TripListCard } from '../components/TripListCard';
 import { tripsCopy, tripsErrors } from '../copy';
 import { useTripList } from '../hooks/useTripList';
 
 /**
  * The Trips tab (Figma Your trips, light and dark; API map §8): "Your trips",
- * a line that changes with the tab, the Upcoming / Requests / Past pills, then
- * the list.
+ * a line that changes with the tab, the Upcoming / Requests / Past / My posts
+ * pills, then the list.
  *
  *   - Upcoming: posts I'm going to and posts I host that haven't ended, soonest
  *     first, tagged Going or Hosting (`GET /me/rsvps`, `GET /me/posts`).
@@ -42,6 +42,15 @@ import { useTripList } from '../hooks/useTripList';
  *     waitlist I'm on, tagged Waitlisted (`state=waitlisted`) — with the
  *     "Still waiting?" note under them (or under the empty state).
  *   - Past: what I went to (`GET /me/attended`), with the passport note under it.
+ *   - My posts: everything I host (`GET /me/posts`), newest first, tagged
+ *     Hosting, Completed once it is over, or Cancelled. It was a tab at the
+ *     foot of the profile until 25 Nov (product), and is not in the Figma frames.
+ *
+ * A trip is the card a post is on Home (`TripListCard`, product 25 Nov), with
+ * how I stand with it at its top right and, at its foot, who is joining and
+ * "View trip". The pills sit over a hairline, as Home's do, and the first card
+ * starts a card's gap under it: the cards scroll under the line, where they
+ * used to run up against the pills.
  *
  * Each list pulls to refresh and loads more near its end; the first cards rise
  * in a short stagger. The line under the title cross-fades with the tab. The
@@ -49,6 +58,17 @@ import { useTripList } from '../hooks/useTripList';
  */
 
 const TAB_BAR_CLEARANCE = 120;
+/** Between one card and the next, and between the pills' hairline and the first: Home's. */
+const CARD_GAP = 16;
+/**
+ * An empty list that has a note under its message (Requests, Past): the two as
+ * one block, in the middle of the space between the pills and the tab bar, as
+ * the empty states without a note already are. Left at the top, they had half
+ * the screen blank under them. The message is in a plain view of its own so it
+ * keeps its own height: it would otherwise grow to fill the space and push the
+ * note to the foot.
+ */
+const EMPTY_WITH_NOTE = { flexGrow: 1, justifyContent: 'center', gap: 8 } as const;
 
 export type TripsScreenProps = {
   onOpenTrip: (id: string) => void;
@@ -78,14 +98,10 @@ export function TripsScreen({ onOpenTrip, onExplore, toTopSignal }: TripsScreenP
   const renderItem = useCallback(
     ({ item, index }: { item: TripCard; index: number }) => (
       <Animated.View entering={enter(index)}>
-        {tab === 'past' ? (
-          <PastTripCard trip={item} onOpen={() => onOpenTrip(item.id)} />
-        ) : (
-          <UpcomingTripCard trip={item} onOpen={() => onOpenTrip(item.id)} />
-        )}
+        <TripListCard trip={item} onOpen={() => onOpenTrip(item.id)} />
       </Animated.View>
     ),
-    [tab, onOpenTrip, enter],
+    [onOpenTrip, enter],
   );
 
   const passportNote = (
@@ -128,13 +144,23 @@ export function TripsScreen({ onOpenTrip, onExplore, toTopSignal }: TripsScreenP
         }}
       />
     ) : tab === 'requests' ? (
-      <View style={{ gap: 8 }}>
-        <EmptyState icon="hourglass-outline" title={tripsCopy.empty.requests.title} body={tripsCopy.empty.requests.body} />
+      <View style={EMPTY_WITH_NOTE}>
+        <View>
+          <EmptyState
+            icon="hourglass-outline"
+            title={tripsCopy.empty.requests.title}
+            body={tripsCopy.empty.requests.body}
+          />
+        </View>
         <Animated.View entering={enterRise(80)}>{waitingNote}</Animated.View>
       </View>
+    ) : tab === 'mine' ? (
+      <EmptyState icon="create-outline" title={tripsCopy.empty.mine.title} body={tripsCopy.empty.mine.body} />
     ) : (
-      <View style={{ gap: 8 }}>
-        <EmptyState icon="map-outline" title={tripsCopy.empty.past.title} body={tripsCopy.empty.past.body} />
+      <View style={EMPTY_WITH_NOTE}>
+        <View>
+          <EmptyState icon="map-outline" title={tripsCopy.empty.past.title} body={tripsCopy.empty.past.body} />
+        </View>
         {passportNote}
       </View>
     );
@@ -151,19 +177,28 @@ export function TripsScreen({ onOpenTrip, onExplore, toTopSignal }: TripsScreenP
           </Text>
         </Animated.View>
       </View>
+      {/* The pills over a hairline, as on Home: the cards scroll under the line. */}
       <View className="mt-20">
         <PillTabs options={tripsCopy.tabs} value={tab} onChange={setTab} look="outline" />
+        <View className="mt-12" style={{ height: 1, backgroundColor: theme.border }} />
       </View>
 
       {list.loading ? (
         <ScrollView
           scrollEnabled={false}
           contentContainerStyle={{
-            padding: SCREEN_GUTTER,
+            paddingHorizontal: SCREEN_GUTTER,
+            paddingTop: CARD_GAP,
             paddingBottom: bottom,
           }}
         >
-          <TripsSkeleton withImage={tab !== 'past'} />
+          {/* Two cards in outline, laid out as real ones are, so nothing shifts when the trips land. */}
+          <SkeletonPulse label={tripsCopy.loading}>
+            <View style={{ gap: CARD_GAP }}>
+              <PostListCardSkeleton photo footer />
+              <PostListCardSkeleton footer />
+            </View>
+          </SkeletonPulse>
         </ScrollView>
       ) : list.error && list.items.length === 0 ? (
         <Animated.View entering={FadeIn.duration(220)} className="flex-1 items-center justify-center px-20">
@@ -186,9 +221,10 @@ export function TripsScreen({ onOpenTrip, onExplore, toTopSignal }: TripsScreenP
           keyExtractor={(t) => t.id}
           renderItem={renderItem}
           contentContainerStyle={{
-            padding: SCREEN_GUTTER,
+            paddingHorizontal: SCREEN_GUTTER,
+            paddingTop: CARD_GAP,
             paddingBottom: bottom,
-            gap: 16,
+            gap: CARD_GAP,
             flexGrow: 1,
           }}
           onEndReached={list.loadMore}

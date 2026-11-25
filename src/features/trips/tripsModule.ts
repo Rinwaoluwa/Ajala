@@ -3,7 +3,9 @@ import { createTripsRepository } from './data/repositories/TripsRepositoryImpl';
 import {
   makeLoadGoing,
   makeLoadHostedUpcoming,
+  makeLoadMyPosts,
   makeLoadPast,
+  makeLoadTravellerFaces,
   makeLoadWaiting,
 } from './domain/usecases/TripsUseCases';
 
@@ -16,8 +18,10 @@ export function createTripsUseCases(request: TripsRequest) {
   return {
     loadGoing: makeLoadGoing(repo),
     loadHostedUpcoming: makeLoadHostedUpcoming(repo),
+    loadMyPosts: makeLoadMyPosts(repo),
     loadWaiting: makeLoadWaiting(repo),
     loadPast: makeLoadPast(repo),
+    loadTravellerFaces: makeLoadTravellerFaces(repo),
   };
 }
 

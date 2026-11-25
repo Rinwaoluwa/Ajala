@@ -2,8 +2,8 @@ import { describe, expect, it } from '@jest/globals';
 
 import type { TripCard } from '../entities/Trip';
 import type { TripsRepository } from '../repositories/TripsRepository';
-import { mergeUpcoming, soonestFirst, upcomingOnly } from '../rules/tripRules';
-import { makeLoadGoing, makeLoadHostedUpcoming, makeLoadWaiting } from '../usecases/TripsUseCases';
+import { mergeUpcoming, myPosts, soonestFirst, upcomingOnly } from '../rules/tripRules';
+import { makeLoadGoing, makeLoadHostedUpcoming, makeLoadMyPosts, makeLoadWaiting } from '../usecases/TripsUseCases';
 
 const NOW = new Date('2026-11-02T12:00:00Z');
 
@@ -12,6 +12,8 @@ const trip = (id: string, startAt: string | null, extra: Partial<TripCard> = {})
   type: 'plan',
   title: id,
   imageUrl: null,
+  images: [],
+  price: null,
   startAt,
   endAt: null,
   recurrence: null,
@@ -57,6 +59,7 @@ describe('upcoming trips', () => {
       listHosted: async () => ({ items: [trip('past', '2020-01-01T10:00:00Z')], nextCursor: 'c2' }),
       listRsvps: emptyPage,
       listAttended: emptyPage,
+      listGoingFaces: async () => [],
     };
     expect(await makeLoadHostedUpcoming(repo)(null)).toEqual({ items: [], nextCursor: 'c2' });
   });
@@ -70,9 +73,38 @@ describe('upcoming trips', () => {
         return { items: [], nextCursor: null };
       },
       listAttended: emptyPage,
+      listGoingFaces: async () => [],
     };
     await makeLoadGoing(repo)(null);
     expect(asked).toEqual(['going:null:20']);
+  });
+});
+
+describe('My posts: everything I host', () => {
+  const items = [
+    trip('future', '2026-11-20T10:00:00Z'),
+    trip('past', '2026-10-01T10:00:00Z'),
+    trip('running', '2026-11-01T10:00:00Z', { endAt: '2026-11-03T18:00:00Z' }),
+    trip('removed', '2026-12-01T10:00:00Z', { status: 'taken_down' }),
+    trip('called-off', '2026-11-10T10:00:00Z', { status: 'cancelled' }),
+  ];
+
+  it('keeps the order it was given, past ones included, and leaves out what was taken down', () => {
+    expect(ids(myPosts(items, NOW))).toEqual(['future', 'past', 'running', 'called-off']);
+  });
+
+  it('marks a post that is over as hosted (Completed), and leaves one to come or under way as hosting', () => {
+    expect(myPosts(items, NOW).map((t) => t.role)).toEqual(['hosting', 'hosted', 'hosting', 'hosting']);
+  });
+
+  it('reads a page of what I host and keeps its cursor, even when the page filters to nothing', async () => {
+    const repo: TripsRepository = {
+      listHosted: async () => ({ items: [trip('removed', '2026-12-01T10:00:00Z', { status: 'taken_down' })], nextCursor: 'c2' }),
+      listRsvps: emptyPage,
+      listAttended: emptyPage,
+      listGoingFaces: async () => [],
+    };
+    expect(await makeLoadMyPosts(repo)(null)).toEqual({ items: [], nextCursor: 'c2' });
   });
 });
 
@@ -83,6 +115,7 @@ describe('the Requests tab: requests, then waitlists', () => {
     const repo: TripsRepository = {
       listHosted: emptyPage,
       listAttended: emptyPage,
+      listGoingFaces: async () => [],
       listRsvps: async (state, cursor) => {
         asked.push(`${state}:${cursor}`);
         const page = pages[state]?.[cursor ?? 'first'] ?? { ids: [], next: null };

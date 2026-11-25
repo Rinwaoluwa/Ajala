@@ -4,7 +4,7 @@
 **Owner:** _unassigned_ — put your name here when you pick this feature up.
 
 **Built so far:** the Trips tab (Figma "Your trips", light and dark): the title and a line per tab,
-the Upcoming / Requests / Past pills (shared `PillTabs`, Liquid Glass where available), and:
+the Upcoming / Requests / Past / My posts pills (shared `PillTabs`, Liquid Glass where available), and:
 
 - **Upcoming** — two lists merged on the phone, soonest first, each post once:
   - posts I'm going to (`GET /me/rsvps?state=going`: live, not yet ended, soonest first), tagged
@@ -14,9 +14,12 @@ the Upcoming / Requests / Past pills (shared `PillTabs`, Liquid Glass where avai
     hidden, a cancelled one is tagged **Cancelled**.
 
   The going list pages soonest first, so a hosted post later than the last going post loaded waits
-  for the next going page (`mergeUpcoming`) instead of jumping around. Big photo cards: type and
-  status tags, the post's city and country in caps (`localityLabel`, when it has a place), title,
-  "18–20 Oct · Starts 10:00" (plus "Weekly" etc. on a repeating Group), place, how many are joining, "View trip ›" → the post page.
+  for the next going page (`mergeUpcoming`) instead of jumping around. Every list draws the card a post is on Home (`TripListCard` on the shared `PostListCard`,
+  product 25 Nov): its photos, the type's tag, the title, the price, when and where; how I stand
+  with it at the top right (the tags named here); and at its foot, where Home has Comment and the
+  bookmark, who is joining ("3 joining", with faces) and "View trip ›" → the post page. A trip over
+  several days writes its span ("18–20 Oct") and a repeating Group how often ("6:00 PM · Weekly").
+  The pills sit over a hairline, as Home's do.
   Empty: "No plans yet. Where to next?" with "Explore activities" → the Explore tab.
 - **Requests** — everything I'm waiting to get into, in one list: first the private posts I asked to
   join that the host hasn't answered (`GET /me/rsvps?state=requested`), tagged **Request sent**,
@@ -25,9 +28,12 @@ the Upcoming / Requests / Past pills (shared `PillTabs`, Liquid Glass where avai
   lists in turn (`makeLoadWaiting`, its cursor says which list); when the requests run out mid-page
   the waitlist's first page is added straight away. Then the "Still waiting?" note (Marigold card on
   dark). Empty: an empty state with the note. The place in line stays on the post page.
-- **Past** — posts I went to (`GET /me/attended`): compact cards with type + Completed tags,
-  "5 Oct · Completed" (a span when it ran over several days), place and travellers, then the
-  "AJALA passport" note.
+- **Past** — posts I went to (`GET /me/attended`), tagged **Completed**, with "9 travellers" at the
+  card's foot, then the "AJALA passport" note.
+- **My posts** — everything I host (`GET /me/posts`, the list Upcoming filters), newest first, past
+  ones included and taken-down ones left out (`myPosts`). Tagged **Hosting**,
+  **Completed** once the post is over, or **Cancelled**. It was a tab at the foot of the profile
+  until 25 Nov (product) and is not in the Figma frames. Its own cache key (`['trips', 'mine']`).
 
 Each source (going, hosted, waiting, past) is a cached infinite query under `['trips', …]`;
 only the current tab's are fetched. Lists pull to refresh and page by cursor; loading is a
@@ -39,9 +45,14 @@ don't show them yet. There is no shared cost any more (backend answers C1).
 
 ## Gaps (API map §12 — flag to product/backend)
 
-- **No faces on the cards.** A list card carries `goingCount` but not who is going, so the avatar
-  row is pale circles, not photos (fetching attendees per card would be one request per card).
-- Hosted posts that have already happened are not shown anywhere (they are not "attended").
+- **Faces cost a request per card.** A list card carries `goingCount` but not who is going, so each
+  card with someone going asks `GET /posts/:id/attendees?state=going&limit=3` for its first three
+  (`useTravellerFaces`, five minutes fresh, under `['trips', 'faces', id]`): their photo, or their
+  initial when they have none. Until they arrive, and where the list may not be read (a private post
+  the reader is still waiting to get into), the row keeps its pale circles. Backend request B18 asks
+  for the faces on the card itself.
+- Hosted posts that have already happened are listed under My posts, tagged Completed (they are not
+  "attended", so they are not under Past).
 - `GET /me/posts` is newest-made first, not soonest first, so a hosted post on a later page can
   still slot in above cards already shown once that page loads. Hosts rarely have more than a page.
 
@@ -63,7 +74,7 @@ trips/
 ├── domain/                     TripCard, TripsError, tripRules (upcoming filter, merge), use cases
 └── presentation/
     ├── screens/                TripsScreen
-    ├── components/             UpcomingTripCard, PastTripCard, TravellerDots, TripsSkeleton
+    ├── components/             TripListCard, TravellerDots
     ├── hooks/                  useTripList (an infinite query per source; Upcoming merges two)
     └── state/                  query keys, use-case hook
 ```

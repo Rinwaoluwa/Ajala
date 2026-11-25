@@ -44,6 +44,25 @@ const MINE: MyPostDto = {
 };
 
 describe('TripsRepository over the API', () => {
+  it('reads the first people going to a post as faces for its card', async () => {
+    const { repo, calls } = fake(() => ({
+      items: [
+        { user: { id: 'u1', displayName: 'Ada O.', avatarUrl: 'https://cdn/ada.jpg' }, state: 'going' },
+        { user: { id: 'u2', displayName: 'Kofi A.', avatarUrl: null }, state: 'going' },
+        // A row with no person in it is left out, not drawn as a blank.
+        { user: null, state: 'going' },
+      ],
+      nextCursor: null,
+      counts: { going: 3, requested: null, waitlisted: null },
+    }));
+    const faces = await repo.listGoingFaces('p 1', 3);
+    expect(calls[0]).toEqual({ method: 'GET', path: '/api/v1/posts/p%201/attendees?state=going&limit=3' });
+    expect(faces).toEqual([
+      { id: 'u1', name: 'Ada O.', avatarUrl: 'https://cdn/ada.jpg' },
+      { id: 'u2', name: 'Kofi A.', avatarUrl: null },
+    ]);
+  });
+
   it('lists my published posts as trip cards I host', async () => {
     const { repo, calls } = fake(() => ({ items: [MINE], nextCursor: 'c2' }));
     const page = await repo.listHosted(null, 20);
@@ -56,6 +75,8 @@ describe('TripsRepository over the API', () => {
           type: 'plan',
           title: 'Weekend in Accra',
           imageUrl: 'https://cdn/card.jpg',
+          images: ['https://cdn/card.jpg'],
+          price: null,
           startAt: '2026-11-18T10:00:00+00:00',
           endAt: '2026-11-20T18:00:00+00:00',
           recurrence: null,

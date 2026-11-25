@@ -13,9 +13,10 @@ export type TripStatus = 'draft' | 'published' | 'taken_down' | 'cancelled';
  * How I relate to the post, which picks the card's tag (Hosting, Going,
  * Request sent, Waitlisted, Completed). It comes from the list the post was
  * read from, not the card's `rsvpState`, because a host has no RSVP on their
- * own post.
+ * own post. `hosted` is a post of mine that is over (My posts): it reads
+ * Completed, where one still to come reads Hosting.
  */
-export type TripRole = 'hosting' | 'going' | 'requested' | 'waitlisted' | 'attended';
+export type TripRole = 'hosting' | 'hosted' | 'going' | 'requested' | 'waitlisted' | 'attended';
 
 /** How often a Group meets again; the server moves its dates on after each meeting. */
 export type TripRecurrence = 'weekly' | 'biweekly' | 'monthly';
@@ -26,6 +27,10 @@ export type TripCard = {
   title: string;
   /** The 800px card image, or null when the post has none. */
   imageUrl: string | null;
+  /** Every photo at card size, in the host's order, for the card's head. Empty when the post has none. */
+  images: string[];
+  /** As the API sends it (`amountCents / 10 ** exponent`); null when the post has no price. */
+  price: { amountCents: number; currency: string; exponent: number } | null;
   /** ISO date-time; null only on a draft. */
   startAt: string | null;
   /** ISO date-time after `startAt`, or null when the host gave no end. */
@@ -42,7 +47,11 @@ export type TripCard = {
 
 export type TripsPage = { items: TripCard[]; nextCursor: string | null };
 
-export type TripsTab = 'upcoming' | 'requests' | 'past';
+/** Someone going to a trip, as a card shows them beside "3 joining": their photo, or their initial. */
+export type TripFace = { id: string; name: string; avatarUrl: string | null };
+
+/** `mine` is My posts: everything I host, which the profile listed until 25 Nov. */
+export type TripsTab = 'upcoming' | 'requests' | 'past' | 'mine';
 
 /** The lists `GET /me/rsvps?state=` can read (spec §2.16; `waitlisted` since backend answers B8). */
 export type RsvpListState = 'going' | 'requested' | 'waitlisted';

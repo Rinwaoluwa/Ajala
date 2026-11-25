@@ -2,6 +2,9 @@ import type { TripCard } from '../entities/Trip';
 
 export const TRIPS_PAGE_SIZE = 20;
 
+/** How many faces a card shows beside its count. */
+export const TRIP_FACES = 3;
+
 const time = (iso: string | null) => (iso ? new Date(iso).getTime() : Number.NaN);
 
 /**
@@ -18,6 +21,22 @@ export function upcomingOnly(items: readonly TripCard[], now: Date = new Date())
     const over = time(t.endAt ?? t.startAt);
     return !Number.isNaN(over) && over > now.getTime();
   });
+}
+
+/**
+ * My posts: everything I host, in the order the API lists it (newest first),
+ * past ones included. A taken-down post is hidden, as it is from Upcoming; a
+ * cancelled one stays, so the host sees it was called off. One that is over
+ * (by the same rule as above) is marked `hosted`, which its card reads as
+ * Completed: "Hosting" on something that has finished would be wrong.
+ */
+export function myPosts(items: readonly TripCard[], now: Date = new Date()): TripCard[] {
+  return items
+    .filter((t) => t.status !== 'taken_down')
+    .map((t) => {
+      const over = time(t.endAt ?? t.startAt);
+      return !Number.isNaN(over) && over <= now.getTime() ? { ...t, role: 'hosted' as const } : t;
+    });
 }
 
 /**

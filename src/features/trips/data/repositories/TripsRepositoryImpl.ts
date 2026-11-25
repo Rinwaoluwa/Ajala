@@ -1,6 +1,6 @@
 import type { TripsRepository } from '../../domain/repositories/TripsRepository';
 import { createTripsApi, type TripsRequest } from '../datasources/remote/tripsApi';
-import { toTripsError, toTripsPage } from '../mappers/tripsMappers';
+import { toTripFaces, toTripsError, toTripsPage } from '../mappers/tripsMappers';
 
 /** `TripsRepository` over the API. Nothing is cached here; the screen's queries cache. */
 export function createTripsRepository(request: TripsRequest): TripsRepository {
@@ -23,6 +23,13 @@ export function createTripsRepository(request: TripsRequest): TripsRepository {
     async listAttended(cursor, limit) {
       try {
         return toTripsPage(await api.listAttended(cursor, limit), 'attended');
+      } catch (e) {
+        throw toTripsError(e);
+      }
+    },
+    async listGoingFaces(postId, limit) {
+      try {
+        return toTripFaces(await api.listGoing(postId, limit));
       } catch (e) {
         throw toTripsError(e);
       }

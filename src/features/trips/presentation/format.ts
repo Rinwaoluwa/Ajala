@@ -1,7 +1,7 @@
 /**
- * How a trip card writes its dates and time, as the Trips frames do: "18 Oct",
- * "18–20 Oct" when it runs over several days, and "10:00". Everything is in the
- * phone's own time zone, so the day shown is the day the person lives through.
+ * How a trip writes its dates, as the Trips frames do: "18 Oct", and "18–20
+ * Oct" when it runs over several days. Everything is in the phone's own time
+ * zone, so the day shown is the day the person lives through.
  */
 
 const DAY = new Intl.DateTimeFormat('en-GB', {
@@ -13,11 +13,6 @@ const DAY_YEAR = new Intl.DateTimeFormat('en-GB', {
   month: 'short',
   year: 'numeric',
 });
-const TIME = new Intl.DateTimeFormat('en-GB', {
-  hour: '2-digit',
-  minute: '2-digit',
-  hour12: false,
-});
 
 function parse(iso: string | null): Date | null {
   if (!iso) return null;
@@ -27,11 +22,6 @@ function parse(iso: string | null): Date | null {
 
 const sameDay = (a: Date, b: Date) =>
   a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
-
-export function tripDay(iso: string | null): string | null {
-  const d = parse(iso);
-  return d ? DAY.format(d) : null;
-}
 
 /**
  * The day, or the span of days when the trip ends on a later day: "18–20 Oct",
@@ -48,7 +38,13 @@ export function tripDates(startAt: string | null, endAt: string | null): string 
   return `${start.getDate()}–${DAY.format(end)}`;
 }
 
-export function tripTime(iso: string | null): string | null {
-  const d = parse(iso);
-  return d ? TIME.format(d) : null;
+/**
+ * The span of days, for a trip that ends on a later day than it starts
+ * ("18–20 Oct"); null for a trip of one day, which its card dates as any post.
+ */
+export function tripSpan(startAt: string | null, endAt: string | null): string | null {
+  const start = parse(startAt);
+  const end = parse(endAt);
+  if (!start || !end || end <= start || sameDay(start, end)) return null;
+  return tripDates(startAt, endAt);
 }

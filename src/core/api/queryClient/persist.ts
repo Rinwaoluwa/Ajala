@@ -38,8 +38,9 @@ export const QUERY_CACHE_MAX_AGE_MS = 24 * 60 * 60_000;
  *     in the currency's smallest unit, with its `exponent`.
  *   4 (25 Nov): a post in the profile's lists (Saved, My posts, Going) carries
  *     `images`, `price`, `rsvpState` and `visibility`, for the Saved list's card.
+ *   5 (25 Nov): a trip on the Trips tab carries `images` and `price`, for its card.
  */
-const CACHE_SHAPE = 4;
+const CACHE_SHAPE = 5;
 
 export const queryPersister = createAsyncStoragePersister({
   storage: AsyncStorage,

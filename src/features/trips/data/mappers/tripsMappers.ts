@@ -1,8 +1,8 @@
 import { isApiError } from '@core/api/ApiError';
 
-import type { TripCard, TripRole, TripsPage } from '../../domain/entities/Trip';
+import type { TripCard, TripFace, TripRole, TripsPage } from '../../domain/entities/Trip';
 import { TripsError } from '../../domain/entities/TripsError';
-import type { MyPostDto, PageDto, PostCardDto } from '../dto/tripsDtos';
+import type { AttendeeDto, MyPostDto, PageDto, PostCardDto } from '../dto/tripsDtos';
 
 /** `role` comes from the list the card was read from (see `TripRole`). */
 export function toTripCard(dto: PostCardDto | MyPostDto, role: TripRole): TripCard {
@@ -11,6 +11,12 @@ export function toTripCard(dto: PostCardDto | MyPostDto, role: TripRole): TripCa
     type: dto.type,
     title: dto.title,
     imageUrl: dto.images?.[0]?.cardUrl ?? null,
+    images: (dto.images ?? []).map((image) => image.cardUrl).filter(Boolean),
+    // A Plan carries no money (the API refuses it).
+    price:
+      dto.type !== 'plan' && dto.price
+        ? { amountCents: dto.price.amountCents, currency: dto.price.currency, exponent: dto.price.exponent }
+        : null,
     startAt: dto.startAt ?? null,
     endAt: dto.endAt ?? null,
     recurrence: dto.recurrence?.frequency ?? null,
@@ -27,6 +33,12 @@ export const toTripsPage = (dto: PageDto<PostCardDto | MyPostDto>, role: TripRol
   items: (dto.items ?? []).map((item) => toTripCard(item, role)),
   nextCursor: dto.nextCursor ?? null,
 });
+
+/** The people going, as faces for a card; a row with no person in it is left out. */
+export const toTripFaces = (dto: PageDto<AttendeeDto>): TripFace[] =>
+  (dto.items ?? []).flatMap((a) =>
+    a.user?.id ? [{ id: a.user.id, name: a.user.displayName ?? '', avatarUrl: a.user.avatarUrl ?? null }] : [],
+  );
 
 /** By the API's code (spec §5), never its message. */
 export function toTripsError(e: unknown): TripsError {

@@ -1,4 +1,4 @@
-import type { RsvpListState, TripsPage } from '../entities/Trip';
+import type { RsvpListState, TripFace, TripsPage } from '../entities/Trip';
 
 /**
  * What the Trips tab needs from the API (spec §2.16, API map §8). Each list
@@ -16,4 +16,10 @@ export interface TripsRepository {
   listRsvps(state: RsvpListState, cursor: string | null, limit: number): Promise<TripsPage>;
   /** `GET /me/attended`: past posts I went to, latest first. */
   listAttended(cursor: string | null, limit: number): Promise<TripsPage>;
+  /**
+   * `GET /posts/{id}/attendees?state=going`: the first people going, oldest
+   * first, for the faces on a card. The API refuses the list to someone who is
+   * neither the host nor going on a private post; that throws like any other.
+   */
+  listGoingFaces(postId: string, limit: number): Promise<TripFace[]>;
 }

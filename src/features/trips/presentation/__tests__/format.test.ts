@@ -1,6 +1,6 @@
 import { describe, expect, it } from '@jest/globals';
 
-import { tripDates } from '../format';
+import { tripDates, tripSpan } from '../format';
 
 // Built in the phone's own time zone, as the cards read them, so the test holds anywhere.
 const local = (y: number, m: number, d: number, h = 10) => new Date(y, m - 1, d, h).toISOString();
@@ -20,5 +20,15 @@ describe('trip dates', () => {
   it('ignores an end before the start, and a missing start', () => {
     expect(tripDates(local(2026, 10, 18), local(2026, 10, 10))).toBe('18 Oct');
     expect(tripDates(null, local(2026, 10, 10))).toBeNull();
+  });
+});
+
+describe('the span on a trip card', () => {
+  it('is written only for a trip that ends on a later day', () => {
+    expect(tripSpan(local(2026, 10, 18), local(2026, 10, 20))).toBe('18–20 Oct');
+    expect(tripSpan(local(2026, 10, 18), null)).toBeNull();
+    expect(tripSpan(local(2026, 10, 18), local(2026, 10, 18, 22))).toBeNull();
+    expect(tripSpan(local(2026, 10, 18), local(2026, 10, 10))).toBeNull();
+    expect(tripSpan(null, local(2026, 10, 10))).toBeNull();
   });
 });

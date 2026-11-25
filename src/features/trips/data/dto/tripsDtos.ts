@@ -61,3 +61,8 @@ export interface PageDto<T> {
   items: T[];
   nextCursor: string | null;
 }
+
+/** A person going, from `GET /posts/{id}/attendees` (`AttendeeDto`), trimmed to the face a card shows. */
+export interface AttendeeDto {
+  user: { id: string; displayName: string; avatarUrl: string | null } | null;
+}

@@ -1,6 +1,6 @@
 import type { WaitingCursor, WaitingPage } from '../entities/Trip';
 import type { TripsRepository } from '../repositories/TripsRepository';
-import { TRIPS_PAGE_SIZE, upcomingOnly } from '../rules/tripRules';
+import { TRIPS_PAGE_SIZE, TRIP_FACES, myPosts, upcomingOnly } from '../rules/tripRules';
 
 /**
  * A page of what I host that has not ended. Filtered here because the API
@@ -10,6 +10,15 @@ import { TRIPS_PAGE_SIZE, upcomingOnly } from '../rules/tripRules';
 export const makeLoadHostedUpcoming = (repo: TripsRepository) => async (cursor: string | null) => {
   const page = await repo.listHosted(cursor, TRIPS_PAGE_SIZE);
   return { items: upcomingOnly(page.items), nextCursor: page.nextCursor };
+};
+
+/**
+ * A page of My posts: everything I host, newest first, past ones included
+ * (`GET /me/posts`, the list Upcoming filters). The cursor is kept, as above.
+ */
+export const makeLoadMyPosts = (repo: TripsRepository) => async (cursor: string | null) => {
+  const page = await repo.listHosted(cursor, TRIPS_PAGE_SIZE);
+  return { items: myPosts(page.items), nextCursor: page.nextCursor };
 };
 
 /** A page of live posts I'm going to that haven't ended, soonest first. */
@@ -40,6 +49,14 @@ export const makeLoadWaiting =
       nextCursor: waitlist.nextCursor ? { state: 'waitlisted', cursor: waitlist.nextCursor } : null,
     };
   };
+
+/**
+ * The first few people going to a trip, for the faces on its card. A list card
+ * says how many are going but not who (backend request B18), so a card on
+ * screen asks for them.
+ */
+export const makeLoadTravellerFaces = (repo: TripsRepository) => (postId: string) =>
+  repo.listGoingFaces(postId, TRIP_FACES);
 
 /** A page of what I went to. */
 export const makeLoadPast = (repo: TripsRepository) => (cursor: string | null) =>
