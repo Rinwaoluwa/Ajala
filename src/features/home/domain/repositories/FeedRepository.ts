@@ -5,11 +5,6 @@ export interface FeedRepository {
   /** The server picks the point (teleport, then the phone's location); the app never sends a place. */
   getFeed(filter: FeedFilter, cursor: string | null, limit: number): Promise<FeedPage>;
   /**
-   * A post's description, for a card: feed cards don't carry it yet (backend
-   * request B4). Null when it has none or the post could not be read; never rejects.
-   */
-  getPostDescription(postId: string): Promise<string | null>;
-  /**
    * How many comments a post has, for its comment button: feed cards don't carry
    * the count yet (backend request B11). Null when it could not be read; never rejects.
    */

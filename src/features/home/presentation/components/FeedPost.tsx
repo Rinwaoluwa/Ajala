@@ -39,9 +39,8 @@ import { homeCopy } from '../copy';
  *   - **Photos** at its head when the post has any (`CardPhotos`): one at a
  *     time, swiped between, with dots and a count. A tap opens that photo full
  *     screen. A post with none is the same card without a head.
- *   - **The type's tag, the title and the host's words.** The feed's cards
- *     don't carry the words, so they arrive a moment after the card; two lines
- *     are held open (as grey bars) until then, so nothing below jumps.
+ *   - **The type's tag, the title and the price** when it has one. Not the
+ *     host's words: the card is a quick look, and they are on the post.
  *   - **When and where, and Join** at the end of their line: the quick RSVP
  *     every card has (`JoinPill`). It fills at once, says Going / Requested /
  *     Waitlisted after, and asks before leaving.
@@ -64,10 +63,6 @@ import { homeCopy } from '../copy';
  */
 export type FeedPostProps = {
   post: PostCard;
-  /** The host's words; null when there are none. */
-  description: string | null;
-  /** Still being fetched: the two lines are held open. */
-  descriptionLoading: boolean;
   /** The reader's own post: no Join, and nothing to hide or report. */
   mine: boolean;
   onOpen: () => void;
@@ -88,8 +83,6 @@ const CARD_GAP = 16;
 
 function FeedPostComponent({
   post,
-  description,
-  descriptionLoading,
   mine,
   onOpen,
   onBeforeRsvp,
@@ -125,8 +118,7 @@ function FeedPostComponent({
       type={post.type}
       typeLabel={homeCopy.postType[post.type]}
       title={post.title}
-      words={description}
-      wordsLoading={descriptionLoading}
+      price={post.price}
       startAt={post.startAt}
       placeName={post.placeName}
       localityLabel={post.localityLabel}

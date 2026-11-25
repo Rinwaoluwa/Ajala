@@ -9,10 +9,6 @@ export const makeLoadFeed =
   (filter: FeedFilter, cursor: string | null = null) =>
     repo.getFeed(filter, cursor, FEED_PAGE_SIZE);
 
-/** A card's description, while the feed's cards don't carry one (B4). */
-export const makeLoadPostDescription = (repo: FeedRepository) => (postId: string) =>
-  repo.getPostDescription(postId);
-
 /** A post's comment count, while the feed's cards don't carry one (B11). */
 export const makeLoadPostCommentCount = (repo: FeedRepository) => (postId: string) =>
   repo.getPostCommentCount(postId);

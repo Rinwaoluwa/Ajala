@@ -5,7 +5,6 @@ import {
   makeEndCitySearch,
   makeLoadFeed,
   makeLoadPostCommentCount,
-  makeLoadPostDescription,
   makeLoadTravelState,
   makeCityNameAt,
   makePlaceName,
@@ -22,7 +21,6 @@ export function createHomeUseCases(request: FeedRequest) {
   const repo = createFeedRepository(request);
   return {
     loadFeed: makeLoadFeed(repo),
-    loadPostDescription: makeLoadPostDescription(repo),
     loadPostCommentCount: makeLoadPostCommentCount(repo),
     searchCities: makeSearchCities(repo),
     placeName: makePlaceName(repo),

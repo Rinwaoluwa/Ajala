@@ -80,8 +80,6 @@ export type PostPreview = {
   isHost: boolean;
   /** Also compared with the signed-in person's id (`asSeenBy`), as the API asks every card to do. */
   hostId: string;
-  /** The host's words about it. Lists don't carry them (backend request B10); the post's own page does. */
-  description: string;
 };
 
 /** The answer to joining: what the button should now say. */
@@ -125,6 +123,8 @@ export type ListedPost = {
   visibility: 'open' | 'private';
   /** Compared with the signed-in person's id: their own post offers no Join. */
   hostId: string;
+  /** The price, or nothing. A Plan never has one. */
+  price: PostPrice | null;
 };
 
 export type PostsPage = { items: ListedPost[]; nextCursor: string | null };

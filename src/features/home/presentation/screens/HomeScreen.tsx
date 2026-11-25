@@ -44,7 +44,6 @@ import { FilterPills } from '../components/FilterPills';
 // import { LevelCard } from '../components/LevelCard';
 import { homeCopy } from '../copy';
 import { useCardCommentCount } from '../hooks/useCardCommentCount';
-import { useCardDescription } from '../hooks/useCardDescription';
 import { useFeed } from '../hooks/useFeed';
 import { useHiddenPosts } from '../hooks/useHiddenPosts';
 import { useLocationPrompt } from '../hooks/useLocationPrompt';
@@ -55,7 +54,7 @@ import { travelMemory } from '../state/travelMemory';
  * The home feed (Home design, 24 Nov; light and dark): the place header, the
  * post-type pills over a hairline, then the posts, each a card with the page
  * showing between them (`FeedPost`: its photos, the type's tag, the title, the
- * host's words, when and where with Join, and Comment and Save at its foot).
+ * price, when and where with Join, and Comment and Save at its foot).
  *
  * Until the first page lands the whole screen is the skeleton frame. The posts
  * enter in a short stagger (the first three; later pages simply appear). Pull to
@@ -499,9 +498,9 @@ export function HomeScreen({
 }
 
 /**
- * A feed post with its host's words, which the feed's cards don't carry yet
- * (`useCardDescription`). Memoised with stable handlers, so a change elsewhere on
- * Home (a badge, a fetch status) does not redraw every post.
+ * A feed post with what the feed's cards don't carry yet: how many comments it
+ * has (`useCardCommentCount`). Memoised with stable handlers, so a change
+ * elsewhere on Home (a badge, a fetch status) does not redraw every post.
  */
 const FeedCard = memo(function FeedCard({
   post,
@@ -530,11 +529,10 @@ const FeedCard = memo(function FeedCard({
   /**
    * Handed in by the route's `Link asChild` when the post sits in one: the link's
    * own open (with the zoom transition). It must reach the post's own presses, or
-   * a tap on its words or its banner does nothing.
+   * a tap on its title or its banner does nothing.
    */
   onPress?: () => void;
 }) {
-  const words = useCardDescription(post);
   const commentCount = useCardCommentCount(post.id);
   const open = useCallback(() => onOpenPost(post), [onOpenPost, post]);
   // Once per tap: the link opens the post itself (not through `router`, which has its own
@@ -543,8 +541,6 @@ const FeedCard = memo(function FeedCard({
   return (
     <FeedPost
       post={post}
-      description={words.text}
-      descriptionLoading={words.loading}
       mine={mine}
       onOpen={openOnce}
       onBeforeRsvp={onBeforeRsvp}

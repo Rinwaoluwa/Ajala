@@ -46,7 +46,6 @@ const POST: PostPreview = {
   waitlistPosition: null,
   isHost: false,
   hostId: 'h1',
-  description: '',
 };
 
 describe('happening today', () => {

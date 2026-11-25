@@ -42,13 +42,6 @@ export function createFeedApi(request: FeedRequest) {
       }),
 
     /**
-     * A post's own page, read only for its description: `PostCardDto` has none
-     * yet (backend request B4), so a card fetches it from `PostDetailDto`.
-     */
-    getPostDescription: (postId: string) =>
-      request<{ description?: string | null }>({ method: 'GET', path: `${V1}/posts/${encodeURIComponent(postId)}` }),
-
-    /**
      * A post's comments, read only for `total`: `PostCardDto` has no comment
      * count yet (backend request B11), so a card asks for one comment and reads
      * how many there are.

@@ -6,8 +6,6 @@ import { FeedError } from '../../domain/entities/FeedError';
 import type { FeedPageDto, MeTravelDto, PostCardDto } from '../dto/feedDtos';
 
 /** Smallest unit to display amount (spec §1.5): amountCents / 10 ** exponent. */
-const toAmount = (cents: number, exponent: number) => cents / 10 ** exponent;
-
 export function toPostCard(dto: PostCardDto): PostCard {
   const image = dto.images?.[0];
   return {
@@ -34,12 +32,11 @@ export function toPostCard(dto: PostCardDto): PostCard {
       verified: dto.host?.verified ?? false,
     },
     distanceKm: dto.distanceKm ?? null,
-    description: dto.description?.trim() || null,
     visibility: dto.visibility === 'private' ? 'private' : 'open',
     goingCount: dto.goingCount ?? 0,
     capacity: dto.capacity ?? null,
     price: dto.price
-      ? { amount: toAmount(dto.price.amountCents, dto.price.exponent), currency: dto.price.currency }
+      ? { amountCents: dto.price.amountCents, currency: dto.price.currency, exponent: dto.price.exponent }
       : null,
     rsvpState: dto.rsvpState ?? 'none',
     saved: dto.saved ?? false,

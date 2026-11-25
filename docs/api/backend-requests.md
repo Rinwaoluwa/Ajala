@@ -225,7 +225,7 @@ These three are related:
 - **Proposal:** add `isHost: boolean` to `PostCardDto`, as `PostDetailDto` has it. This is low priority, because the app can compare ids.
 
 ### B10. What a feed post needs on its card (22 Nov, the new Home design)
-**Status: Open.**
+**Status: Open, but no longer needed by the app (24 Nov).** Cards stopped showing the host's words (a card is a quick look; the words are on the post), so the app no longer asks `GET /posts/:id` once per card, and the 24 Nov card design has no line for when it was posted. What follows is the request as it was made.
 
 - **Problem:** the new Home feed draws each post as a social post: the host, when it was posted, the host's words, the photos, then a Join banner and a row of actions. `PostCardDto` has none of the first three, so the app asks `GET /posts/:id` once per card for the words (20 extra calls a page) and shows the distance where the time should be.
 - **Proposal:** add to `PostCardDto`:

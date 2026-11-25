@@ -24,7 +24,8 @@ export type FeedOrigin = {
   region: string | null;
 };
 
-export type PostPrice = { amount: number; currency: string };
+/** As the API sends it: `amountCents / 10 ** exponent` in `currency` (spec §1.5). */
+export type PostPrice = { amountCents: number; currency: string; exponent: number };
 
 export type RsvpState = 'none' | 'requested' | 'going' | 'waitlisted' | 'declined' | 'removed';
 export type Recurrence = 'weekly' | 'biweekly' | 'monthly';
@@ -63,12 +64,6 @@ export type PostCard = {
   host: { id: string; name: string; avatarUrl: string | null; verified: boolean };
   /** Null without the location header. */
   distanceKm: number | null;
-  /**
-   * A line about the post, when the server sends one. `PostCardDto` has no
-   * description today (it belongs to `PostDetailDto`); the card shows it as soon
-   * as the backend adds it (backend request B4).
-   */
-  description: string | null;
   visibility: 'open' | 'private';
   goingCount: number;
   capacity: number | null;

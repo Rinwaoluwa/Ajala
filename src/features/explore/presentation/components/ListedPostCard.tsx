@@ -6,13 +6,13 @@ import { SCREEN_GUTTER } from '@shared/theme';
 
 import type { ListedPost } from '../../domain/entities/Explore';
 import { exploreCopy, typeLabels } from '../copy';
-import { usePostDescription } from '../hooks/usePostDescription';
 
 /**
  * A post in the Explore list (search results and Meetups Near You): the app's
  * list card (`PostListCard`), the one the home feed's posts are, so a post
  * looks the same in both places. Its photos at the head when it has any, the
- * type's tag, the title, the host's words, when and where, and Join.
+ * type's tag, the title, the price when it has one, when and where, and Join.
+ * A quick look: the host's words are on the post.
  *
  * What it leaves off the feed's card:
  *   - The foot (Comment and Save): the list is for finding something to go to,
@@ -21,10 +21,6 @@ import { usePostDescription } from '../hooks/usePostDescription';
  *
  * A photo opens the post here, as the rest of the card does (the feed opens it
  * full screen). Its photos are still swiped between on the card.
- *
- * The words are not in the list's data (backend request B10), so they arrive a
- * moment after the card (`usePostDescription`); the card holds their lines
- * open until then.
  *
  * Join is the quick RSVP every card has (`JoinPill`), in Explore's words: a
  * private post says Join too.
@@ -43,14 +39,12 @@ function ListedPostCardComponent({
   onBeforeRsvp: () => Promise<boolean>;
 }) {
   const { width: screen } = useWindowDimensions();
-  const words = usePostDescription(post.id);
   return (
     <PostListCard
       type={post.type}
       typeLabel={typeLabels[post.type]}
       title={post.title}
-      words={words.text}
-      wordsLoading={words.loading}
+      price={post.price}
       startAt={post.startAt}
       placeName={post.placeName}
       localityLabel={post.localityLabel}

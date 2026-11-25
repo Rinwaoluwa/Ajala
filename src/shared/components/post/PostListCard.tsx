@@ -3,11 +3,14 @@ import { Pressable, View, type StyleProp, type ViewStyle } from 'react-native';
 import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import { useFontScale } from '@shared/hooks/useFontScale';
+import { useLocalMoney } from '@shared/hooks/useLocalMoney';
 import { useTheme } from '@shared/hooks/useTheme';
+import { formatMinor } from '@shared/money';
 import { textStyles } from '@shared/theme';
 import { useTypeColors, type TypeColorKey } from '@shared/theme/postTypeColors';
 
 import { SkeletonBlock } from '../feedback/Skeleton';
+import { CARD_PHOTOS_ASPECT } from '../media/CardPhotos';
 import { SvgIcon } from '../ui/SvgIcon';
 import { Text } from '../ui/Text';
 import { VectorIcon } from '../ui/VectorIcon';
@@ -17,13 +20,23 @@ import { formatCardDay, formatClock } from './formatPost';
  * A post as a card in a list (Home design, 24 Nov): the home feed's posts and
  * the Explore list's, so a post looks the same wherever it is listed.
  *
+ * It is a quick look, not the post (product, 24 Nov): what it is, what it
+ * costs, when and where. The host's words are on the post's page, a tap away,
+ * and not here.
+ *
  * From the top: its photos when it has any (`photos`, a `CardPhotos`), the
- * type's tag in the type's own colour, the title, the host's words, then when
- * and where side by side with one action at the end of the line (`action`,
- * Join). A card may close with a row of its own under a hairline (`footer`:
- * the feed's Comment and Save) and carry something at its top right, level
- * with the tag (`corner`: the feed's menu). With no photos it is the same card
- * without its head: a card of words.
+ * type's tag in the type's own colour, the title, the price when it has one,
+ * then when and where side by side with one action at the end of the line
+ * (`action`, Join). A card may close with a row of its own under a hairline
+ * (`footer`: the feed's Comment and Save) and carry something at its top
+ * right, level with the tag (`corner`: the feed's menu). With no photos it is
+ * the same card without its head.
+ *
+ * The price is the post's own, in its own currency ("₦5,000"). Read somewhere
+ * that uses another, about what it comes to there follows it, quieter
+ * ("≈ €3"): an estimate beside the real price, never instead of it. A post
+ * with no price says nothing: no price is not the same as free (backend
+ * answers C1).
  *
  * The whole card opens the post (`onPress`); what is in `photos`, `action`,
  * `corner` and `footer` keeps its own presses. It dips to 98% while pressed.
@@ -39,23 +52,18 @@ import { formatCardDay, formatClock } from './formatPost';
  *     whole width.
  *   - When even that is not room enough (the largest text sizes), when and
  *     where stack, each with a line to itself.
- *
- * The words are not in a list's data (backend request B10), so they may arrive
- * after the card: `wordsLoading` holds their lines open as grey bars until
- * then, so nothing under them moves when they land.
  */
+
+/** A price as the API sends it: in the currency's smallest unit (spec §1.5). */
+export type PostListCardPrice = { amountCents: number; currency: string; exponent: number };
 
 export type PostListCardProps = {
   type: Exclude<TypeColorKey, 'all'>;
   /** The type's name, as the screen writes it: "Meetup". */
   typeLabel: string;
   title: string;
-  /** The host's words; null when there are none (or none yet). */
-  words: string | null;
-  /** Still being fetched: their lines are held open. */
-  wordsLoading?: boolean;
-  /** How many lines of the words show before they are cut. */
-  wordsLines?: number;
+  /** What it costs; null when the post has no price. */
+  price?: PostListCardPrice | null;
   /** When it starts, as the API sends it; null for a post with no date. */
   startAt: string | null;
   /** The place's name; and the city around it ("Lagos, Nigeria"), of which the first part is written under. */
@@ -85,6 +93,8 @@ const ICON_GAP = 8;
 const FACTS_GAP = 12;
 /** Letters of the place there is always room for; its whole name when that is shorter. */
 const PLACE_LETTERS = 8;
+/** How far the title grows with the text size (`Text`, `headingSm`): the price under it grows no further. */
+const TITLE_MAX_SCALE = 1.5;
 
 /**
  * How wide `count` letters of a fact's first line run, generously: 0.6 em each
@@ -96,9 +106,7 @@ function PostListCardComponent({
   type,
   typeLabel,
   title,
-  words,
-  wordsLoading = false,
-  wordsLines = 2,
+  price = null,
   startAt,
   placeName,
   localityLabel,
@@ -113,6 +121,10 @@ function PostListCardComponent({
   const colors = useTypeColors()[type];
   const reduceMotion = useReducedMotion();
   const scale = useFontScale();
+  // Rates are asked for only by a card that has a price to work out.
+  const money = useLocalMoney(Boolean(price));
+  const cost = price ? formatMinor(price.amountCents, price.currency, price.exponent) : null;
+  const costHere = money.equivalent(price);
 
   const pressed = useSharedValue(0);
   const dip = useAnimatedStyle(() => ({
@@ -131,7 +143,6 @@ function PostListCardComponent({
   const city = localityLabel?.split(',')[0]?.trim() || null;
   const place = placeName;
   const under = city && place && !place.startsWith(city) ? city : null;
-  const heldHeight = Math.round(wordsLines * textStyles.bodySm.lineHeight * scale);
 
   // What when and where need to sit side by side: the day in full, and the place up to
   // PLACE_LETTERS letters. The line they share with the action wraps by this: with room for it
@@ -173,7 +184,7 @@ function PostListCardComponent({
           <Pressable
             {...press}
             accessibilityRole="button"
-            accessibilityLabel={[typeLabel, title, words, day, time, place, under].filter(Boolean).join(', ')}
+            accessibilityLabel={[typeLabel, title, cost, costHere, day, time, place, under].filter(Boolean).join(', ')}
             style={{ gap: 6 }}
           >
             <View
@@ -193,15 +204,19 @@ function PostListCardComponent({
             <Text variant="headingSm" numberOfLines={2}>
               {title}
             </Text>
-            {words ? (
-              <Text variant="bodySm" tone="muted" numberOfLines={wordsLines}>
-                {words}
-              </Text>
-            ) : wordsLoading ? (
-              // The words on their way: bars where the lines will be.
-              <View style={{ height: heldHeight, justifyContent: 'space-evenly' }}>
-                <SkeletonBlock height={10} radius={5} />
-                <SkeletonBlock width="62%" height={10} radius={5} />
+            {cost ? (
+              // The estimate goes under the price when the two do not fit side by side. Neither
+              // grows past what the title above may (a small heading stops at half again), or at
+              // the largest text sizes the price would be the biggest thing on the card.
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline', columnGap: 8 }}>
+                <Text variant="labelMd" maxFontSizeMultiplier={TITLE_MAX_SCALE}>
+                  {cost}
+                </Text>
+                {costHere ? (
+                  <Text variant="bodySm" tone="muted" maxFontSizeMultiplier={TITLE_MAX_SCALE}>
+                    {costHere}
+                  </Text>
+                ) : null}
               </View>
             ) : null}
           </Pressable>
@@ -345,7 +360,7 @@ export function PostListCardSkeleton({
       ]}
     >
       {photo ? (
-        <View style={{ aspectRatio: 3 }}>
+        <View style={{ aspectRatio: CARD_PHOTOS_ASPECT }}>
           <SkeletonBlock width="100%" height="100%" radius={0} />
         </View>
       ) : null}
@@ -353,10 +368,6 @@ export function PostListCardSkeleton({
         <SkeletonBlock width={64} height={24} radius={12} />
         <View style={{ marginTop: 12 }}>
           <SkeletonBlock width="72%" height={18} radius={6} />
-        </View>
-        <View style={{ marginTop: 12, gap: 10 }}>
-          <SkeletonBlock height={10} radius={5} />
-          <SkeletonBlock width="62%" height={10} radius={5} />
         </View>
         {/* When, where, and the action at the end of their line. */}
         <View style={{ marginTop: 16, flexDirection: 'row', alignItems: 'center', gap: 12 }}>

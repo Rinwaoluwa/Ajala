@@ -27,8 +27,10 @@ const Pages = Animated.createAnimatedComponent(GestureScrollView);
  * A post's photos at the head of its card (Home design, 24 Nov): a wide banner
  * the card's whole width, one photo at a time.
  *
- *   - Three times as wide as it is tall, as the design draws it. The photo
- *     covers it; a tap opens it whole.
+ *   - Sixteen wide to nine tall: tall enough to see what the photo is of,
+ *     which the card is a quick look at (product, 24 Nov; the design drew a
+ *     strip three times as wide as tall). The photo covers it; a tap opens it
+ *     whole.
  *   - More than one photo, and they are pages swiped between: the platform's
  *     own paging scroller, so the feel under the finger and the rubber band at
  *     either end are the system's.
@@ -70,8 +72,8 @@ export type CardPhotosProps = {
   label?: string;
 };
 
-/** Width ÷ height (the design's banner: 615 × 204). */
-const ASPECT = 3;
+/** Width ÷ height. A card in outline draws its head the same shape (`PostListCardSkeleton`). */
+export const CARD_PHOTOS_ASPECT = 16 / 9;
 const DOT = 7;
 const DOT_GAP = 7;
 
@@ -105,7 +107,7 @@ function CardPhotosComponent({ images, width: hint, onOpen, label }: CardPhotosP
   if (count === 0) return null;
 
   return (
-    <View onLayout={onLayout} style={{ aspectRatio: ASPECT, overflow: 'hidden', backgroundColor: theme.skeleton }}>
+    <View onLayout={onLayout} style={{ aspectRatio: CARD_PHOTOS_ASPECT, overflow: 'hidden', backgroundColor: theme.skeleton }}>
       {count === 1 ? (
         <Tile uri={images[0]!} index={0} count={1} label={label} onOpen={onOpen} style={{ flex: 1 }} />
       ) : width > 0 ? (

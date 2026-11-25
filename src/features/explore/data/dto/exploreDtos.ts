@@ -100,9 +100,8 @@ export interface PostCardDto {
   distanceKm: number | null;
 }
 
-/** Trimmed to what Explore reads beyond the card: the mini card, and a text card's words. */
+/** Trimmed to what the mini card reads beyond the card. */
 export interface PostDetailDto extends PostCardDto {
-  description: string;
   isHost: boolean;
   waitlistPosition: number | null;
 }

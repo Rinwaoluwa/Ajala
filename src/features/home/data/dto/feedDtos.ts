@@ -102,8 +102,6 @@ export interface PostCardDto {
   host: HostCardDto;
   interests: InterestDto[];
   distanceKm: number | null;
-  /** Not in `PostCardDto` yet (asked for, backend request B4); read when it arrives. */
-  description?: string | null;
 }
 
 export interface FeedPageDto {

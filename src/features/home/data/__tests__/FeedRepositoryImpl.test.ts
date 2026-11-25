@@ -108,7 +108,8 @@ describe('feed repository', () => {
     expect(page.originSource).toBe('device');
     expect(page.items[0]).toMatchObject({
       imageUrl: 'https://cdn/card.jpg',
-      price: { amount: 60000, currency: 'NGN' },
+      // As the API sends it: kobo, and how many decimals the currency has.
+      price: { amountCents: 6000000, currency: 'NGN', exponent: 2 },
       host: { name: 'Art Lagos' },
       endAt: '2026-10-22T23:00:00+01:00',
       saved: true,

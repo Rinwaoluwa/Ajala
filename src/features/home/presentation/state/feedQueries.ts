@@ -22,8 +22,6 @@ export const feedKeys = {
   travelState: ['home', 'travelState'] as const,
   /** The posts this account hid, on this phone (`useHiddenPosts`). */
   hiddenPosts: (userId: string) => ['home', 'hiddenPosts', userId] as const,
-  /** A card's description from its post page (B4). Not origin-bound: a post's words don't move. */
-  postDescription: (postId: string) => ['home', 'postDescription', postId] as const,
 };
 
 /**

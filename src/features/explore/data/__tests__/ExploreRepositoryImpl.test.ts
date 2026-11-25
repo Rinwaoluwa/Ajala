@@ -98,6 +98,7 @@ const LISTED = {
   rsvpState: 'none',
   visibility: 'open',
   hostId: 'h',
+  price: null,
 };
 
 const ORIGIN = { lat: 6.453, lng: 3.396, label: null, region: 'Lagos' };
@@ -161,17 +162,9 @@ describe('explore repository', () => {
       externalUrl: null,
       isHost: false,
       hostId: 'h',
-      // The server here sends none: a card with no words, not a crash.
-      description: '',
     });
     // Shared cost is gone from the API: nothing of it reaches the card.
     expect(post).not.toHaveProperty('costShare');
-  });
-
-  it("reads a post's words, for a card that has no photo to show", async () => {
-    const { request } = fake(() => ({ ...POST, description: '  Quiet work sprints with chatty breaks.  ' }));
-    const post = await createExploreRepository(request, notice).getPost('p1');
-    expect(post.description).toBe('Quiet work sprints with chatty breaks.');
   });
 
   it("keeps a post's link: joining opens it as well as RSVPing", async () => {
@@ -308,6 +301,21 @@ describe('explore repository', () => {
     const page = await createExploreRepository(request, notice).getFeed('meetup', null, 20);
     expect(page.items.map((p) => p.images)).toEqual([['https://cdn/one.jpg', 'https://cdn/two.jpg'], []]);
     expect(page.items.map((p) => p.imageUrl)).toEqual(['https://cdn/one.jpg', null]);
+  });
+
+  it("carries a listed post's price for its card, and none for a Plan", async () => {
+    const price = { amountCents: 500000, currency: 'NGN', exponent: 2 };
+    const { request } = fake(() => ({
+      items: [
+        { ...POST, id: 'p2', price },
+        { ...POST, id: 'p3', type: 'plan', price },
+      ],
+      nextCursor: null,
+      origin: ORIGIN,
+      originSource: 'device',
+    }));
+    const page = await createExploreRepository(request, notice).getFeed('meetup', null, 20);
+    expect(page.items.map((p) => p.price)).toEqual([price, null]);
   });
 
   it('searches posts by words, or by interests repeated once each', async () => {

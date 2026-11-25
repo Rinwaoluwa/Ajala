@@ -19,8 +19,8 @@ import { currentUpdateId } from '@core/updates/otaUpdates';
  * and so the saved copy, after ten minutes.
  *
  * Only finished, successful answers are saved, and not those that go stale on
- * their own: chat (its picture links last an hour, and typing is live), a feed
- * card's description, and the create wizard's place lookups.
+ * their own: chat (its picture links last an hour, and typing is live) and the
+ * create wizard's place lookups.
  */
 export const QUERY_CACHE_MAX_AGE_MS = 24 * 60 * 60_000;
 
@@ -34,8 +34,10 @@ export const QUERY_CACHE_MAX_AGE_MS = 24 * 60 * 60_000;
  * and a card that read a field they did not have took the screen down.
  *
  *   2 (24 Nov): a post in Explore's lists carries `images`.
+ *   3 (24 Nov): a post in Explore's lists carries `price`; the feed's price is
+ *     in the currency's smallest unit, with its `exponent`.
  */
-const CACHE_SHAPE = 2;
+const CACHE_SHAPE = 3;
 
 export const queryPersister = createAsyncStoragePersister({
   storage: AsyncStorage,
@@ -43,7 +45,7 @@ export const queryPersister = createAsyncStoragePersister({
   throttleTime: 1000,
 });
 
-const NOT_SAVED: readonly (readonly string[])[] = [['chat'], ['home', 'postDescription'], ['createPost']];
+const NOT_SAVED: readonly (readonly string[])[] = [['chat'], ['createPost']];
 
 export function shouldSaveQuery(query: Pick<Query, 'queryKey' | 'state'>): boolean {
   if (query.state.status !== 'success') return false;
