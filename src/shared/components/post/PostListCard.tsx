@@ -66,6 +66,11 @@ export type PostListCardProps = {
   price?: PostListCardPrice | null;
   /** When it starts, as the API sends it; null for a post with no date. */
   startAt: string | null;
+  /**
+   * When, in the caller's words, in place of the start's day and time: a trip
+   * over several days ("18–20 Oct"), or one that repeats ("6:00 PM · Weekly").
+   */
+  when?: { day: string; time: string | null } | null;
   /** The place's name; and the city around it ("Lagos, Nigeria"), of which the first part is written under. */
   placeName: string | null;
   localityLabel: string | null;
@@ -108,6 +113,7 @@ function PostListCardComponent({
   title,
   price = null,
   startAt,
+  when = null,
   placeName,
   localityLabel,
   onPress,
@@ -136,8 +142,8 @@ function PostListCardComponent({
     onPressOut: () => pressed.set(withTiming(0, { duration: 160 })),
   };
 
-  const day = formatCardDay(startAt);
-  const time = formatClock(startAt);
+  const day = when ? when.day : formatCardDay(startAt);
+  const time = when ? when.time : formatClock(startAt);
   // The place, and the city under it: the first part of "Lagos, Nigeria". Not when the place
   // is the city itself (a post with no venue named).
   const city = localityLabel?.split(',')[0]?.trim() || null;

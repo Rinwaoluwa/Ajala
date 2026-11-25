@@ -1,30 +1,21 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { memo, useCallback, useMemo } from 'react';
-import { TouchableOpacity, View, useWindowDimensions } from 'react-native';
-import Animated, {
-  Easing,
-  FadeIn,
-  useAnimatedStyle,
-  useReducedMotion,
-  useSharedValue,
-  withSequence,
-  withTiming,
-} from 'react-native-reanimated';
+import { View, useWindowDimensions } from 'react-native';
+import Animated, { FadeIn } from 'react-native-reanimated';
 
 import {
   CardPhotos,
   JoinPill,
   PopoverMenu,
+  PostCardActions,
   PostListCard,
-  RollingCount,
   Text,
   TextLink,
-  VectorIcon,
   type JoinPillLabels,
   type MediaFrame,
   type PopoverAction,
+  type PostCardActionsLabels,
 } from '@shared/components';
-import { useSavePost } from '@shared/hooks/useSavePost';
 import { useTheme } from '@shared/hooks/useTheme';
 import { SCREEN_GUTTER } from '@shared/theme';
 
@@ -44,10 +35,10 @@ import { homeCopy } from '../copy';
  *   - **When and where, and Join** at the end of their line: the quick RSVP
  *     every card has (`JoinPill`). It fills at once, says Going / Requested /
  *     Waitlisted after, and asks before leaving.
- *   - **Comment and Save** under a hairline. Comment opens the post at its
- *     comments and carries their number once there are any (the real one, read
- *     from the comments endpoint: cards don't carry it, request B11). Save is
- *     the bookmark (`useSavePost`).
+ *   - **Comment and Save** under a hairline (`PostCardActions`). Comment opens
+ *     the post at its comments and carries their number once there are any
+ *     (the real one, read from the comments endpoint: cards don't carry it,
+ *     request B11). Save is the bookmark.
  *   - **⋯** at the top right, level with the tag: hide the post, copy its
  *     link, report it. The design draws no menu; these have nowhere else to
  *     live, so it is kept, small.
@@ -152,7 +143,15 @@ function FeedPostComponent({
           labels={JOIN_LABELS}
         />
       }
-      footer={<PostActions post={post} commentCount={commentCount} onOpenComments={onOpenComments} />}
+      footer={
+        <PostCardActions
+          postId={post.id}
+          saved={post.saved}
+          commentCount={commentCount}
+          onOpenComments={() => onOpenComments(post)}
+          labels={ACTION_LABELS}
+        />
+      }
     />
   );
 }
@@ -174,75 +173,13 @@ const JOIN_LABELS: JoinPillLabels = {
   leave: homeCopy.post.leave,
 };
 
-/** A mark that answers its tap: up to 120% and back as it fills. Still with Reduce Motion. */
-function usePop() {
-  const reduceMotion = useReducedMotion();
-  const scale = useSharedValue(1);
-  const style = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
-  const pop = () => {
-    if (reduceMotion) return;
-    scale.set(
-      withSequence(
-        withTiming(1.2, { duration: 110, easing: Easing.out(Easing.quad) }),
-        withTiming(1, { duration: 160, easing: Easing.inOut(Easing.quad) }),
-      ),
-    );
-  };
-  return { style, pop };
-}
-
-/** The card's foot: Comment on the left, the bookmark on the right, as the design lays them out. */
-function PostActions({
-  post,
-  commentCount,
-  onOpenComments,
-}: {
-  post: PostCard;
-  commentCount: number | null;
-  onOpenComments: (post: PostCard) => void;
-}) {
-  const theme = useTheme();
-  const copy = homeCopy.post;
-  const { saved, toggle } = useSavePost(post.id, post.saved);
-  const mark = usePop();
-
-  return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', minHeight: 48 }}>
-      <TouchableOpacity
-        activeOpacity={0.6}
-        onPress={() => onOpenComments(post)}
-        hitSlop={8}
-        accessibilityRole="button"
-        accessibilityLabel={commentCount ? copy.comments(commentCount) : copy.commentLabel}
-        style={{ minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 10 }}
-      >
-        <VectorIcon name="comment" size={20} color={theme.foreground} />
-        <Text variant="labelSm">{copy.commentLabel}</Text>
-        {/* No "0", as the design shows none; in place once known, so a first comment rolls in. */}
-        {commentCount !== null ? (
-          <RollingCount value={commentCount} hideZero variant="labelSm" color={theme.muted} />
-        ) : null}
-      </TouchableOpacity>
-      <View style={{ flex: 1 }} />
-      <TouchableOpacity
-        activeOpacity={0.6}
-        onPress={() => {
-          mark.pop();
-          toggle();
-        }}
-        hitSlop={8}
-        accessibilityRole="button"
-        accessibilityLabel={saved ? copy.saved : copy.save}
-        accessibilityState={{ selected: saved }}
-        style={{ minHeight: 44, minWidth: 44, alignItems: 'flex-end', justifyContent: 'center' }}
-      >
-        <Animated.View style={mark.style}>
-          <VectorIcon name="bookmark" size={20} color={saved ? theme.primary : theme.foreground} filled={saved} />
-        </Animated.View>
-      </TouchableOpacity>
-    </View>
-  );
-}
+/** The card's foot, in the feed's words. */
+const ACTION_LABELS: PostCardActionsLabels = {
+  comment: homeCopy.post.commentLabel,
+  comments: homeCopy.post.comments,
+  save: homeCopy.post.save,
+  saved: homeCopy.post.saved,
+};
 
 /**
  * What a post hidden a moment ago leaves in its place: one line and Undo, in a

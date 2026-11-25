@@ -76,6 +76,7 @@ export { ListGroup, ListRow, type ListRowProps } from './list/ListGroup';
 export { UnderlineTabs, SegmentedControl } from './navigation/Tabs';
 export { PostCard, type PostCardModel } from './post/PostCard';
 export { JoinPill, type JoinPillLabels, type JoinPillProps } from './post/JoinPill';
+export { PostCardActions, type PostCardActionsLabels, type PostCardActionsProps } from './post/PostCardActions';
 export { PostListCard, PostListCardSkeleton, type PostListCardProps } from './post/PostListCard';
 export { formatCardDate, formatCardDay, formatCardTime, formatClock, formatDistance } from './post/formatPost';
 export { SwirlPattern, type SwirlPatternProps } from './brand/SwirlPattern';

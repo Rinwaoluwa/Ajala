@@ -9,7 +9,7 @@ place a feature may import from besides `@core`.
 | `components/layout` | screen scaffolding | Screen, AppHeader, TabBar, SafeArea |
 | `components/feedback` | states and messaging | EmptyState, ErrorState, Toast, StaleDataBanner |
 | `components/media` | images and upload | ImageCarousel, Lightbox, ImagePickerGrid |
-| `components/post` | the post card every surface renders | PostCard, PrimaryActionButton, JoinedCountChip, PostTypeBadge, CapacityIndicator, PriceTag |
+| `components/post` | the post card every list renders, and its parts | PostListCard, JoinPill, PostCardActions |
 | `components/form` | inputs and validation display | TextField, DateTimeField, LocationField, CharCounter |
 | `hooks` | cross-feature React hooks | useDebounce, useAppState, useConnectivity |
 | `state` | **global data** — one store per concern | session, activeCity (travel), subscription, connectivity, feature flags |

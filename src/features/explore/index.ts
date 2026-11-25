@@ -9,3 +9,5 @@ export { ReportPostFlow } from './presentation/components/ReportPostFlow';
 /** "Before you RSVP", for anywhere else that joins a post in one tap (the feed's cards). */
 export { RsvpNoticeDialog } from './presentation/components/RsvpNoticeDialog';
 export { useRsvpNotice } from './presentation/hooks/useRsvpNotice';
+/** The same notice as a question a Join button asks and waits on, with the dialog's props. */
+export { useRsvpGate } from './presentation/hooks/useRsvpGate';

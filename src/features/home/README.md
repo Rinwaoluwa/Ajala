@@ -41,7 +41,8 @@ Whether someone may teleport comes from `useSubscription` (`@features/payment`, 
 ## Not on the card
 
 There is no shared cost anywhere (backend answers C1): a card shows the price or nothing. The
-feed's card draws no price yet; the `PostCard` entity carries it (`price`) for when it does.
+feed's card writes the price under the title (`PostListCard`, 24 Nov); the `PostCard` entity carries it
+(`price`, in the currency's smallest unit with its exponent).
 
 ## Boundary rules
 

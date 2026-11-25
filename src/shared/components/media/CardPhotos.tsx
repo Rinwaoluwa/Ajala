@@ -43,6 +43,8 @@ const Pages = Animated.createAnimatedComponent(GestureScrollView);
  *
  * It has no corners of its own: the card it heads clips it.
  *
+ * `blurred` shows the photos only as a hint (a post locked to its reader).
+ *
  * Tapping a photo hands back which one and where it is on screen (`onOpen`),
  * so the viewer can grow it from its place (`PhotoViewer`).
  */
@@ -70,6 +72,8 @@ export type CardPhotosProps = {
   onOpen: (index: number, from: MediaFrame) => void;
   /** Said for each photo: "Sunset walk, photo 2 of 3". */
   label?: string;
+  /** Only a hint of each photo: a post the reader may not open. */
+  blurred?: boolean;
 };
 
 /** Width ÷ height. A card in outline draws its head the same shape (`PostListCardSkeleton`). */
@@ -77,7 +81,7 @@ export const CARD_PHOTOS_ASPECT = 16 / 9;
 const DOT = 7;
 const DOT_GAP = 7;
 
-function CardPhotosComponent({ images, width: hint, onOpen, label }: CardPhotosProps) {
+function CardPhotosComponent({ images, width: hint, onOpen, label, blurred = false }: CardPhotosProps) {
   const theme = useTheme();
   const count = images.length;
   const [measured, setMeasured] = useState<number | null>(null);
@@ -109,7 +113,15 @@ function CardPhotosComponent({ images, width: hint, onOpen, label }: CardPhotosP
   return (
     <View onLayout={onLayout} style={{ aspectRatio: CARD_PHOTOS_ASPECT, overflow: 'hidden', backgroundColor: theme.skeleton }}>
       {count === 1 ? (
-        <Tile uri={images[0]!} index={0} count={1} label={label} onOpen={onOpen} style={{ flex: 1 }} />
+        <Tile
+          uri={images[0]!}
+          index={0}
+          count={1}
+          label={label}
+          onOpen={onOpen}
+          blurred={blurred}
+          style={{ flex: 1 }}
+        />
       ) : width > 0 ? (
         <Pages
           horizontal
@@ -128,6 +140,7 @@ function CardPhotosComponent({ images, width: hint, onOpen, label }: CardPhotosP
               count={count}
               label={label}
               onOpen={onOpen}
+              blurred={blurred}
               style={{ width, height: '100%' }}
             />
           ))}
@@ -204,6 +217,7 @@ function Tile({
   count,
   label,
   onOpen,
+  blurred,
   style,
 }: {
   uri: string;
@@ -211,6 +225,7 @@ function Tile({
   count: number;
   label?: string;
   onOpen: CardPhotosProps['onOpen'];
+  blurred: boolean;
   style: StyleProp<ViewStyle>;
 }) {
   const tile = useRef<View>(null);
@@ -239,6 +254,7 @@ function Tile({
         contentFit="cover"
         transition={200}
         recyclingKey={uri}
+        blurRadius={blurred ? 24 : undefined}
         onLoad={(e) => {
           const { width, height } = e.source;
           if (width > 0 && height > 0) aspect.current = width / height;
