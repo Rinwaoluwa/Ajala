@@ -2,7 +2,6 @@ import { router } from 'expo-router';
 
 import { ExploreScreen, exploreRoutes } from '@features/explore';
 import { homeRoutes } from '@features/home';
-import { profileRoutes } from '@features/profile';
 import { useTabReselects } from '@shared/components';
 
 /**
@@ -18,7 +17,6 @@ export default function ExploreRoute() {
       toStartSignal={toStart}
       onOpenPost={(id, type) => router.push({ pathname: exploreRoutes.post, params: type ? { id, type } : { id } })}
       onTeleport={() => router.push(homeRoutes.travel)}
-      onOpenPerson={(id) => router.push({ pathname: profileRoutes.user, params: { id } })}
     />
   );
 }

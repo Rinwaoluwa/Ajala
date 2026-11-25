@@ -15,7 +15,6 @@ import {
   makeRecordLinkClick,
   makeReportPost,
   makeRsvpNotice,
-  makeSearchPeople,
   makeSearchPlaces,
   makeSearchPosts,
 } from './domain/usecases/ExploreUseCases';
@@ -40,7 +39,6 @@ export function createExploreUseCases(request: ExploreRequest) {
     placeLocation: makePlaceLocation(repo),
     endPlaceSearch: makeEndPlaceSearch(repo),
     searchPosts: makeSearchPosts(repo),
-    searchPeople: makeSearchPeople(repo),
     loadPrices: makeLoadPrices(repo),
     rsvpNotice: makeRsvpNotice(repo),
     /** The list's past searches, kept on this phone. */

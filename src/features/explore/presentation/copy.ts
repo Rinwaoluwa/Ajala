@@ -17,11 +17,7 @@ export const exploreCopy = {
     /** Read out for a result: what choosing it does. */
     showOnMap: 'Show on the map',
     seeAllResults: 'See all results',
-    searchPeople: (words: string) => `Search people for “${words}”`,
     placesHeading: 'Places',
-    peopleHeading: 'People',
-    noPeople: 'No one by that name or @handle',
-    peopleFailed: "Couldn't search for people right now",
     // The first chip over the map: every interest, as the design draws it.
     allInterests: 'All interests',
     filters: 'Filter the map',
@@ -126,13 +122,13 @@ export const exploreCopy = {
   list: {
     title: 'Explore',
     subtitle: 'Find your people. Discover your city.',
-    // Names what it searches, so the first search is a good one.
-    searchPlaceholder: 'Search activities or people',
+    // Names what it searches, so the first search is a good one. Activities only (product, 25 Nov).
+    searchPlaceholder: 'Search activities',
     cancel: 'Cancel',
     clearSearch: 'Clear search',
     // Search needs two characters (spec §2.18).
     searchTooShort: 'Type at least 2 characters to search.',
-    searchHint: 'Search for an activity by what it is, or for a person by name or @handle.',
+    searchHint: 'Search for an activity by what it is.',
     searchFor: (words: string) => `Search for “${words}”`,
     recent: 'Recent searches',
     clearRecent: 'Clear',
@@ -140,17 +136,9 @@ export const exploreCopy = {
     removeRecent: (words: string) => `Remove ${words} from recent searches`,
     browseInterest: 'Interest',
     browseBy: (name: string) => `Browse ${name}`,
-    scopes: { activities: 'Activities', people: 'People' },
     // Search looks within 30 km of where the feed looks (spec §2.18): said, so an empty answer is understood.
     noActivities: (words: string) => `No activities for “${words}”`,
-    noActivitiesBody: 'Search looks within 30 km of you. Try other words, or look for a person instead.',
-    seePeople: 'Search people',
-    noPeople: (words: string) => `No one found for “${words}”`,
-    noPeopleBody: 'Try their first name or @handle, or look for an activity instead.',
-    seeActivities: 'Search activities',
-    peopleFailed: "Couldn't search for people right now.",
-    peopleCapped: 'Showing the first 100. Try a fuller name or the @handle.',
-    openPerson: (name: string) => `Open ${name}'s profile`,
+    noActivitiesBody: 'Search looks within 30 km of you. Try other words.',
     resultsFailed: "Couldn't search right now.",
     resultsCapped: 'Showing the first 100. Add words to narrow it down.',
     showMore: 'Show more',

@@ -60,15 +60,6 @@ export const makeSearchPosts =
 /** Prices for the map's price filter (pins carry none): see `ExploreRepository.getPrices`. */
 export const makeLoadPrices = (repo: ExploreRepository) => (type: PostType | null) => repo.getPrices(type);
 
-/** The list's people search (`GET /search/people?q=`), on the same submitted words as the post search. */
-export const makeSearchPeople =
-  (repo: ExploreRepository) =>
-  async (text: string, cursor: string | null = null) => {
-    const input = readSearch(text);
-    if (input.kind !== 'ready') return { items: [], nextCursor: null };
-    return repo.searchPeople(input.words, cursor, LIST_PAGE_SIZE);
-  };
-
 /** The map's city search, from two characters. */
 export const makeSearchPlaces = (repo: ExploreRepository) => async (query: string, signal?: AbortSignal) => {
   const q = query.trim();

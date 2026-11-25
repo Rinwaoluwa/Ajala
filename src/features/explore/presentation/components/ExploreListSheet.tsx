@@ -3,7 +3,6 @@ import { Keyboard, TouchableOpacity, View, useWindowDimensions } from 'react-nat
 import Animated, { FadeIn } from 'react-native-reanimated';
 
 import {
-  Avatar,
   Button,
   Host,
   NativeIcon,
@@ -14,7 +13,6 @@ import {
   Text,
   TextField,
   TextLink,
-  UnderlineTabs,
   enterRise,
   icons,
   useListEntrance,
@@ -31,7 +29,6 @@ import { useMe } from '../hooks/useMe';
 import { useNearbyMeetups } from '../hooks/useNearbyMeetups';
 import { useRecentSearches } from '../hooks/useRecentSearches';
 import { useRsvpGate } from '../hooks/useRsvpGate';
-import { useSearchPeople } from '../hooks/useSearchPeople';
 import { useSearchPosts } from '../hooks/useSearchPosts';
 import { InterestGrid, columnsFor } from './InterestGrid';
 import { ListedPostCard } from './ListedPostCard';
@@ -55,11 +52,11 @@ import { RsvpNoticeDialog } from './RsvpNoticeDialog';
  *     worked out on the phone: the API searches on submit and has no typeahead
  *     (spec §2.18), so nothing is asked of it per keystroke.
  *   - A search is run from the keyboard's Search key, the "Search for …" row or
- *     a past search. The keyboard goes away and the results take the page, with
- *     Activities and People a tap apart just under the box. People is asked
- *     only once it is opened.
+ *     a past search. The keyboard goes away and the results take the page.
+ *     It finds activities only (product, 25 Nov: the People results that sat
+ *     beside them, a tap apart under the box, are gone).
  *   - Finding nothing is not a dead end: it says where the search looked and
- *     offers the other kind of result and a way back.
+ *     offers a way back.
  *   - Browse By Interest opens out in place ("View all"), where it used to open
  *     a second sheet over this one. The interest chosen is the map's own: the
  *     list and the map behind it always show the same thing.
@@ -76,7 +73,7 @@ import { RsvpNoticeDialog } from './RsvpNoticeDialog';
  * Without one it opens on its browse page (View List).
  *
  * A post is the card it is on Home (`ListedPostCard`): its photos when it has
- * any, the type's tag, the title, the host's words, when and where, and Join.
+ * any, the type's tag, the title, the price, when and where, and Join.
  * Join's "Before you RSVP" notice is drawn here, inside the sheet, so it can
  * open over it.
  *
@@ -86,11 +83,11 @@ import { RsvpNoticeDialog } from './RsvpNoticeDialog';
 
 /**
  * A search handed to the list as it opens (the Search key on the map's field):
- * the words typed there, and which of what they find to show. Two characters
- * or more are searched for at once. Fewer cannot be (spec §2.18): they are put
- * in the box, with the keyboard up, to be carried on with.
+ * the words typed there. Two characters or more are searched for at once.
+ * Fewer cannot be (spec §2.18): they are put in the box, with the keyboard up,
+ * to be carried on with.
  */
-export type ListSearch = { words: string; scope: 'activities' | 'people' };
+export type ListSearch = { words: string };
 
 export function ExploreListSheet({
   isPresented,
@@ -98,7 +95,6 @@ export function ExploreListSheet({
   search = null,
   onDismiss,
   onOpenMeetup,
-  onOpenPerson,
   interestId,
   onInterestChange,
 }: {
@@ -109,7 +105,6 @@ export function ExploreListSheet({
   search?: ListSearch | null;
   onDismiss: () => void;
   onOpenMeetup: (id: string, type: PostType) => void;
-  onOpenPerson: (userId: string) => void;
   /** The interest the map is showing; null is all of them. */
   interestId: string | null;
   onInterestChange: (interestId: string | null) => void;
@@ -121,21 +116,17 @@ export function ExploreListSheet({
       isPresented={isPresented}
       onDismiss={onDismiss}
       onOpenMeetup={onOpenMeetup}
-      onOpenPerson={onOpenPerson}
       interestId={interestId}
       onInterestChange={onInterestChange}
     />
   );
 }
 
-type SearchScope = 'activities' | 'people';
-
 function ListFlow({
   startWith,
   isPresented,
   onDismiss,
   onOpenMeetup,
-  onOpenPerson,
   interestId,
   onInterestChange,
 }: {
@@ -143,7 +134,6 @@ function ListFlow({
   isPresented: boolean;
   onDismiss: () => void;
   onOpenMeetup: (id: string, type: PostType) => void;
-  onOpenPerson: (userId: string) => void;
   interestId: string | null;
   onInterestChange: (interestId: string | null) => void;
 }) {
@@ -153,7 +143,7 @@ function ListFlow({
   const [handed] = useState(() => {
     if (!startWith) return null;
     const read = readSearch(startWith.words);
-    return read.kind === 'ready' ? { words: read.words, scope: startWith.scope } : null;
+    return read.kind === 'ready' ? { words: read.words } : null;
   });
   // Too few to search for (one character): they go in the box to be carried on with.
   const [carried] = useState(() => (startWith && !handed ? startWith.words.trim() : ''));
@@ -169,12 +159,8 @@ function ListFlow({
   // The box keeps its own text and starts with `draft`; it is made anew (a new key) to empty it
   // or to put a past search in it. It also starts with `draft` when the sheet comes back.
   const [fieldKey, setFieldKey] = useState(0);
-  const [scope, setScope] = useState<SearchScope>(handed?.scope ?? 'activities');
-  // Asked only once People is opened; kept after, so switching back and forth is instant.
-  const [peopleAsked, setPeopleAsked] = useState(handed?.scope === 'people');
 
-  const posts = useSearchPosts(isPresented && scope === 'activities' ? words : null);
-  const people = useSearchPeople(isPresented ? words : null, peopleAsked || scope === 'people');
+  const posts = useSearchPosts(isPresented ? words : null);
   const recent = useRecentSearches();
   const interests = useInterests();
   // For the text cards' Join: whose posts are the reader's own, and the notice before a first RSVP.
@@ -188,11 +174,6 @@ function ListFlow({
     // Once, on opening. `addRecent` is a new function each render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  const chooseScope = (next: SearchScope) => {
-    setScope(next);
-    if (next === 'people') setPeopleAsked(true);
-  };
 
   const change = (text: string) => {
     setDraft(text);
@@ -235,49 +216,37 @@ function ListFlow({
   };
 
   const header = (
-    <View style={{ gap: 12 }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-        <View style={{ flex: 1 }}>
-          <TextField
-            key={fieldKey}
-            label={copy.searchPlaceholder}
-            labelHidden
-            filled
-            placeholder={copy.searchPlaceholder}
-            defaultValue={draft}
-            onChangeText={change}
-            onSubmitEditing={() => run(draft)}
-            autoFocus={focusOnOpen}
-            // Search stays open until Cancel: putting the keyboard away (a drag on the
-            // list does) is not leaving it.
-            onFocus={() => {
-              setSearching(true);
-              setFocusOnOpen(false);
-            }}
-            maxLength={SEARCH_MAX}
-            autoCorrect={false}
-            autoCapitalize="none"
-            returnKeyType="search"
-            clearable
-            leading={<NativeIcon source={icons.search} size={16} color={theme.muted} />}
-            testID="explore-search"
-          />
-        </View>
-        {searching ? (
-          <Animated.View entering={FadeIn.duration(160)}>
-            <TextLink label={copy.cancel} onPress={leaveSearch} emphasis="plain" testID="explore-search-cancel" />
-          </Animated.View>
-        ) : null}
-      </View>
-      {words !== null ? (
-        <UnderlineTabs
-          options={[
-            { value: 'activities' as const, label: copy.scopes.activities },
-            { value: 'people' as const, label: copy.scopes.people },
-          ]}
-          value={scope}
-          onChange={chooseScope}
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+      <View style={{ flex: 1 }}>
+        <TextField
+          key={fieldKey}
+          label={copy.searchPlaceholder}
+          labelHidden
+          filled
+          placeholder={copy.searchPlaceholder}
+          defaultValue={draft}
+          onChangeText={change}
+          onSubmitEditing={() => run(draft)}
+          autoFocus={focusOnOpen}
+          // Search stays open until Cancel: putting the keyboard away (a drag on the
+          // list does) is not leaving it.
+          onFocus={() => {
+            setSearching(true);
+            setFocusOnOpen(false);
+          }}
+          maxLength={SEARCH_MAX}
+          autoCorrect={false}
+          autoCapitalize="none"
+          returnKeyType="search"
+          clearable
+          leading={<NativeIcon source={icons.search} size={16} color={theme.muted} />}
+          testID="explore-search"
         />
+      </View>
+      {searching ? (
+        <Animated.View entering={FadeIn.duration(160)}>
+          <TextLink label={copy.cancel} onPress={leaveSearch} emphasis="plain" testID="explore-search-cancel" />
+        </Animated.View>
       ) : null}
     </View>
   );
@@ -290,7 +259,7 @@ function ListFlow({
       header={header}
       fill
       // Each of these is a page of its own, read from its top.
-      page={!searching ? 'browse' : words === null ? 'suggest' : `${scope}:${words}`}
+      page={!searching ? 'browse' : words === null ? 'suggest' : `results:${words}`}
     >
       <View style={{ paddingBottom: 24 }}>
         {!searching ? (
@@ -311,22 +280,13 @@ function ListFlow({
             onRunAgain={runAgain}
             onBrowse={browseBy}
           />
-        ) : scope === 'activities' ? (
+        ) : (
           <Results
             words={words}
             search={posts}
             myId={myId}
             onBeforeRsvp={gate.beforeRsvp}
             onOpen={onOpenMeetup}
-            onSeePeople={() => chooseScope('people')}
-            onClear={leaveSearch}
-          />
-        ) : (
-          <PeopleResults
-            words={words}
-            people={people}
-            onOpen={onOpenPerson}
-            onSeeActivities={() => chooseScope('activities')}
             onClear={leaveSearch}
           />
         )}
@@ -538,20 +498,8 @@ function Suggestions({
   );
 }
 
-/** Nothing found: where the search looked, and what to try next. Never a dead end. */
-function NothingFound({
-  title,
-  body,
-  other,
-  onOther,
-  onClear,
-}: {
-  title: string;
-  body: string;
-  other: string;
-  onOther: () => void;
-  onClear: () => void;
-}) {
+/** Nothing found: where the search looked, and a way back. Never a dead end. */
+function NothingFound({ title, body, onClear }: { title: string; body: string; onClear: () => void }) {
   return (
     <Animated.View entering={FadeIn.duration(180)} style={{ paddingVertical: 28, alignItems: 'center', gap: 8 }}>
       <Text variant="headingSm" className="text-center" accessibilityRole="header" accessibilityLiveRegion="polite">
@@ -560,9 +508,7 @@ function NothingFound({
       <Text variant="bodySm" tone="muted" className="text-center">
         {body}
       </Text>
-      {/* Side by side when they fit, stacked at large text or on a narrow phone. */}
-      <View style={{ marginTop: 12, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 12 }}>
-        <Button label={other} size="sm" onPress={onOther} />
+      <View style={{ marginTop: 12 }}>
         <Button label={exploreCopy.list.clearSearch} size="sm" variant="secondary" onPress={onClear} />
       </View>
     </Animated.View>
@@ -576,7 +522,6 @@ function Results({
   myId,
   onBeforeRsvp,
   onOpen,
-  onSeePeople,
   onClear,
 }: {
   words: string;
@@ -584,7 +529,6 @@ function Results({
   myId: string | null;
   onBeforeRsvp: () => Promise<boolean>;
   onOpen: (id: string, type: PostType) => void;
-  onSeePeople: () => void;
   onClear: () => void;
 }) {
   const copy = exploreCopy.list;
@@ -608,13 +552,7 @@ function Results({
   }
   if (search.items.length === 0) {
     return (
-      <NothingFound
-        title={copy.noActivities(words)}
-        body={copy.noActivitiesBody}
-        other={copy.seePeople}
-        onOther={onSeePeople}
-        onClear={onClear}
-      />
+      <NothingFound title={copy.noActivities(words)} body={copy.noActivitiesBody} onClear={onClear} />
     );
   }
   return (
@@ -638,92 +576,6 @@ function Results({
       {search.capped ? (
         <Text variant="bodySm" tone="muted" className="text-center">
           {copy.resultsCapped}
-        </Text>
-      ) : null}
-    </Animated.View>
-  );
-}
-
-/** People found: photo, name, then @handle and where they're based; a tap opens their profile. */
-function PeopleResults({
-  words,
-  people,
-  onOpen,
-  onSeeActivities,
-  onClear,
-}: {
-  words: string;
-  people: ReturnType<typeof useSearchPeople>;
-  onOpen: (userId: string) => void;
-  onSeeActivities: () => void;
-  onClear: () => void;
-}) {
-  const theme = useTheme();
-  const copy = exploreCopy.list;
-  if (people.loading) {
-    return (
-      <SkeletonPulse>
-        <View style={{ gap: 16 }}>
-          {[0, 1, 2, 3].map((i) => (
-            <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-              <SkeletonBlock width={44} height={44} radius={22} />
-              <View style={{ flex: 1, gap: 6 }}>
-                <SkeletonBlock width="50%" height={14} />
-                <SkeletonBlock width="70%" height={10} />
-              </View>
-            </View>
-          ))}
-        </View>
-      </SkeletonPulse>
-    );
-  }
-  if (people.error) return <Inline message={copy.peopleFailed} onRetry={people.retry} />;
-  if (people.items.length === 0) {
-    return (
-      <NothingFound
-        title={copy.noPeople(words)}
-        body={copy.noPeopleBody}
-        other={copy.seeActivities}
-        onOther={onSeeActivities}
-        onClear={onClear}
-      />
-    );
-  }
-  return (
-    <Animated.View entering={FadeIn.duration(180)}>
-      {people.items.map((person, index) => {
-        const detail = [person.handle ? `@${person.handle}` : null, person.place].filter(Boolean).join(' · ');
-        return (
-          <Row
-            key={person.id}
-            first={index === 0}
-            glyph={<Avatar name={person.displayName} uri={person.avatarUrl} size={28} />}
-            title={person.displayName}
-            detail={detail || undefined}
-            accessibilityLabel={copy.openPerson(person.displayName)}
-            onPress={() => onOpen(person.id)}
-            trailing={
-              <Host matchContents pointerEvents="none" ignoreSafeArea="all">
-                <NativeIcon source={icons.chevronRight} size={14} color={theme.muted} />
-              </Host>
-            }
-          />
-        );
-      })}
-      {people.hasMore ? (
-        <View style={{ alignSelf: 'center', marginTop: 12 }}>
-          <Button
-            label={copy.showMore}
-            size="sm"
-            variant="secondary"
-            loading={people.loadingMore}
-            onPress={people.loadMore}
-          />
-        </View>
-      ) : null}
-      {people.capped ? (
-        <Text variant="bodySm" tone="muted" className="mt-8 text-center">
-          {copy.peopleCapped}
         </Text>
       ) : null}
     </Animated.View>

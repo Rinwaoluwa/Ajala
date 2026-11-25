@@ -2,7 +2,6 @@ import { isApiError } from '@core/api/ApiError';
 import { isPlacesError, type PlaceSuggestion } from '@core/places';
 
 import type {
-  FoundPerson,
   Interest,
   ListedPost,
   MapPin,
@@ -19,8 +18,6 @@ import type {
   InterestDto,
   MapPinsDto,
   MeIdDto,
-  PeoplePageDto,
-  PersonCardDto,
   PostCardDto,
   PostDetailDto,
   PostSearchPageDto,
@@ -140,10 +137,10 @@ const toListedPost = (dto: PostCardDto): ListedPost => ({
   lng: dto.lng ?? null,
   goingCount: dto.goingCount ?? 0,
   distanceKm: dto.distanceKm ?? null,
-  price: toPrice(dto),
   rsvpState: dto.rsvpState ?? 'none',
   visibility: dto.visibility ?? 'open',
   hostId: dto.host?.id ?? '',
+  price: toPrice(dto),
 });
 
 /** A page of `GET /feed` or `GET /search/posts`: the same cards either way. */
@@ -207,20 +204,6 @@ export function toExploreError(e: unknown, context: 'report' | 'other' = 'other'
   const code = (e as { code?: unknown } | null)?.code;
   return new ExploreError(code === 'sessionExpired' ? 'sessionExpired' : 'unknown');
 }
-
-export const toFoundPerson = (dto: PersonCardDto): FoundPerson => ({
-  id: dto.id,
-  handle: dto.handle ?? null,
-  displayName: dto.displayName,
-  avatarUrl: dto.avatarUrl ?? null,
-  verified: !!dto.verified,
-  place: dto.homePlace?.label ?? null,
-});
-
-export const toPeoplePage = (dto: PeoplePageDto) => ({
-  items: (dto.items ?? []).map(toFoundPerson),
-  nextCursor: dto.nextCursor ?? null,
-});
 
 /** A post's price, or null when free. A Plan carries no money (the API refuses it), so it is always free. */
 export function toPrice(dto: Pick<PostCardDto, 'type' | 'price'>): PostPrice | null {

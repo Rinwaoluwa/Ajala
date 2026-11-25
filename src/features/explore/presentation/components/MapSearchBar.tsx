@@ -4,7 +4,6 @@ import { ScrollView, TouchableOpacity, View, useWindowDimensions } from 'react-n
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 
 import {
-  Avatar,
   Host,
   GlassSurface,
   NativeIcon,
@@ -22,12 +21,11 @@ import { useTheme } from '@shared/hooks/useTheme';
 import { SCREEN_GUTTER } from '@shared/theme';
 import { useTypeColors } from '@shared/theme/postTypeColors';
 
-import type { FoundPerson, ListedPost, PlaceLocation, PlaceResult } from '../../domain/entities/Explore';
+import type { ListedPost, PlaceLocation, PlaceResult } from '../../domain/entities/Explore';
 import { SEARCH_MAX, SEARCH_MIN } from '../../domain/rules/exploreRules';
 import { exploreCopy, exploreErrorMessages, typeEmoji, typeLabels } from '../copy';
 import { formatWeekdayTime } from '../format';
 import { usePlaceSearch } from '../hooks/usePlaceSearch';
-import { useSearchPeople } from '../hooks/useSearchPeople';
 import { useSearchPosts } from '../hooks/useSearchPosts';
 import { MapButton } from './MapButton';
 
@@ -58,22 +56,22 @@ import { MapButton } from './MapButton';
  *     then what kind it is, when and where.
  *   - Choosing one showed it on the map (`onShowPost`). "See all results"
  *     handed the search to the list, as the Search key does. Nothing found
- *     said how far search looks and offered the people search.
+ *     said how far search looks.
  *   - The card was there while the field was being typed in; a touch anywhere
  *     else put the keyboard away and the card with it.
  *   - It asked as the person typed (backend request B17): only after a pause,
  *     never per letter.
- *   - Cities and people could be listed in the same card (`SUGGESTIONS_ENABLED`).
+ *   - Cities could be listed in the same card (`SUGGESTIONS_ENABLED`). People
+ *     could too, until the people search left Explore (product, 25 Nov).
  *
  * While it is off none of that runs: the searches are given nothing to look
  * for, so nothing is asked of the server or of Google. Set `RESULTS_HERE` to
  * true to bring the card back.
  */
 const RESULTS_HERE = false;
-/** With `RESULTS_HERE`: cities (moving the map to the one chosen) and people, under the activities. */
+/** With `RESULTS_HERE`: cities (moving the map to the one chosen), under the activities. */
 const SUGGESTIONS_ENABLED = false;
 const ACTIVITIES_SHOWN = 5;
-const PEOPLE_SHOWN = 5;
 const PAUSE_MS = 350;
 const THUMB = 40;
 
@@ -81,7 +79,6 @@ export function MapSearchBar({
   onShowPost,
   onSeeAll,
   onChoose,
-  onOpenPerson,
   onOpenFilters,
   filtersActive,
   children,
@@ -90,10 +87,9 @@ export function MapSearchBar({
   children?: ReactNode;
   /** With `RESULTS_HERE`, an activity chosen from the results: show it on the map. */
   onShowPost: (post: ListedPost) => void;
-  /** The search run (the Search key): open the Explore list on these words, its activities or its people. */
-  onSeeAll: (words: string, scope: 'activities' | 'people') => void;
+  /** The search run (the Search key): open the Explore list on these words. */
+  onSeeAll: (words: string) => void;
   onChoose: (location: PlaceLocation) => void;
-  onOpenPerson: (userId: string) => void;
   onOpenFilters: () => void;
   filtersActive: boolean;
 }) {
@@ -115,10 +111,8 @@ export function MapSearchBar({
   const activities = found.items.slice(0, ACTIVITIES_SHOWN);
   const more = found.items.length > ACTIVITIES_SHOWN || found.hasMore;
 
-  // Off: both hooks are given nothing to look for, so neither asks anything.
+  // Off: the hook is given nothing to look for, so it asks nothing.
   const search = usePlaceSearch(RESULTS_HERE && SUGGESTIONS_ENABLED ? text : '');
-  const people = useSearchPeople(RESULTS_HERE && SUGGESTIONS_ENABLED && ready ? words : null, true);
-  const peopleShown = people.items.slice(0, PEOPLE_SHOWN);
   const placesFailed = search.failed || search.locateFailed;
 
   /** The keyboard away and the results with it; the words stay in the field. */
@@ -139,11 +133,11 @@ export function MapSearchBar({
    * The search goes to the Explore list, which opens on what `forWords` find. (One character
    * goes too: the list puts it in its box and asks for more.) Nothing typed, nothing to hand over.
    */
-  const seeAll = (forWords: string, scope: 'activities' | 'people') => {
+  const seeAll = (forWords: string) => {
     if (!forWords) return;
     // The search carries on in the list: this field starts clean when it is come back to.
     clear();
-    onSeeAll(forWords, scope);
+    onSeeAll(forWords);
   };
   const choosePlace = async (place: PlaceResult) => {
     if (search.locating) return;
@@ -151,10 +145,6 @@ export function MapSearchBar({
     if (!location) return;
     clear();
     onChoose(location);
-  };
-  const openPerson = (person: FoundPerson) => {
-    clear();
-    onOpenPerson(person.id);
   };
 
   const busy = (ready && found.loading) || search.searching || search.locating;
@@ -187,7 +177,7 @@ export function MapSearchBar({
             autoCorrect={false}
             returnKeyType="search"
             // The Search key: the list opens on the words and what they find.
-            onSubmitEditing={() => seeAll(text.trim(), 'activities')}
+            onSubmitEditing={() => seeAll(text.trim())}
             clearable
             leading={<NativeIcon source={icons.search} size={16} color={theme.muted} />}
             trailing={busy ? <NativeSpinner size={14} color={theme.muted} /> : undefined}
@@ -243,17 +233,13 @@ export function MapSearchBar({
                   <TextLink label={copy.retrySearch} onPress={found.retry} emphasis="plain" />
                 </View>
               ) : activities.length === 0 ? (
-                <>
-                  <Note text={copy.noActivities(words)} live />
-                  {/* Not a dead end: the same words may be someone's name. */}
-                  <LinkRow label={copy.searchPeople(words)} onPress={() => seeAll(words, 'people')} />
-                </>
+                <Note text={copy.noActivities(words)} live />
               ) : (
                 <>
                   {activities.map((post) => (
                     <ActivityRow key={post.id} post={post} onPress={() => show(post)} />
                   ))}
-                  {more ? <LinkRow label={copy.seeAllResults} onPress={() => seeAll(words, 'activities')} /> : null}
+                  {more ? <LinkRow label={copy.seeAllResults} onPress={() => seeAll(words)} /> : null}
                 </>
               )}
 
@@ -288,38 +274,6 @@ export function MapSearchBar({
                     ))
                   )}
 
-                  <Divider />
-                  <SectionHeading label={copy.peopleHeading} />
-                  {people.loading ? (
-                    <Busy />
-                  ) : people.error ? (
-                    <Note text={copy.peopleFailed} live />
-                  ) : peopleShown.length === 0 ? (
-                    <Note text={copy.noPeople} />
-                  ) : (
-                    peopleShown.map((person) => (
-                      <TouchableOpacity
-                        activeOpacity={0.6}
-                        key={person.id}
-                        onPress={() => openPerson(person)}
-                        accessibilityRole="button"
-                        accessibilityLabel={exploreCopy.list.openPerson(person.displayName)}
-                        style={ROW}
-                      >
-                        <Avatar name={person.displayName} uri={person.avatarUrl} size={28} />
-                        <View style={{ flex: 1 }}>
-                          <Text variant="bodySm" numberOfLines={1}>
-                            {person.displayName}
-                          </Text>
-                          {person.handle ? (
-                            <Text variant="bodyXs" tone="muted" numberOfLines={1}>
-                              {`@${person.handle}`}
-                            </Text>
-                          ) : null}
-                        </View>
-                      </TouchableOpacity>
-                    ))
-                  )}
                 </>
               ) : null}
             </ScrollView>
@@ -397,7 +351,7 @@ function ActivityRow({ post, onPress }: { post: ListedPost; onPress: () => void 
   );
 }
 
-/** A row that leads on from the results: "See all results", "Search people for …". */
+/** A row that leads on from the results: "See all results". */
 function LinkRow({ label, onPress }: { label: string; onPress: () => void }) {
   return (
     <View style={[ROW, { minHeight: 40 }]}>

@@ -3,7 +3,6 @@ import type {
   Interest,
   MapPins,
   Me,
-  PeoplePage,
   PlaceLocation,
   PlaceResult,
   PostsPage,
@@ -50,8 +49,6 @@ export interface ExploreRepository {
     cursor: string | null,
     limit: number,
   ): Promise<PostsPage>;
-  /** `GET /search/people`: travellers by first name or handle. Not tied to where the feed looks. */
-  searchPeople(words: string, cursor: string | null, limit: number): Promise<PeoplePage>;
   /** Cities matching what was typed, from the place search on the phone; `signal` cancels an overtaken one. */
   searchPlaces(query: string, signal?: AbortSignal): Promise<PlaceResult[]>;
   /** Where a suggested place is (a Place Details lookup, which ends the search session). */

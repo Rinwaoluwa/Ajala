@@ -10,7 +10,6 @@ import {
   toInterest,
   toMapPins,
   toMe,
-  toPeoplePage,
   toPinsFromSearch,
   toPrices,
   toPlaceResult,
@@ -109,8 +108,6 @@ export function createExploreRepository(
         }
         return toPrices(pages);
       }),
-    searchPeople: (words, cursor, limit) =>
-      guard(async () => toPeoplePage(await api.searchPeople(words, cursor, limit))),
     searchPlaces: (q, signal) => guard(async () => (await searchCities(q, null, signal)).map(toPlaceResult)),
     placeLocation: (placeId, signal) =>
       guard(async () => {

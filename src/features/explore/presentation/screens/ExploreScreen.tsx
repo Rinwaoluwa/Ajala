@@ -102,8 +102,6 @@ export type ExploreScreenProps = {
   onOpenPost: (postId: string, type?: PostType) => void;
   /** Opens Travel (Home's city picker), to look somewhere the map can't reach. */
   onTeleport: () => void;
-  /** Opens a traveller's profile, from the list's people search. */
-  onOpenPerson: (userId: string) => void;
   /** Changes when the Explore tab is tapped while Explore is in front: the map goes back to where the person is. */
   toStartSignal?: number;
 };
@@ -121,7 +119,7 @@ const INTEREST_FLY_MS = 650;
 const originKey = (o: { lat: number; lng: number; source: string }) =>
   `${o.source}:${o.lat.toFixed(3)},${o.lng.toFixed(3)}`;
 
-export function ExploreScreen({ onOpenPost, onTeleport, onOpenPerson, toStartSignal }: ExploreScreenProps) {
+export function ExploreScreen({ onOpenPost, onTeleport, toStartSignal }: ExploreScreenProps) {
   const glass = useLiquidGlass();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
@@ -365,9 +363,8 @@ export function ExploreScreen({ onOpenPost, onTeleport, onOpenPerson, toStartSig
       >
         <MapSearchBar
           onShowPost={showOnMap}
-          onSeeAll={(words, scope) => openList({ words, scope })}
+          onSeeAll={(words) => openList({ words })}
           onChoose={goTo}
-          onOpenPerson={onOpenPerson}
           onOpenFilters={() => setFiltersOpen(true)}
           filtersActive={filtersActive(filters)}
         >
@@ -514,11 +511,6 @@ export function ExploreScreen({ onOpenPost, onTeleport, onOpenPerson, toStartSig
           backToList.current = true;
           setListOpen(false);
           onOpenPost(id, type);
-        }}
-        onOpenPerson={(id) => {
-          backToList.current = true;
-          setListOpen(false);
-          onOpenPerson(id);
         }}
         // The map's own interest: the list and the map behind it show the same thing.
         interestId={interestId}

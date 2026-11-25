@@ -30,8 +30,6 @@ export const exploreKeys = {
   search: (words: string) => ['searchPosts', words, [], 'all'] as const,
   /** Post prices for the map's price filter, from the feed: origin-bound, so under `feed`. */
   prices: (type: PostType | null) => ['feed', 'explore-prices', type ?? 'all'] as const,
-  /** The list's people search. Not origin-bound: who matches a name doesn't depend on where the feed looks. */
-  people: (words: string) => ['explore', 'people', words] as const,
   /** The map's city search on the phone, by what was typed. */
   places: (query: string) => ['explore', 'places', query] as const,
   rsvpNotice: ['explore', 'rsvpNotice'] as const,
