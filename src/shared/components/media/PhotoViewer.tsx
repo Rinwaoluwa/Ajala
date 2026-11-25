@@ -93,7 +93,14 @@ export function PhotoViewer({
 }: PhotoViewerProps) {
   // Opened from a photo's place, the viewer draws its own opening and closing over the
   // screen behind it; otherwise the system's fade does both.
-  const own = origin !== null;
+  //
+  // Which it is holds until the viewer is next opened, not just while `origin` is set. The feed
+  // forgets the photo's place in the same breath as it closes the viewer, and the system keeps
+  // a modal on screen until it has finished leaving: one that followed `origin` turned, on its
+  // way out, into the plain kind (opaque, white, with the system's fade), and the screen
+  // flashed white over the feed a moment after the photo had gone.
+  const [own, setOwn] = useState(origin !== null);
+  if (isPresented && own !== (origin !== null)) setOwn(origin !== null);
   // The window takes a few frames to appear after it is asked for. The opening waits for it
   // (`onShow`): started any sooner, most of the photo's growth had already run unseen, and
   // the first frame on screen was a nearly full-size photo on black.
@@ -148,12 +155,19 @@ function Viewer({
   const closing = useSharedValue(1);
   // The growing photo stays until the pager under it has had a frame to draw.
   const [landed, setLanded] = useState(!grows);
+  // The status bar is white only while the black is behind it: from the moment the opening
+  // begins until the closing does. Tied to the viewer simply being mounted, the clock went
+  // white over a light screen a few frames before the black arrived, and stayed white over
+  // it for most of a second after the photo had gone (the system is slow to say a modal has
+  // left).
+  const [lightBar, setLightBar] = useState(!own);
   // Begun once the window is on screen, or after a short wait should the system never say so:
   // a viewer that never opened would be a black hole in the app. Once only.
   const started = useRef(false);
   const begin = useCallback(() => {
     if (started.current) return;
     started.current = true;
+    setLightBar(true);
     opened.set(
       withTiming(1, { duration: OPEN_MS, easing: Easing.out(Easing.cubic) }, (finished) => {
         if (finished) runOnJS(setLanded)(true);
@@ -171,6 +185,7 @@ function Viewer({
   }, [own, onScreen, begin]);
 
   const close = useCallback(() => {
+    setLightBar(false);
     if (!own) {
       onDismiss();
       return;
@@ -212,7 +227,7 @@ function Viewer({
 
   return (
     <Animated.View style={[{ flex: 1, backgroundColor: own ? 'transparent' : '#000' }, rootStyle]}>
-      <StatusBar barStyle="light-content" />
+      {lightBar ? <StatusBar barStyle="light-content" animated /> : null}
       {own ? (
         <Animated.View
           pointerEvents="none"
